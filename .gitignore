@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.sqlite3
+
+# Django
+/backend/db.sqlite3
+/backend/media/
+/backend/staticfiles/
+
+# Virtualenv
+/backend/venv/
+
+# Node/Next
+/frontend/node_modules/
+/frontend/.next/
+/frontend/out/
+/frontend/build/
+
+# Env files
+.env
+/backend/.env
+.env.local
+/frontend/.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS
+.DS_Store
