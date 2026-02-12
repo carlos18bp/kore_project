@@ -116,7 +116,7 @@ export default function LaMarcaKorePage() {
         </div>
 
         {/* Text — Right */}
-        <div className="flex-1 flex items-center px-8 md:px-12 lg:px-16 py-12 lg:py-0">
+        <div className="flex-1 flex items-center px-8 md:px-12 lg:px-16 pt-24 pb-12 lg:py-0">
           <div className="max-w-xl">
             <span data-hero="badge" className="inline-block text-kore-red text-xs font-medium tracking-[0.25em] uppercase mb-6">
               La Marca
@@ -223,8 +223,8 @@ export default function LaMarcaKorePage() {
 
       {/* ===== SECCIÓN — Flor Interactiva (Esencia) ===== */}
       <section id="esencia" className="relative overflow-hidden">
-        <div className="flex items-center justify-center min-h-screen py-6">
-          <div className="relative w-[90vmin] h-[90vmin]">
+        <div className="flex items-center justify-center md:min-h-screen py-6">
+          <div className="relative w-[85vw] h-[85vw] md:w-[90vmin] md:h-[90vmin]">
             <Image
               src="/images/flower.webp"
               alt="Flor de KÓRE — cinco pilares de la marca"
@@ -247,15 +247,17 @@ export default function LaMarcaKorePage() {
                   <span className="block w-3.5 h-3.5 rounded-full bg-kore-red border-2 border-kore-red shadow-md shadow-kore-red/20" />
                 </div>
 
-                {/* Arrow */}
-                <AnimatedArrow
-                  type={petal.arrow.type}
-                  style={petal.arrow.style}
-                />
+                {/* Arrow — hidden on mobile */}
+                <div className="hidden md:block">
+                  <AnimatedArrow
+                    type={petal.arrow.type}
+                    style={petal.arrow.style}
+                  />
+                </div>
 
-                {/* Card — always visible */}
+                {/* Card — hidden on mobile, always visible on md+ */}
                 <div
-                  className="absolute z-20 w-52 pointer-events-none"
+                  className="hidden md:block absolute z-20 w-52 pointer-events-none"
                   style={petal.card}
                 >
                   <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-kore-gray-light/40">
@@ -270,6 +272,23 @@ export default function LaMarcaKorePage() {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Mobile — 5 meanings listed below flower */}
+        <div className="md:hidden px-6 pb-10 -mt-6 space-y-3">
+          {petals.map((petal) => (
+            <div key={petal.id} className="flex items-start gap-3">
+              <span className="mt-1.5 w-2.5 h-2.5 rounded-full bg-kore-red shrink-0" />
+              <div>
+                <p className="font-heading text-sm font-semibold text-kore-wine-dark uppercase tracking-wide">
+                  {petal.label}
+                </p>
+                <p className="text-xs text-kore-gray-dark/60 leading-relaxed mt-0.5">
+                  {petal.description}
+                </p>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -398,7 +417,7 @@ export default function LaMarcaKorePage() {
             El usuario no solo entrena: aprende a entender su cuerpo. El acompañamiento en KÓRE es cercano y educativo.
           </p>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
             {[
               { label: 'Ajuste progresivo', desc: 'Ejercicios y cargas adaptadas' },
               { label: 'Corrección postural', desc: 'Durante cada ejecución' },

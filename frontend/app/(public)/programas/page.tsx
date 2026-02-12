@@ -91,10 +91,10 @@ export default function ProgramasPage() {
     <main className="bg-kore-cream">
       <section
         ref={heroRef}
-        className="relative min-h-screen flex flex-col lg:flex-row items-stretch overflow-hidden"
+        className="relative lg:min-h-screen flex flex-col lg:flex-row items-stretch overflow-hidden"
       >
         {/* Left — Content + Plans */}
-        <div className="flex-1 flex items-center px-6 md:px-10 lg:px-14 py-24 lg:py-0 z-10 overflow-y-auto">
+        <div className="flex-1 flex items-start lg:items-center px-6 md:px-10 lg:px-14 pt-24 pb-4 lg:py-0 z-10 overflow-y-auto">
           <div className="max-w-xl w-full">
             <span
               data-hero="badge"
@@ -116,7 +116,7 @@ export default function ProgramasPage() {
             </p>
 
             {/* Plans */}
-            <div data-hero="cta" className="space-y-2.5 mb-20 lg:mb-10">
+            <div data-hero="cta" className="space-y-2.5 mb-16 lg:mb-10">
               {current.plans.map((plan, i) => {
                 const isSelected = selectedPlan === i;
                 return (
@@ -214,8 +214,8 @@ export default function ProgramasPage() {
           />
         </div>
 
-        {/* Bottom — Glass Switch */}
-        <div className="absolute bottom-0 left-0 right-0 z-20 flex justify-center pb-6 lg:pb-8">
+        {/* Switch — fixed bottom on mobile, absolute bottom on desktop */}
+        <div className="fixed bottom-0 left-0 right-0 lg:absolute lg:bottom-0 lg:left-0 lg:right-0 z-20 flex justify-center py-3 lg:py-0 lg:pb-8 bg-kore-cream/80 backdrop-blur-md lg:bg-transparent lg:backdrop-blur-none">
           <div className="flex gap-1 p-1.5 rounded-full bg-white/40 backdrop-blur-xl border border-white/50 shadow-lg">
             {programs.map((program, index) => (
               <button

@@ -10,7 +10,7 @@ export default function Hero() {
 
   return (
     <section ref={sectionRef} className="relative min-h-screen bg-kore-cream overflow-hidden">
-      <div className="w-full px-6 md:px-10 lg:px-16 pb-16 flex flex-col lg:flex-row items-center gap-8 lg:gap-4">
+      <div className="w-full px-6 md:px-10 lg:px-16 pt-24 lg:pt-20 pb-16 flex flex-col lg:flex-row items-center gap-8 lg:gap-4">
         {/* Left Content */}
         <div className="flex-1 z-10">
           {/* Badge */}
@@ -56,7 +56,7 @@ export default function Hero() {
           </div>
 
           {/* Stats */}
-          <div data-hero="stats" className="flex gap-12 lg:gap-16">
+          <div data-hero="stats" className="flex gap-8 sm:gap-12 lg:gap-16">
             <div>
               <p className="font-heading text-3xl md:text-4xl font-semibold text-kore-wine-dark">
                 100%
@@ -86,7 +86,7 @@ export default function Hero() {
 
         {/* Right Image */}
         <div className="flex-1 flex justify-center lg:justify-end items-center">
-          <div data-hero="image" className="relative w-[480px] h-[480px] md:w-[700px] md:h-[700px] lg:w-[950px] lg:h-[950px] xl:w-[1100px] xl:h-[1100px]">
+          <div data-hero="image" className="relative w-full max-w-[480px] aspect-square md:max-w-[700px] lg:max-w-[950px] xl:max-w-[1100px]">
             <Image
               src="/images/flower.webp"
               alt="Flor de Kóre - símbolo de armonía y vitalidad"
