@@ -21,7 +21,7 @@ export default function Footer() {
     <footer className="bg-kore-cream overflow-hidden">
       {/* Links row */}
       <div className="w-full px-6 md:px-10 lg:px-16 pt-12">
-        <div className="flex justify-end gap-14 lg:gap-20">
+        <div className="flex flex-col sm:flex-row justify-center sm:justify-end gap-8 sm:gap-14 lg:gap-20">
           <ul className="space-y-2">
             {navLinks.map((link) => (
               <li key={link.href}>

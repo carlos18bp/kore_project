@@ -52,8 +52,8 @@ export default function Process() {
       <div className="w-full px-6 md:px-10 lg:px-16">
         <div className="flex flex-col lg:flex-row gap-16 lg:gap-20 items-center">
           {/* Left - Image */}
-          <div data-animate="fade-left" className="flex-shrink-0">
-            <div className="relative w-[300px] h-[400px] lg:w-[400px] lg:h-[540px] rounded-3xl overflow-hidden">
+          <div data-animate="fade-left" className="flex-shrink-0 w-full lg:w-auto flex justify-center">
+            <div className="relative w-full max-w-[300px] h-[400px] lg:max-w-[400px] lg:h-[540px] rounded-3xl overflow-hidden">
               <Image
                 src="/images/pose/pose-08.webp"
                 alt="Proceso KÓRE - estudio anatómico"
