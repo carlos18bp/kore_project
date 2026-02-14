@@ -1,5 +1,5 @@
 from django import forms
-from django.contrib.auth.forms import ReadOnlyPasswordHashField
+from django.contrib.auth.forms import UserChangeForm as DjangoUserChangeForm
 
 from core_app.models import User
 
@@ -27,9 +27,7 @@ class UserCreationForm(forms.ModelForm):
         return user
 
 
-class UserChangeForm(forms.ModelForm):
-    password = ReadOnlyPasswordHashField(label='Password')
-
+class UserChangeForm(DjangoUserChangeForm):
     class Meta:
         model = User
         fields = (
@@ -45,6 +43,3 @@ class UserChangeForm(forms.ModelForm):
             'groups',
             'user_permissions',
         )
-
-    def clean_password(self):
-        return self.initial['password']

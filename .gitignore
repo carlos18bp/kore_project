@@ -26,5 +26,26 @@ __pycache__/
 .env.test.local
 .env.production.local
 
+# Test & Coverage artifacts
+/frontend/coverage/
+/frontend/coverage-e2e/
+/frontend/monocart-report/
+/frontend/test-results/
+/frontend/playwright-report/
+/frontend/blob-report/
+/frontend/.nyc_output/
+/backend/.pytest_cache/
+/backend/htmlcov/
+/backend/.coverage
+/backend/coverage.xml
+
+# IDE & tooling
+.windsurf/
+.idea/
+.vscode/
+*.swp
+*.swo
+
 # OS
 .DS_Store
+Thumbs.db

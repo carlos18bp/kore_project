@@ -8,9 +8,13 @@ from core_app.views.content_views import FAQItemViewSet, SiteSettingsView
 from core_app.views.notification_views import NotificationViewSet
 from core_app.views.package_views import PackageViewSet
 from core_app.views.payment_views import PaymentViewSet
+from core_app.views.subscription_views import SubscriptionViewSet
+from core_app.views.trainer_profile_views import TrainerProfileViewSet
 
 router = DefaultRouter()
 router.register('packages', PackageViewSet, basename='package')
+router.register('trainers', TrainerProfileViewSet, basename='trainer')
+router.register('subscriptions', SubscriptionViewSet, basename='subscription')
 router.register('availability-slots', AvailabilitySlotViewSet, basename='availability-slot')
 router.register('bookings', BookingViewSet, basename='booking')
 router.register('payments', PaymentViewSet, basename='payment')

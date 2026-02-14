@@ -50,3 +50,31 @@ def test_get_user_profile_success(api_client, existing_user):
 
     assert response.status_code == status.HTTP_200_OK
     assert response.data['user']['email'] == existing_user.email
+
+
+@pytest.mark.django_db
+def test_register_user_password_mismatch(api_client):
+    url = reverse('register-user')
+    response = api_client.post(url, {
+        'email': 'mismatch@example.com',
+        'password': 'password1234',
+        'password_confirm': 'differentpass',
+    }, format='json')
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+def test_login_user_invalid_credentials(api_client, existing_user):
+    url = reverse('login-user')
+    response = api_client.post(url, {
+        'email': existing_user.email,
+        'password': 'wrongpassword',
+    }, format='json')
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+def test_get_user_profile_requires_auth(api_client):
+    url = reverse('get-user-profile')
+    response = api_client.get(url)
+    assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)

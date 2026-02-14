@@ -11,6 +11,8 @@ from core_app.models import (
     Package,
     Payment,
     SiteSettings,
+    Subscription,
+    TrainerProfile,
     User,
 )
 
@@ -69,18 +71,19 @@ class PackageAdmin(admin.ModelAdmin):
 
 @admin.register(AvailabilitySlot)
 class AvailabilitySlotAdmin(admin.ModelAdmin):
-    list_display = ('starts_at', 'ends_at', 'is_active', 'is_blocked')
-    list_filter = ('is_active', 'is_blocked')
+    list_display = ('starts_at', 'ends_at', 'trainer', 'is_active', 'is_blocked')
+    list_filter = ('is_active', 'is_blocked', 'trainer')
     ordering = ('starts_at',)
     search_fields = ('starts_at', 'ends_at')
+    autocomplete_fields = ('trainer',)
 
 
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
-    list_display = ('id', 'customer', 'package', 'slot', 'status', 'created_at')
-    list_filter = ('status',)
+    list_display = ('id', 'customer', 'package', 'slot', 'trainer', 'subscription', 'status', 'created_at')
+    list_filter = ('status', 'trainer')
     search_fields = ('customer__email',)
-    autocomplete_fields = ('customer', 'package', 'slot')
+    autocomplete_fields = ('customer', 'package', 'slot', 'trainer', 'subscription')
 
 
 @admin.register(Payment)
@@ -110,6 +113,21 @@ class FAQItemAdmin(admin.ModelAdmin):
 @admin.register(SiteSettings)
 class SiteSettingsAdmin(admin.ModelAdmin):
     list_display = ('company_name', 'email', 'phone', 'whatsapp')
+
+
+@admin.register(TrainerProfile)
+class TrainerProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'specialty', 'location', 'session_duration_minutes')
+    search_fields = ('user__email', 'user__first_name', 'user__last_name', 'specialty')
+    autocomplete_fields = ('user',)
+
+
+@admin.register(Subscription)
+class SubscriptionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'customer', 'package', 'status', 'sessions_total', 'sessions_used', 'starts_at', 'expires_at')
+    list_filter = ('status',)
+    search_fields = ('customer__email', 'package__title')
+    autocomplete_fields = ('customer', 'package')
 
 
 @admin.register(AnalyticsEvent)

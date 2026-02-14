@@ -6,6 +6,8 @@ from .content_views import FAQItemViewSet, SiteSettingsView
 from .notification_views import NotificationViewSet
 from .package_views import PackageViewSet
 from .payment_views import PaymentViewSet
+from .subscription_views import SubscriptionViewSet
+from .trainer_profile_views import TrainerProfileViewSet
 
 __all__ = [
     'AnalyticsEventViewSet',
@@ -19,4 +21,6 @@ __all__ = [
     'PaymentViewSet',
     'register_user',
     'SiteSettingsView',
+    'SubscriptionViewSet',
+    'TrainerProfileViewSet',
 ]

@@ -15,8 +15,13 @@ class Command(BaseCommand):
 
         parser.add_argument('--skip-content', action='store_true', default=False)
 
+        parser.add_argument('--trainer-password', type=str, default='trainer123456')
+        parser.add_argument('--skip-trainers', action='store_true', default=False)
+
         parser.add_argument('--extra-packages', type=int, default=0)
         parser.add_argument('--skip-packages', action='store_true', default=False)
+
+        parser.add_argument('--skip-subscriptions', action='store_true', default=False)
 
         parser.add_argument('--days', type=int, default=14)
         parser.add_argument('--start-hour', type=int, default=9)
@@ -65,11 +70,27 @@ class Command(BaseCommand):
         else:
             self.stdout.write(self.style.WARNING('Skipped content'))
 
+        if not options['skip_trainers']:
+            call_command(
+                'create_fake_trainers',
+                password=options['trainer_password'],
+                stdout=self.stdout,
+            )
+            executed.append('trainers')
+        else:
+            self.stdout.write(self.style.WARNING('Skipped trainers'))
+
         if not options['skip_packages']:
             call_command('create_fake_packages', extra=options['extra_packages'], stdout=self.stdout)
             executed.append('packages')
         else:
             self.stdout.write(self.style.WARNING('Skipped packages'))
+
+        if not options['skip_subscriptions']:
+            call_command('create_fake_subscriptions', stdout=self.stdout)
+            executed.append('subscriptions')
+        else:
+            self.stdout.write(self.style.WARNING('Skipped subscriptions'))
 
         if not options['skip_slots']:
             call_command(

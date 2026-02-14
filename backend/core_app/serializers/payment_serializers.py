@@ -2,6 +2,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from core_app.models import Booking, Payment
+from core_app.permissions import is_admin_user
 
 
 class PaymentSerializer(serializers.ModelSerializer):
@@ -27,7 +28,7 @@ class PaymentSerializer(serializers.ModelSerializer):
     def validate_booking_id(self, booking):
         request = self.context.get('request')
         user = getattr(request, 'user', None)
-        if user and user.is_authenticated and not (user.is_staff or user.is_superuser or getattr(user, 'role', None) == 'admin'):
+        if user and user.is_authenticated and not is_admin_user(user):
             if booking.customer_id != user.id:
                 raise serializers.ValidationError('You cannot create payments for other users bookings.')
         return booking

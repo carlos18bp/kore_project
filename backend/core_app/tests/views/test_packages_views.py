@@ -3,12 +3,7 @@ from django.urls import reverse
 from rest_framework import status
 
 from core_app.models import Package
-
-
-def _results(data):
-    if isinstance(data, dict) and 'results' in data:
-        return data['results']
-    return data
+from core_app.tests.helpers import get_results
 
 
 @pytest.mark.django_db
@@ -20,7 +15,7 @@ def test_package_list_filters_only_active_for_anonymous(api_client):
     response = api_client.get(url)
 
     assert response.status_code == status.HTTP_200_OK
-    titles = {item['title'] for item in _results(response.data)}
+    titles = {item['title'] for item in get_results(response.data)}
     assert titles == {'Active'}
 
 

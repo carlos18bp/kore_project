@@ -1,0 +1,42 @@
+<h2 style="color:#c8102e; margin-top:0;">Tu sesión ha sido reprogramada</h2>
+
+<p>Hola <strong>{{ customer_name }}</strong>,</p>
+
+<p>Tu sesión de entrenamiento ha sido reprogramada exitosamente. Aquí están los nuevos detalles:</p>
+
+<table role="presentation" cellpadding="8" cellspacing="0" style="width:100%; border-collapse:collapse; margin:16px 0;">
+  <tr style="background-color:#f5f0eb;">
+    <td style="padding:8px 12px; font-weight:bold; width:120px;">Qué</td>
+    <td style="padding:8px 12px;">Entrenamiento KÓRE</td>
+  </tr>
+  <tr>
+    <td style="padding:8px 12px; font-weight:bold;">Nueva fecha</td>
+    <td style="padding:8px 12px;">{{ slot_start|date:"l, d M Y" }} — {{ slot_start|time:"H:i" }} a {{ slot_end|time:"H:i" }}</td>
+  </tr>
+  <tr style="background-color:#f5f0eb;">
+    <td style="padding:8px 12px; font-weight:bold;">Fecha anterior</td>
+    <td style="padding:8px 12px;">{{ old_slot_start|date:"l, d M Y" }} — {{ old_slot_start|time:"H:i" }} a {{ old_slot_end|time:"H:i" }}</td>
+  </tr>
+  <tr>
+    <td style="padding:8px 12px; font-weight:bold;">Entrenador</td>
+    <td style="padding:8px 12px;">{{ trainer_name|default:"Por asignar" }}</td>
+  </tr>
+  <tr style="background-color:#f5f0eb;">
+    <td style="padding:8px 12px; font-weight:bold;">Dónde</td>
+    <td style="padding:8px 12px;">{{ location|default:"Por confirmar" }}</td>
+  </tr>
+  {% if package_title %}
+  <tr>
+    <td style="padding:8px 12px; font-weight:bold;">Programa</td>
+    <td style="padding:8px 12px;">{{ package_title }}</td>
+  </tr>
+  {% endif %}
+</table>
+
+<p>Hemos adjuntado un archivo de calendario (<strong>.ics</strong>) actualizado con la nueva fecha.</p>
+
+<p style="color:#888888; font-size:14px;">
+  Si necesitas cancelar o reprogramar nuevamente, recuerda hacerlo con al menos <strong>24 horas de anticipación</strong>.
+</p>
+
+<p>¡Nos vemos pronto!</p>

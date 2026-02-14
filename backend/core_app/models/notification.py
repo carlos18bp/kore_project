@@ -6,6 +6,9 @@ from core_app.models.base import TimestampedModel
 class Notification(TimestampedModel):
     class Type(models.TextChoices):
         BOOKING_CONFIRMED = 'booking_confirmed', 'Booking confirmed'
+        BOOKING_CANCELED = 'booking_canceled', 'Booking canceled'
+        BOOKING_RESCHEDULED = 'booking_rescheduled', 'Booking rescheduled'
+        BOOKING_REMINDER = 'booking_reminder', 'Booking reminder'
         PAYMENT_CONFIRMED = 'payment_confirmed', 'Payment confirmed'
         RECEIPT_EMAIL = 'receipt_email', 'Receipt email'
 

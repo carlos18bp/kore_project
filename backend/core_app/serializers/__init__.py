@@ -6,6 +6,8 @@ from .content_serializers import FAQItemSerializer, SiteSettingsSerializer
 from .notification_serializers import NotificationSerializer
 from .package_serializers import PackageSerializer
 from .payment_serializers import PaymentSerializer
+from .subscription_serializers import SubscriptionSerializer
+from .trainer_profile_serializers import TrainerProfileSerializer
 
 __all__ = [
     'AnalyticsEventSerializer',
@@ -19,4 +21,6 @@ __all__ = [
     'NotificationSerializer',
     'PackageSerializer',
     'PaymentSerializer',
+    'SubscriptionSerializer',
+    'TrainerProfileSerializer',
 ]

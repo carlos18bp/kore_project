@@ -28,4 +28,5 @@ def admin_user(db):
         first_name='Admin',
         last_name='User',
         role=User.Role.ADMIN,
+        is_staff=True,
     )

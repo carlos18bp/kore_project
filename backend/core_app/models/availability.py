@@ -5,6 +5,27 @@ from core_app.models.base import TimestampedModel
 
 
 class AvailabilitySlot(TimestampedModel):
+    """A bookable time window for a training session.
+
+    Each slot belongs to a trainer and defines a start/end window.
+    Slots can be deactivated or blocked with a reason.
+
+    Attributes:
+        trainer: The trainer who owns this availability slot.
+        starts_at: When the slot begins (UTC).
+        ends_at: When the slot ends (UTC).
+        is_active: Whether the slot is available for booking.
+        is_blocked: Whether the slot has been manually blocked.
+        blocked_reason: Optional explanation when blocked.
+    """
+
+    trainer = models.ForeignKey(
+        'core_app.TrainerProfile',
+        on_delete=models.CASCADE,
+        related_name='availability_slots',
+        null=True,
+        blank=True,
+    )
     starts_at = models.DateTimeField(db_index=True)
     ends_at = models.DateTimeField(db_index=True)
 

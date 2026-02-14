@@ -32,6 +32,7 @@ class UserManager(BaseUserManager):
 class User(AbstractBaseUser, PermissionsMixin):
     class Role(models.TextChoices):
         CUSTOMER = 'customer', 'Customer'
+        TRAINER = 'trainer', 'Trainer'
         ADMIN = 'admin', 'Admin'
 
     email = models.EmailField(unique=True)

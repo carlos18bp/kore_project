@@ -5,12 +5,7 @@ from django.utils import timezone
 from rest_framework import status
 
 from core_app.models import AvailabilitySlot, Booking, Package
-
-
-def _results(data):
-    if isinstance(data, dict) and 'results' in data:
-        return data['results']
-    return data
+from core_app.tests.helpers import get_results
 
 
 @pytest.mark.django_db
@@ -62,7 +57,7 @@ def test_booking_list_returns_only_own_bookings_for_customer(api_client, existin
     response = api_client.get(url)
 
     assert response.status_code == status.HTTP_200_OK
-    assert len(_results(response.data)) == 1
+    assert len(get_results(response.data)) == 1
 
 
 @pytest.mark.django_db
@@ -81,4 +76,4 @@ def test_booking_list_returns_all_for_admin(api_client, existing_user, admin_use
     response = api_client.get(url)
 
     assert response.status_code == status.HTTP_200_OK
-    assert len(_results(response.data)) == 2
+    assert len(get_results(response.data)) == 2

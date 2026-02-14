@@ -12,12 +12,18 @@ from core_app.models import (
     Package,
     Payment,
     SiteSettings,
+    Subscription,
+    TrainerProfile,
     User,
 )
 
 
 class Command(BaseCommand):
-    help = 'Delete fake data for KÓRE (requires --confirm flag)'
+    help = (
+        'Delete ALL data for KÓRE except protected users (requires --confirm flag). '
+        'WARNING: This deletes every record in notifications, payments, bookings, '
+        'slots, analytics, FAQs, packages, and site settings — not just fake data.'
+    )
 
     PROTECTED_EMAILS = {
         'admin@kore.com',
@@ -51,8 +57,10 @@ class Command(BaseCommand):
             deleted_summary.append(f"notifications: {Notification.objects.all().delete()[0]}")
             deleted_summary.append(f"payments: {Payment.objects.all().delete()[0]}")
             deleted_summary.append(f"bookings: {Booking.objects.all().delete()[0]}")
+            deleted_summary.append(f"subscriptions: {Subscription.objects.all().delete()[0]}")
 
             deleted_summary.append(f"availability_slots: {AvailabilitySlot.objects.all().delete()[0]}")
+            deleted_summary.append(f"trainer_profiles: {TrainerProfile.objects.all().delete()[0]}")
 
             deleted_summary.append(f"analytics_events: {AnalyticsEvent.objects.all().delete()[0]}")
             deleted_summary.append(f"faqs: {FAQItem.objects.all().delete()[0]}")

@@ -2,7 +2,7 @@ from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 
 from core_app.models import Payment
-from core_app.permissions import IsAdminRole
+from core_app.permissions import IsAdminRole, is_admin_user
 from core_app.serializers.payment_serializers import PaymentSerializer
 
 
@@ -16,7 +16,6 @@ class PaymentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = Payment.objects.select_related('booking', 'customer', 'booking__package')
-        user = self.request.user
-        if user and user.is_authenticated and (user.is_staff or user.is_superuser or getattr(user, 'role', None) == 'admin'):
+        if is_admin_user(self.request.user):
             return qs
-        return qs.filter(customer=user)
+        return qs.filter(customer=self.request.user)

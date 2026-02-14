@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core_app.models import FAQItem, SiteSettings
-from core_app.permissions import IsAdminOrReadOnly, IsAdminRole
+from core_app.permissions import IsAdminOrReadOnly, is_admin_user
 from core_app.serializers.content_serializers import FAQItemSerializer, SiteSettingsSerializer
 
 
@@ -14,8 +14,7 @@ class FAQItemViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = FAQItem.objects.all()
-        user = self.request.user
-        if user and user.is_authenticated and (user.is_staff or user.is_superuser or getattr(user, 'role', None) == 'admin'):
+        if is_admin_user(self.request.user):
             return qs
         return qs.filter(is_active=True)
 
@@ -28,7 +27,7 @@ class SiteSettingsView(APIView):
         return Response(SiteSettingsSerializer(obj).data, status=status.HTTP_200_OK)
 
     def patch(self, request):
-        if not IsAdminRole().has_permission(request, self):
+        if not is_admin_user(request.user):
             return Response({'detail': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
 
         obj = SiteSettings.load()

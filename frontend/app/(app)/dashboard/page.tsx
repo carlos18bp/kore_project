@@ -3,6 +3,7 @@
 import { useRef } from 'react';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
+import UpcomingSessionReminder from '@/app/components/booking/UpcomingSessionReminder';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
@@ -17,24 +18,16 @@ export default function DashboardPage() {
     );
   }
 
-  const nextSessionDate = new Date(user.nextSession);
-  const formattedDate = nextSessionDate.toLocaleDateString('es-CO', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  });
-  const formattedTime = nextSessionDate.toLocaleTimeString('es-CO', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-
-  const memberDate = new Date(user.memberSince).toLocaleDateString('es-CO', {
-    month: 'long',
-    year: 'numeric',
-  });
+  // TODO: Replace with real data from backend when booking/package endpoints are integrated
+  const sessionsRemaining = 0;
+  const program = 'Sin programa activo';
+  const formattedDate = 'Sin agendar';
+  const formattedTime = '';
+  const memberDate = '—';
 
   return (
     <section ref={sectionRef} className="min-h-screen bg-kore-cream">
+      <UpcomingSessionReminder />
       <div className="w-full px-6 md:px-10 lg:px-16 pt-8 pb-16">
         {/* Top bar */}
         <div data-hero="badge" className="flex items-center justify-between mb-12">
@@ -51,7 +44,7 @@ export default function DashboardPage() {
           {/* Program Card */}
           <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-kore-gray-light/50">
             <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-3">Tu programa</p>
-            <p className="font-heading text-xl font-semibold text-kore-wine-dark">{user.program}</p>
+            <p className="font-heading text-xl font-semibold text-kore-wine-dark">{program}</p>
             <p className="text-sm text-kore-gray-dark/50 mt-1">Miembro desde {memberDate}</p>
           </div>
 
@@ -59,13 +52,13 @@ export default function DashboardPage() {
           <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-kore-gray-light/50">
             <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-3">Sesiones restantes</p>
             <div className="flex items-baseline gap-2">
-              <span className="font-heading text-4xl font-semibold text-kore-red">{user.sessionsRemaining}</span>
+              <span className="font-heading text-4xl font-semibold text-kore-red">{sessionsRemaining}</span>
               <span className="text-sm text-kore-gray-dark/40">de 12</span>
             </div>
             <div className="mt-3 h-2 bg-kore-gray-light/40 rounded-full overflow-hidden">
               <div
                 className="h-full bg-kore-red rounded-full transition-all duration-500"
-                style={{ width: `${(user.sessionsRemaining / 12) * 100}%` }}
+                style={{ width: `${(sessionsRemaining / 12) * 100}%` }}
               />
             </div>
           </div>
@@ -149,11 +142,11 @@ export default function DashboardPage() {
               <div className="space-y-3 pt-4 border-t border-kore-gray-light/30">
                 <div className="flex justify-between text-sm">
                   <span className="text-kore-gray-dark/40">Programa</span>
-                  <span className="text-kore-gray-dark font-medium">{user.program.split(' ')[0]}</span>
+                  <span className="text-kore-gray-dark font-medium">{program.split(' ')[0]}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-kore-gray-dark/40">Sesiones</span>
-                  <span className="text-kore-gray-dark font-medium">{user.sessionsRemaining} restantes</span>
+                  <span className="text-kore-gray-dark font-medium">{sessionsRemaining} restantes</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-kore-gray-dark/40">Miembro desde</span>

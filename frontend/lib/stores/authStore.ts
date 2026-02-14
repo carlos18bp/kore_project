@@ -1,14 +1,16 @@
 import { create } from 'zustand';
 import Cookies from 'js-cookie';
+import { api } from '@/lib/services/http';
+import { AxiosError } from 'axios';
 
 export type User = {
   id: string;
-  name: string;
   email: string;
-  program: string;
-  sessionsRemaining: number;
-  nextSession: string;
-  memberSince: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  role: string;
+  name: string;
 };
 
 type AuthState = {
@@ -20,21 +22,34 @@ type AuthState = {
   hydrate: () => void;
 };
 
-// Simulated user for development
-const MOCK_USER: User = {
-  id: '1',
-  name: 'Usuario Prueba',
-  email: 'prueba@gmail.com',
-  program: 'Personalizado FLW',
-  sessionsRemaining: 8,
-  nextSession: '2026-02-14T10:00:00',
-  memberSince: '2025-11-01',
+type LoginResponse = {
+  user: {
+    id: number;
+    email: string;
+    first_name: string;
+    last_name: string;
+    phone: string;
+    role: string;
+  };
+  tokens: {
+    access: string;
+    refresh: string;
+  };
 };
 
-const MOCK_CREDENTIALS = {
-  email: 'prueba@gmail.com',
-  password: '123',
-};
+function mapUser(raw: LoginResponse['user']): User {
+  const first = raw.first_name || '';
+  const last = raw.last_name || '';
+  return {
+    id: String(raw.id),
+    email: raw.email,
+    first_name: first,
+    last_name: last,
+    phone: raw.phone || '',
+    role: raw.role,
+    name: [first, last].filter(Boolean).join(' ') || raw.email,
+  };
+}
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
@@ -42,22 +57,33 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
 
   login: async (email: string, password: string) => {
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    try {
+      const { data } = await api.post<LoginResponse>('/auth/login/', { email, password });
 
-    if (email === MOCK_CREDENTIALS.email && password === MOCK_CREDENTIALS.password) {
-      const token = 'mock-jwt-token-' + Date.now();
-      Cookies.set('kore_token', token, { expires: 7 });
-      Cookies.set('kore_user', JSON.stringify(MOCK_USER), { expires: 7 });
-      set({ user: MOCK_USER, accessToken: token, isAuthenticated: true });
+      const user = mapUser(data.user);
+      const accessToken = data.tokens.access;
+
+      Cookies.set('kore_token', accessToken, { expires: 7 });
+      Cookies.set('kore_refresh', data.tokens.refresh, { expires: 7 });
+      Cookies.set('kore_user', JSON.stringify(user), { expires: 7 });
+
+      set({ user, accessToken, isAuthenticated: true });
       return { success: true };
+    } catch (err) {
+      const axiosErr = err as AxiosError<Record<string, unknown>>;
+      const detail = axiosErr.response?.data?.non_field_errors
+        ?? axiosErr.response?.data?.detail;
+      const message = Array.isArray(detail) ? detail[0] : detail;
+      return {
+        success: false,
+        error: typeof message === 'string' ? message : 'Correo o contraseña incorrectos',
+      };
     }
-
-    return { success: false, error: 'Correo o contraseña incorrectos' };
   },
 
   logout: () => {
     Cookies.remove('kore_token');
+    Cookies.remove('kore_refresh');
     Cookies.remove('kore_user');
     set({ user: null, accessToken: null, isAuthenticated: false });
   },
@@ -71,6 +97,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({ user, accessToken: token, isAuthenticated: true });
       } catch {
         Cookies.remove('kore_token');
+        Cookies.remove('kore_refresh');
         Cookies.remove('kore_user');
       }
     }

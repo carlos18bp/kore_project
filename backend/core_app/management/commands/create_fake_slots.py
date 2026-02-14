@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from core_app.models import AvailabilitySlot
+from core_app.models import AvailabilitySlot, TrainerProfile
 
 
 class Command(BaseCommand):
@@ -39,6 +39,8 @@ class Command(BaseCommand):
         if now.time() >= time(hour=end_hour):
             start_date = start_date + timedelta(days=1)
 
+        trainer = TrainerProfile.objects.first()
+
         created = 0
         for day_offset in range(days):
             d = start_date + timedelta(days=day_offset)
@@ -60,6 +62,7 @@ class Command(BaseCommand):
                     starts_at=starts_at,
                     ends_at=ends_at,
                     defaults={
+                        'trainer': trainer,
                         'is_active': True,
                         'is_blocked': False,
                         'blocked_reason': '',
