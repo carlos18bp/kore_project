@@ -122,13 +122,13 @@ class BookingViewSet(viewsets.ModelViewSet):
             # Unblock the slot
             slot = AvailabilitySlot.objects.select_for_update().get(pk=booking.slot_id)
             slot.is_blocked = False
-            slot.save(update_fields=['is_blocked'])
+            slot.save(update_fields=['is_blocked', 'updated_at'])
 
             # Restore subscription session
             if booking.subscription_id:
                 sub = Subscription.objects.select_for_update().get(pk=booking.subscription_id)
                 sub.sessions_used = db_models.F('sessions_used') - 1
-                sub.save(update_fields=['sessions_used'])
+                sub.save(update_fields=['sessions_used', 'updated_at'])
 
         booking.refresh_from_db()
         send_booking_cancellation(booking)
@@ -192,7 +192,7 @@ class BookingViewSet(viewsets.ModelViewSet):
             # Unblock old slot
             old_slot = AvailabilitySlot.objects.select_for_update().get(pk=booking.slot_id)
             old_slot.is_blocked = False
-            old_slot.save(update_fields=['is_blocked'])
+            old_slot.save(update_fields=['is_blocked', 'updated_at'])
 
             # Lock and validate new slot
             new_slot = AvailabilitySlot.objects.select_for_update().get(pk=new_slot.pk)
@@ -208,7 +208,7 @@ class BookingViewSet(viewsets.ModelViewSet):
                 )
 
             new_slot.is_blocked = True
-            new_slot.save(update_fields=['is_blocked'])
+            new_slot.save(update_fields=['is_blocked', 'updated_at'])
 
             # Create new booking (subscription stays the same, no session count change)
             new_booking = Booking.objects.create(

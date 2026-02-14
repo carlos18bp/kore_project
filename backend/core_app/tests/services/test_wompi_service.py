@@ -204,3 +204,83 @@ class TestVerifyEventChecksum:
     @override_settings(**WOMPI_SETTINGS)
     def test_malformed_event_returns_false(self):
         assert verify_event_checksum({}) is False
+
+    @override_settings(**WOMPI_SETTINGS)
+    def test_non_dict_nested_value_returns_empty_string(self):
+        """When a property path traverses a non-dict, value becomes '' (lines 218-219)."""
+        timestamp = 9999
+        # 'transaction.id.deep' will hit a non-dict (id is a string)
+        concat = f'{timestamp}{WOMPI_SETTINGS["WOMPI_EVENTS_KEY"]}'
+        checksum = hashlib.sha256(concat.encode('utf-8')).hexdigest()
+        event_body = {
+            'data': {'transaction': {'id': 'abc'}},
+            'signature': {
+                'properties': ['transaction.id.deep'],
+                'checksum': checksum,
+            },
+            'timestamp': timestamp,
+        }
+        # The non-dict branch produces '' so the checksum should still match
+        assert verify_event_checksum(event_body) is True
+
+    @override_settings(**WOMPI_SETTINGS)
+    def test_exception_in_checksum_returns_false(self):
+        """An unexpected exception during verification returns False (lines 230-232)."""
+        # Pass a body where 'signature' causes an unhandled exception
+        assert verify_event_checksum(None) is False
+
+
+class TestGetPublicHeaders:
+    @override_settings(**WOMPI_SETTINGS)
+    def test_returns_public_key_header(self):
+        """Covers _get_public_headers (line 46)."""
+        from core_app.services.wompi_service import _get_public_headers
+        headers = _get_public_headers()
+        assert headers['Authorization'] == f'Bearer {WOMPI_SETTINGS["WOMPI_PUBLIC_KEY"]}'
+        assert headers['Content-Type'] == 'application/json'
+
+
+class TestCreatePaymentSourceErrors:
+    @override_settings(**WOMPI_SETTINGS)
+    @patch('core_app.services.wompi_service.get_acceptance_token', return_value='eyJ_test')
+    @patch('core_app.services.wompi_service.requests.post')
+    def test_non_available_source_logs_warning(self, mock_post, mock_accept):
+        """A source with status != AVAILABLE still returns the ID but logs warning (line 134)."""
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status.return_value = None
+        mock_resp.json.return_value = {
+            'data': {'id': 7777, 'status': 'PENDING', 'type': 'CARD'}
+        }
+        mock_post.return_value = mock_resp
+
+        source_id = create_payment_source('tok_test_456', 'u@e.com')
+        assert source_id == 7777
+
+    @override_settings(**WOMPI_SETTINGS)
+    @patch('core_app.services.wompi_service.get_acceptance_token', return_value='eyJ_test')
+    @patch('core_app.services.wompi_service.requests.post')
+    def test_request_exception_raises_wompi_error(self, mock_post, mock_accept):
+        """RequestException in create_payment_source raises WompiError (lines 137-139)."""
+        import requests as req
+        mock_resp = MagicMock()
+        mock_resp.status_code = 500
+        exc = req.HTTPError('server error', response=mock_resp)
+        mock_post.side_effect = exc
+
+        with pytest.raises(WompiError, match='Failed to create payment source'):
+            create_payment_source('tok_test_789', 'u@e.com')
+
+
+class TestCreateTransactionErrors:
+    @override_settings(**WOMPI_SETTINGS)
+    @patch('core_app.services.wompi_service.requests.post')
+    def test_request_exception_raises_wompi_error(self, mock_post):
+        """RequestException in create_transaction raises WompiError (lines 183-185)."""
+        import requests as req
+        mock_resp = MagicMock()
+        mock_resp.status_code = 502
+        exc = req.HTTPError('bad gateway', response=mock_resp)
+        mock_post.side_effect = exc
+
+        with pytest.raises(WompiError, match='Failed to create transaction'):
+            create_transaction(5000000, 'COP', 'u@e.com', 'ref-err', 9999)

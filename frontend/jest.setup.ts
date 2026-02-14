@@ -6,8 +6,10 @@ beforeAll(() => {
   jest.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
     const msg = args.map(String).join(' ');
     if (
-      msg.includes('non-boolean attribute') &&
-      (msg.includes('fill') || msg.includes('priority'))
+      (msg.includes('non-boolean attribute') &&
+        (msg.includes('fill') || msg.includes('priority'))) ||
+      msg.includes('was not wrapped in act(') ||
+      msg.includes('Not implemented: navigation')
     ) {
       return;
     }

@@ -4,18 +4,23 @@ import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
+import { useBookingStore } from '@/lib/stores/bookingStore';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 import UpcomingSessionReminder from '@/app/components/booking/UpcomingSessionReminder';
+import { WHATSAPP_URL } from '@/lib/constants';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const { activeSubscription: sub, fetchSubscriptions } = useSubscriptionStore();
+  const { upcomingReminder, bookings, fetchUpcomingReminder, fetchBookings } = useBookingStore();
   const sectionRef = useRef<HTMLElement>(null);
   useHeroAnimation(sectionRef);
 
   useEffect(() => {
     fetchSubscriptions();
-  }, [fetchSubscriptions]);
+    fetchUpcomingReminder();
+    fetchBookings();
+  }, [fetchSubscriptions, fetchUpcomingReminder, fetchBookings]);
 
   if (!user) {
     return (
@@ -28,8 +33,12 @@ export default function DashboardPage() {
   const sessionsRemaining = sub?.sessions_remaining ?? 0;
   const sessionsTotal = sub?.sessions_total ?? 0;
   const program = sub?.package?.title ?? 'Sin programa activo';
-  const formattedDate = 'Sin agendar';
-  const formattedTime = '';
+  const formattedDate = upcomingReminder?.slot
+    ? new Date(upcomingReminder.slot.starts_at).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
+    : 'Sin agendar';
+  const formattedTime = upcomingReminder?.slot
+    ? new Date(upcomingReminder.slot.starts_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
+    : '';
   const memberDate = sub
     ? new Date(sub.starts_at).toLocaleDateString('es-CO', { month: 'short', year: 'numeric' })
     : '—';
@@ -92,7 +101,7 @@ export default function DashboardPage() {
                   { label: 'Agendar sesión', icon: '📅', href: '/book-session' },
                   { label: 'Mi suscripción', icon: '�', href: '/subscription' },
                   { label: 'Mis sesiones', icon: '�', href: '/my-sessions' },
-                  { label: 'Soporte', icon: '💬', href: 'https://wa.me/' },
+                  { label: 'Soporte', icon: '💬', href: WHATSAPP_URL },
                 ].map((action) => (
                   <Link
                     key={action.label}
@@ -110,25 +119,30 @@ export default function DashboardPage() {
             <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-kore-gray-light/50">
               <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-4">Actividad reciente</h2>
               <div className="space-y-4">
-                {[
-                  { date: '10 Feb', title: 'Sesión completada', desc: 'Tren superior — fuerza funcional', type: 'session' },
-                  { date: '07 Feb', title: 'Sesión completada', desc: 'Movilidad articular y core', type: 'session' },
-                  { date: '05 Feb', title: 'Evaluación postural', desc: 'Revisión trimestral de posturometría', type: 'eval' },
-                  { date: '03 Feb', title: 'Sesión completada', desc: 'Tren inferior — estabilidad', type: 'session' },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-start gap-4 py-3 border-b border-kore-gray-light/30 last:border-0">
-                    <div className="flex-shrink-0 w-12 text-center">
-                      <p className="text-xs text-kore-gray-dark/40">{item.date}</p>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-kore-gray-dark">{item.title}</p>
-                      <p className="text-xs text-kore-gray-dark/50 mt-0.5">{item.desc}</p>
-                    </div>
-                    <span className={`flex-shrink-0 w-2 h-2 rounded-full mt-1.5 ${
-                      item.type === 'eval' ? 'bg-kore-wine-dark' : 'bg-kore-red'
-                    }`} />
-                  </div>
-                ))}
+                {bookings.length > 0 ? (
+                  bookings.slice(0, 4).map((booking) => {
+                    const date = new Date(booking.slot.starts_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
+                    const statusLabel = booking.status === 'confirmed' ? 'Sesión confirmada'
+                      : booking.status === 'canceled' ? 'Sesión cancelada' : 'Sesión pendiente';
+                    const desc = booking.package?.title ?? '—';
+                    return (
+                      <div key={booking.id} className="flex items-start gap-4 py-3 border-b border-kore-gray-light/30 last:border-0">
+                        <div className="flex-shrink-0 w-12 text-center">
+                          <p className="text-xs text-kore-gray-dark/40">{date}</p>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-kore-gray-dark">{statusLabel}</p>
+                          <p className="text-xs text-kore-gray-dark/50 mt-0.5">{desc}</p>
+                        </div>
+                        <span className={`flex-shrink-0 w-2 h-2 rounded-full mt-1.5 ${
+                          booking.status === 'canceled' ? 'bg-kore-gray-dark/30' : 'bg-kore-red'
+                        }`} />
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-sm text-kore-gray-dark/40 py-4 text-center">No hay actividad reciente</p>
+                )}
               </div>
             </div>
           </div>
@@ -172,7 +186,7 @@ export default function DashboardPage() {
                 Escríbenos para reagendar, resolver dudas o ajustar tu programa.
               </p>
               <a
-                href="https://wa.me/"
+                href={WHATSAPP_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full flex items-center justify-center gap-2 bg-kore-cream hover:bg-kore-gray-light/60 text-kore-gray-dark/70 font-medium py-3 rounded-lg transition-colors duration-200 text-sm"

@@ -1,0 +1,19 @@
+[run]
+source = core_app
+branch = true
+omit =
+    */migrations/*
+    */tests/*
+    */__pycache__/*
+    */venv/*
+
+[report]
+show_missing = true
+skip_empty = true
+precision = 2
+
+[html]
+directory = htmlcov
+
+[json]
+output = coverage.json

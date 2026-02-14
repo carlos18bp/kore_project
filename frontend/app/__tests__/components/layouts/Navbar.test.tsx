@@ -56,6 +56,38 @@ describe('Navbar', () => {
     expect(mobileMenu).toHaveClass('max-h-80');
   });
 
+  it('closes mobile menu when a mobile link is clicked', async () => {
+    render(<Navbar />);
+    const user = userEvent.setup();
+    const menuButton = screen.getByLabelText('Menú');
+    const mobileMenu = menuButton.closest('nav')!.querySelector('.md\\:hidden.overflow-hidden');
+
+    await user.click(menuButton);
+    expect(mobileMenu).toHaveClass('max-h-80');
+
+    // Click a mobile nav link
+    const mobileLinks = mobileMenu!.querySelectorAll('a');
+    await user.click(mobileLinks[0]);
+    expect(mobileMenu).toHaveClass('max-h-0');
+  });
+
+  it('closes mobile menu when mobile login link is clicked', async () => {
+    render(<Navbar />);
+    const user = userEvent.setup();
+    const menuButton = screen.getByLabelText('Menú');
+    const mobileMenu = menuButton.closest('nav')!.querySelector('.md\\:hidden.overflow-hidden');
+
+    await user.click(menuButton);
+    expect(mobileMenu).toHaveClass('max-h-80');
+
+    // Click the mobile "Iniciar sesión" link (last link in mobile menu)
+    const mobileLinks = mobileMenu!.querySelectorAll('a');
+    const loginLink = Array.from(mobileLinks).find(a => a.textContent === 'Iniciar sesión');
+    expect(loginLink).toBeDefined();
+    await user.click(loginLink!);
+    expect(mobileMenu).toHaveClass('max-h-0');
+  });
+
   it('highlights the active link based on pathname', () => {
     mockPathname = '/la-marca-kore';
     render(<Navbar />);

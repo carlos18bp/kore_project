@@ -93,6 +93,35 @@ test.describe('Book Session Flow', () => {
     }
   });
 
+  test('calendar year-boundary navigation: Jan→Dec and Dec→Jan', async ({ page }) => {
+    const monthLabel = page.locator('h3.capitalize');
+    await expect(monthLabel).toBeVisible();
+
+    const prevBtn = page.getByLabel('Mes anterior');
+    const nextBtn = page.getByLabel('Mes siguiente');
+
+    // Navigate backwards to January (month 0)
+    const currentMonth = new Date().getMonth(); // 0-indexed
+    // Click prev enough times to reach January
+    for (let i = 0; i <= currentMonth; i++) {
+      await prevBtn.click();
+    }
+    // We should now be in December of the previous year (year boundary crossed)
+    await expect(monthLabel).toContainText(/diciembre/i);
+
+    // Now navigate forward past December to cross the year boundary the other way
+    // From December, click next 12 times to reach December of next year
+    for (let i = 0; i < 12; i++) {
+      await nextBtn.click();
+    }
+    // Should be back to December (of the original year)
+    await expect(monthLabel).toContainText(/diciembre/i);
+
+    // One more click should cross into January of next year
+    await nextBtn.click();
+    await expect(monthLabel).toContainText(/enero/i);
+  });
+
   test('trainer info panel renders with session details', async ({ page }) => {
     const enabledDay = page.locator('button:not([disabled])').filter({ hasText: /^\d{1,2}$/ }).first();
     const dayExists = await enabledDay.isVisible().catch(() => false);

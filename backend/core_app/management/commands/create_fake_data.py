@@ -6,7 +6,7 @@ class Command(BaseCommand):
     help = 'Create fake data for KÓRE in dependency order'
 
     def add_arguments(self, parser):
-        parser.add_argument('--customers', type=int, default=10)
+        parser.add_argument('--customers', type=int, default=20)
         parser.add_argument('--password', type=str, default='customer123456')
         parser.add_argument('--admin-email', type=str, default='admin@kore.com')
         parser.add_argument('--admin-password', type=str, default='admin123456')
@@ -23,23 +23,23 @@ class Command(BaseCommand):
 
         parser.add_argument('--skip-subscriptions', action='store_true', default=False)
 
-        parser.add_argument('--days', type=int, default=14)
+        parser.add_argument('--days', type=int, default=30)
         parser.add_argument('--start-hour', type=int, default=9)
         parser.add_argument('--end-hour', type=int, default=18)
         parser.add_argument('--slot-minutes', type=int, default=60)
         parser.add_argument('--timezone', type=str, default=None)
         parser.add_argument('--skip-slots', action='store_true', default=False)
 
-        parser.add_argument('--bookings', type=int, default=20)
+        parser.add_argument('--bookings', type=int, default=40)
         parser.add_argument('--skip-bookings', action='store_true', default=False)
 
-        parser.add_argument('--payments', type=int, default=20)
+        parser.add_argument('--payments', type=int, default=40)
         parser.add_argument('--skip-payments', action='store_true', default=False)
 
-        parser.add_argument('--notifications', type=int, default=20)
+        parser.add_argument('--notifications', type=int, default=30)
         parser.add_argument('--skip-notifications', action='store_true', default=False)
 
-        parser.add_argument('--analytics-events', type=int, default=50)
+        parser.add_argument('--analytics-events', type=int, default=100)
         parser.add_argument('--skip-analytics-events', action='store_true', default=False)
 
     def handle(self, *args, **options):

@@ -81,4 +81,18 @@ describe('UpcomingSessionReminder', () => {
     const link = screen.getByText('Ver detalle');
     expect(link.closest('a')).toHaveAttribute('href', '/my-sessions/program/2/session/100');
   });
+
+  it('renders fallback link to /my-sessions when subscription_id_display is null', () => {
+    const reminder = { ...buildReminder(12), subscription_id_display: null };
+    mockedUseBookingStore.mockReturnValue({ upcomingReminder: reminder, fetchUpcomingReminder });
+    render(<UpcomingSessionReminder />);
+    const link = screen.getByText('Ver detalle');
+    expect(link.closest('a')).toHaveAttribute('href', '/my-sessions');
+  });
+
+  it('renders nothing when booking is in the past (hoursUntil < 0)', () => {
+    mockedUseBookingStore.mockReturnValue({ upcomingReminder: buildReminder(-2), fetchUpcomingReminder });
+    const { container } = render(<UpcomingSessionReminder />);
+    expect(container.querySelector('.fixed')).toBeNull();
+  });
 });

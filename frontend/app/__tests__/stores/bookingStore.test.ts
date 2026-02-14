@@ -139,6 +139,35 @@ describe('bookingStore', () => {
       expect(state.loading).toBe(false);
     });
 
+    it('populates trainers from flat array response (no results key)', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: [MOCK_TRAINER] });
+      await useBookingStore.getState().fetchTrainers();
+      const state = useBookingStore.getState();
+      expect(state.trainers).toHaveLength(1);
+      expect(state.trainer).toEqual(MOCK_TRAINER);
+    });
+
+    it('sets trainers to empty array and trainer to null for non-array response', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: {} });
+      await useBookingStore.getState().fetchTrainers();
+      const state = useBookingStore.getState();
+      expect(state.trainers).toEqual([]);
+      expect(state.trainer).toBeNull();
+    });
+
+    it('sets trainer to null when trainers array is empty', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: { results: [] } });
+      await useBookingStore.getState().fetchTrainers();
+      expect(useBookingStore.getState().trainer).toBeNull();
+    });
+
+    it('sends empty auth headers when no token cookie', async () => {
+      mockedCookies.get.mockReturnValue(undefined);
+      mockedApi.get.mockResolvedValueOnce({ data: { results: [MOCK_TRAINER] } });
+      await useBookingStore.getState().fetchTrainers();
+      expect(mockedApi.get).toHaveBeenCalledWith('/trainers/', { headers: {} });
+    });
+
     it('sets error on failure', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
       await useBookingStore.getState().fetchTrainers();
@@ -159,6 +188,18 @@ describe('bookingStore', () => {
       expect(useBookingStore.getState().slots).toHaveLength(1);
     });
 
+    it('populates slots from flat array response', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: [MOCK_SLOT] });
+      await useBookingStore.getState().fetchSlots();
+      expect(useBookingStore.getState().slots).toHaveLength(1);
+    });
+
+    it('sets slots to empty array for non-array response', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: {} });
+      await useBookingStore.getState().fetchSlots();
+      expect(useBookingStore.getState().slots).toEqual([]);
+    });
+
     it('sets error on failure', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('err'));
       await useBookingStore.getState().fetchSlots();
@@ -175,6 +216,25 @@ describe('bookingStore', () => {
       await useBookingStore.getState().fetchSubscriptions();
       expect(useBookingStore.getState().subscriptions).toHaveLength(1);
       expect(useBookingStore.getState().subscriptions[0].status).toBe('active');
+    });
+
+    it('populates subscriptions from flat array response', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: [MOCK_SUBSCRIPTION] });
+      await useBookingStore.getState().fetchSubscriptions();
+      expect(useBookingStore.getState().subscriptions).toHaveLength(1);
+    });
+
+    it('sets subscriptions to empty array for non-array response', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: {} });
+      await useBookingStore.getState().fetchSubscriptions();
+      expect(useBookingStore.getState().subscriptions).toEqual([]);
+    });
+
+    it('sets error on failure', async () => {
+      mockedApi.get.mockRejectedValueOnce(new Error('Network'));
+      await useBookingStore.getState().fetchSubscriptions();
+      expect(useBookingStore.getState().error).toBe('Error loading subscriptions.');
+      expect(useBookingStore.getState().loading).toBe(false);
     });
   });
 
@@ -200,6 +260,13 @@ describe('bookingStore', () => {
         params: { subscription: '7', page: '2' },
       }));
     });
+
+    it('sets error on failure', async () => {
+      mockedApi.get.mockRejectedValueOnce(new Error('Network'));
+      await useBookingStore.getState().fetchBookings();
+      expect(useBookingStore.getState().error).toBe('Error loading bookings.');
+      expect(useBookingStore.getState().loading).toBe(false);
+    });
   });
 
   // ----------------------------------------------------------------
@@ -212,7 +279,13 @@ describe('bookingStore', () => {
       expect(useBookingStore.getState().upcomingReminder).toEqual(MOCK_BOOKING);
     });
 
-    it('sets null when no upcoming booking', async () => {
+    it('sets null when response data has no id', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: {} });
+      await useBookingStore.getState().fetchUpcomingReminder();
+      expect(useBookingStore.getState().upcomingReminder).toBeNull();
+    });
+
+    it('sets null when no upcoming booking (error)', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('404'));
       await useBookingStore.getState().fetchUpcomingReminder();
       expect(useBookingStore.getState().upcomingReminder).toBeNull();
@@ -242,6 +315,27 @@ describe('bookingStore', () => {
       expect(result).toBeNull();
       expect(useBookingStore.getState().error).toBe('Slot already booked.');
     });
+
+    it('falls back to non_field_errors when no detail', async () => {
+      mockedApi.post.mockRejectedValueOnce({ response: { data: { non_field_errors: 'Time conflict.' } } });
+      const result = await useBookingStore.getState().createBooking({ package_id: 1, slot_id: 5 });
+      expect(result).toBeNull();
+      expect(useBookingStore.getState().error).toBe('Time conflict.');
+    });
+
+    it('uses generic error when no response data', async () => {
+      mockedApi.post.mockRejectedValueOnce(new Error('Network'));
+      const result = await useBookingStore.getState().createBooking({ package_id: 1, slot_id: 5 });
+      expect(result).toBeNull();
+      expect(useBookingStore.getState().error).toBe('Error creating booking.');
+    });
+
+    it('uses generic error when detail is not a string', async () => {
+      mockedApi.post.mockRejectedValueOnce({ response: { data: { detail: ['array error'] } } });
+      const result = await useBookingStore.getState().createBooking({ package_id: 1, slot_id: 5 });
+      expect(result).toBeNull();
+      expect(useBookingStore.getState().error).toBe('Error creating booking.');
+    });
   });
 
   // ----------------------------------------------------------------
@@ -262,6 +356,27 @@ describe('bookingStore', () => {
       expect(result).toBeNull();
       expect(useBookingStore.getState().error).toBe('Cannot cancel within 24 hours.');
     });
+
+    it('uses generic error when no detail in response', async () => {
+      mockedApi.post.mockRejectedValueOnce(new Error('Network'));
+      const result = await useBookingStore.getState().cancelBooking(100);
+      expect(result).toBeNull();
+      expect(useBookingStore.getState().error).toBe('Error canceling booking.');
+    });
+
+    it('uses generic error when detail is not a string', async () => {
+      mockedApi.post.mockRejectedValueOnce({ response: { data: { detail: ['array error'] } } });
+      const result = await useBookingStore.getState().cancelBooking(100);
+      expect(result).toBeNull();
+      expect(useBookingStore.getState().error).toBe('Error canceling booking.');
+    });
+
+    it('sends empty body when no reason provided', async () => {
+      const canceled = { ...MOCK_BOOKING, status: 'canceled' as const };
+      mockedApi.post.mockResolvedValueOnce({ data: canceled });
+      await useBookingStore.getState().cancelBooking(100);
+      expect(mockedApi.post).toHaveBeenCalledWith('/bookings/100/cancel/', {}, expect.anything());
+    });
   });
 
   // ----------------------------------------------------------------
@@ -281,6 +396,20 @@ describe('bookingStore', () => {
       const result = await useBookingStore.getState().rescheduleBooking(100, 10);
       expect(result).toBeNull();
       expect(useBookingStore.getState().error).toBe('Cannot reschedule.');
+    });
+
+    it('uses generic error when no detail in response', async () => {
+      mockedApi.post.mockRejectedValueOnce(new Error('Network'));
+      const result = await useBookingStore.getState().rescheduleBooking(100, 10);
+      expect(result).toBeNull();
+      expect(useBookingStore.getState().error).toBe('Error rescheduling booking.');
+    });
+
+    it('uses generic error when detail is not a string', async () => {
+      mockedApi.post.mockRejectedValueOnce({ response: { data: { detail: ['array error'] } } });
+      const result = await useBookingStore.getState().rescheduleBooking(100, 10);
+      expect(result).toBeNull();
+      expect(useBookingStore.getState().error).toBe('Error rescheduling booking.');
     });
   });
 });

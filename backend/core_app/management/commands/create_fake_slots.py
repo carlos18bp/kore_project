@@ -1,3 +1,4 @@
+import random
 from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
@@ -11,7 +12,7 @@ class Command(BaseCommand):
     help = 'Create availability slots for a date range'
 
     def add_arguments(self, parser):
-        parser.add_argument('--days', type=int, default=14)
+        parser.add_argument('--days', type=int, default=30)
         parser.add_argument('--start-hour', type=int, default=9)
         parser.add_argument('--end-hour', type=int, default=18)
         parser.add_argument('--slot-minutes', type=int, default=60)
@@ -39,9 +40,13 @@ class Command(BaseCommand):
         if now.time() >= time(hour=end_hour):
             start_date = start_date + timedelta(days=1)
 
-        trainer = TrainerProfile.objects.first()
+        trainers = list(TrainerProfile.objects.all())
+        if not trainers:
+            self.stdout.write(self.style.WARNING('No trainers found. Run create_fake_trainers first.'))
+            return
 
         created = 0
+        blocked = 0
         for day_offset in range(days):
             d = start_date + timedelta(days=day_offset)
             current = datetime.combine(d, time(hour=start_hour, minute=0, second=0), tzinfo=tz)
@@ -58,22 +63,27 @@ class Command(BaseCommand):
                     current = ends_at
                     continue
 
+                trainer = trainers[created % len(trainers)] if trainers else None
+                is_blocked = random.random() < 0.10
                 _, was_created = AvailabilitySlot.objects.get_or_create(
                     starts_at=starts_at,
                     ends_at=ends_at,
                     defaults={
                         'trainer': trainer,
                         'is_active': True,
-                        'is_blocked': False,
-                        'blocked_reason': '',
+                        'is_blocked': is_blocked,
+                        'blocked_reason': 'Mantenimiento programado' if is_blocked else '',
                     },
                 )
                 if was_created:
                     created += 1
+                    if is_blocked:
+                        blocked += 1
 
                 current = ends_at
 
         total = AvailabilitySlot.objects.count()
         self.stdout.write(self.style.SUCCESS('Availability slots:'))
         self.stdout.write(f'- created: {created}')
+        self.stdout.write(f'- blocked: {blocked}')
         self.stdout.write(f'- total: {total}')

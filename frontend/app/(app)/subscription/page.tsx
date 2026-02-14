@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
+import { WHATSAPP_URL } from '@/lib/constants';
 
 export default function SubscriptionPage() {
   const { user } = useAuthStore();
@@ -289,7 +290,7 @@ export default function SubscriptionPage() {
                   Escríbenos para resolver dudas sobre tu suscripción.
                 </p>
                 <a
-                  href="https://wa.me/"
+                  href={WHATSAPP_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full flex items-center justify-center gap-2 bg-kore-cream hover:bg-kore-gray-light/60 text-kore-gray-dark/70 font-medium py-3 rounded-lg transition-colors duration-200 text-sm"

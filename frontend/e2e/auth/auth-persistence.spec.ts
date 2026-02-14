@@ -1,7 +1,8 @@
-import { test, expect, E2E_USER, loginAsTestUser } from '../fixtures';
+import { test, expect, E2E_USER, loginAsTestUser, setupDefaultApiMocks, mockLoginApi } from '../fixtures';
 
 test.describe('Auth Persistence & Cookies', () => {
   test('login sets kore_token and kore_user cookies', async ({ page }) => {
+    await setupDefaultApiMocks(page);
     await loginAsTestUser(page);
 
     const cookies = await page.context().cookies();
@@ -19,6 +20,7 @@ test.describe('Auth Persistence & Cookies', () => {
   });
 
   test('page reload preserves authentication via hydrate', async ({ page }) => {
+    await setupDefaultApiMocks(page);
     await loginAsTestUser(page);
     await expect(page.getByText(`Hola, ${E2E_USER.firstName}`)).toBeVisible();
 
@@ -28,6 +30,7 @@ test.describe('Auth Persistence & Cookies', () => {
   });
 
   test('logout clears kore_token and kore_user cookies', async ({ page }) => {
+    await setupDefaultApiMocks(page);
     await loginAsTestUser(page);
 
     // Verify cookies exist
@@ -52,6 +55,9 @@ test.describe('Auth Persistence & Cookies', () => {
   });
 
   test('login form shows loading state during submission', async ({ page }) => {
+    await setupDefaultApiMocks(page);
+    await mockLoginApi(page);
+
     await page.goto('/login');
     await page.getByLabel(/Correo electrónico/i).fill(E2E_USER.email);
     await page.getByLabel(/Contraseña/i).fill(E2E_USER.password);

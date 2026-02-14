@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { WHATSAPP_URL } from '@/lib/constants';
 
 const navLinks = [
   { href: '/', label: 'Inicio' },
@@ -9,7 +10,7 @@ const navLinks = [
 const socialLinks = [
   { href: 'https://instagram.com/', label: 'Instagram' },
   { href: 'https://facebook.com/', label: 'Facebook' },
-  { href: 'https://wa.me/', label: 'WhatsApp' },
+  { href: WHATSAPP_URL, label: 'WhatsApp' },
   { href: 'mailto:contacto@kore.co', label: 'contacto@kore.co' },
 ];
 

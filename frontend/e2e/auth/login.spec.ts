@@ -1,4 +1,4 @@
-import { test, expect, E2E_USER, loginAsTestUser } from '../fixtures';
+import { test, expect, E2E_USER, loginAsTestUser, mockLoginApi, setupDefaultApiMocks } from '../fixtures';
 
 test.describe('Login Page', () => {
   test.beforeEach(async ({ page }) => {
@@ -13,6 +13,14 @@ test.describe('Login Page', () => {
   });
 
   test('shows error on invalid credentials', async ({ page }) => {
+    await page.route('**/api/auth/login/', async (route) => {
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({ non_field_errors: ['Invalid credentials.'] }),
+      });
+    });
+
     await page.getByLabel(/Correo electrónico/i).fill('wrong@email.com');
     await page.getByLabel(/Contraseña/i).fill('wrongpass');
     await page.getByRole('button', { name: 'Iniciar sesión' }).click();
@@ -21,6 +29,9 @@ test.describe('Login Page', () => {
   });
 
   test('successful login redirects to dashboard', async ({ page }) => {
+    await setupDefaultApiMocks(page);
+    await mockLoginApi(page);
+
     await page.getByLabel(/Correo electrónico/i).fill(E2E_USER.email);
     await page.getByLabel(/Contraseña/i).fill(E2E_USER.password);
     await page.getByRole('button', { name: 'Iniciar sesión' }).click();
@@ -42,6 +53,7 @@ test.describe('Login Page', () => {
   });
 
   test('already authenticated user is redirected to dashboard', async ({ page }) => {
+    await setupDefaultApiMocks(page);
     await loginAsTestUser(page);
 
     // Navigate back to login

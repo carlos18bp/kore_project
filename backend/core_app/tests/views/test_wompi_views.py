@@ -167,3 +167,125 @@ class TestWompiWebhookView:
         url = reverse('wompi-webhook')
         response = api_client.post(url, event, format='json')
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    @override_settings(**WOMPI_SETTINGS)
+    def test_invalid_amount_in_cents_returns_400(self, api_client, existing_user):
+        """amount_in_cents that is not a valid integer returns 400 (lines 68-69)."""
+        api_client.force_authenticate(user=existing_user)
+        url = reverse('wompi-generate-signature')
+        response = api_client.post(url, {
+            'reference': 'ref-bad',
+            'amount_in_cents': 'not_a_number',
+            'currency': 'COP',
+        }, format='json')
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'valid integer' in response.data['detail']
+
+    @override_settings(**WOMPI_SETTINGS)
+    def test_webhook_missing_transaction_id(self, api_client):
+        """Webhook with empty transaction ID is handled gracefully (lines 127-128)."""
+        timestamp = 1530291411
+        concat = f'{timestamp}{WOMPI_SETTINGS["WOMPI_EVENTS_KEY"]}'
+        checksum = hashlib.sha256(concat.encode('utf-8')).hexdigest()
+        event = {
+            'event': 'transaction.updated',
+            'data': {'transaction': {}},
+            'signature': {
+                'properties': [],
+                'checksum': checksum,
+            },
+            'timestamp': timestamp,
+        }
+        url = reverse('wompi-webhook')
+        response = api_client.post(url, event, format='json')
+        assert response.status_code == status.HTTP_200_OK
+
+    @override_settings(**WOMPI_SETTINGS)
+    def test_webhook_payment_not_found(self, api_client):
+        """Payment.DoesNotExist is handled gracefully (lines 136-137)."""
+        event = self._build_event('nonexistent-txn-999', 'APPROVED')
+        url = reverse('wompi-webhook')
+        response = api_client.post(url, event, format='json')
+        assert response.status_code == status.HTTP_200_OK
+
+    @override_settings(**WOMPI_SETTINGS)
+    def test_webhook_multiple_payments_found(self, api_client, subscription_with_payment):
+        """MultipleObjectsReturned is handled gracefully (lines 135-140)."""
+        sub, payment = subscription_with_payment
+        # Create a duplicate payment with same provider_reference
+        Payment.objects.create(
+            customer=payment.customer,
+            subscription=sub,
+            amount=payment.amount,
+            currency='COP',
+            provider=Payment.Provider.WOMPI,
+            provider_reference=payment.provider_reference,
+            status=Payment.Status.PENDING,
+        )
+        event = self._build_event(payment.provider_reference, 'APPROVED')
+        url = reverse('wompi-webhook')
+        response = api_client.post(url, event, format='json')
+        assert response.status_code == status.HTTP_200_OK
+
+    @override_settings(**WOMPI_SETTINGS)
+    def test_voided_webhook_cancels_payment(self, api_client, subscription_with_payment):
+        """VOIDED transaction sets payment to CANCELED (lines 160-163)."""
+        sub, payment = subscription_with_payment
+        event = self._build_event(payment.provider_reference, 'VOIDED')
+        url = reverse('wompi-webhook')
+        response = api_client.post(url, event, format='json')
+        assert response.status_code == status.HTTP_200_OK
+
+        payment.refresh_from_db()
+        assert payment.status == Payment.Status.CANCELED
+
+    @override_settings(**WOMPI_SETTINGS)
+    def test_non_transaction_event_ignored(self, api_client):
+        """Non-transaction.updated event is ignored (branch 106→109)."""
+        timestamp = 1530291411
+        concat = f'{timestamp}{WOMPI_SETTINGS["WOMPI_EVENTS_KEY"]}'
+        checksum = hashlib.sha256(concat.encode('utf-8')).hexdigest()
+        event = {
+            'event': 'nequi_token.updated',
+            'data': {},
+            'signature': {
+                'properties': [],
+                'checksum': checksum,
+            },
+            'timestamp': timestamp,
+        }
+        url = reverse('wompi-webhook')
+        response = api_client.post(url, event, format='json')
+        assert response.status_code == status.HTTP_200_OK
+
+    @override_settings(**WOMPI_SETTINGS)
+    def test_declined_without_subscription(self, api_client, existing_user):
+        """DECLINED payment without subscription skips sub expiry (branch 153→exit)."""
+        payment = Payment.objects.create(
+            customer=existing_user,
+            subscription=None,
+            amount=Decimal('100000.00'),
+            currency='COP',
+            provider=Payment.Provider.WOMPI,
+            provider_reference='txn-no-sub-001',
+            status=Payment.Status.PENDING,
+        )
+        event = self._build_event('txn-no-sub-001', 'DECLINED', amount=10000000)
+        url = reverse('wompi-webhook')
+        response = api_client.post(url, event, format='json')
+        assert response.status_code == status.HTTP_200_OK
+
+        payment.refresh_from_db()
+        assert payment.status == Payment.Status.FAILED
+
+    @override_settings(**WOMPI_SETTINGS)
+    def test_unrecognized_status_no_op(self, api_client, subscription_with_payment):
+        """Unrecognized txn status (e.g. PENDING) is a no-op (branch 160→exit)."""
+        sub, payment = subscription_with_payment
+        event = self._build_event(payment.provider_reference, 'PENDING')
+        url = reverse('wompi-webhook')
+        response = api_client.post(url, event, format='json')
+        assert response.status_code == status.HTTP_200_OK
+
+        payment.refresh_from_db()
+        assert payment.status == Payment.Status.PENDING

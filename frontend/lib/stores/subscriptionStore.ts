@@ -29,7 +29,7 @@ type SubscriptionState = {
 
 function authHeaders() {
   const token = Cookies.get('kore_token');
-  return { Authorization: `Bearer ${token}` };
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({

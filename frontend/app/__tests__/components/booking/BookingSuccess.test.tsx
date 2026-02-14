@@ -68,6 +68,19 @@ describe('BookingSuccess', () => {
     expect(onReset).toHaveBeenCalledTimes(1);
   });
 
+  it('renders link with empty subscription id when subscription_id_display is null', () => {
+    const bookingNoSub = { ...MOCK_BOOKING, subscription_id_display: null };
+    render(<BookingSuccess booking={bookingNoSub} onReset={onReset} />);
+    const link = screen.getByText('Reprogramar o Cancelar');
+    expect(link.closest('a')).toHaveAttribute('href', '/my-sessions/program//session/100');
+  });
+
+  it('does not render location row when trainer has no location', () => {
+    const bookingNoLoc = { ...MOCK_BOOKING, trainer: { ...MOCK_BOOKING.trainer!, location: '' } };
+    render(<BookingSuccess booking={bookingNoLoc} onReset={onReset} />);
+    expect(screen.queryByText('Studio A')).not.toBeInTheDocument();
+  });
+
   it('renders dash for trainer name when trainer is null', () => {
     const bookingNoTrainer = { ...MOCK_BOOKING, trainer: null };
     render(<BookingSuccess booking={bookingNoTrainer} onReset={onReset} />);

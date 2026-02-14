@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 from django.utils import timezone
 from rest_framework.test import APIRequestFactory
 
-from core_app.models import AvailabilitySlot, Booking, Package, User
+from core_app.models import AvailabilitySlot, Booking, Package, Subscription, User
 from core_app.serializers import BookingSerializer
 
 
@@ -94,6 +94,102 @@ class TestBookingSerializerValidation:
         assert not serializer.is_valid()
         assert 'slot_id' in serializer.errors
 
+    def test_subscription_no_remaining_sessions_rejected(self, customer, package, future_slot):
+        """Subscription with 0 remaining sessions is rejected (lines 114-117)."""
+        now = timezone.now()
+        sub = Subscription.objects.create(
+            customer=customer, package=package,
+            sessions_total=5, sessions_used=5,
+            status=Subscription.Status.ACTIVE,
+            starts_at=now, expires_at=now + timedelta(days=30),
+        )
+        request = _make_request(customer)
+        serializer = BookingSerializer(
+            data={
+                'package_id': package.id,
+                'slot_id': future_slot.id,
+                'subscription_id': sub.id,
+            },
+            context={'request': request},
+        )
+        assert not serializer.is_valid()
+        assert 'subscription_id' in serializer.errors
+
+    def test_only_next_session_rule(self, customer, package):
+        """Customer with existing future booking cannot book another (lines 150-158)."""
+        now = timezone.now()
+        slot1 = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=2),
+            ends_at=now + timedelta(hours=3),
+        )
+        Booking.objects.create(
+            customer=customer, package=package, slot=slot1,
+            status=Booking.Status.CONFIRMED,
+        )
+        slot2 = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=4),
+            ends_at=now + timedelta(hours=5),
+        )
+        request = _make_request(customer)
+        serializer = BookingSerializer(
+            data={'package_id': package.id, 'slot_id': slot2.id},
+            context={'request': request},
+        )
+        assert not serializer.is_valid()
+        assert 'non_field_errors' in serializer.errors
+
+    def test_overlapping_booking_rejected(self, customer, package):
+        """Overlapping slot with active booking is rejected (lines 171-180)."""
+        now = timezone.now()
+        slot1 = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=2),
+            ends_at=now + timedelta(hours=4),
+        )
+        Booking.objects.create(
+            customer=customer, package=package, slot=slot1,
+            status=Booking.Status.CONFIRMED,
+        )
+        # Overlapping slot: starts during slot1
+        slot2 = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=3),
+            ends_at=now + timedelta(hours=5),
+        )
+        request = _make_request(customer)
+        serializer = BookingSerializer(
+            data={'package_id': package.id, 'slot_id': slot2.id},
+            context={'request': request},
+        )
+        assert not serializer.is_valid()
+        # Either non_field_errors or slot_id depending on which check fires first
+        assert 'non_field_errors' in serializer.errors or 'slot_id' in serializer.errors
+
+    def test_validate_no_overlap_direct(self, customer, package):
+        """Direct call to _validate_no_overlap covers line 178."""
+        from rest_framework.exceptions import ValidationError as DRFValidationError
+        now = timezone.now()
+        slot1 = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=2),
+            ends_at=now + timedelta(hours=4),
+        )
+        Booking.objects.create(
+            customer=customer, package=package, slot=slot1,
+            status=Booking.Status.CONFIRMED,
+        )
+        overlapping_slot = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=3),
+            ends_at=now + timedelta(hours=5),
+        )
+        with pytest.raises(DRFValidationError):
+            BookingSerializer._validate_no_overlap(customer, overlapping_slot)
+
+    def test_validate_without_slot_in_attrs(self, customer, package):
+        """Validate with no slot in attrs skips slot checks (branch 106→109)."""
+        request = _make_request(customer)
+        serializer = BookingSerializer(data={}, context={'request': request})
+        # Call validate directly with empty attrs (no slot)
+        result = serializer.validate({})
+        assert result == {}
+
 
 @pytest.mark.django_db
 class TestBookingSerializerCreate:
@@ -124,6 +220,85 @@ class TestBookingSerializerCreate:
         )
         assert serializer.is_valid(), serializer.errors
         with pytest.raises(Exception):
+            serializer.save()
+
+    def test_create_with_subscription_decrements_sessions(self, customer, package, future_slot):
+        """Create with subscription decrements sessions_used (lines 224-232)."""
+        now = timezone.now()
+        sub = Subscription.objects.create(
+            customer=customer, package=package,
+            sessions_total=10, sessions_used=2,
+            status=Subscription.Status.ACTIVE,
+            starts_at=now, expires_at=now + timedelta(days=30),
+        )
+        request = _make_request(customer)
+        serializer = BookingSerializer(
+            data={
+                'package_id': package.id,
+                'slot_id': future_slot.id,
+                'subscription_id': sub.id,
+            },
+            context={'request': request},
+        )
+        assert serializer.is_valid(), serializer.errors
+        booking = serializer.save()
+
+        assert booking.subscription is not None
+        sub.refresh_from_db()
+        assert sub.sessions_used == 3
+
+    def test_create_race_condition_slot_becomes_blocked(self, customer, package):
+        """Slot blocked between validate and create raises error (lines 213-219)."""
+        now = timezone.now()
+        slot = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=2),
+            ends_at=now + timedelta(hours=3),
+        )
+        request = _make_request(customer)
+        serializer = BookingSerializer(
+            data={'package_id': package.id, 'slot_id': slot.id},
+            context={'request': request},
+        )
+        assert serializer.is_valid(), serializer.errors
+
+        # Simulate race: block the slot after validation
+        slot.is_blocked = True
+        slot.save(update_fields=['is_blocked'])
+
+        from rest_framework.exceptions import ValidationError
+        with pytest.raises(ValidationError):
+            serializer.save()
+
+    def test_create_subscription_no_remaining_sessions_in_create(self, customer, package):
+        """Subscription exhausted during atomic create (lines 225-229)."""
+        now = timezone.now()
+        slot = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=4),
+            ends_at=now + timedelta(hours=5),
+        )
+        sub = Subscription.objects.create(
+            customer=customer, package=package,
+            sessions_total=5, sessions_used=4,
+            status=Subscription.Status.ACTIVE,
+            starts_at=now, expires_at=now + timedelta(days=30),
+        )
+        request = _make_request(customer)
+        serializer = BookingSerializer(
+            data={
+                'package_id': package.id,
+                'slot_id': slot.id,
+                'subscription_id': sub.id,
+            },
+            context={'request': request},
+        )
+        assert serializer.is_valid(), serializer.errors
+
+        # Exhaust sessions after validation
+        sub.sessions_used = 5
+        sub.save(update_fields=['sessions_used'])
+
+        from rest_framework.exceptions import ValidationError
+        with pytest.raises(ValidationError):
             serializer.save()
 
     def test_read_representation_nests_package_and_slot(self, customer, package, future_slot):

@@ -47,4 +47,28 @@ test.describe('Home Page', () => {
     await expect(page.getByRole('navigation')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Inicio' }).first()).toBeVisible();
   });
+
+  test('scrolling through page triggers scroll animations on all sections', async ({ page }) => {
+    // Scroll through all major sections to trigger GSAP ScrollTrigger animations
+    // This exercises useTextReveal (PricingTable) and useScrollAnimations hooks
+    // covering: fade-up, split-text, stagger-children, fade-left, fade-right, scale-in
+
+    // Scroll to Programs section (scale-in animations)
+    await page.getByText('Programas FLW').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+
+    // Scroll to Pricing section (useTextReveal: split-text, fade-up, stagger-children)
+    await page.getByText('Invierte en tu salud').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+    await expect(page.getByText('Invierte en tu salud')).toBeVisible();
+
+    // Scroll to Process section (fade-left, fade-right animations)
+    await page.getByText('Cómo funciona').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+    await expect(page.getByText('Cómo funciona')).toBeVisible();
+
+    // Scroll all the way to bottom to ensure all ScrollTriggers fire
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForTimeout(500);
+  });
 });

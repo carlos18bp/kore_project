@@ -118,3 +118,18 @@ class TestPaymentSerializerCreate:
 
         assert payment.status == Payment.Status.PENDING
         assert payment.confirmed_at is None
+
+    def test_create_without_authenticated_user_falls_back_to_booking_customer(self, booking):
+        """Unauthenticated request falls back to booking.customer (line 44)."""
+        from unittest.mock import MagicMock
+        anon = MagicMock()
+        anon.is_authenticated = False
+        request = _make_request(anon)
+        serializer = PaymentSerializer(
+            data={'booking_id': booking.id},
+            context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+        payment = serializer.save()
+
+        assert payment.customer == booking.customer

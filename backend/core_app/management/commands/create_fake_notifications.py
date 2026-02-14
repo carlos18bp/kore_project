@@ -4,12 +4,35 @@ from django.core.management.base import BaseCommand
 
 from core_app.models import Booking, Notification, Payment
 
+BOOKING_TYPES = [
+    Notification.Type.BOOKING_CONFIRMED,
+    Notification.Type.BOOKING_CANCELED,
+    Notification.Type.BOOKING_RESCHEDULED,
+    Notification.Type.BOOKING_REMINDER,
+]
+
+PAYMENT_TYPES = [
+    Notification.Type.PAYMENT_CONFIRMED,
+    Notification.Type.RECEIPT_EMAIL,
+]
+
+SUBSCRIPTION_TYPES = [
+    Notification.Type.SUBSCRIPTION_ACTIVATED,
+    Notification.Type.SUBSCRIPTION_CANCELED,
+]
+
+ERROR_MESSAGES = [
+    'SMTP connection refused.',
+    'Recipient mailbox full.',
+    'Template rendering error: missing variable.',
+]
+
 
 class Command(BaseCommand):
     help = 'Create fake notifications for bookings/payments'
 
     def add_arguments(self, parser):
-        parser.add_argument('--num', type=int, default=20)
+        parser.add_argument('--num', type=int, default=30)
 
     def handle(self, *args, **options):
         num = int(options['num'])
@@ -22,31 +45,53 @@ class Command(BaseCommand):
             return
 
         created = 0
+        failed = 0
         for _ in range(num):
-            use_payment = bool(payments) and random.random() < 0.6
+            # 10% chance of failed notification
+            is_failed = random.random() < 0.10
+            notif_status = Notification.Status.FAILED if is_failed else Notification.Status.SENT
+            error_message = random.choice(ERROR_MESSAGES) if is_failed else ''
 
-            if use_payment:
+            r = random.random()
+            if r < 0.4 and payments:
                 payment = random.choice(payments)
                 Notification.objects.create(
                     payment=payment,
                     booking=payment.booking,
-                    notification_type=Notification.Type.PAYMENT_CONFIRMED,
-                    status=Notification.Status.SENT,
+                    notification_type=random.choice(PAYMENT_TYPES),
+                    status=notif_status,
                     sent_to=payment.customer.email,
+                    error_message=error_message,
                     payload={'source': 'fake_data'},
                 )
-            else:
+            elif r < 0.6 and bookings:
                 booking = random.choice(bookings)
                 Notification.objects.create(
                     booking=booking,
-                    notification_type=Notification.Type.BOOKING_CONFIRMED,
-                    status=Notification.Status.SENT,
+                    notification_type=random.choice(SUBSCRIPTION_TYPES),
+                    status=notif_status,
                     sent_to=booking.customer.email,
+                    error_message=error_message,
                     payload={'source': 'fake_data'},
                 )
+            elif bookings:
+                booking = random.choice(bookings)
+                Notification.objects.create(
+                    booking=booking,
+                    notification_type=random.choice(BOOKING_TYPES),
+                    status=notif_status,
+                    sent_to=booking.customer.email,
+                    error_message=error_message,
+                    payload={'source': 'fake_data'},
+                )
+            else:
+                continue
 
             created += 1
+            if is_failed:
+                failed += 1
 
         self.stdout.write(self.style.SUCCESS('Notifications:'))
         self.stdout.write(f'- created: {created}')
+        self.stdout.write(f'- failed: {failed}')
         self.stdout.write(f'- total: {Notification.objects.count()}')

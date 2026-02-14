@@ -94,6 +94,21 @@ describe('authStore', () => {
       expect(mockedCookies.set).not.toHaveBeenCalled();
     });
 
+    it('falls back to email for user name when first/last names are empty', async () => {
+      const response = {
+        user: { id: 99, email: 'noname@kore.com', first_name: '', last_name: '', phone: '', role: 'customer' },
+        tokens: { access: 'tok', refresh: 'ref' },
+      };
+      mockedApi.post.mockResolvedValueOnce({ data: response });
+
+      const result = await useAuthStore.getState().login('noname@kore.com', 'pass');
+      expect(result).toEqual({ success: true });
+      const state = useAuthStore.getState();
+      expect(state.user!.name).toBe('noname@kore.com');
+      expect(state.user!.first_name).toBe('');
+      expect(state.user!.last_name).toBe('');
+    });
+
     it('returns generic error message when API returns no detail', async () => {
       mockedApi.post.mockRejectedValueOnce(new Error('Network Error'));
 
@@ -122,6 +137,71 @@ describe('authStore', () => {
       expect(mockedCookies.remove).toHaveBeenCalledWith('kore_token');
       expect(mockedCookies.remove).toHaveBeenCalledWith('kore_refresh');
       expect(mockedCookies.remove).toHaveBeenCalledWith('kore_user');
+    });
+  });
+
+  describe('register', () => {
+    it('sets user, token and cookies on successful registration', async () => {
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_LOGIN_RESPONSE });
+
+      const { register } = useAuthStore.getState();
+      const result = await register({
+        email: 'customer10@kore.com',
+        password: 'pass123',
+        password_confirm: 'pass123',
+        first_name: 'Customer10',
+        last_name: 'Kore',
+      });
+
+      expect(result).toEqual({ success: true });
+      const state = useAuthStore.getState();
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.user!.email).toBe('customer10@kore.com');
+      expect(mockedCookies.set).toHaveBeenCalledWith('kore_token', 'fake-access-token', { expires: 7 });
+    });
+
+    it('returns first array error from response data', async () => {
+      const axiosError = new AxiosError('fail', '400', undefined, undefined, {
+        data: { email: ['Email already exists.'] },
+        status: 400,
+        statusText: 'Bad Request',
+        headers: {},
+        config: { headers: new AxiosHeaders() },
+      });
+      mockedApi.post.mockRejectedValueOnce(axiosError);
+
+      const result = await useAuthStore.getState().register({
+        email: 'dup@kore.com', password: 'p', password_confirm: 'p',
+        first_name: 'A', last_name: 'B',
+      });
+      expect(result).toEqual({ success: false, error: 'Email already exists.' });
+    });
+
+    it('returns string error from response data', async () => {
+      const axiosError = new AxiosError('fail', '400', undefined, undefined, {
+        data: { detail: 'Registration disabled.' },
+        status: 400,
+        statusText: 'Bad Request',
+        headers: {},
+        config: { headers: new AxiosHeaders() },
+      });
+      mockedApi.post.mockRejectedValueOnce(axiosError);
+
+      const result = await useAuthStore.getState().register({
+        email: 'x@kore.com', password: 'p', password_confirm: 'p',
+        first_name: 'A', last_name: 'B',
+      });
+      expect(result).toEqual({ success: false, error: 'Registration disabled.' });
+    });
+
+    it('returns generic error when no response data', async () => {
+      mockedApi.post.mockRejectedValueOnce(new Error('Network Error'));
+
+      const result = await useAuthStore.getState().register({
+        email: 'x@kore.com', password: 'p', password_confirm: 'p',
+        first_name: 'A', last_name: 'B',
+      });
+      expect(result).toEqual({ success: false, error: 'Error al registrar la cuenta' });
     });
   });
 

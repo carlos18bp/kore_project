@@ -15,7 +15,9 @@ jest.mock('js-cookie', () => ({
 jest.mock('@/lib/stores/bookingStore', () => ({
   useBookingStore: () => ({
     upcomingReminder: null,
+    bookings: [],
     fetchUpcomingReminder: jest.fn(),
+    fetchBookings: jest.fn(),
   }),
 }));
 
@@ -84,8 +86,7 @@ describe('DashboardPage', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
     render(<DashboardPage />);
     expect(screen.getByText('Actividad reciente')).toBeInTheDocument();
-    expect(screen.getAllByText('Sesión completada').length).toBe(3);
-    expect(screen.getByText('Evaluación postural')).toBeInTheDocument();
+    expect(screen.getByText('No hay actividad reciente')).toBeInTheDocument();
   });
 
   it('renders profile card with user info', () => {

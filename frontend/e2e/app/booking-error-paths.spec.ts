@@ -131,6 +131,55 @@ test.describe('Booking Store Error Paths', () => {
     await expect(page.getByText('No se puede cancelar esta sesión.')).toBeVisible({ timeout: 10_000 });
   });
 
+  test('fetchSlots error does not break book-session page', async ({ page }) => {
+    const mockTrainer = {
+      id: 1, first_name: 'Germán', last_name: 'Franco', specialty: 'Funcional',
+      session_duration_minutes: 60, location: 'Bogotá', email: 'g@kore.com', bio: '', user_id: 1,
+    };
+
+    await page.route('**/api/trainers/**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockTrainer] }) });
+    });
+    await page.route('**/api/subscriptions/**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }) });
+    });
+    await page.route('**/api/availability-slots/**', async (route) => {
+      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'Server error' }) });
+    });
+    await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
+    });
+
+    await loginAsTestUser(page);
+    await page.goto('/book-session');
+    await expect(page.getByText('Agenda tu sesión')).toBeVisible({ timeout: 10_000 });
+  });
+
+  test('non-paginated API responses exercise fallback branches', async ({ page }) => {
+    const mockTrainer = {
+      id: 1, first_name: 'Germán', last_name: 'Franco', specialty: 'Funcional',
+      session_duration_minutes: 60, location: 'Bogotá', email: 'g@kore.com', bio: '', user_id: 1,
+    };
+
+    // Return bare arrays instead of paginated { results: [...] } objects
+    await page.route('**/api/trainers/**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([mockTrainer]) });
+    });
+    await page.route('**/api/subscriptions/**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+    });
+    await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
+    });
+
+    await loginAsTestUser(page);
+    await page.goto('/book-session');
+
+    // Page should still render with the trainer from the bare array
+    await expect(page.getByText('Agenda tu sesión')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('Germán Franco')).toBeVisible({ timeout: 10_000 });
+  });
+
   test('authHeaders without token sends request without Authorization', async ({ page }) => {
     // Clear cookies before navigating
     await page.context().clearCookies();

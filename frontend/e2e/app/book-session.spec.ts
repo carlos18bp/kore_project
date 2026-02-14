@@ -29,7 +29,7 @@ test.describe('Book Session Page', () => {
 
   test('sidebar link navigates to book-session', async ({ page }) => {
     await loginAsTestUser(page);
-    await page.getByRole('link', { name: 'Agendar Sesión' }).click();
+    await page.locator('aside').getByRole('link', { name: 'Agendar Sesión' }).click();
     await page.waitForURL('**/book-session');
     await expect(page.getByText('Agenda tu sesión')).toBeVisible();
   });

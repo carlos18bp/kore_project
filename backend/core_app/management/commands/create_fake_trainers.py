@@ -36,6 +36,32 @@ class Command(BaseCommand):
                 'location': 'KÓRE Studio — Calle 93 #11-26, Bogotá',
                 'session_duration_minutes': 60,
             },
+            {
+                'email': 'carolina.mesa@kore.com',
+                'first_name': 'Carolina',
+                'last_name': 'Mesa Ríos',
+                'specialty': 'Rehabilitación y movilidad articular',
+                'bio': (
+                    'Fisioterapeuta y entrenadora especializada en '
+                    'rehabilitación postquirúrgica, movilidad articular y '
+                    'entrenamiento terapéutico.'
+                ),
+                'location': 'KÓRE Studio — Calle 93 #11-26, Bogotá',
+                'session_duration_minutes': 45,
+            },
+            {
+                'email': 'juan.patino@kore.com',
+                'first_name': 'Juan Sebastián',
+                'last_name': 'Patiño Vargas',
+                'specialty': 'Fuerza y acondicionamiento',
+                'bio': (
+                    'Preparador físico certificado NSCA con experiencia en '
+                    'programas de fuerza, hipertrofia y acondicionamiento '
+                    'para deportistas y población general.'
+                ),
+                'location': 'KÓRE Studio Norte — Cra 7 #116-50, Bogotá',
+                'session_duration_minutes': 60,
+            },
         ]
 
         for data in trainers_data:

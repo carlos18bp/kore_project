@@ -6,6 +6,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 import { useAuthStore } from '@/lib/stores/authStore';
+import { WHATSAPP_URL } from '@/lib/constants';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -129,12 +130,14 @@ export default function LoginPage() {
 
             {/* Forgot password */}
             <div className="flex justify-end">
-              <Link
-                href="/recuperar"
+              <a
+                href={WHATSAPP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-xs text-kore-gray-dark/40 hover:text-kore-red transition-colors"
               >
-                ¿Olvidaste tu contraseña?
-              </Link>
+                ¿Olvidaste tu contraseña? Contáctanos
+              </a>
             </div>
 
             {/* Submit */}
@@ -166,7 +169,7 @@ export default function LoginPage() {
 
           {/* WhatsApp contact */}
           <a
-            href="https://wa.me/"
+            href={WHATSAPP_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="w-full flex items-center justify-center gap-2 border border-kore-gray-light/60 text-kore-gray-dark/60 hover:text-kore-gray-dark hover:border-kore-gray-dark/20 font-medium py-3.5 rounded-lg transition-colors duration-200 text-sm"

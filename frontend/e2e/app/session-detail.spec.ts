@@ -1,4 +1,4 @@
-import { test, expect, loginAsTestUser } from '../fixtures';
+import { test, expect, loginAsTestUser, setupDefaultApiMocks } from '../fixtures';
 
 /**
  * E2E tests for the Session Detail page (/my-sessions/program/:id/session/:id).
@@ -7,6 +7,10 @@ import { test, expect, loginAsTestUser } from '../fixtures';
  */
 test.describe('Session Detail Page (mocked)', () => {
   test.describe.configure({ mode: 'serial' });
+
+  test.beforeEach(async ({ page }) => {
+    await setupDefaultApiMocks(page);
+  });
 
   const futureSlotStart = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48h from now
   const futureSlotEnd = new Date(futureSlotStart.getTime() + 60 * 60 * 1000);

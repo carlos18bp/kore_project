@@ -36,3 +36,18 @@ def test_package_create_allows_admin(api_client, admin_user):
 
     assert response.status_code == status.HTTP_201_CREATED
     assert response.data['title'] == 'New'
+
+
+@pytest.mark.django_db
+def test_package_list_returns_all_for_admin(api_client, admin_user):
+    """Admin sees both active and inactive packages (line 15)."""
+    Package.objects.create(title='Active', is_active=True)
+    Package.objects.create(title='Inactive', is_active=False)
+
+    api_client.force_authenticate(user=admin_user)
+    url = reverse('package-list')
+    response = api_client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+    titles = {item['title'] for item in get_results(response.data)}
+    assert titles == {'Active', 'Inactive'}

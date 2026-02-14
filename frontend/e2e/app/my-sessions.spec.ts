@@ -15,7 +15,7 @@ test.describe('My Sessions Page', () => {
 
   test('sidebar link navigates to my-sessions', async ({ page }) => {
     await loginAsTestUser(page);
-    await page.getByRole('link', { name: 'Mis Sesiones' }).click();
+    await page.locator('aside').getByRole('link', { name: 'Mis Sesiones' }).click();
     await page.waitForURL('**/my-sessions');
     await expect(page.getByText('Mis Programas')).toBeVisible();
   });

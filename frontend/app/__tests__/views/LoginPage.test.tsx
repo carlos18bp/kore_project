@@ -136,7 +136,7 @@ describe('LoginPage', () => {
 
   it('renders forgot password link', () => {
     render(<LoginPage />);
-    expect(screen.getByText('¿Olvidaste tu contraseña?')).toBeInTheDocument();
+    expect(screen.getByText('¿Olvidaste tu contraseña? Contáctanos')).toBeInTheDocument();
   });
 
   it('shows loading spinner during login attempt', async () => {

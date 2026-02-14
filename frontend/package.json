@@ -11,7 +11,6 @@
     "test:watch": "NODE_OPTIONS=--no-deprecation jest --watch",
     "test:ci": "NODE_OPTIONS=--no-deprecation jest --ci",
     "test:coverage": "NODE_OPTIONS=--no-deprecation jest --coverage --colors",
-    "tets:coverage": "NODE_OPTIONS=--no-deprecation jest --coverage --colors",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "e2e:coverage": "FORCE_COLOR=true playwright test",

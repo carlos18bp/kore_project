@@ -28,7 +28,7 @@ export default function AppLayout({
   return (
     <div className="min-h-screen bg-kore-cream">
       <Sidebar />
-      <main className="ml-64">
+      <main className="lg:ml-64">
         {children}
       </main>
     </div>

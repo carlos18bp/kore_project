@@ -130,6 +130,23 @@ class TestCancelAction:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert '24' in response.data['detail']
 
+    def test_cancel_without_subscription(self, api_client, customer, package):
+        """Cancel booking without subscription skips session restore (branch 128->133)."""
+        slot = _make_slot(hours_ahead=48)
+        slot.is_blocked = True
+        slot.save()
+        booking = _make_booking(customer, package, slot, subscription=None)
+
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-cancel', args=[booking.pk])
+        response = api_client.post(url, {'canceled_reason': 'No sub'}, format='json')
+
+        assert response.status_code == status.HTTP_200_OK
+        booking.refresh_from_db()
+        assert booking.status == Booking.Status.CANCELED
+        slot.refresh_from_db()
+        assert slot.is_blocked is False
+
 
 # ----------------------------------------------------------------
 # Reschedule tests
@@ -285,3 +302,69 @@ class TestSubscriptionFilter:
         assert response.status_code == status.HTTP_200_OK
         results = get_results(response.data)
         assert len(results) == 1
+
+
+# ----------------------------------------------------------------
+# Permission tests (update/partial_update/destroy require admin)
+# ----------------------------------------------------------------
+
+@pytest.mark.django_db
+class TestBookingAdminPermissions:
+    def test_update_requires_admin(self, api_client, customer, package):
+        """update action requires IsAdminRole permission (line 48)."""
+        slot = _make_slot(hours_ahead=48)
+        slot.is_blocked = True
+        slot.save()
+        booking = _make_booking(customer, package, slot)
+
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-detail', args=[booking.pk])
+        response = api_client.put(url, {
+            'package_id': package.id,
+            'slot_id': slot.id,
+        }, format='json')
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_partial_update_requires_admin(self, api_client, customer, package):
+        """partial_update action requires IsAdminRole permission (line 48)."""
+        slot = _make_slot(hours_ahead=48)
+        slot.is_blocked = True
+        slot.save()
+        booking = _make_booking(customer, package, slot)
+
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-detail', args=[booking.pk])
+        response = api_client.patch(url, {'status': 'canceled'}, format='json')
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+# ----------------------------------------------------------------
+# Reschedule – unavailable new slot
+# ----------------------------------------------------------------
+
+@pytest.mark.django_db
+class TestRescheduleUnavailableSlot:
+    def test_reschedule_to_inactive_slot_fails(self, api_client, customer, package):
+        """Rescheduling to an inactive/blocked/past/booked slot returns 400 (line 205)."""
+        old_slot = _make_slot(hours_ahead=48)
+        old_slot.is_blocked = True
+        old_slot.save()
+        booking = _make_booking(customer, package, old_slot)
+
+        # Create a new slot that is inactive
+        now = timezone.now()
+        inactive_slot = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=72),
+            ends_at=now + timedelta(hours=73),
+            is_active=False,
+            is_blocked=False,
+        )
+
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-reschedule', args=[booking.pk])
+        response = api_client.post(url, {'new_slot_id': inactive_slot.pk}, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'not available' in response.data['detail']

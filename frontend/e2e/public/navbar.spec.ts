@@ -55,4 +55,22 @@ test.describe('Navbar — Desktop & Mobile', () => {
     await page.locator('.md\\:hidden').getByRole('link', { name: 'Programas' }).click();
     await page.waitForURL('**/programas');
   });
+
+  test('mobile menu "Inicio" link closes menu via onClick handler', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+
+    const menuBtn = page.getByLabel('Menú');
+    await menuBtn.click();
+
+    // Target the menu div specifically (not the hamburger button which also has md:hidden)
+    const mobileMenu = page.locator('div.md\\:hidden');
+    // Menu should be open (max-h-80)
+    await expect(mobileMenu).toHaveClass(/max-h-80/);
+
+    // Click "Inicio" — stays on same page but closes the menu
+    await mobileMenu.getByRole('link', { name: 'Inicio' }).click();
+
+    // Menu should close (max-h-0)
+    await expect(mobileMenu).toHaveClass(/max-h-0/, { timeout: 5_000 });
+  });
 });

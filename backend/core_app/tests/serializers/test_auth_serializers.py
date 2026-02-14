@@ -95,3 +95,21 @@ class TestLoginSerializer:
             'password': 'mypassword',
         })
         assert not serializer.is_valid()
+
+    @pytest.mark.django_db
+    def test_inactive_user_is_active_check(self, settings):
+        """Cover line 51: user.is_active is False after authenticate returns user."""
+        settings.AUTHENTICATION_BACKENDS = [
+            'django.contrib.auth.backends.AllowAllUsersModelBackend',
+        ]
+        user = User.objects.create_user(email='inactive2@example.com', password='mypassword')
+        user.is_active = False
+        user.save()
+        serializer = LoginSerializer(data={
+            'email': 'inactive2@example.com',
+            'password': 'mypassword',
+        })
+        assert not serializer.is_valid()
+        # The error should mention inactive, not invalid credentials
+        errors = serializer.errors
+        assert any('inactive' in str(v).lower() for v in errors.values())

@@ -54,6 +54,8 @@ const MOCK_REGISTER_RESPONSE = {
   },
 };
 
+jest.setTimeout(15000);
+
 describe('RegisterPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();

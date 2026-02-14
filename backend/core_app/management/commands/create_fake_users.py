@@ -2,12 +2,22 @@ from django.core.management.base import BaseCommand
 
 from core_app.models import User
 
+COLOMBIAN_NAMES = [
+    ('Valentina', 'Martínez'), ('Santiago', 'López'), ('Isabella', 'García'),
+    ('Mateo', 'Rodríguez'), ('Sofía', 'Hernández'), ('Samuel', 'González'),
+    ('Mariana', 'Ramírez'), ('Sebastián', 'Torres'), ('Camila', 'Díaz'),
+    ('Nicolás', 'Moreno'), ('Luciana', 'Vargas'), ('Alejandro', 'Jiménez'),
+    ('Gabriela', 'Rojas'), ('Daniel', 'Castro'), ('Laura', 'Ospina'),
+    ('Andrés', 'Mejía'), ('Paula', 'Restrepo'), ('Julián', 'Cardona'),
+    ('María José', 'Peña'), ('Tomás', 'Duque'),
+]
+
 
 class Command(BaseCommand):
     help = 'Create fake users (customers + optional admin)'
 
     def add_arguments(self, parser):
-        parser.add_argument('--customers', type=int, default=10)
+        parser.add_argument('--customers', type=int, default=20)
         parser.add_argument('--customer-password', type=str, default='customer123456')
         parser.add_argument('--admin-email', type=str, default='admin@kore.com')
         parser.add_argument('--admin-password', type=str, default='admin123456')
@@ -41,11 +51,14 @@ class Command(BaseCommand):
 
         for i in range(1, customers + 1):
             email = f'customer{i}@kore.com'
+            first_name, last_name = COLOMBIAN_NAMES[(i - 1) % len(COLOMBIAN_NAMES)]
+            phone = f'+5730000{i:04d}'
             user, created = User.objects.get_or_create(
                 email=email,
                 defaults={
-                    'first_name': f'Customer{i}',
-                    'last_name': 'Kore',
+                    'first_name': first_name,
+                    'last_name': last_name,
+                    'phone': phone,
                     'role': User.Role.CUSTOMER,
                 },
             )

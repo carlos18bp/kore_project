@@ -19,15 +19,15 @@ test.describe('Sidebar — Navigation & Active States', () => {
     await expect(inicioLink).toHaveAttribute('class', /text-kore-red/);
 
     // Navigate to /book-session — "Agendar Sesión" should be active
-    await page.getByRole('link', { name: 'Agendar Sesión' }).click();
+    await sidebar.getByRole('link', { name: 'Agendar Sesión' }).click();
     await page.waitForURL('**/book-session');
-    const agendarLink = page.getByRole('link', { name: 'Agendar Sesión' });
+    const agendarLink = sidebar.getByRole('link', { name: 'Agendar Sesión' });
     await expect(agendarLink).toHaveAttribute('class', /text-kore-red/);
 
     // Navigate to /my-sessions — "Mis Sesiones" should be active
-    await page.getByRole('link', { name: 'Mis Sesiones' }).click();
+    await sidebar.getByRole('link', { name: 'Mis Sesiones' }).click();
     await page.waitForURL('**/my-sessions');
-    const sesionesLink = page.getByRole('link', { name: 'Mis Sesiones' });
+    const sesionesLink = sidebar.getByRole('link', { name: 'Mis Sesiones' });
     await expect(sesionesLink).toHaveAttribute('class', /text-kore-red/);
   });
 });

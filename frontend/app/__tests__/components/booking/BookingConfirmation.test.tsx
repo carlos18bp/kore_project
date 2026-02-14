@@ -113,6 +113,24 @@ describe('BookingConfirmation', () => {
     expect(screen.getByText('Confirmando...')).toBeInTheDocument();
   });
 
+  it('renders dash for name and email when user is null', () => {
+    useAuthStore.setState({ user: null, isAuthenticated: false, accessToken: null });
+    render(
+      <BookingConfirmation trainer={MOCK_TRAINER} slot={MOCK_SLOT} subscription={null}
+        loading={false} error={null} onConfirm={onConfirm} onBack={onBack} />
+    );
+    const dashes = screen.getAllByText('—');
+    expect(dashes.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('hides subscription info when subscription is null', () => {
+    render(
+      <BookingConfirmation trainer={MOCK_TRAINER} slot={MOCK_SLOT} subscription={null}
+        loading={false} error={null} onConfirm={onConfirm} onBack={onBack} />
+    );
+    expect(screen.queryByText(/sesiones restantes/)).not.toBeInTheDocument();
+  });
+
   it('disables buttons while loading', () => {
     render(
       <BookingConfirmation trainer={MOCK_TRAINER} slot={MOCK_SLOT} subscription={null}
