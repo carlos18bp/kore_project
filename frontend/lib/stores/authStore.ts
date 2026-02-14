@@ -13,11 +13,21 @@ export type User = {
   name: string;
 };
 
+type RegisterParams = {
+  email: string;
+  password: string;
+  password_confirm: string;
+  first_name: string;
+  last_name: string;
+  phone?: string;
+};
+
 type AuthState = {
   user: User | null;
   accessToken: string | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  register: (params: RegisterParams) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   hydrate: () => void;
 };
@@ -78,6 +88,35 @@ export const useAuthStore = create<AuthState>((set) => ({
         success: false,
         error: typeof message === 'string' ? message : 'Correo o contraseña incorrectos',
       };
+    }
+  },
+
+  register: async (params: RegisterParams) => {
+    try {
+      const { data } = await api.post<LoginResponse>('/auth/register/', params);
+
+      const user = mapUser(data.user);
+      const accessToken = data.tokens.access;
+
+      Cookies.set('kore_token', accessToken, { expires: 7 });
+      Cookies.set('kore_refresh', data.tokens.refresh, { expires: 7 });
+      Cookies.set('kore_user', JSON.stringify(user), { expires: 7 });
+
+      set({ user, accessToken, isAuthenticated: true });
+      return { success: true };
+    } catch (err) {
+      const axiosErr = err as AxiosError<Record<string, unknown>>;
+      const responseData = axiosErr.response?.data;
+      let message = 'Error al registrar la cuenta';
+      if (responseData) {
+        const firstError = Object.values(responseData)[0];
+        if (Array.isArray(firstError)) {
+          message = firstError[0] as string;
+        } else if (typeof firstError === 'string') {
+          message = firstError;
+        }
+      }
+      return { success: false, error: message };
     }
   },
 

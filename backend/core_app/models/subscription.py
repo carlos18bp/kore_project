@@ -23,6 +23,7 @@ class Subscription(TimestampedModel):
 
     class Status(models.TextChoices):
         ACTIVE = 'active', 'Active'
+        PAUSED = 'paused', 'Paused'
         EXPIRED = 'expired', 'Expired'
         CANCELED = 'canceled', 'Canceled'
 
@@ -49,6 +50,27 @@ class Subscription(TimestampedModel):
 
     starts_at = models.DateTimeField()
     expires_at = models.DateTimeField()
+
+    payment_source_id = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text='Wompi payment source ID for recurring charges.',
+    )
+    wompi_transaction_id = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text='Wompi transaction ID for the initial payment.',
+    )
+    next_billing_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text='Date of the next automatic recurring charge.',
+    )
+    paused_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Timestamp when the subscription was paused.',
+    )
 
     class Meta:
         ordering = ('-created_at',)

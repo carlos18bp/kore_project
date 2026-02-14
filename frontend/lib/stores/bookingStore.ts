@@ -44,9 +44,11 @@ export type Subscription = {
   sessions_total: number;
   sessions_used: number;
   sessions_remaining: number;
-  status: 'active' | 'expired' | 'canceled';
+  status: 'active' | 'paused' | 'expired' | 'canceled';
   starts_at: string;
   expires_at: string;
+  next_billing_date: string | null;
+  paused_at: string | null;
 };
 
 export type BookingData = {

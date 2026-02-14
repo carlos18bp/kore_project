@@ -23,6 +23,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('core_app.urls.api_urls')),
     path('api/auth/', include('core_app.urls.auth_urls')),
+    path('api/wompi/', include('core_app.urls.wompi_urls')),
 ]
 
 if settings.DEBUG:

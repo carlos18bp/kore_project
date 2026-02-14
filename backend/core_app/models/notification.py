@@ -11,6 +11,8 @@ class Notification(TimestampedModel):
         BOOKING_REMINDER = 'booking_reminder', 'Booking reminder'
         PAYMENT_CONFIRMED = 'payment_confirmed', 'Payment confirmed'
         RECEIPT_EMAIL = 'receipt_email', 'Receipt email'
+        SUBSCRIPTION_ACTIVATED = 'subscription_activated', 'Subscription activated'
+        SUBSCRIPTION_CANCELED = 'subscription_canceled', 'Subscription canceled'
 
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'

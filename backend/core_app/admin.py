@@ -88,10 +88,10 @@ class BookingAdmin(admin.ModelAdmin):
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'booking', 'customer', 'status', 'amount', 'currency', 'provider', 'created_at')
+    list_display = ('id', 'booking', 'subscription', 'customer', 'status', 'amount', 'currency', 'provider', 'created_at')
     list_filter = ('status', 'provider', 'currency')
     search_fields = ('provider_reference', 'customer__email')
-    autocomplete_fields = ('booking', 'customer')
+    autocomplete_fields = ('booking', 'subscription', 'customer')
 
 
 @admin.register(Notification)
@@ -124,10 +124,11 @@ class TrainerProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
-    list_display = ('id', 'customer', 'package', 'status', 'sessions_total', 'sessions_used', 'starts_at', 'expires_at')
+    list_display = ('id', 'customer', 'package', 'status', 'sessions_total', 'sessions_used', 'starts_at', 'expires_at', 'next_billing_date')
     list_filter = ('status',)
     search_fields = ('customer__email', 'package__title')
     autocomplete_fields = ('customer', 'package')
+    readonly_fields = ('payment_source_id', 'wompi_transaction_id', 'paused_at')
 
 
 @admin.register(AnalyticsEvent)

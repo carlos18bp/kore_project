@@ -20,7 +20,20 @@ class Payment(TimestampedModel):
         EPAYCO = 'epayco', 'ePayco'
         PAYPAL = 'paypal', 'PayPal'
 
-    booking = models.ForeignKey('core_app.Booking', on_delete=models.PROTECT, related_name='payments')
+    booking = models.ForeignKey(
+        'core_app.Booking',
+        on_delete=models.PROTECT,
+        related_name='payments',
+        null=True,
+        blank=True,
+    )
+    subscription = models.ForeignKey(
+        'core_app.Subscription',
+        on_delete=models.PROTECT,
+        related_name='payments',
+        null=True,
+        blank=True,
+    )
     customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='payments')
 
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)

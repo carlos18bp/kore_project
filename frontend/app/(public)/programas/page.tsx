@@ -174,7 +174,7 @@ export default function ProgramasPage() {
             {selectedPlan !== null && (
               <div className="flex items-center gap-3 mb-10 lg:mb-0">
                 <a
-                  href="/login"
+                  href={`/register?package=${current.id}`}
                   className="inline-flex items-center justify-center gap-2 bg-kore-red text-white px-6 py-3 rounded-full text-sm font-medium hover:bg-kore-red-dark transition-colors"
                 >
                   Reservar {current.plans[selectedPlan].name}

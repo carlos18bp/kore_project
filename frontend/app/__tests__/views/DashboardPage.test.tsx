@@ -19,6 +19,10 @@ jest.mock('@/lib/stores/bookingStore', () => ({
   }),
 }));
 
+jest.mock('@/lib/services/http', () => ({
+  api: { get: jest.fn().mockRejectedValue(new Error('no subs')), post: jest.fn() },
+}));
+
 const mockUser = {
   id: '22',
   email: 'customer10@kore.com',
@@ -50,14 +54,14 @@ describe('DashboardPage', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
     render(<DashboardPage />);
     expect(screen.getByText('Tu programa')).toBeInTheDocument();
-    expect(screen.getByText('Sin programa activo')).toBeInTheDocument();
+    expect(screen.getAllByText('Sin programa activo').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders sessions remaining', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
     render(<DashboardPage />);
     expect(screen.getByText('Sesiones restantes')).toBeInTheDocument();
-    expect(screen.getByText('0')).toBeInTheDocument();
+    expect(screen.getByText(/^0$/)).toBeInTheDocument();
   });
 
   it('renders next session card with formatted date', () => {
@@ -71,8 +75,8 @@ describe('DashboardPage', () => {
     render(<DashboardPage />);
     expect(screen.getByText('Acciones rápidas')).toBeInTheDocument();
     expect(screen.getByText('Agendar sesión')).toBeInTheDocument();
-    expect(screen.getByText('Mi programa')).toBeInTheDocument();
-    expect(screen.getByText('Historial')).toBeInTheDocument();
+    expect(screen.getByText('Mi suscripción')).toBeInTheDocument();
+    expect(screen.getByText('Mis sesiones')).toBeInTheDocument();
     expect(screen.getByText('Soporte')).toBeInTheDocument();
   });
 

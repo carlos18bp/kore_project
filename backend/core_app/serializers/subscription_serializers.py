@@ -2,7 +2,6 @@ from rest_framework import serializers
 
 from core_app.models import Subscription
 from core_app.serializers.package_serializers import PackageSerializer
-from core_app.serializers.trainer_profile_serializers import TrainerProfileSerializer
 
 
 class SubscriptionSerializer(serializers.ModelSerializer):
@@ -28,6 +27,8 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             'status',
             'starts_at',
             'expires_at',
+            'next_billing_date',
+            'paused_at',
             'created_at',
             'updated_at',
         )

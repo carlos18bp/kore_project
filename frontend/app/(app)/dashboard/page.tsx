@@ -1,14 +1,21 @@
 'use client';
 
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { useAuthStore } from '@/lib/stores/authStore';
+import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 import UpcomingSessionReminder from '@/app/components/booking/UpcomingSessionReminder';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
+  const { activeSubscription: sub, fetchSubscriptions } = useSubscriptionStore();
   const sectionRef = useRef<HTMLElement>(null);
   useHeroAnimation(sectionRef);
+
+  useEffect(() => {
+    fetchSubscriptions();
+  }, [fetchSubscriptions]);
 
   if (!user) {
     return (
@@ -18,12 +25,14 @@ export default function DashboardPage() {
     );
   }
 
-  // TODO: Replace with real data from backend when booking/package endpoints are integrated
-  const sessionsRemaining = 0;
-  const program = 'Sin programa activo';
+  const sessionsRemaining = sub?.sessions_remaining ?? 0;
+  const sessionsTotal = sub?.sessions_total ?? 0;
+  const program = sub?.package?.title ?? 'Sin programa activo';
   const formattedDate = 'Sin agendar';
   const formattedTime = '';
-  const memberDate = '—';
+  const memberDate = sub
+    ? new Date(sub.starts_at).toLocaleDateString('es-CO', { month: 'short', year: 'numeric' })
+    : '—';
 
   return (
     <section ref={sectionRef} className="min-h-screen bg-kore-cream">
@@ -53,12 +62,12 @@ export default function DashboardPage() {
             <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-3">Sesiones restantes</p>
             <div className="flex items-baseline gap-2">
               <span className="font-heading text-4xl font-semibold text-kore-red">{sessionsRemaining}</span>
-              <span className="text-sm text-kore-gray-dark/40">de 12</span>
+              <span className="text-sm text-kore-gray-dark/40">de {sessionsTotal}</span>
             </div>
             <div className="mt-3 h-2 bg-kore-gray-light/40 rounded-full overflow-hidden">
               <div
                 className="h-full bg-kore-red rounded-full transition-all duration-500"
-                style={{ width: `${(sessionsRemaining / 12) * 100}%` }}
+                style={{ width: `${sessionsTotal > 0 ? (sessionsRemaining / sessionsTotal) * 100 : 0}%` }}
               />
             </div>
           </div>
@@ -80,18 +89,19 @@ export default function DashboardPage() {
               <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-4">Acciones rápidas</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
-                  { label: 'Agendar sesión', icon: '📅' },
-                  { label: 'Mi programa', icon: '📋' },
-                  { label: 'Historial', icon: '📊' },
-                  { label: 'Soporte', icon: '💬' },
+                  { label: 'Agendar sesión', icon: '📅', href: '/book-session' },
+                  { label: 'Mi suscripción', icon: '�', href: '/subscription' },
+                  { label: 'Mis sesiones', icon: '�', href: '/my-sessions' },
+                  { label: 'Soporte', icon: '💬', href: 'https://wa.me/' },
                 ].map((action) => (
-                  <button
+                  <Link
                     key={action.label}
+                    href={action.href}
                     className="flex flex-col items-center gap-2 p-4 rounded-xl bg-kore-cream/60 hover:bg-kore-cream transition-colors text-center"
                   >
                     <span className="text-2xl">{action.icon}</span>
                     <span className="text-xs text-kore-gray-dark/60 font-medium">{action.label}</span>
-                  </button>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -142,11 +152,11 @@ export default function DashboardPage() {
               <div className="space-y-3 pt-4 border-t border-kore-gray-light/30">
                 <div className="flex justify-between text-sm">
                   <span className="text-kore-gray-dark/40">Programa</span>
-                  <span className="text-kore-gray-dark font-medium">{program.split(' ')[0]}</span>
+                  <span className="text-kore-gray-dark font-medium">{program}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-kore-gray-dark/40">Sesiones</span>
-                  <span className="text-kore-gray-dark font-medium">{sessionsRemaining} restantes</span>
+                  <span className="text-kore-gray-dark font-medium">{sessionsRemaining} de {sessionsTotal}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-kore-gray-dark/40">Miembro desde</span>

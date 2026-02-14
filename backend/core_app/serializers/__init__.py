@@ -8,6 +8,13 @@ from .package_serializers import PackageSerializer
 from .payment_serializers import PaymentSerializer
 from .subscription_serializers import SubscriptionSerializer
 from .trainer_profile_serializers import TrainerProfileSerializer
+from .wompi_serializers import (
+    IntegritySignatureRequestSerializer,
+    IntegritySignatureResponseSerializer,
+    SubscriptionPaymentHistorySerializer,
+    SubscriptionPurchaseSerializer,
+    WompiConfigSerializer,
+)
 
 __all__ = [
     'AnalyticsEventSerializer',
@@ -23,4 +30,9 @@ __all__ = [
     'PaymentSerializer',
     'SubscriptionSerializer',
     'TrainerProfileSerializer',
+    'IntegritySignatureRequestSerializer',
+    'IntegritySignatureResponseSerializer',
+    'SubscriptionPaymentHistorySerializer',
+    'SubscriptionPurchaseSerializer',
+    'WompiConfigSerializer',
 ]

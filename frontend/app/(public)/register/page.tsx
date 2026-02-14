@@ -2,20 +2,35 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState, useRef, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 import { useAuthStore } from '@/lib/stores/authStore';
 
-export default function LoginPage() {
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterContent />
+    </Suspense>
+  );
+}
+
+function RegisterContent() {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const sectionRef = useRef<HTMLElement>(null);
   const router = useRouter();
-  const { login, isAuthenticated, hydrate } = useAuthStore();
+  const searchParams = useSearchParams();
+  const { register, isAuthenticated, hydrate } = useAuthStore();
+
+  const packageId = searchParams.get('package');
 
   useHeroAnimation(sectionRef);
 
@@ -25,21 +40,47 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.push('/dashboard');
+      if (packageId) {
+        router.push(`/checkout?package=${packageId}`);
+      } else {
+        router.push('/dashboard');
+      }
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, router, packageId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (password !== passwordConfirm) {
+      setError('Las contraseñas no coinciden');
+      return;
+    }
+
+    if (password.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres');
+      return;
+    }
+
     setIsLoading(true);
 
-    const result = await login(email, password);
+    const result = await register({
+      email,
+      password,
+      password_confirm: passwordConfirm,
+      first_name: firstName,
+      last_name: lastName,
+      phone: phone || undefined,
+    });
 
     if (result.success) {
-      router.push('/dashboard');
+      if (packageId) {
+        router.push(`/checkout?package=${packageId}`);
+      } else {
+        router.push('/dashboard');
+      }
     } else {
-      setError(result.error || 'Error al iniciar sesión');
+      setError(result.error || 'Error al crear la cuenta');
       setIsLoading(false);
     }
   };
@@ -66,11 +107,11 @@ export default function LoginPage() {
             </span>
           </Link>
           <p data-hero="subtitle" className="text-kore-gray-dark/50 text-sm mt-2 tracking-wide">
-            Accede a tu espacio personal
+            Crea tu cuenta
           </p>
         </div>
 
-        {/* Login Form Card */}
+        {/* Register Form Card */}
         <div data-hero="body" className="bg-white/60 backdrop-blur-sm rounded-2xl p-8 shadow-sm border border-kore-gray-light/50">
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Error message */}
@@ -79,6 +120,44 @@ export default function LoginPage() {
                 <p className="text-sm text-kore-red">{error}</p>
               </div>
             )}
+
+            {/* Name fields row */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label
+                  htmlFor="firstName"
+                  className="block text-xs font-medium tracking-widest uppercase text-kore-gray-dark/40 mb-2"
+                >
+                  Nombre
+                </label>
+                <input
+                  id="firstName"
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Tu nombre"
+                  required
+                  className="w-full px-4 py-3 rounded-lg bg-kore-cream/80 border border-kore-gray-light/60 text-kore-gray-dark placeholder:text-kore-gray-dark/30 text-sm focus:outline-none focus:border-kore-red/40 focus:ring-1 focus:ring-kore-red/20 transition-colors"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="lastName"
+                  className="block text-xs font-medium tracking-widest uppercase text-kore-gray-dark/40 mb-2"
+                >
+                  Apellido
+                </label>
+                <input
+                  id="lastName"
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Tu apellido"
+                  required
+                  className="w-full px-4 py-3 rounded-lg bg-kore-cream/80 border border-kore-gray-light/60 text-kore-gray-dark placeholder:text-kore-gray-dark/30 text-sm focus:outline-none focus:border-kore-red/40 focus:ring-1 focus:ring-kore-red/20 transition-colors"
+                />
+              </div>
+            </div>
 
             {/* Email */}
             <div>
@@ -99,6 +178,24 @@ export default function LoginPage() {
               />
             </div>
 
+            {/* Phone */}
+            <div>
+              <label
+                htmlFor="phone"
+                className="block text-xs font-medium tracking-widest uppercase text-kore-gray-dark/40 mb-2"
+              >
+                Teléfono <span className="normal-case tracking-normal">(opcional)</span>
+              </label>
+              <input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="300 123 4567"
+                className="w-full px-4 py-3 rounded-lg bg-kore-cream/80 border border-kore-gray-light/60 text-kore-gray-dark placeholder:text-kore-gray-dark/30 text-sm focus:outline-none focus:border-kore-red/40 focus:ring-1 focus:ring-kore-red/20 transition-colors"
+              />
+            </div>
+
             {/* Password */}
             <div>
               <label
@@ -115,6 +212,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
+                  minLength={8}
                   className="w-full px-4 py-3 rounded-lg bg-kore-cream/80 border border-kore-gray-light/60 text-kore-gray-dark placeholder:text-kore-gray-dark/30 text-sm focus:outline-none focus:border-kore-red/40 focus:ring-1 focus:ring-kore-red/20 transition-colors pr-12"
                 />
                 <button
@@ -127,14 +225,24 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Forgot password */}
-            <div className="flex justify-end">
-              <Link
-                href="/recuperar"
-                className="text-xs text-kore-gray-dark/40 hover:text-kore-red transition-colors"
+            {/* Confirm Password */}
+            <div>
+              <label
+                htmlFor="passwordConfirm"
+                className="block text-xs font-medium tracking-widest uppercase text-kore-gray-dark/40 mb-2"
               >
-                ¿Olvidaste tu contraseña?
-              </Link>
+                Confirmar contraseña
+              </label>
+              <input
+                id="passwordConfirm"
+                type={showPassword ? 'text' : 'password'}
+                value={passwordConfirm}
+                onChange={(e) => setPasswordConfirm(e.target.value)}
+                placeholder="••••••••"
+                required
+                minLength={8}
+                className="w-full px-4 py-3 rounded-lg bg-kore-cream/80 border border-kore-gray-light/60 text-kore-gray-dark placeholder:text-kore-gray-dark/30 text-sm focus:outline-none focus:border-kore-red/40 focus:ring-1 focus:ring-kore-red/20 transition-colors"
+              />
             </div>
 
             {/* Submit */}
@@ -149,37 +257,20 @@ export default function LoginPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  Ingresando...
+                  Creando cuenta...
                 </span>
               ) : (
-                'Iniciar sesión'
+                'Crear cuenta'
               )}
             </button>
           </form>
-
-          {/* Divider */}
-          <div className="flex items-center gap-4 my-6">
-            <div className="flex-1 h-px bg-kore-gray-light/60" />
-            <span className="text-xs text-kore-gray-dark/30 uppercase tracking-wide">o</span>
-            <div className="flex-1 h-px bg-kore-gray-light/60" />
-          </div>
-
-          {/* WhatsApp contact */}
-          <a
-            href="https://wa.me/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full flex items-center justify-center gap-2 border border-kore-gray-light/60 text-kore-gray-dark/60 hover:text-kore-gray-dark hover:border-kore-gray-dark/20 font-medium py-3.5 rounded-lg transition-colors duration-200 text-sm"
-          >
-            Contactar por WhatsApp
-          </a>
         </div>
 
         {/* Footer text */}
         <p data-hero="cta" className="text-center text-xs text-kore-gray-dark/30 mt-8">
-          ¿Aún no tienes cuenta?{' '}
-          <Link href="/register" className="text-kore-red hover:text-kore-red-dark transition-colors">
-            Regístrate aquí
+          ¿Ya tienes cuenta?{' '}
+          <Link href="/login" className="text-kore-red hover:text-kore-red-dark transition-colors">
+            Inicia sesión
           </Link>
         </p>
       </div>

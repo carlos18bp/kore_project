@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
+    'django_celery_beat',
 
     'core_app.apps.CoreAppConfig',
 ]
@@ -176,3 +177,25 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='KÓRE <noreply@korehealths.com>')
+
+
+# Wompi payment gateway configuration
+WOMPI_ENVIRONMENT = config('WOMPI_ENVIRONMENT', default='test')
+WOMPI_PUBLIC_KEY = config('WOMPI_PUBLIC_KEY', default='')
+WOMPI_PRIVATE_KEY = config('WOMPI_PRIVATE_KEY', default='')
+WOMPI_INTEGRITY_KEY = config('WOMPI_INTEGRITY_KEY', default='')
+WOMPI_EVENTS_KEY = config('WOMPI_EVENTS_KEY', default='')
+WOMPI_API_BASE_URL = (
+    'https://api-sandbox.co.uat.wompi.dev/v1'
+    if WOMPI_ENVIRONMENT == 'test'
+    else 'https://production.wompi.co/v1'
+)
+
+
+# Celery configuration
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
