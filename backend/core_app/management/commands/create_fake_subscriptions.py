@@ -56,14 +56,19 @@ class Command(BaseCommand):
 
         created = 0
         now = timezone.now()
+        active_threshold = max(1, int(len(customers) * 0.60))
 
         for i, customer in enumerate(customers):
             if Subscription.objects.filter(customer=customer).exists():
                 continue
 
             pkg = packages[i % len(packages)]
-            sub_status = _pick_status()
-            sessions_used = random.randint(0, pkg.sessions_count)
+            # Force first 60% of customers to have active subscriptions
+            sub_status = (
+                Subscription.Status.ACTIVE if i < active_threshold
+                else _pick_status()
+            )
+            sessions_used = random.randint(0, max(0, pkg.sessions_count - 1))
 
             starts_at = now - timedelta(days=random.randint(0, 15))
             expires_at = starts_at + timedelta(days=pkg.validity_days)

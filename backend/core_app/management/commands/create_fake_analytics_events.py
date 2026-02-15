@@ -6,7 +6,7 @@ from django.core.management.base import BaseCommand
 from core_app.models import AnalyticsEvent, User
 
 PATHS = [
-    '/', '/programas', '/la-marca-kore', '/login', '/register',
+    '/', '/programs', '/kore-brand', '/login', '/register',
     '/checkout', '/dashboard', '/book-session', '/my-sessions', '/subscription',
 ]
 

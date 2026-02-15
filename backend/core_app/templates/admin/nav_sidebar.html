@@ -1,0 +1,191 @@
+{% load i18n %}
+<button class="sticky toggle-nav-sidebar" id="toggle-nav-sidebar" aria-label="{% translate 'Toggle navigation' %}"></button>
+<nav class="sticky" id="nav-sidebar" aria-label="{% translate 'Sidebar' %}">
+  <input
+    type="search"
+    id="nav-filter"
+    placeholder="{% translate 'Start typing to filter...' %}"
+    aria-label="{% translate 'Filter navigation items' %}"
+  >
+
+  {% if available_apps %}
+    {% for app in available_apps %}
+      {% if app.app_label == "core_app" %}
+        <div class="app-{{ app.app_label }} module">
+          <table>
+            <caption><span class="section">{% trans "Users and Profiles" %}</span></caption>
+            {% for model in app.models %}
+              {% if model.object_name == "User" or model.object_name == "TrainerProfile" %}
+                <tr class="model-{{ model.object_name|lower }}{% if model.admin_url in request.path|urlencode %} current-model{% endif %}">
+                  {% if model.admin_url %}
+                    <th scope="row">
+                      <a href="{{ model.admin_url }}"{% if model.admin_url in request.path|urlencode %} aria-current="page"{% endif %}>{{ model.name }}</a>
+                    </th>
+                  {% else %}
+                    <th scope="row">{{ model.name }}</th>
+                  {% endif %}
+                  {% if model.add_url %}
+                    <td><a href="{{ model.add_url }}" class="addlink">{% translate 'Add' %}</a></td>
+                  {% else %}
+                    <td></td>
+                  {% endif %}
+                </tr>
+              {% endif %}
+            {% endfor %}
+          </table>
+        </div>
+
+        <div class="app-{{ app.app_label }} module">
+          <table>
+            <caption><span class="section">{% trans "Programs and Availability" %}</span></caption>
+            {% for model in app.models %}
+              {% if model.object_name == "Package" or model.object_name == "AvailabilitySlot" %}
+                <tr class="model-{{ model.object_name|lower }}{% if model.admin_url in request.path|urlencode %} current-model{% endif %}">
+                  {% if model.admin_url %}
+                    <th scope="row">
+                      <a href="{{ model.admin_url }}"{% if model.admin_url in request.path|urlencode %} aria-current="page"{% endif %}>{{ model.name }}</a>
+                    </th>
+                  {% else %}
+                    <th scope="row">{{ model.name }}</th>
+                  {% endif %}
+                  {% if model.add_url %}
+                    <td><a href="{{ model.add_url }}" class="addlink">{% translate 'Add' %}</a></td>
+                  {% else %}
+                    <td></td>
+                  {% endif %}
+                </tr>
+              {% endif %}
+            {% endfor %}
+          </table>
+        </div>
+
+        <div class="app-{{ app.app_label }} module">
+          <table>
+            <caption><span class="section">{% trans "Bookings and Subscriptions" %}</span></caption>
+            {% for model in app.models %}
+              {% if model.object_name == "Booking" or model.object_name == "Subscription" %}
+                <tr class="model-{{ model.object_name|lower }}{% if model.admin_url in request.path|urlencode %} current-model{% endif %}">
+                  {% if model.admin_url %}
+                    <th scope="row">
+                      <a href="{{ model.admin_url }}"{% if model.admin_url in request.path|urlencode %} aria-current="page"{% endif %}>{{ model.name }}</a>
+                    </th>
+                  {% else %}
+                    <th scope="row">{{ model.name }}</th>
+                  {% endif %}
+                  {% if model.add_url %}
+                    <td><a href="{{ model.add_url }}" class="addlink">{% translate 'Add' %}</a></td>
+                  {% else %}
+                    <td></td>
+                  {% endif %}
+                </tr>
+              {% endif %}
+            {% endfor %}
+          </table>
+        </div>
+
+        <div class="app-{{ app.app_label }} module">
+          <table>
+            <caption><span class="section">{% trans "Payments and Communication" %}</span></caption>
+            {% for model in app.models %}
+              {% if model.object_name == "Payment" or model.object_name == "Notification" %}
+                <tr class="model-{{ model.object_name|lower }}{% if model.admin_url in request.path|urlencode %} current-model{% endif %}">
+                  {% if model.admin_url %}
+                    <th scope="row">
+                      <a href="{{ model.admin_url }}"{% if model.admin_url in request.path|urlencode %} aria-current="page"{% endif %}>{{ model.name }}</a>
+                    </th>
+                  {% else %}
+                    <th scope="row">{{ model.name }}</th>
+                  {% endif %}
+                  {% if model.add_url %}
+                    <td><a href="{{ model.add_url }}" class="addlink">{% translate 'Add' %}</a></td>
+                  {% else %}
+                    <td></td>
+                  {% endif %}
+                </tr>
+              {% endif %}
+            {% endfor %}
+          </table>
+        </div>
+
+        <div class="app-{{ app.app_label }} module">
+          <table>
+            <caption><span class="section">{% trans "Content and Analytics" %}</span></caption>
+            {% for model in app.models %}
+              {% if model.object_name == "FAQItem" or model.object_name == "SiteSettings" or model.object_name == "AnalyticsEvent" %}
+                <tr class="model-{{ model.object_name|lower }}{% if model.admin_url in request.path|urlencode %} current-model{% endif %}">
+                  {% if model.admin_url %}
+                    <th scope="row">
+                      <a href="{{ model.admin_url }}"{% if model.admin_url in request.path|urlencode %} aria-current="page"{% endif %}>{{ model.name }}</a>
+                    </th>
+                  {% else %}
+                    <th scope="row">{{ model.name }}</th>
+                  {% endif %}
+                  {% if model.add_url %}
+                    <td><a href="{{ model.add_url }}" class="addlink">{% translate 'Add' %}</a></td>
+                  {% else %}
+                    <td></td>
+                  {% endif %}
+                </tr>
+              {% endif %}
+            {% endfor %}
+          </table>
+        </div>
+
+        <div class="app-{{ app.app_label }} module">
+          <table>
+            <caption><span class="section">{% trans "Other Core Models" %}</span></caption>
+            {% for model in app.models %}
+              {% if model.object_name != "User" and model.object_name != "TrainerProfile" and model.object_name != "Package" and model.object_name != "AvailabilitySlot" and model.object_name != "Booking" and model.object_name != "Subscription" and model.object_name != "Payment" and model.object_name != "Notification" and model.object_name != "FAQItem" and model.object_name != "SiteSettings" and model.object_name != "AnalyticsEvent" %}
+                <tr class="model-{{ model.object_name|lower }}{% if model.admin_url in request.path|urlencode %} current-model{% endif %}">
+                  {% if model.admin_url %}
+                    <th scope="row">
+                      <a href="{{ model.admin_url }}"{% if model.admin_url in request.path|urlencode %} aria-current="page"{% endif %}>{{ model.name }}</a>
+                    </th>
+                  {% else %}
+                    <th scope="row">{{ model.name }}</th>
+                  {% endif %}
+                  {% if model.add_url %}
+                    <td><a href="{{ model.add_url }}" class="addlink">{% translate 'Add' %}</a></td>
+                  {% else %}
+                    <td></td>
+                  {% endif %}
+                </tr>
+              {% endif %}
+            {% endfor %}
+          </table>
+        </div>
+      {% else %}
+        <div class="app-{{ app.app_label }} module{% if app.app_url in request.path|urlencode %} current-app{% endif %}">
+          <table>
+            <caption>
+              {% if app.app_url %}
+                <a href="{{ app.app_url }}" class="section" title="{% blocktranslate with name=app.name %}Models in the {{ name }} application{% endblocktranslate %}">{{ app.name }}</a>
+              {% else %}
+                {{ app.name }}
+              {% endif %}
+            </caption>
+            {% for model in app.models %}
+              <tr class="model-{{ model.object_name|lower }}{% if model.admin_url in request.path|urlencode %} current-model{% endif %}">
+                {% if model.admin_url %}
+                  <th scope="row">
+                    <a href="{{ model.admin_url }}"{% if model.admin_url in request.path|urlencode %} aria-current="page"{% endif %}>{{ model.name }}</a>
+                  </th>
+                {% else %}
+                  <th scope="row">{{ model.name }}</th>
+                {% endif %}
+
+                {% if model.add_url %}
+                  <td><a href="{{ model.add_url }}" class="addlink">{% translate 'Add' %}</a></td>
+                {% else %}
+                  <td></td>
+                {% endif %}
+              </tr>
+            {% endfor %}
+          </table>
+        </div>
+      {% endif %}
+    {% endfor %}
+  {% else %}
+    <p>{% translate "You don't have permission to view or edit anything." %}</p>
+  {% endif %}
+</nav>

@@ -11,7 +11,7 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 
-from core_app.models import Package, Payment, Subscription, User
+from core_app.models import Package, Payment, PaymentIntent, Subscription, User
 
 WOMPI_SETTINGS = {
     'WOMPI_PUBLIC_KEY': 'pub_test_abc',
@@ -289,3 +289,134 @@ class TestWompiWebhookView:
 
         payment.refresh_from_db()
         assert payment.status == Payment.Status.PENDING
+
+
+@pytest.mark.django_db
+class TestWebhookPaymentIntentResolution:
+    """Tests for webhook-driven PaymentIntent → Subscription + Payment creation."""
+
+    @pytest.fixture
+    def pending_intent(self, existing_user):
+        pkg = Package.objects.create(
+            title='Intent Pkg', price=Decimal('500000.00'), currency='COP',
+            sessions_count=12, validity_days=30,
+        )
+        return PaymentIntent.objects.create(
+            customer=existing_user,
+            package=pkg,
+            reference='ref-intent-001',
+            wompi_transaction_id='txn-intent-001',
+            payment_source_id='ps-intent-001',
+            amount=Decimal('500000.00'),
+            currency='COP',
+            status=PaymentIntent.Status.PENDING,
+        )
+
+    def _build_event(self, txn_id, txn_status, amount=50000000):
+        timestamp = 1530291411
+        concat = f'{txn_id}{txn_status}{amount}{timestamp}{WOMPI_SETTINGS["WOMPI_EVENTS_KEY"]}'
+        checksum = hashlib.sha256(concat.encode('utf-8')).hexdigest()
+        return {
+            'event': 'transaction.updated',
+            'data': {
+                'transaction': {
+                    'id': txn_id,
+                    'status': txn_status,
+                    'amount_in_cents': amount,
+                }
+            },
+            'signature': {
+                'properties': [
+                    'transaction.id',
+                    'transaction.status',
+                    'transaction.amount_in_cents',
+                ],
+                'checksum': checksum,
+            },
+            'timestamp': timestamp,
+        }
+
+    @override_settings(**WOMPI_SETTINGS)
+    def test_approved_creates_subscription_and_payment(self, api_client, pending_intent):
+        """APPROVED webhook resolves intent → creates Subscription + Payment."""
+        event = self._build_event('txn-intent-001', 'APPROVED')
+        url = reverse('wompi-webhook')
+        response = api_client.post(url, event, format='json')
+        assert response.status_code == status.HTTP_200_OK
+
+        pending_intent.refresh_from_db()
+        assert pending_intent.status == PaymentIntent.Status.APPROVED
+
+        sub = Subscription.objects.get(customer=pending_intent.customer)
+        assert sub.status == Subscription.Status.ACTIVE
+        assert sub.payment_source_id == 'ps-intent-001'
+        assert sub.wompi_transaction_id == 'txn-intent-001'
+        assert sub.sessions_total == 12
+        assert sub.next_billing_date is not None
+
+        pay = Payment.objects.get(subscription=sub)
+        assert pay.status == Payment.Status.CONFIRMED
+        assert pay.confirmed_at is not None
+        assert pay.amount == Decimal('500000.00')
+        assert pay.provider == Payment.Provider.WOMPI
+
+    @override_settings(**WOMPI_SETTINGS)
+    def test_declined_marks_intent_failed(self, api_client, pending_intent):
+        """DECLINED webhook marks intent as failed, no Subscription created."""
+        event = self._build_event('txn-intent-001', 'DECLINED')
+        url = reverse('wompi-webhook')
+        response = api_client.post(url, event, format='json')
+        assert response.status_code == status.HTTP_200_OK
+
+        pending_intent.refresh_from_db()
+        assert pending_intent.status == PaymentIntent.Status.FAILED
+
+        assert Subscription.objects.filter(customer=pending_intent.customer).count() == 0
+        assert Payment.objects.count() == 0
+
+    @override_settings(**WOMPI_SETTINGS)
+    def test_error_marks_intent_failed(self, api_client, pending_intent):
+        """ERROR webhook marks intent as failed."""
+        event = self._build_event('txn-intent-001', 'ERROR')
+        url = reverse('wompi-webhook')
+        response = api_client.post(url, event, format='json')
+        assert response.status_code == status.HTTP_200_OK
+
+        pending_intent.refresh_from_db()
+        assert pending_intent.status == PaymentIntent.Status.FAILED
+
+    @override_settings(**WOMPI_SETTINGS)
+    def test_voided_marks_intent_failed(self, api_client, pending_intent):
+        """VOIDED webhook marks intent as failed."""
+        event = self._build_event('txn-intent-001', 'VOIDED')
+        url = reverse('wompi-webhook')
+        response = api_client.post(url, event, format='json')
+        assert response.status_code == status.HTTP_200_OK
+
+        pending_intent.refresh_from_db()
+        assert pending_intent.status == PaymentIntent.Status.FAILED
+
+    @override_settings(**WOMPI_SETTINGS)
+    def test_idempotent_approved_intent(self, api_client, pending_intent):
+        """Duplicate APPROVED webhook for already-resolved intent is a no-op."""
+        # First webhook resolves intent
+        event = self._build_event('txn-intent-001', 'APPROVED')
+        url = reverse('wompi-webhook')
+        api_client.post(url, event, format='json')
+
+        sub_count_before = Subscription.objects.count()
+        pay_count_before = Payment.objects.count()
+
+        # Second webhook should not create duplicates
+        api_client.post(url, event, format='json')
+
+        assert Subscription.objects.count() == sub_count_before
+        assert Payment.objects.count() == pay_count_before
+
+    @override_settings(**WOMPI_SETTINGS)
+    def test_webhook_no_intent_no_payment_logs_warning(self, api_client):
+        """Webhook for unknown txn with no intent and no payment is handled gracefully."""
+        event = self._build_event('txn-unknown-999', 'APPROVED')
+        url = reverse('wompi-webhook')
+        response = api_client.post(url, event, format='json')
+        assert response.status_code == status.HTTP_200_OK

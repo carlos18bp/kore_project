@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 
-from core_app.models import Package, Payment, Subscription, User
+from core_app.models import Package, Payment, PaymentIntent, Subscription, User
 from core_app.tests.helpers import get_results
 
 
@@ -61,7 +61,7 @@ def paused_subscription(existing_user, package):
 class TestSubscriptionPurchase:
     @patch('core_app.views.subscription_views.create_transaction')
     @patch('core_app.views.subscription_views.create_payment_source')
-    def test_purchase_creates_subscription_and_payment(
+    def test_purchase_creates_payment_intent(
         self, mock_create_source, mock_create_txn, api_client, existing_user, package
     ):
         mock_create_source.return_value = 9999
@@ -75,19 +75,21 @@ class TestSubscriptionPurchase:
         }, format='json')
 
         assert response.status_code == status.HTTP_201_CREATED
-        assert response.data['status'] == 'active'
-        assert response.data['sessions_total'] == 10
-        assert response.data['next_billing_date'] is not None
+        assert response.data['status'] == 'pending'
+        assert 'reference' in response.data
+        assert response.data['wompi_transaction_id'] == 'txn-001'
+        assert response.data['package_title'] == package.title
 
-        assert Subscription.objects.filter(customer=existing_user).count() == 1
-        sub = Subscription.objects.get(customer=existing_user)
-        assert sub.payment_source_id == '9999'
-        assert sub.wompi_transaction_id == 'txn-001'
+        # PaymentIntent created, but NO Subscription or Payment yet
+        assert PaymentIntent.objects.filter(customer=existing_user).count() == 1
+        intent = PaymentIntent.objects.get(customer=existing_user)
+        assert intent.payment_source_id == '9999'
+        assert intent.wompi_transaction_id == 'txn-001'
+        assert intent.status == PaymentIntent.Status.PENDING
+        assert intent.amount == Decimal('300000.00')
 
-        assert Payment.objects.filter(subscription=sub).count() == 1
-        pay = Payment.objects.get(subscription=sub)
-        assert pay.provider == Payment.Provider.WOMPI
-        assert pay.amount == Decimal('300000.00')
+        assert Subscription.objects.filter(customer=existing_user).count() == 0
+        assert Payment.objects.count() == 0
 
     def test_purchase_requires_auth(self, api_client, package):
         url = reverse('subscription-purchase')
@@ -131,6 +133,73 @@ class TestSubscriptionPurchase:
             'card_token': 'tok_test_fail',
         }, format='json')
         assert response.status_code == status.HTTP_502_BAD_GATEWAY
+
+
+@pytest.mark.django_db
+class TestIntentStatusEndpoint:
+    @patch('core_app.views.subscription_views.create_transaction')
+    @patch('core_app.views.subscription_views.create_payment_source')
+    def test_intent_status_returns_pending(
+        self, mock_create_source, mock_create_txn, api_client, existing_user, package
+    ):
+        mock_create_source.return_value = 9999
+        mock_create_txn.return_value = {'id': 'txn-status-001', 'status': 'PENDING'}
+
+        api_client.force_authenticate(user=existing_user)
+        # Create intent via purchase
+        purchase_url = reverse('subscription-purchase')
+        resp = api_client.post(purchase_url, {
+            'package_id': package.id,
+            'card_token': 'tok_test_status',
+        }, format='json')
+        reference = resp.data['reference']
+
+        # Poll status
+        status_url = reverse('subscription-intent-status', args=[reference])
+        response = api_client.get(status_url)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['status'] == 'pending'
+        assert response.data['reference'] == reference
+
+    def test_intent_status_not_found(self, api_client, existing_user):
+        api_client.force_authenticate(user=existing_user)
+        status_url = reverse('subscription-intent-status', args=['nonexistent-ref'])
+        response = api_client.get(status_url)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_intent_status_requires_auth(self, api_client):
+        status_url = reverse('subscription-intent-status', args=['any-ref'])
+        response = api_client.get(status_url)
+        assert response.status_code in (
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        )
+
+    @patch('core_app.views.subscription_views.create_transaction')
+    @patch('core_app.views.subscription_views.create_payment_source')
+    def test_intent_status_only_visible_to_owner(
+        self, mock_create_source, mock_create_txn, api_client, existing_user, package
+    ):
+        mock_create_source.return_value = 9999
+        mock_create_txn.return_value = {'id': 'txn-owner-001', 'status': 'PENDING'}
+
+        api_client.force_authenticate(user=existing_user)
+        purchase_url = reverse('subscription-purchase')
+        resp = api_client.post(purchase_url, {
+            'package_id': package.id,
+            'card_token': 'tok_test_owner',
+        }, format='json')
+        reference = resp.data['reference']
+
+        # Different user should not see it
+        other_user = User.objects.create_user(
+            email='other_intent@example.com', password='p',
+            first_name='Other', last_name='User', role=User.Role.CUSTOMER,
+        )
+        api_client.force_authenticate(user=other_user)
+        status_url = reverse('subscription-intent-status', args=[reference])
+        response = api_client.get(status_url)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 @pytest.mark.django_db

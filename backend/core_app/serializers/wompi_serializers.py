@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 
-from core_app.models import Package, Payment, Subscription
+from core_app.models import Package, Payment, PaymentIntent, Subscription
 
 
 class WompiConfigSerializer(serializers.Serializer):
@@ -31,7 +31,8 @@ class SubscriptionPurchaseSerializer(serializers.Serializer):
     """Validates input for purchasing a subscription via Wompi tokenization.
 
     Expects the package ID and a card token obtained from the Wompi Widget
-    in tokenization mode.
+    in tokenization mode.  The backend creates a payment source and a Wompi
+    transaction, stores a PaymentIntent, and returns the intent for polling.
     """
 
     package_id = serializers.PrimaryKeyRelatedField(
@@ -41,6 +42,30 @@ class SubscriptionPurchaseSerializer(serializers.Serializer):
         max_length=255,
         help_text='Card token from Wompi Widget tokenization (e.g. tok_test_...)',
     )
+
+
+class PaymentIntentStatusSerializer(serializers.ModelSerializer):
+    """Read-only serializer for polling a PaymentIntent status.
+
+    Returns the current resolution state so the frontend can display
+    processing / success / failure screens.
+    """
+
+    package_title = serializers.CharField(source='package.title', read_only=True)
+
+    class Meta:
+        model = PaymentIntent
+        fields = (
+            'id',
+            'reference',
+            'wompi_transaction_id',
+            'status',
+            'amount',
+            'currency',
+            'package_title',
+            'created_at',
+        )
+        read_only_fields = fields
 
 
 class SubscriptionPaymentHistorySerializer(serializers.ModelSerializer):

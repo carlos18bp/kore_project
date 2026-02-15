@@ -44,11 +44,11 @@ Todos los modelos (excepto User y SiteSettings) heredan de `TimestampedModel` qu
 | Ruta | Vista | Propósito |
 |---|---|---|
 | `/` | Home | Landing page con secciones Hero, Filosofía, Programas, Tarifas, Proceso y Galería. |
-| `/la-marca-kore` | La Marca | Historia de la marca, pilares (flor interactiva), proceso diagnóstico, programas y seguimiento. |
-| `/programas` | Programas | Selección interactiva de programa y plan con precios, CTA de reserva. |
+| `/kore-brand` | La Marca | Historia de la marca, pilares (flor interactiva), proceso diagnóstico, programas y seguimiento. |
+| `/programs` | Programas | Selección interactiva de programa y plan con precios, CTA de reserva. |
 | `/login` | Login | Formulario de autenticación con validación y toggle de contraseña. |
 | `/dashboard` | Dashboard | Panel del cliente: programa activo, sesiones restantes, próxima cita, acciones rápidas y actividad reciente. |
-| `/calendario` | Calendario | Embed de Cal.com para agendamiento de sesiones. |
+| `/calendar` | Calendario | Ruta de compatibilidad que redirige al flujo de agendamiento en `/book-session`. |
 
 ---
 
@@ -270,9 +270,9 @@ npx playwright test e2e/auth/login.spec.ts
 ```
 e2e/
 ├── fixtures.ts      # Fixture con V8 JS coverage automático
-├── public/          # Páginas públicas (home, la-marca-kore, programas)
+├── public/          # Páginas públicas (home, kore-brand, programs)
 ├── auth/            # Flujos de autenticación (login, logout)
-└── app/             # Páginas autenticadas (dashboard, calendario)
+└── app/             # Páginas autenticadas (dashboard, calendar)
 ```
 
 ---

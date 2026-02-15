@@ -8,6 +8,7 @@ from .payment import Payment
 from .notification import Notification
 from .content import FAQItem, SiteSettings
 from .analytics import AnalyticsEvent
+from .payment_intent import PaymentIntent
 
 __all__ = [
     'User',
@@ -17,6 +18,7 @@ __all__ = [
     'AvailabilitySlot',
     'Booking',
     'Payment',
+    'PaymentIntent',
     'Notification',
     'SiteSettings',
     'FAQItem',

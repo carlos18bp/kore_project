@@ -9,10 +9,8 @@ from django.utils import timezone
 from core_app.models import (
     AvailabilitySlot,
     Booking,
-    Package,
     Subscription,
     TrainerProfile,
-    User,
 )
 
 CANCEL_REASONS = [
@@ -49,15 +47,20 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         num = int(options['num'])
 
-        customers = list(User.objects.filter(role=User.Role.CUSTOMER, is_active=True))
-        packages = list(Package.objects.filter(is_active=True))
+        # Only consider customers with an active subscription that has remaining sessions
+        eligible_subs = list(
+            Subscription.objects.filter(
+                status=Subscription.Status.ACTIVE,
+                sessions_used__lt=db_models.F('sessions_total'),
+            ).select_related('customer', 'package')
+        )
         trainers = list(TrainerProfile.objects.all())
 
-        if not customers:
-            self.stdout.write(self.style.WARNING('No customers found. Run create_fake_users first.'))
-            return
-        if not packages:
-            self.stdout.write(self.style.WARNING('No packages found. Run create_fake_packages first.'))
+        if not eligible_subs:
+            self.stdout.write(self.style.WARNING(
+                'No customers with active subscriptions found. '
+                'Run create_fake_users, create_fake_packages, and create_fake_subscriptions first.'
+            ))
             return
 
         created = 0
@@ -78,22 +81,11 @@ class Command(BaseCommand):
             if not slot:
                 break
 
-            customer = random.choice(customers)
-            package = random.choice(packages)
+            sub = random.choice(eligible_subs)
+            customer = sub.customer
+            package = sub.package
+            subscription = sub
             trainer = trainers[created % len(trainers)] if trainers else None
-
-            # Find an active subscription for this customer (prefer matching package)
-            subscription = (
-                Subscription.objects.filter(
-                    customer=customer,
-                    status=Subscription.Status.ACTIVE,
-                )
-                .filter(
-                    db_models.Q(package=package)
-                    | db_models.Q(sessions_used__lt=db_models.F('sessions_total'))
-                )
-                .first()
-            )
 
             # Pick status: ~75% confirmed, ~15% canceled, ~10% pending
             r = random.random()
@@ -126,11 +118,15 @@ class Command(BaseCommand):
                     booking_kwargs['canceled_reason'] = random.choice(CANCEL_REASONS)
                     canceled_count += 1
 
-                if subscription and subscription.sessions_remaining > 0 and status != Booking.Status.CANCELED:
-                    booking_kwargs['subscription'] = subscription
-                    Subscription.objects.filter(pk=subscription.pk).update(
-                        sessions_used=db_models.F('sessions_used') + 1,
-                    )
+                if subscription and status != Booking.Status.CANCELED:
+                    # Re-check remaining sessions under lock
+                    sub_fresh = Subscription.objects.select_for_update().get(pk=subscription.pk)
+                    if sub_fresh.sessions_remaining > 0:
+                        booking_kwargs['subscription'] = subscription
+                        Subscription.objects.filter(pk=subscription.pk).update(
+                            sessions_used=db_models.F('sessions_used') + 1,
+                        )
+                        subscription.refresh_from_db()
 
                 Booking.objects.create(**booking_kwargs)
                 created += 1

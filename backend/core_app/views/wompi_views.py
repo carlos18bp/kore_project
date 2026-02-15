@@ -7,8 +7,10 @@ Provides endpoints for:
 """
 
 import logging
+from datetime import timedelta
 
 from django.conf import settings
+from django.db import transaction as db_transaction
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
@@ -16,7 +18,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from core_app.models import Payment, Subscription
+from core_app.models import Payment, PaymentIntent, Subscription
 from core_app.services.wompi_service import (
     generate_integrity_signature,
     verify_event_checksum,
@@ -112,8 +114,13 @@ def wompi_webhook(request):
 def _handle_transaction_updated(data):
     """Process a transaction.updated webhook event.
 
-    Looks up the Payment by provider_reference (Wompi transaction ID)
-    and updates its status based on the transaction result.
+    Two paths:
+    1. **Initial purchase**: looks up a pending PaymentIntent by
+       wompi_transaction_id.  On APPROVED, creates Payment + Subscription
+       atomically.  On DECLINED/ERROR, marks the intent as failed.
+    2. **Recurring billing**: if no PaymentIntent matches but a Payment
+       record exists (created by the recurring billing task), updates
+       its status as before.
 
     Args:
         data: The 'data' dict from the webhook event body containing
@@ -127,18 +134,113 @@ def _handle_transaction_updated(data):
         logger.warning('Webhook transaction.updated missing transaction ID')
         return
 
+    # --- Path 1: Resolve a PaymentIntent (initial purchase) ---
+    try:
+        intent = PaymentIntent.objects.select_related(
+            'customer', 'package',
+        ).get(wompi_transaction_id=txn_id)
+    except PaymentIntent.DoesNotExist:
+        intent = None
+
+    if intent is not None:
+        _resolve_payment_intent(intent, txn_status)
+        return
+
+    # --- Path 2: Update an existing Payment (recurring billing) ---
     try:
         payment = Payment.objects.select_related('subscription').get(
             provider_reference=txn_id,
             provider=Payment.Provider.WOMPI,
         )
     except Payment.DoesNotExist:
-        logger.warning('Payment not found for Wompi transaction %s', txn_id)
+        logger.warning('No PaymentIntent or Payment found for Wompi txn %s', txn_id)
         return
     except Payment.MultipleObjectsReturned:
         logger.error('Multiple payments found for Wompi transaction %s', txn_id)
         return
 
+    _update_existing_payment(payment, txn_id, txn_status)
+
+
+def _resolve_payment_intent(intent, txn_status):
+    """Resolve a PaymentIntent based on webhook transaction status.
+
+    On APPROVED: creates Payment + Subscription in a single atomic
+    transaction and marks the intent as approved.
+    On DECLINED/ERROR: marks the intent as failed.
+    Idempotent: if the intent is already resolved, does nothing.
+
+    Args:
+        intent: PaymentIntent instance.
+        txn_status: Wompi transaction status string.
+    """
+    if intent.status != PaymentIntent.Status.PENDING:
+        logger.info(
+            'PaymentIntent %s already resolved (%s), skipping',
+            intent.pk, intent.status,
+        )
+        return
+
+    if txn_status == 'APPROVED':
+        now = timezone.now()
+        package = intent.package
+
+        with db_transaction.atomic():
+            subscription = Subscription.objects.create(
+                customer=intent.customer,
+                package=package,
+                sessions_total=package.sessions_count,
+                sessions_used=0,
+                status=Subscription.Status.ACTIVE,
+                starts_at=now,
+                expires_at=now + timedelta(days=package.validity_days),
+                payment_source_id=intent.payment_source_id,
+                wompi_transaction_id=intent.wompi_transaction_id,
+                next_billing_date=(
+                    now + timedelta(days=package.validity_days)
+                ).date(),
+            )
+
+            Payment.objects.create(
+                customer=intent.customer,
+                subscription=subscription,
+                amount=intent.amount,
+                currency=intent.currency,
+                provider=Payment.Provider.WOMPI,
+                provider_reference=intent.wompi_transaction_id,
+                status=Payment.Status.CONFIRMED,
+                confirmed_at=now,
+                metadata={
+                    'wompi_reference': intent.reference,
+                    'payment_source_id': intent.payment_source_id,
+                },
+            )
+
+            intent.status = PaymentIntent.Status.APPROVED
+            intent.save(update_fields=['status', 'updated_at'])
+
+        logger.info(
+            'PaymentIntent %s approved → subscription %s created (txn %s)',
+            intent.pk, subscription.pk, intent.wompi_transaction_id,
+        )
+
+    elif txn_status in ('DECLINED', 'ERROR', 'VOIDED'):
+        intent.status = PaymentIntent.Status.FAILED
+        intent.save(update_fields=['status', 'updated_at'])
+        logger.warning(
+            'PaymentIntent %s failed (txn %s, status %s)',
+            intent.pk, intent.wompi_transaction_id, txn_status,
+        )
+
+
+def _update_existing_payment(payment, txn_id, txn_status):
+    """Update an existing Payment record from a webhook (recurring billing).
+
+    Args:
+        payment: Payment instance with related subscription.
+        txn_id: Wompi transaction ID string.
+        txn_status: Wompi transaction status string.
+    """
     if txn_status == 'APPROVED':
         payment.status = Payment.Status.CONFIRMED
         payment.confirmed_at = timezone.now()

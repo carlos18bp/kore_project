@@ -8,10 +8,11 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from core_app.models import Package, Payment, Subscription
+from core_app.models import Package, Payment, PaymentIntent, Subscription
 from core_app.permissions import is_admin_user
 from core_app.serializers.subscription_serializers import SubscriptionSerializer
 from core_app.serializers.wompi_serializers import (
+    PaymentIntentStatusSerializer,
     SubscriptionPaymentHistorySerializer,
     SubscriptionPurchaseSerializer,
 )
@@ -60,17 +61,18 @@ class SubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='purchase')
     def purchase(self, request):
-        """Purchase a new subscription via Wompi card tokenization.
+        """Initiate a subscription purchase via Wompi card tokenization.
 
         Receives a package_id and card_token, creates a payment source
-        in Wompi, charges the first payment, and creates the Subscription
-        and Payment records.
+        in Wompi, initiates a Wompi transaction, and stores a pending
+        PaymentIntent.  The actual Payment and Subscription are created
+        later by the webhook handler when the transaction is APPROVED.
 
         Args:
             request: DRF request with package_id and card_token in body.
 
         Returns:
-            Response: Created subscription data or error details.
+            Response: Created PaymentIntent data for status polling.
         """
         serializer = SubscriptionPurchaseSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -110,35 +112,49 @@ class SubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_502_BAD_GATEWAY,
             )
 
-        now = timezone.now()
-        subscription = Subscription.objects.create(
+        intent = PaymentIntent.objects.create(
             customer=user,
             package=package,
-            sessions_total=package.sessions_count,
-            sessions_used=0,
-            status=Subscription.Status.ACTIVE,
-            starts_at=now,
-            expires_at=now + timedelta(days=package.validity_days),
-            payment_source_id=str(payment_source_id),
+            reference=reference,
             wompi_transaction_id=str(txn_data.get('id', '')),
-            next_billing_date=(now + timedelta(days=package.validity_days)).date(),
-        )
-
-        Payment.objects.create(
-            customer=user,
-            subscription=subscription,
+            payment_source_id=str(payment_source_id),
             amount=package.price,
             currency=package.currency,
-            provider=Payment.Provider.WOMPI,
-            provider_reference=str(txn_data.get('id', '')),
-            status=Payment.Status.PENDING,
-            metadata={'wompi_reference': reference, 'wompi_transaction': txn_data},
+            status=PaymentIntent.Status.PENDING,
         )
 
         return Response(
-            SubscriptionSerializer(subscription).data,
+            PaymentIntentStatusSerializer(intent).data,
             status=status.HTTP_201_CREATED,
         )
+
+    @action(detail=False, methods=['get'], url_path='intent-status/(?P<reference>[^/.]+)')
+    def intent_status(self, request, reference=None):
+        """Poll the status of a PaymentIntent by its reference.
+
+        The frontend calls this endpoint after initiating a purchase to
+        check whether the webhook has resolved the intent to approved or
+        failed.
+
+        Args:
+            request: DRF request.
+            reference: The unique Wompi payment reference.
+
+        Returns:
+            Response: Current PaymentIntent status data.
+        """
+        try:
+            intent = PaymentIntent.objects.select_related('package').get(
+                reference=reference,
+                customer=request.user,
+            )
+        except PaymentIntent.DoesNotExist:
+            return Response(
+                {'detail': 'Payment intent not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(PaymentIntentStatusSerializer(intent).data)
 
     @action(detail=True, methods=['post'], url_path='cancel')
     def cancel_subscription(self, request, pk=None):
