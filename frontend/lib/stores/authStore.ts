@@ -77,6 +77,10 @@ export const useAuthStore = create<AuthState>((set) => ({
       Cookies.set('kore_refresh', data.tokens.refresh, { expires: 7 });
       Cookies.set('kore_user', JSON.stringify(user), { expires: 7 });
 
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('kore_reminder_dismissed');
+      }
+
       set({ user, accessToken, isAuthenticated: true });
       return { success: true };
     } catch (err) {
@@ -124,6 +128,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     Cookies.remove('kore_token');
     Cookies.remove('kore_refresh');
     Cookies.remove('kore_user');
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('kore_reminder_dismissed');
+    }
     set({ user: null, accessToken: null, isAuthenticated: false });
   },
 

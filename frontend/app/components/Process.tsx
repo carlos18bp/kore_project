@@ -58,6 +58,7 @@ export default function Process() {
                 src="/images/pose/pose-08.webp"
                 alt="Proceso KÓRE - estudio anatómico"
                 fill
+                sizes="(max-width: 1024px) 300px, 400px"
                 className="object-cover"
               />
             </div>

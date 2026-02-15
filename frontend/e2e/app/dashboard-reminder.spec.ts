@@ -169,6 +169,45 @@ test.describe('Dashboard — Upcoming Session Reminder', () => {
     await expect(detailLink).toHaveAttribute('href', '/my-sessions');
   });
 
+  test('dismissed reminder does NOT reappear when navigating back to dashboard', async ({ page }) => {
+    const now = new Date();
+    const futureSlotStart = new Date(now.getTime() + 12 * 60 * 60 * 1000);
+    const futureSlotEnd = new Date(futureSlotStart.getTime() + 60 * 60 * 1000);
+
+    await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 999,
+          subscription_id_display: 11,
+          status: 'confirmed',
+          slot: {
+            id: 9999,
+            starts_at: futureSlotStart.toISOString(),
+            ends_at: futureSlotEnd.toISOString(),
+          },
+          trainer: { first_name: 'Germán', last_name: 'Franco' },
+        }),
+      });
+    });
+
+    await loginAsTestUser(page);
+    await expect(page.getByText('¡Tienes una sesión próxima!')).toBeVisible({ timeout: 10_000 });
+
+    // Dismiss the reminder
+    await page.getByRole('button', { name: 'Cerrar', exact: true }).click();
+    await expect(page.getByText('¡Tienes una sesión próxima!')).not.toBeVisible();
+
+    // Navigate away and back to dashboard
+    await page.goto('/book-session');
+    await page.goto('/dashboard');
+    await page.waitForTimeout(2_000);
+
+    // Reminder should NOT reappear because sessionStorage persists within the tab
+    await expect(page.getByText('¡Tienes una sesión próxima!')).not.toBeVisible();
+  });
+
   test('reminder does NOT show when API returns no upcoming booking', async ({ page }) => {
     await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
       await route.fulfill({

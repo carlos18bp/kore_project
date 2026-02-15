@@ -62,7 +62,7 @@ export default function TrainerInfoPanel({ trainer, selectedSlot, timezone }: Pr
         {selectedSlot && (
           <div className="mt-4 p-3 bg-kore-cream rounded-xl">
             <p className="text-sm font-medium text-kore-gray-dark">
-              {new Date(selectedSlot.starts_at).toLocaleDateString('es-CO', {
+              {new Date(selectedSlot.starts_at).toLocaleDateString('en-US', {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
@@ -70,12 +70,12 @@ export default function TrainerInfoPanel({ trainer, selectedSlot, timezone }: Pr
               })}
             </p>
             <p className="text-sm text-kore-gray-dark/60">
-              {new Date(selectedSlot.starts_at).toLocaleTimeString('es-CO', {
+              {new Date(selectedSlot.starts_at).toLocaleTimeString('en-US', {
                 hour: '2-digit',
                 minute: '2-digit',
               })}
               {' — '}
-              {new Date(selectedSlot.ends_at).toLocaleTimeString('es-CO', {
+              {new Date(selectedSlot.ends_at).toLocaleTimeString('en-US', {
                 hour: '2-digit',
                 minute: '2-digit',
               })}

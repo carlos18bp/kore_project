@@ -6,7 +6,12 @@ import { useBookingStore } from '@/lib/stores/bookingStore';
 
 export default function UpcomingSessionReminder() {
   const { upcomingReminder, fetchUpcomingReminder } = useBookingStore();
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('kore_reminder_dismissed') === 'true';
+    }
+    return false;
+  });
 
   useEffect(() => {
     fetchUpcomingReminder();
@@ -21,12 +26,12 @@ export default function UpcomingSessionReminder() {
   // Only show if within 48 hours
   if (hoursUntil > 48 || hoursUntil < 0) return null;
 
-  const dateStr = slotStart.toLocaleDateString('es-CO', {
+  const dateStr = slotStart.toLocaleDateString('en-US', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
   });
-  const timeStr = slotStart.toLocaleTimeString('es-CO', {
+  const timeStr = slotStart.toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
   });
@@ -62,8 +67,11 @@ export default function UpcomingSessionReminder() {
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setDismissed(true)}
-            className="flex-1 py-3 rounded-xl border border-kore-gray-light/50 text-sm font-medium text-kore-gray-dark/60 hover:bg-kore-cream transition-colors"
+            onClick={() => {
+              setDismissed(true);
+              sessionStorage.setItem('kore_reminder_dismissed', 'true');
+            }}
+            className="flex-1 py-3 rounded-xl border border-kore-gray-light/50 text-sm font-medium text-kore-gray-dark/60 hover:bg-kore-cream transition-colors cursor-pointer"
           >
             Cerrar
           </button>

@@ -19,6 +19,25 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: '/programas',
+        destination: '/programs',
+        permanent: true,
+      },
+      {
+        source: '/la-marca-kore',
+        destination: '/kore-brand',
+        permanent: true,
+      },
+      {
+        source: '/calendario',
+        destination: '/calendar',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

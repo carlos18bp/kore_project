@@ -33,7 +33,7 @@ describe('Navbar', () => {
   it('renders navigation links', () => {
     render(<Navbar />);
     expect(screen.getAllByText('Inicio').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('La Marca Kóre').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('La Marca').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Programas').length).toBeGreaterThanOrEqual(1);
   });
 
@@ -89,11 +89,11 @@ describe('Navbar', () => {
   });
 
   it('highlights the active link based on pathname', () => {
-    mockPathname = '/la-marca-kore';
+    mockPathname = '/kore-brand';
     render(<Navbar />);
 
     // The desktop nav links
-    const desktopLinks = screen.getAllByText('La Marca Kóre');
+    const desktopLinks = screen.getAllByText('La Marca');
     const desktopLink = desktopLinks.find(el => el.closest('.hidden.md\\:flex'));
     expect(desktopLink).toHaveClass('text-kore-red');
   });

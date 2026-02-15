@@ -94,7 +94,7 @@ describe('SubscriptionPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Sin suscripción activa')).toBeInTheDocument();
     });
-    expect(screen.getByText('Ver programas')).toHaveAttribute('href', '/programas');
+    expect(screen.getByText('Ver programas')).toHaveAttribute('href', '/programs');
   });
 
   it('renders subscription details when active subscription exists', async () => {

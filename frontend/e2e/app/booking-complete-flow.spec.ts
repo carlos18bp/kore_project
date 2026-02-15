@@ -211,7 +211,7 @@ test.describe('Complete Booking Flow (mocked)', () => {
 
     // Should return to step 1 — calendar and slots are visible (selectedDate is kept)
     await expect(page.getByText('Seleccionar horario')).toBeVisible();
-    await expect(page.getByText('Lun')).toBeVisible();
+    await expect(page.getByText('Lun', { exact: true })).toBeVisible();
   });
 
   test('success screen "Agendar otra sesión" resets to step 1', async ({ page }) => {
@@ -272,7 +272,7 @@ test.describe('Complete Booking Flow (mocked)', () => {
     const toggle24 = page.getByRole('button', { name: '24h' });
     await toggle12.click();
     // Should show AM/PM format
-    await expect(page.getByText(/a.\s*m\.|p.\s*m\./i).first()).toBeVisible();
+    await expect(page.getByText(/AM|PM|a\.?\s*m\.?|p\.?\s*m\.?/i).first()).toBeVisible();
 
     // Toggle back to 24h
     await toggle24.click();

@@ -31,7 +31,7 @@ export default function Hero() {
 
           {/* Body Text */}
           <p data-hero="body" className="text-base md:text-lg text-kore-gray-dark/80 leading-relaxed mb-10 max-w-lg">
-            No entrenamos cuerpos aislados.{' '}
+            No entrenamos cuerpos aislados.{" "}
             <strong className="text-kore-gray-dark font-medium">
               Acompañamos personas completas
             </strong>
@@ -42,7 +42,7 @@ export default function Hero() {
           {/* CTA Buttons */}
           <div data-hero="cta" className="flex flex-wrap gap-4 mb-14">
             <a
-              href="#programas"
+              href="#programs"
               className="inline-flex items-center justify-center bg-kore-red hover:bg-kore-red-dark text-white font-medium px-8 py-3.5 rounded-lg transition-colors duration-200"
             >
               Ver programas
@@ -51,7 +51,7 @@ export default function Hero() {
               href="/login"
               className="inline-flex items-center justify-center border-2 border-kore-red text-kore-red hover:bg-kore-red hover:text-white font-medium px-8 py-3.5 rounded-lg transition-colors duration-200"
             >
-              Ir al dashboard
+              Iniciar sesión
             </a>
           </div>
 
@@ -91,6 +91,7 @@ export default function Hero() {
               src="/images/flower.webp"
               alt="Flor de Kóre - símbolo de armonía y vitalidad"
               fill
+              sizes="(max-width: 768px) 480px, (max-width: 1280px) 700px, 1100px"
               className="object-contain opacity-90"
               priority
             />

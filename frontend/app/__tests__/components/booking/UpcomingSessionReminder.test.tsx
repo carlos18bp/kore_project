@@ -39,6 +39,7 @@ describe('UpcomingSessionReminder', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    sessionStorage.clear();
   });
 
   it('renders nothing when no upcoming reminder', () => {
@@ -65,7 +66,7 @@ describe('UpcomingSessionReminder', () => {
     expect(fetchUpcomingReminder).toHaveBeenCalledTimes(1);
   });
 
-  it('hides modal when Cerrar is clicked', async () => {
+  it('hides modal when Cerrar is clicked and writes to sessionStorage', async () => {
     const user = userEvent.setup();
     mockedUseBookingStore.mockReturnValue({ upcomingReminder: buildReminder(12), fetchUpcomingReminder });
     render(<UpcomingSessionReminder />);
@@ -73,6 +74,14 @@ describe('UpcomingSessionReminder', () => {
 
     await user.click(screen.getByText('Cerrar'));
     expect(screen.queryByText('¡Tienes una sesión próxima!')).not.toBeInTheDocument();
+    expect(sessionStorage.getItem('kore_reminder_dismissed')).toBe('true');
+  });
+
+  it('does not show modal when sessionStorage has dismissed flag', () => {
+    sessionStorage.setItem('kore_reminder_dismissed', 'true');
+    mockedUseBookingStore.mockReturnValue({ upcomingReminder: buildReminder(12), fetchUpcomingReminder });
+    const { container } = render(<UpcomingSessionReminder />);
+    expect(container.querySelector('.fixed')).toBeNull();
   });
 
   it('renders "Ver detalle" link pointing to session detail', () => {

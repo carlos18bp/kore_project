@@ -31,8 +31,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${cinzel.variable} ${montserrat.variable}`}>
-      <body className="antialiased font-body">
+    <html
+      lang="es"
+      suppressHydrationWarning
+      className={`${cinzel.variable} ${montserrat.variable}`}
+    >
+      <body suppressHydrationWarning className="antialiased font-body">
         {children}
       </body>
     </html>

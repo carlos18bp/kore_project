@@ -76,7 +76,7 @@ export default function Sidebar() {
       {/* Backdrop overlay for mobile */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 lg:hidden cursor-pointer"
           onClick={() => setIsOpen(false)}
         />
       )}

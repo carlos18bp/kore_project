@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function CalendarioPage() {
+export default function CalendarPage() {
   const router = useRouter();
 
   useEffect(() => {

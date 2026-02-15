@@ -7,8 +7,8 @@ import { useState } from 'react';
 
 const navLinks = [
   { href: '/', label: 'Inicio' },
-  { href: '/la-marca-kore', label: 'La Marca Kóre' },
-  { href: '/programas', label: 'Programas' },
+  { href: '/kore-brand', label: 'La Marca' },
+  { href: '/programs', label: 'Programas' },
 ];
 
 export default function Navbar() {
@@ -28,7 +28,7 @@ export default function Navbar() {
             alt="KÓRE"
             width={44}
             height={44}
-            className="rounded-full"
+            className="rounded-full w-11 h-11"
           />
           <span className="font-heading text-xl font-semibold text-kore-wine-dark tracking-wide">
             KÓRE

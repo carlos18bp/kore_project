@@ -18,7 +18,7 @@ jest.mock('@/app/composables/useScrollAnimations', () => ({
 }));
 
 const mockFetchTrainers = jest.fn();
-const mockFetchSlots = jest.fn();
+const mockFetchMonthSlots = jest.fn();
 const mockFetchSubscriptions = jest.fn();
 const mockCreateBooking = jest.fn();
 const mockReset = jest.fn();
@@ -48,11 +48,11 @@ function setupStore(overrides = {}) {
     trainer: null,
     subscription: null,
     bookingResult: null,
-    slots: [],
+    monthSlots: [],
     loading: false,
     error: null,
     fetchTrainers: mockFetchTrainers,
-    fetchSlots: mockFetchSlots,
+    fetchMonthSlots: mockFetchMonthSlots,
     fetchSubscriptions: mockFetchSubscriptions,
     createBooking: mockCreateBooking,
     reset: mockReset,

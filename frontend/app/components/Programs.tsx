@@ -57,7 +57,7 @@ export default function Programs() {
   useTextReveal(sectionRef);
 
   return (
-    <section ref={sectionRef} id="programas" className="bg-kore-cream py-10 lg:py-12">
+    <section ref={sectionRef} id="programs" className="bg-kore-cream py-10 lg:py-12">
       <div className="w-full px-6 md:px-10 lg:px-16">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-12">
@@ -88,6 +88,7 @@ export default function Programs() {
                   src={program.image}
                   alt={program.alt}
                   fill
+                  sizes="(max-width: 1024px) 100vw, 33vw"
                   className="object-cover group-hover:scale-105 transition-transform duration-500"
                 />
               </div>

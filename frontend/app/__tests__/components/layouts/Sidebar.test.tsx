@@ -101,4 +101,14 @@ describe('Sidebar', () => {
     render(<Sidebar />);
     expect(screen.queryByText('Customer10 Kore')).not.toBeInTheDocument();
   });
+
+  it('renders mobile backdrop with pointer cursor when menu is open', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<Sidebar />);
+
+    await user.click(screen.getByLabelText('Abrir menú'));
+
+    const backdrop = container.querySelector('div[class*="bg-black/30"]');
+    expect(backdrop).toHaveClass('cursor-pointer');
+  });
 });

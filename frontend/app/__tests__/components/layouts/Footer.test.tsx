@@ -15,7 +15,7 @@ describe('Footer', () => {
 
   it('renders navigation links', () => {
     expect(screen.getByText('Inicio')).toBeInTheDocument();
-    expect(screen.getByText('La Marca Kóre')).toBeInTheDocument();
+    expect(screen.getByText('La Marca')).toBeInTheDocument();
     expect(screen.getByText('Programas')).toBeInTheDocument();
   });
 

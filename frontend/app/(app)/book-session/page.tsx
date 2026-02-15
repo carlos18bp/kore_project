@@ -25,11 +25,11 @@ export default function BookSessionPage() {
     trainer,
     subscription,
     bookingResult,
-    slots,
+    monthSlots,
     loading,
     error,
     fetchTrainers,
-    fetchSlots,
+    fetchMonthSlots,
     fetchSubscriptions,
     createBooking,
     reset,
@@ -48,30 +48,26 @@ export default function BookSessionPage() {
     [subscriptions],
   );
 
-  // When month view is shown, fetch all slots for the visible month range
-  // For simplicity, fetch slots when selectedDate changes
+  // Fetch all future slots (no date filter) so the calendar can show available days
   useEffect(() => {
-    if (selectedDate) {
-      fetchSlots(selectedDate, trainer?.id);
-    }
-  }, [selectedDate, trainer?.id, fetchSlots]);
+    fetchMonthSlots(trainer?.id);
+  }, [trainer?.id, fetchMonthSlots]);
 
-  // Build set of available dates from all slots (for calendar highlighting)
-  // We re-fetch monthly but for now we highlight based on loaded slots
+  // Build set of available dates from all future slots
   const availableDates = useMemo(() => {
     const dates = new Set<string>();
-    slots.forEach((s) => {
+    monthSlots.forEach((s) => {
       const d = new Date(s.starts_at).toISOString().slice(0, 10);
       dates.add(d);
     });
     return dates;
-  }, [slots]);
+  }, [monthSlots]);
 
   // Filter slots for selected date
   const slotsForDate = useMemo(() => {
     if (!selectedDate) return [];
-    return slots.filter((s) => new Date(s.starts_at).toISOString().slice(0, 10) === selectedDate);
-  }, [slots, selectedDate]);
+    return monthSlots.filter((s) => new Date(s.starts_at).toISOString().slice(0, 10) === selectedDate);
+  }, [monthSlots, selectedDate]);
 
   const handleConfirm = useCallback(async () => {
     if (!selectedSlot || !activeSub) return;
@@ -145,7 +141,6 @@ export default function BookSessionPage() {
                   selectedDate={selectedDate}
                   onSelectDate={(date) => {
                     setSelectedDate(date);
-                    fetchSlots(date, trainer?.id);
                   }}
                 />
               </div>

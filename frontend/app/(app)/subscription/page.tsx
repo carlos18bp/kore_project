@@ -37,7 +37,7 @@ export default function SubscriptionPage() {
   }, [sub, fetchPaymentHistory]);
 
   const formatPrice = (price: string, currency: string) => {
-    return new Intl.NumberFormat('es-CO', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency,
       minimumFractionDigits: 0,
@@ -112,7 +112,7 @@ export default function SubscriptionPage() {
               Explora nuestros programas y comienza tu transformación.
             </p>
             <Link
-              href="/programas"
+              href="/programs"
               className="inline-flex items-center gap-2 bg-kore-red hover:bg-kore-red-dark text-white font-medium px-6 py-3 rounded-lg transition-colors text-sm"
             >
               Ver programas

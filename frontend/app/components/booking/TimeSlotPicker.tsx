@@ -15,9 +15,9 @@ export default function TimeSlotPicker({ slots, selectedSlot, onSelectSlot }: Pr
   function formatTime(isoString: string) {
     const d = new Date(isoString);
     if (use24h) {
-      return d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false });
+      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
     }
-    return d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   }
 
   if (slots.length === 0) {

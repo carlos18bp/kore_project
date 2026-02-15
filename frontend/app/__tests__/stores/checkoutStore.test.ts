@@ -35,13 +35,25 @@ const MOCK_WOMPI_CONFIG = {
   environment: 'sandbox',
 };
 
-const MOCK_PURCHASE_RESULT = {
+const MOCK_INTENT_PENDING = {
   id: 10,
-  status: 'active',
-  sessions_total: 12,
-  starts_at: '2025-02-15T00:00:00Z',
-  expires_at: '2025-03-15T00:00:00Z',
-  next_billing_date: null,
+  reference: 'ref-test-001',
+  wompi_transaction_id: 'txn-test-001',
+  status: 'pending' as const,
+  amount: '500000',
+  currency: 'COP',
+  package_title: 'Gold',
+  created_at: '2025-02-15T00:00:00Z',
+};
+
+const MOCK_INTENT_APPROVED = {
+  ...MOCK_INTENT_PENDING,
+  status: 'approved' as const,
+};
+
+const MOCK_INTENT_FAILED = {
+  ...MOCK_INTENT_PENDING,
+  status: 'failed' as const,
 };
 
 function resetStore() {
@@ -50,7 +62,7 @@ function resetStore() {
     wompiConfig: null,
     loading: false,
     paymentStatus: 'idle',
-    purchaseResult: null,
+    intentResult: null,
     error: '',
   });
 }
@@ -58,8 +70,13 @@ function resetStore() {
 describe('checkoutStore', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
     resetStore();
     mockedCookies.get.mockReturnValue('fake-token');
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   // ----------------------------------------------------------------
@@ -105,18 +122,40 @@ describe('checkoutStore', () => {
   // purchaseSubscription
   // ----------------------------------------------------------------
   describe('purchaseSubscription', () => {
-    it('sets paymentStatus to success and returns true on success', async () => {
-      mockedApi.post.mockResolvedValueOnce({ data: MOCK_PURCHASE_RESULT });
-      const result = await useCheckoutStore.getState().purchaseSubscription(1, 'card-token-abc');
+    it('creates intent and polls until approved, returns true', async () => {
+      // Purchase returns pending intent
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
+      // First poll returns pending, second returns approved
+      mockedApi.get
+        .mockResolvedValueOnce({ data: MOCK_INTENT_PENDING })
+        .mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
+
+      const promise = useCheckoutStore.getState().purchaseSubscription(1, 'card-token-abc');
+
+      // After purchase, state should be 'polling'
+      await jest.advanceTimersByTimeAsync(0);
+      expect(useCheckoutStore.getState().paymentStatus).toBe('polling');
+
+      // First poll (pending)
+      await jest.advanceTimersByTimeAsync(2000);
+      // Second poll (approved)
+      await jest.advanceTimersByTimeAsync(2000);
+
+      const result = await promise;
       expect(result).toBe(true);
       const state = useCheckoutStore.getState();
       expect(state.paymentStatus).toBe('success');
-      expect(state.purchaseResult).toEqual(MOCK_PURCHASE_RESULT);
+      expect(state.intentResult).toEqual(MOCK_INTENT_APPROVED);
     });
 
     it('sends correct payload with auth header', async () => {
-      mockedApi.post.mockResolvedValueOnce({ data: MOCK_PURCHASE_RESULT });
-      await useCheckoutStore.getState().purchaseSubscription(1, 'card-token-abc');
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
+      mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
+
+      const promise = useCheckoutStore.getState().purchaseSubscription(1, 'card-token-abc');
+      await jest.advanceTimersByTimeAsync(2000);
+      await promise;
+
       expect(mockedApi.post).toHaveBeenCalledWith(
         '/subscriptions/purchase/',
         { package_id: 1, card_token: 'card-token-abc' },
@@ -124,7 +163,21 @@ describe('checkoutStore', () => {
       );
     });
 
-    it('sets error from API detail on failure', async () => {
+    it('returns false when polling resolves to failed', async () => {
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
+      mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_FAILED });
+
+      const promise = useCheckoutStore.getState().purchaseSubscription(1, 'card-token-abc');
+      await jest.advanceTimersByTimeAsync(2000);
+      const result = await promise;
+
+      expect(result).toBe(false);
+      const state = useCheckoutStore.getState();
+      expect(state.paymentStatus).toBe('error');
+      expect(state.error).toBe('El pago fue rechazado. Intenta con otro método de pago.');
+    });
+
+    it('sets error from API detail on purchase failure', async () => {
       const axiosError = new AxiosError('fail', '400', undefined, undefined, {
         data: { detail: 'Tarjeta rechazada.' },
         status: 400,
@@ -149,6 +202,24 @@ describe('checkoutStore', () => {
   });
 
   // ----------------------------------------------------------------
+  // pollIntentStatus
+  // ----------------------------------------------------------------
+  describe('pollIntentStatus', () => {
+    it('ignores transient polling errors and continues', async () => {
+      // First poll fails, second succeeds with approved
+      mockedApi.get
+        .mockRejectedValueOnce(new Error('network hiccup'))
+        .mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
+
+      const promise = useCheckoutStore.getState().pollIntentStatus('ref-test-001');
+      await jest.advanceTimersByTimeAsync(2000);
+      await jest.advanceTimersByTimeAsync(2000);
+      const result = await promise;
+      expect(result).toBe(true);
+    });
+  });
+
+  // ----------------------------------------------------------------
   // reset
   // ----------------------------------------------------------------
   describe('reset', () => {
@@ -158,7 +229,7 @@ describe('checkoutStore', () => {
         wompiConfig: MOCK_WOMPI_CONFIG,
         loading: true,
         paymentStatus: 'success',
-        purchaseResult: MOCK_PURCHASE_RESULT,
+        intentResult: MOCK_INTENT_APPROVED,
         error: 'some error',
       });
 
@@ -168,7 +239,7 @@ describe('checkoutStore', () => {
       expect(state.wompiConfig).toBeNull();
       expect(state.loading).toBe(false);
       expect(state.paymentStatus).toBe('idle');
-      expect(state.purchaseResult).toBeNull();
+      expect(state.intentResult).toBeNull();
       expect(state.error).toBe('');
     });
   });

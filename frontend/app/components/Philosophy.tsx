@@ -64,6 +64,7 @@ export default function Philosophy() {
                   src={pillar.image}
                   alt={pillar.alt}
                   fill
+                  sizes="(max-width: 1024px) 192px, 224px"
                   className="object-cover group-hover:scale-105 transition-transform duration-500"
                 />
               </div>

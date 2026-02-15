@@ -8,7 +8,7 @@ test.describe('Navbar — Desktop & Mobile', () => {
   test('desktop navbar shows all navigation links and CTA', async ({ page }) => {
     const nav = page.getByRole('navigation');
     await expect(nav.getByRole('link', { name: 'Inicio' })).toBeVisible();
-    await expect(nav.getByRole('link', { name: 'La Marca Kóre' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'La Marca' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Programas' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Iniciar sesión' })).toBeVisible();
   });
@@ -19,9 +19,9 @@ test.describe('Navbar — Desktop & Mobile', () => {
     await expect(inicioLink).toHaveAttribute('class', /text-kore-red/);
   });
 
-  test('navbar link highlights when navigating to La Marca Kóre', async ({ page }) => {
-    await page.goto('/la-marca-kore');
-    const link = page.locator('nav ul').getByRole('link', { name: 'La Marca Kóre' });
+  test('navbar link highlights when navigating to Kore Brand', async ({ page }) => {
+    await page.goto('/kore-brand');
+    const link = page.locator('nav ul').getByRole('link', { name: 'La Marca' });
     await expect(link).toHaveAttribute('class', /text-kore-red/);
   });
 
@@ -38,7 +38,7 @@ test.describe('Navbar — Desktop & Mobile', () => {
 
     // Mobile menu links should be visible
     await expect(page.locator('.md\\:hidden').getByRole('link', { name: 'Inicio' })).toBeVisible();
-    await expect(page.locator('.md\\:hidden').getByRole('link', { name: 'La Marca Kóre' })).toBeVisible();
+    await expect(page.locator('.md\\:hidden').getByRole('link', { name: 'La Marca' })).toBeVisible();
     await expect(page.locator('.md\\:hidden').getByRole('link', { name: 'Programas' })).toBeVisible();
 
     // Close menu
@@ -51,9 +51,9 @@ test.describe('Navbar — Desktop & Mobile', () => {
     const menuBtn = page.getByLabel('Menú');
     await menuBtn.click();
 
-    // Click on "Programas" from mobile menu
+    // Click on "Programs" from mobile menu
     await page.locator('.md\\:hidden').getByRole('link', { name: 'Programas' }).click();
-    await page.waitForURL('**/programas');
+    await page.waitForURL('**/programs');
   });
 
   test('mobile menu "Inicio" link closes menu via onClick handler', async ({ page }) => {

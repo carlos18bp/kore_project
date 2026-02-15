@@ -14,8 +14,9 @@ test.describe('Home Page', () => {
   });
 
   test('renders CTA buttons', async ({ page }) => {
-    await expect(page.getByRole('link', { name: 'Ver programas' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Ir al dashboard' })).toBeVisible();
+    const main = page.getByRole('main');
+    await expect(main.getByRole('link', { name: 'Ver programas' })).toBeVisible();
+    await expect(main.getByRole('link', { name: 'Iniciar sesión' })).toBeVisible();
   });
 
   test('renders the Philosophy section', async ({ page }) => {
@@ -38,9 +39,9 @@ test.describe('Home Page', () => {
     await expect(page.getByText('Estilo visual')).toBeVisible();
   });
 
-  test('navigates to #programas via CTA link', async ({ page }) => {
+  test('navigates to #programs via CTA link', async ({ page }) => {
     await page.getByRole('link', { name: 'Ver programas' }).click();
-    await expect(page).toHaveURL('/#programas');
+    await expect(page).toHaveURL('/#programs');
   });
 
   test('navbar is visible with navigation links', async ({ page }) => {

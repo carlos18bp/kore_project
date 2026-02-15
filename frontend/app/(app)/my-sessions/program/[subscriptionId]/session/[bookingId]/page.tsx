@@ -150,16 +150,16 @@ export default function SessionDetailPage() {
               <div className="px-6 py-4 flex gap-4">
                 <span className="text-sm text-kore-gray-dark/40 w-24 flex-shrink-0">Cuándo</span>
                 <span className="text-sm font-medium text-kore-gray-dark capitalize">
-                  {slotStart.toLocaleDateString('es-CO', {
+                  {slotStart.toLocaleDateString('en-US', {
                     weekday: 'long',
                     day: 'numeric',
                     month: 'long',
                     year: 'numeric',
                   })}
                   {' — '}
-                  {slotStart.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                  {slotStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                   {' a '}
-                  {slotEnd.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                  {slotEnd.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
               <div className="px-6 py-4 flex gap-4">

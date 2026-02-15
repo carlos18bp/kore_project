@@ -19,36 +19,42 @@ type WompiConfig = {
   environment: string;
 };
 
-type PurchaseResult = {
+export type PaymentIntentResult = {
   id: number;
-  status: string;
-  sessions_total: number;
-  starts_at: string;
-  expires_at: string;
-  next_billing_date: string | null;
+  reference: string;
+  wompi_transaction_id: string;
+  status: 'pending' | 'approved' | 'failed';
+  amount: string;
+  currency: string;
+  package_title: string;
+  created_at: string;
 };
 
-type PaymentStatus = 'idle' | 'processing' | 'success' | 'error';
+type PaymentStatus = 'idle' | 'processing' | 'polling' | 'success' | 'error';
 
 type CheckoutState = {
   package_: PackageDetail | null;
   wompiConfig: WompiConfig | null;
   loading: boolean;
   paymentStatus: PaymentStatus;
-  purchaseResult: PurchaseResult | null;
+  intentResult: PaymentIntentResult | null;
   error: string;
   fetchPackage: (id: string) => Promise<void>;
   fetchWompiConfig: () => Promise<void>;
   purchaseSubscription: (packageId: number, cardToken: string) => Promise<boolean>;
+  pollIntentStatus: (reference: string) => Promise<boolean>;
   reset: () => void;
 };
 
-export const useCheckoutStore = create<CheckoutState>((set) => ({
+const POLL_INTERVAL_MS = 2000;
+const POLL_MAX_ATTEMPTS = 30;
+
+export const useCheckoutStore = create<CheckoutState>((set, get) => ({
   package_: null,
   wompiConfig: null,
   loading: false,
   paymentStatus: 'idle',
-  purchaseResult: null,
+  intentResult: null,
   error: '',
 
   fetchPackage: async (id: string) => {
@@ -74,16 +80,13 @@ export const useCheckoutStore = create<CheckoutState>((set) => ({
     set({ paymentStatus: 'processing', error: '' });
     try {
       const token = Cookies.get('kore_token');
-      const { data } = await api.post(
+      const { data } = await api.post<PaymentIntentResult>(
         '/subscriptions/purchase/',
         { package_id: packageId, card_token: cardToken },
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      set({
-        paymentStatus: 'success',
-        purchaseResult: data,
-      });
-      return true;
+      set({ intentResult: data, paymentStatus: 'polling' });
+      return await get().pollIntentStatus(data.reference);
     } catch (err) {
       const axiosErr = err as AxiosError<{ detail?: string }>;
       const message = axiosErr.response?.data?.detail || 'Error al procesar el pago. Intenta de nuevo.';
@@ -92,13 +95,40 @@ export const useCheckoutStore = create<CheckoutState>((set) => ({
     }
   },
 
+  pollIntentStatus: async (reference: string) => {
+    const token = Cookies.get('kore_token');
+    for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+      try {
+        const { data } = await api.get<PaymentIntentResult>(
+          `/subscriptions/intent-status/${reference}/`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        set({ intentResult: data });
+
+        if (data.status === 'approved') {
+          set({ paymentStatus: 'success' });
+          return true;
+        }
+        if (data.status === 'failed') {
+          set({ paymentStatus: 'error', error: 'El pago fue rechazado. Intenta con otro método de pago.' });
+          return false;
+        }
+      } catch {
+        // Ignore transient polling errors, keep trying
+      }
+    }
+    set({ paymentStatus: 'error', error: 'El pago está tardando más de lo esperado. Revisa tu estado en unos minutos.' });
+    return false;
+  },
+
   reset: () => {
     set({
       package_: null,
       wompiConfig: null,
       loading: false,
       paymentStatus: 'idle',
-      purchaseResult: null,
+      intentResult: null,
       error: '',
     });
   },

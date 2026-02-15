@@ -26,7 +26,7 @@ describe('Hero', () => {
 
   it('renders CTA links', () => {
     expect(screen.getByText('Ver programas')).toBeInTheDocument();
-    expect(screen.getByText('Ir al dashboard')).toBeInTheDocument();
+    expect(screen.getByText('Iniciar sesión')).toBeInTheDocument();
   });
 
   it('renders the three stats', () => {

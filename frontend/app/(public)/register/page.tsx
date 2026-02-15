@@ -93,6 +93,7 @@ function RegisterContent() {
           src="/images/flower.webp"
           alt=""
           fill
+          sizes="(max-width: 1024px) 600px, 800px"
           className="object-contain"
           aria-hidden="true"
         />

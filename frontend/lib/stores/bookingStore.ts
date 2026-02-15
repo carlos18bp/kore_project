@@ -90,6 +90,7 @@ type BookingState = {
   // Data lists
   trainers: Trainer[];
   slots: Slot[];
+  monthSlots: Slot[];
   subscriptions: Subscription[];
   bookings: BookingData[];
   bookingsPagination: { count: number; next: string | null; previous: string | null };
@@ -108,6 +109,7 @@ type BookingState = {
   // Actions — API
   fetchTrainers: () => Promise<void>;
   fetchSlots: (date?: string, trainerId?: number) => Promise<void>;
+  fetchMonthSlots: (trainerId?: number) => Promise<void>;
   fetchSubscriptions: () => Promise<void>;
   fetchBookings: (subscriptionId?: number, page?: number) => Promise<void>;
   fetchUpcomingReminder: () => Promise<void>;
@@ -137,6 +139,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   bookingResult: null,
   trainers: [],
   slots: [],
+  monthSlots: [],
   subscriptions: [],
   bookings: [],
   bookingsPagination: { count: 0, next: null, previous: null },
@@ -189,6 +192,21 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       set({ error: 'Error loading slots.' });
     } finally {
       set({ loading: false });
+    }
+  },
+
+  fetchMonthSlots: async (trainerId) => {
+    try {
+      const params: Record<string, string> = {};
+      if (trainerId) params.trainer = String(trainerId);
+      const { data } = await api.get<PaginatedResponse<Slot>>('/availability-slots/', {
+        headers: authHeaders(),
+        params,
+      });
+      const slots = data.results ?? data;
+      set({ monthSlots: Array.isArray(slots) ? slots : [] });
+    } catch {
+      set({ monthSlots: [] });
     }
   },
 

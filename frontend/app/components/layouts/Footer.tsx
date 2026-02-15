@@ -3,8 +3,8 @@ import { WHATSAPP_URL } from '@/lib/constants';
 
 const navLinks = [
   { href: '/', label: 'Inicio' },
-  { href: '/la-marca-kore', label: 'La Marca Kóre' },
-  { href: '/programas', label: 'Programas' },
+  { href: '/kore-brand', label: 'La Marca' },
+  { href: '/programs', label: 'Programas' },
 ];
 
 const socialLinks = [

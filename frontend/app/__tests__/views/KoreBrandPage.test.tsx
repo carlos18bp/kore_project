@@ -1,14 +1,14 @@
 import { render, screen } from '@testing-library/react';
-import LaMarcaKorePage from '@/app/(public)/la-marca-kore/page';
+import KoreBrandPage from '@/app/(public)/kore-brand/page';
 
 jest.mock('next/image', () => ({
   __esModule: true,
   default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => <img {...props} />,
 }));
 
-describe('LaMarcaKorePage', () => {
+describe('KoreBrandPage', () => {
   beforeEach(() => {
-    render(<LaMarcaKorePage />);
+    render(<KoreBrandPage />);
   });
 
   it('renders the hero section with brand heading', () => {

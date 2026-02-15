@@ -75,7 +75,7 @@ describe('CheckoutPage', () => {
       wompiConfig: null,
       loading: false,
       paymentStatus: 'idle',
-      purchaseResult: null,
+      intentResult: null,
       error: '',
     });
   });
@@ -132,13 +132,15 @@ describe('CheckoutPage', () => {
       package_: MOCK_PACKAGE,
       wompiConfig: MOCK_WOMPI_CONFIG,
       paymentStatus: 'success',
-      purchaseResult: {
+      intentResult: {
         id: 99,
-        status: 'active',
-        sessions_total: 10,
-        starts_at: '2025-01-01T00:00:00Z',
-        expires_at: '2025-01-31T00:00:00Z',
-        next_billing_date: '2025-01-31',
+        reference: 'ref-success-001',
+        wompi_transaction_id: 'txn-success-001',
+        status: 'approved',
+        amount: '300000.00',
+        currency: 'COP',
+        package_title: 'Semi Presencial FLW',
+        created_at: '2025-01-01T00:00:00Z',
       },
     });
     render(<CheckoutPage />);
@@ -147,7 +149,6 @@ describe('CheckoutPage', () => {
     expect(screen.getByText('Tu suscripción ha sido activada')).toBeInTheDocument();
     expect(screen.getByText('Semi Presencial FLW')).toBeInTheDocument();
     expect(screen.getByText('10')).toBeInTheDocument();
-    expect(screen.getByText('2025-01-31')).toBeInTheDocument();
     expect(screen.getByText('Ir a mi dashboard')).toHaveAttribute('href', '/dashboard');
   });
 
@@ -170,7 +171,7 @@ describe('CheckoutPage', () => {
     await waitFor(() => {
       expect(screen.getByText('← Volver a programas')).toBeInTheDocument();
     });
-    expect(screen.getByText('← Volver a programas').closest('a')).toHaveAttribute('href', '/programas');
+    expect(screen.getByText('← Volver a programas').closest('a')).toHaveAttribute('href', '/programs');
   });
 
   it('renders brand name KÓRE', () => {

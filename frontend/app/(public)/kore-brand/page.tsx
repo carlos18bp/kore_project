@@ -89,7 +89,7 @@ function AnimatedArrow({ type, style }: { type: 'loop' | 'simply'; style: React.
   );
 }
 
-export default function LaMarcaKorePage() {
+export default function KoreBrandPage() {
   const heroRef = useRef<HTMLElement>(null);
   const flowerRef = useRef<HTMLElement>(null);
   useHeroAnimation(heroRef);
@@ -105,6 +105,7 @@ export default function LaMarcaKorePage() {
             src="/images/tree.webp"
             alt="Árbol KÓRE — salud desde la raíz"
             fill
+            sizes="(max-width: 1024px) 100vw, 50vw"
             className="object-contain object-bottom lg:object-center"
             priority
           />
@@ -144,7 +145,7 @@ export default function LaMarcaKorePage() {
 
             <div data-hero="cta" className="mt-10 flex flex-col sm:flex-row gap-3">
               <a
-                href="/programas"
+                href="/programs"
                 className="inline-flex items-center justify-center gap-2 bg-kore-red text-white px-6 py-3 rounded-full text-sm font-medium hover:bg-kore-red-dark transition-colors"
               >
                 Nuestros programas
@@ -229,6 +230,7 @@ export default function LaMarcaKorePage() {
               src="/images/flower.webp"
               alt="Flor de KÓRE — cinco pilares de la marca"
               fill
+              sizes="90vmin"
               className="object-contain"
             />
             {/* Edge fade to kore-cream on all 4 sides */}

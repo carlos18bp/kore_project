@@ -1,8 +1,8 @@
 import { test, expect } from '../fixtures';
 
-test.describe('La Marca Kóre Page', () => {
+test.describe('Kore Brand Page', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/la-marca-kore');
+    await page.goto('/kore-brand');
   });
 
   test('renders the hero section with brand heading', async ({ page }) => {
@@ -41,8 +41,8 @@ test.describe('La Marca Kóre Page', () => {
     await expect(page.getByText('Terapéutico FLW').first()).toBeVisible();
   });
 
-  test('CTA "Nuestros programas" navigates to /programas', async ({ page }) => {
+  test('CTA "Nuestros programas" navigates to /programs', async ({ page }) => {
     await page.getByRole('link', { name: 'Nuestros programas' }).click();
-    await expect(page).toHaveURL('/programas');
+    await expect(page).toHaveURL('/programs');
   });
 });

@@ -43,6 +43,31 @@ body {
 }
 
 /* ============================================
+   Interactive Elements
+   ============================================ */
+
+a[href],
+button,
+[role='button'],
+input[type='button'],
+input[type='submit'],
+input[type='reset'],
+input[type='checkbox'],
+input[type='radio'],
+label[for],
+select,
+summary {
+  cursor: pointer;
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+[aria-disabled='true'] {
+  cursor: not-allowed;
+}
+
+/* ============================================
    Typography - Headings (Cinzel Semi-Bold 600)
    ============================================ */
 

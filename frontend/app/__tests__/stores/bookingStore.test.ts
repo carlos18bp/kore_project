@@ -28,6 +28,7 @@ function resetStore() {
     bookingResult: null,
     trainers: [],
     slots: [],
+    monthSlots: [],
     subscriptions: [],
     bookings: [],
     bookingsPagination: { count: 0, next: null, previous: null },
@@ -204,6 +205,41 @@ describe('bookingStore', () => {
       mockedApi.get.mockRejectedValueOnce(new Error('err'));
       await useBookingStore.getState().fetchSlots();
       expect(useBookingStore.getState().error).toBe('Error loading slots.');
+    });
+  });
+
+  // ----------------------------------------------------------------
+  // fetchMonthSlots
+  // ----------------------------------------------------------------
+  describe('fetchMonthSlots', () => {
+    it('populates monthSlots without date param', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: { results: [MOCK_SLOT], count: 1, next: null, previous: null } });
+      await useBookingStore.getState().fetchMonthSlots(1);
+      expect(mockedApi.get).toHaveBeenCalledWith('/availability-slots/', expect.objectContaining({
+        params: { trainer: '1' },
+      }));
+      expect(useBookingStore.getState().monthSlots).toHaveLength(1);
+    });
+
+    it('fetches without trainer param when trainerId is undefined', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: { results: [MOCK_SLOT] } });
+      await useBookingStore.getState().fetchMonthSlots();
+      expect(mockedApi.get).toHaveBeenCalledWith('/availability-slots/', expect.objectContaining({
+        params: {},
+      }));
+      expect(useBookingStore.getState().monthSlots).toHaveLength(1);
+    });
+
+    it('sets monthSlots to empty array on error', async () => {
+      mockedApi.get.mockRejectedValueOnce(new Error('Network'));
+      await useBookingStore.getState().fetchMonthSlots();
+      expect(useBookingStore.getState().monthSlots).toEqual([]);
+    });
+
+    it('sets monthSlots to empty array for non-array response', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: {} });
+      await useBookingStore.getState().fetchMonthSlots();
+      expect(useBookingStore.getState().monthSlots).toEqual([]);
     });
   });
 

@@ -8,7 +8,7 @@ test.describe('Logout Flow', () => {
     await page.getByRole('button', { name: 'Cerrar sesión' }).click();
 
     // After logout, user is redirected away from the authenticated area
-    await page.waitForURL(url => !url.pathname.startsWith('/dashboard') && !url.pathname.startsWith('/calendario'));
+    await page.waitForURL(url => !url.pathname.startsWith('/dashboard') && !url.pathname.startsWith('/calendar'));
     // Verify we are on a public page (home or login)
     const url = page.url();
     expect(url.includes('/dashboard')).toBe(false);

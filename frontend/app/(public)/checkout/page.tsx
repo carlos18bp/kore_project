@@ -36,7 +36,7 @@ function CheckoutContent() {
     wompiConfig,
     loading,
     paymentStatus,
-    purchaseResult,
+    intentResult,
     error,
     fetchPackage,
     fetchWompiConfig,
@@ -102,12 +102,6 @@ function CheckoutContent() {
     checkout.open(async (result) => {
       const txnId = result?.transaction?.id;
       if (txnId) {
-        // For tokenization flow, the widget returns a transaction object.
-        // We use the token approach: the card_token comes from the widget data attribute flow.
-        // In custom button mode we call purchaseSubscription with the token.
-        // However the Wompi widget in tokenize mode posts a form with the token.
-        // For our SPA integration, we'll use a simplified approach:
-        // The checkout widget processes the payment and we use the transaction ID.
         await purchaseSubscription(pkg.id, txnId);
       }
       setTokenizing(false);
@@ -115,7 +109,7 @@ function CheckoutContent() {
   }, [wompiConfig, pkg, user, purchaseSubscription]);
 
   const formatPrice = (price: string) => {
-    return new Intl.NumberFormat('es-CO', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'COP',
       minimumFractionDigits: 0,
@@ -123,13 +117,22 @@ function CheckoutContent() {
     }).format(parseFloat(price));
   };
 
+  const isProcessing = paymentStatus === 'processing' || paymentStatus === 'polling' || tokenizing;
+
   if (!isAuthenticated) return null;
 
-  if (paymentStatus === 'success' && purchaseResult) {
+  if (paymentStatus === 'success' && intentResult) {
     return (
       <section ref={sectionRef} className="min-h-screen bg-kore-cream flex items-center justify-center relative overflow-hidden">
         <div className="absolute -right-40 -bottom-40 w-[600px] h-[600px] lg:w-[800px] lg:h-[800px] opacity-[0.04] pointer-events-none select-none">
-          <Image src="/images/flower.webp" alt="" fill className="object-contain" aria-hidden="true" />
+          <Image
+            src="/images/flower.webp"
+            alt=""
+            fill
+            sizes="(max-width: 1024px) 600px, 800px"
+            className="object-contain"
+            aria-hidden="true"
+          />
         </div>
         <div className="w-full max-w-lg mx-auto px-6 py-16">
           <div data-hero="badge" className="text-center mb-10">
@@ -150,26 +153,20 @@ function CheckoutContent() {
               <>
                 <div className="flex justify-between text-sm">
                   <span className="text-kore-gray-dark/60">Programa</span>
-                  <span className="font-medium text-kore-gray-dark">{pkg.title}</span>
+                  <span className="font-medium text-kore-gray-dark">{intentResult.package_title}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-kore-gray-dark/60">Sesiones</span>
-                  <span className="font-medium text-kore-gray-dark">{purchaseResult.sessions_total}</span>
+                  <span className="font-medium text-kore-gray-dark">{pkg.sessions_count}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-kore-gray-dark/60">Monto</span>
-                  <span className="font-medium text-kore-gray-dark">{formatPrice(pkg.price)}</span>
+                  <span className="font-medium text-kore-gray-dark">{formatPrice(intentResult.amount)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-kore-gray-dark/60">Vigencia</span>
                   <span className="font-medium text-kore-gray-dark">{pkg.validity_days} días</span>
                 </div>
-                {purchaseResult.next_billing_date && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-kore-gray-dark/60">Próximo cobro</span>
-                    <span className="font-medium text-kore-gray-dark">{purchaseResult.next_billing_date}</span>
-                  </div>
-                )}
               </>
             )}
             <div className="pt-4">
@@ -189,7 +186,14 @@ function CheckoutContent() {
   return (
     <section ref={sectionRef} className="min-h-screen bg-kore-cream flex items-center justify-center relative overflow-hidden">
       <div className="absolute -right-40 -bottom-40 w-[600px] h-[600px] lg:w-[800px] lg:h-[800px] opacity-[0.04] pointer-events-none select-none">
-        <Image src="/images/flower.webp" alt="" fill className="object-contain" aria-hidden="true" />
+        <Image
+          src="/images/flower.webp"
+          alt=""
+          fill
+          sizes="(max-width: 1024px) 600px, 800px"
+          className="object-contain"
+          aria-hidden="true"
+        />
       </div>
 
       <div className="w-full max-w-lg mx-auto px-6 py-16">
@@ -219,7 +223,7 @@ function CheckoutContent() {
               <p className="text-kore-gray-dark/50 text-sm">
                 {error || 'Paquete no encontrado'}
               </p>
-              <Link href="/programas" className="text-kore-red text-sm mt-2 inline-block hover:text-kore-red-dark transition-colors">
+              <Link href="/programs" className="text-kore-red text-sm mt-2 inline-block hover:text-kore-red-dark transition-colors">
                 Ver programas disponibles
               </Link>
             </div>
@@ -265,16 +269,16 @@ function CheckoutContent() {
               <div>
                 <button
                   onClick={handleTokenize}
-                  disabled={!widgetLoaded || paymentStatus === 'processing' || tokenizing}
+                  disabled={!widgetLoaded || isProcessing}
                   className="w-full bg-kore-red hover:bg-kore-red-dark text-white font-medium py-3.5 rounded-lg transition-colors duration-200 text-sm tracking-wide disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {paymentStatus === 'processing' || tokenizing ? (
+                  {isProcessing ? (
                     <span className="inline-flex items-center gap-2">
                       <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
-                      Procesando pago...
+                      {paymentStatus === 'polling' ? 'Verificando pago...' : 'Procesando pago...'}
                     </span>
                   ) : !widgetLoaded ? (
                     'Cargando pasarela de pago...'
@@ -292,7 +296,7 @@ function CheckoutContent() {
 
         {/* Back link */}
         <p data-hero="cta" className="text-center text-xs text-kore-gray-dark/30 mt-8">
-          <Link href="/programas" className="text-kore-red hover:text-kore-red-dark transition-colors">
+          <Link href="/programs" className="text-kore-red hover:text-kore-red-dark transition-colors">
             ← Volver a programas
           </Link>
         </p>

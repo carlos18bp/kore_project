@@ -105,19 +105,34 @@ test.describe('Checkout Page (mocked)', () => {
     await setupDefaultApiMocks(page);
     await setupCheckoutMocks(page, mockPackage);
 
-    // Mock the purchase endpoint → success
+    const intentPending = {
+      id: 50,
+      reference: 'ref-e2e-001',
+      wompi_transaction_id: 'mock-txn-123',
+      status: 'pending',
+      amount: '240000',
+      currency: 'COP',
+      package_title: 'Paquete Pro',
+      created_at: new Date().toISOString(),
+    };
+
+    const intentApproved = { ...intentPending, status: 'approved' };
+
+    // Mock the purchase endpoint → returns pending intent
     await page.route('**/api/subscriptions/purchase/**', async (route) => {
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
-        body: JSON.stringify({
-          id: 50,
-          status: 'active',
-          sessions_total: 8,
-          starts_at: new Date().toISOString(),
-          expires_at: new Date(Date.now() + 60 * 86400000).toISOString(),
-          next_billing_date: new Date(Date.now() + 60 * 86400000).toISOString(),
-        }),
+        body: JSON.stringify(intentPending),
+      });
+    });
+
+    // Mock the intent-status polling endpoint → returns approved
+    await page.route('**/api/subscriptions/intent-status/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(intentApproved),
       });
     });
 
@@ -169,6 +184,62 @@ test.describe('Checkout Page (mocked)', () => {
 
     // Error message should appear
     await expect(page.getByText('Tarjeta rechazada.')).toBeVisible({ timeout: 10_000 });
+  });
+
+  test('polling failure shows rejection message', async ({ page }) => {
+    // Mock Wompi widget script
+    await page.route('**/checkout.wompi.co/widget.js', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/javascript',
+        body: `window.WidgetCheckout = class { constructor() {} open(cb) { cb({ transaction: { id: 'mock-txn-declined' } }); } };`,
+      });
+    });
+
+    await setupDefaultApiMocks(page);
+    await setupCheckoutMocks(page, mockPackage);
+
+    const intentPending = {
+      id: 51,
+      reference: 'ref-e2e-declined',
+      wompi_transaction_id: 'mock-txn-declined',
+      status: 'pending',
+      amount: '240000',
+      currency: 'COP',
+      package_title: 'Paquete Pro',
+      created_at: new Date().toISOString(),
+    };
+
+    const intentFailed = { ...intentPending, status: 'failed' };
+
+    // Mock the purchase endpoint → returns pending intent
+    await page.route('**/api/subscriptions/purchase/**', async (route) => {
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify(intentPending),
+      });
+    });
+
+    // Mock the intent-status polling endpoint → returns failed
+    await page.route('**/api/subscriptions/intent-status/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(intentFailed),
+      });
+    });
+
+    await loginAsTestUser(page);
+    await page.goto('/checkout?package=6');
+    await expect(page.getByText('Resumen del programa')).toBeVisible({ timeout: 10_000 });
+
+    const payBtn = page.getByRole('button', { name: /Pagar/ });
+    await expect(payBtn).toBeEnabled({ timeout: 15_000 });
+    await payBtn.click();
+
+    // Rejection error should appear
+    await expect(page.getByText(/rechazado/)).toBeVisible({ timeout: 15_000 });
   });
 
   test('fetchWompiConfig error shows config error message', async ({ page }) => {
