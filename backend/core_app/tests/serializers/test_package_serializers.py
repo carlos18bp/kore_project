@@ -13,7 +13,7 @@ class TestPackageSerializer:
         )
         data = PackageSerializer(pkg).data
         expected_fields = {
-            'id', 'title', 'short_description', 'description',
+            'id', 'title', 'short_description', 'description', 'category',
             'sessions_count', 'session_duration_minutes', 'price', 'currency',
             'validity_days', 'terms_and_conditions', 'is_active', 'order',
             'created_at', 'updated_at',
@@ -22,6 +22,7 @@ class TestPackageSerializer:
         assert data['title'] == 'Test'
         assert Decimal(data['price']) == Decimal('100000.00')
         assert data['sessions_count'] == 4
+        assert data['category'] == 'personalizado'
 
     def test_read_only_timestamps(self):
         serializer = PackageSerializer(data={

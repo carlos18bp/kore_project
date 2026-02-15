@@ -6,9 +6,21 @@ from core_app.models.base import TimestampedModel
 
 
 class Package(TimestampedModel):
+    class Category(models.TextChoices):
+        PERSONALIZADO = 'personalizado', 'Personalizado'
+        SEMI_PERSONALIZADO = 'semi_personalizado', 'Semi-personalizado'
+        TERAPEUTICO = 'terapeutico', 'Terapéutico'
+
     title = models.CharField(max_length=255)
     short_description = models.CharField(max_length=500, blank=True)
     description = models.TextField(blank=True)
+    category = models.CharField(
+        max_length=30,
+        choices=Category.choices,
+        default=Category.PERSONALIZADO,
+        db_index=True,
+        help_text='Program type used to group packages in the frontend.',
+    )
 
     sessions_count = models.PositiveIntegerField(default=1)
     session_duration_minutes = models.PositiveIntegerField(default=60)

@@ -15,6 +15,7 @@ class TestPackageModel:
         assert pkg.validity_days == 30
         assert pkg.is_active is True
         assert pkg.order == 0
+        assert pkg.category == Package.Category.PERSONALIZADO
 
     def test_str_returns_title(self):
         pkg = Package.objects.create(title='My Package')
@@ -26,3 +27,19 @@ class TestPackageModel:
         p3 = Package.objects.create(title='Third', order=1)
         ids = list(Package.objects.values_list('id', flat=True))
         assert ids == [p1.id, p3.id, p2.id]
+
+    def test_category_choices(self):
+        """All three category values are accepted."""
+        for cat_value, _label in Package.Category.choices:
+            pkg = Package.objects.create(title=f'Cat {cat_value}', category=cat_value)
+            pkg.refresh_from_db()
+            assert pkg.category == cat_value
+
+    def test_category_filter(self):
+        """Packages can be filtered by category."""
+        Package.objects.create(title='P1', category=Package.Category.PERSONALIZADO)
+        Package.objects.create(title='S1', category=Package.Category.SEMI_PERSONALIZADO)
+        Package.objects.create(title='T1', category=Package.Category.TERAPEUTICO)
+        assert Package.objects.filter(category='personalizado').count() == 1
+        assert Package.objects.filter(category='semi_personalizado').count() == 1
+        assert Package.objects.filter(category='terapeutico').count() == 1

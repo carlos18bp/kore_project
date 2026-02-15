@@ -33,8 +33,8 @@ class TestCreateFakePackages:
         call_command('create_fake_packages', extra=2, stdout=out)
         output = out.getvalue()
         assert 'Packages' in output
-        # 7 base + 2 extra = 9
-        assert Package.objects.count() == 9
+        # 16 base + 2 extra = 18
+        assert Package.objects.count() == 18
 
     def test_idempotent_run(self):
         """Re-running does not duplicate base packages (branch 48-49)."""
@@ -99,40 +99,43 @@ class TestCreateFakeSubscriptions:
 
 @pytest.mark.django_db
 class TestCreateFakeBookings:
-    def test_no_customers_warning(self):
-        """No customers → warning (lines 39-41)."""
-        Package.objects.create(title='Pkg', is_active=True)
+    def test_no_eligible_subs_warning(self):
+        """No active subscriptions → warning."""
         out = StringIO()
         call_command('create_fake_bookings', num=1, stdout=out)
-        assert 'No customers found' in out.getvalue()
-
-    def test_no_packages_warning(self):
-        """No packages → warning (lines 42-44)."""
-        User.objects.create_user(
-            email='bk_cust@example.com', password='p', role=User.Role.CUSTOMER,
-        )
-        out = StringIO()
-        call_command('create_fake_bookings', num=1, stdout=out)
-        assert 'No packages found' in out.getvalue()
+        assert 'No customers with active subscriptions found' in out.getvalue()
 
     def test_no_available_slots_stops(self):
-        """No available slots → loop breaks at line 60-61."""
-        User.objects.create_user(
+        """No available slots → loop breaks."""
+        now = timezone.now()
+        customer = User.objects.create_user(
             email='bk_cust2@example.com', password='p', role=User.Role.CUSTOMER,
         )
-        Package.objects.create(title='Pkg', is_active=True)
+        pkg = Package.objects.create(title='Pkg', is_active=True, sessions_count=5, validity_days=30)
+        Subscription.objects.create(
+            customer=customer, package=pkg,
+            sessions_total=5, sessions_used=0,
+            status=Subscription.Status.ACTIVE,
+            starts_at=now, expires_at=now + timedelta(days=30),
+        )
         out = StringIO()
         call_command('create_fake_bookings', num=5, stdout=out)
         output = out.getvalue()
         assert 'created: 0' in output
 
     def test_slot_already_locked_continues(self):
-        """Slot locked between query and atomic block → continue (line 81-82)."""
+        """Slot locked between query and atomic block → continue."""
+        now = timezone.now()
         customer = User.objects.create_user(
             email='bk_lock@example.com', password='p', role=User.Role.CUSTOMER,
         )
-        pkg = Package.objects.create(title='Pkg', is_active=True)
-        now = timezone.now()
+        pkg = Package.objects.create(title='Pkg', is_active=True, sessions_count=5, validity_days=30)
+        Subscription.objects.create(
+            customer=customer, package=pkg,
+            sessions_total=5, sessions_used=0,
+            status=Subscription.Status.ACTIVE,
+            starts_at=now, expires_at=now + timedelta(days=30),
+        )
         slot = AvailabilitySlot.objects.create(
             starts_at=now + timedelta(hours=2),
             ends_at=now + timedelta(hours=3),

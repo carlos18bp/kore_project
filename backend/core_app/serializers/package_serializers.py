@@ -11,6 +11,7 @@ class PackageSerializer(serializers.ModelSerializer):
             'title',
             'short_description',
             'description',
+            'category',
             'sessions_count',
             'session_duration_minutes',
             'price',
