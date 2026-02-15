@@ -2,6 +2,8 @@ import logging
 from datetime import timedelta
 from decimal import Decimal
 
+from django.conf import settings
+from django.db import transaction as db_transaction
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -122,6 +124,46 @@ class SubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
             currency=package.currency,
             status=PaymentIntent.Status.PENDING,
         )
+
+        # TODO: Remove this dev-mode auto-approval once Wompi webhook is properly
+        # configured with a public URL (e.g., ngrok/cloudflared tunnel). In production,
+        # the webhook handler in wompi_views.py resolves the PaymentIntent to approved/failed.
+        if settings.DEBUG:
+            now = timezone.now()
+            with db_transaction.atomic():
+                subscription = Subscription.objects.create(
+                    customer=user,
+                    package=package,
+                    sessions_total=package.sessions_count,
+                    sessions_used=0,
+                    status=Subscription.Status.ACTIVE,
+                    starts_at=now,
+                    expires_at=now + timedelta(days=package.validity_days),
+                    payment_source_id=str(payment_source_id),
+                    wompi_transaction_id=str(txn_data.get('id', '')),
+                    next_billing_date=(now + timedelta(days=package.validity_days)).date(),
+                )
+                Payment.objects.create(
+                    customer=user,
+                    subscription=subscription,
+                    amount=package.price,
+                    currency=package.currency,
+                    provider=Payment.Provider.WOMPI,
+                    provider_reference=str(txn_data.get('id', '')),
+                    status=Payment.Status.CONFIRMED,
+                    confirmed_at=now,
+                    metadata={
+                        'wompi_reference': reference,
+                        'payment_source_id': str(payment_source_id),
+                        'dev_mode_auto_approved': True,
+                    },
+                )
+                intent.status = PaymentIntent.Status.APPROVED
+                intent.save(update_fields=['status', 'updated_at'])
+            logger.info(
+                '[DEV MODE] Auto-approved PaymentIntent %s → subscription %s',
+                intent.pk, subscription.pk,
+            )
 
         return Response(
             PaymentIntentStatusSerializer(intent).data,
