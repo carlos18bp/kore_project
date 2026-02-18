@@ -70,10 +70,10 @@ test.describe('Sidebar — Navigation & Active States', () => {
     const agendarLink = sidebar.getByRole('link', { name: 'Agendar Sesión' });
     await expect(agendarLink).toHaveAttribute('class', /text-kore-red/);
 
-    // Navigate to /my-sessions — "Mis Sesiones" should be active
-    await sidebar.getByRole('link', { name: 'Mis Sesiones' }).click();
-    await page.waitForURL('**/my-sessions');
-    const sesionesLink = sidebar.getByRole('link', { name: 'Mis Sesiones' });
-    await expect(sesionesLink).toHaveAttribute('class', /text-kore-red/);
+    // Navigate to /my-programs — "Mis Programas" should be active
+    await sidebar.getByRole('link', { name: 'Mis Programas' }).click();
+    await page.waitForURL('**/my-programs');
+    const programasLink = sidebar.getByRole('link', { name: 'Mis Programas' });
+    await expect(programasLink).toHaveAttribute('class', /text-kore-red/);
   });
 });

@@ -41,8 +41,8 @@ export default function UpcomingSessionReminder() {
   });
 
   const detailUrl = upcomingReminder.subscription_id_display
-    ? `/my-sessions/program/${upcomingReminder.subscription_id_display}/session/${upcomingReminder.id}`
-    : `/my-sessions`;
+    ? `/my-programs/program/${upcomingReminder.subscription_id_display}`
+    : `/my-programs`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">

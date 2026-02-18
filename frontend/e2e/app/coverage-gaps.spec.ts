@@ -120,9 +120,9 @@ test.describe('Coverage Gap Tests', () => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // my-sessions/page.tsx lines 16-20 — SubscriptionCard with active subscription
+  // my-programs/page.tsx lines 16-20 — SubscriptionCard with active subscription
   // ─────────────────────────────────────────────────────────────────────────
-  test('my-sessions shows SubscriptionCard with active subscription', async ({ page }) => {
+  test('my-programs shows SubscriptionCard with active subscription', async ({ page }) => {
     const activeSub = {
       id: 11,
       customer_email: 'e2e@kore.com',
@@ -153,7 +153,7 @@ test.describe('Coverage Gap Tests', () => {
     });
 
     await loginAsTestUser(page);
-    await page.goto('/my-sessions');
+    await page.goto('/my-programs');
 
     // Verify SubscriptionCard renders with active subscription details
     await expect(page.getByText('Paquete Pro')).toBeVisible({ timeout: 10_000 });
@@ -162,7 +162,7 @@ test.describe('Coverage Gap Tests', () => {
     await expect(page.getByText('5').first()).toBeVisible(); // sessions_remaining
   });
 
-  test('my-sessions shows SubscriptionCard with expired subscription', async ({ page }) => {
+  test('my-programs shows SubscriptionCard with expired subscription', async ({ page }) => {
     const expiredSub = {
       id: 12,
       customer_email: 'e2e@kore.com',
@@ -193,14 +193,14 @@ test.describe('Coverage Gap Tests', () => {
     });
 
     await loginAsTestUser(page);
-    await page.goto('/my-sessions');
+    await page.goto('/my-programs');
 
     // Verify SubscriptionCard renders with expired status badge
     await expect(page.getByText('Paquete Básico')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('Vencido')).toBeVisible();
   });
 
-  test('my-sessions shows SubscriptionCard with canceled subscription', async ({ page }) => {
+  test('my-programs shows SubscriptionCard with canceled subscription', async ({ page }) => {
     const canceledSub = {
       id: 13,
       customer_email: 'e2e@kore.com',
@@ -231,7 +231,7 @@ test.describe('Coverage Gap Tests', () => {
     });
 
     await loginAsTestUser(page);
-    await page.goto('/my-sessions');
+    await page.goto('/my-programs');
 
     // Verify SubscriptionCard renders with canceled status badge
     await expect(page.getByText('Paquete Premium')).toBeVisible({ timeout: 10_000 });
@@ -239,9 +239,9 @@ test.describe('Coverage Gap Tests', () => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // my-sessions/page.tsx line 17 — STATUS_BADGE fallback (unknown status)
+  // my-programs/page.tsx line 17 — STATUS_BADGE fallback (unknown status)
   // ─────────────────────────────────────────────────────────────────────────
-  test('my-sessions SubscriptionCard uses fallback badge for unknown status', async ({ page }) => {
+  test('my-programs SubscriptionCard uses fallback badge for unknown status', async ({ page }) => {
     const unknownStatusSub = {
       id: 14,
       customer_email: 'e2e@kore.com',
@@ -272,7 +272,7 @@ test.describe('Coverage Gap Tests', () => {
     });
 
     await loginAsTestUser(page);
-    await page.goto('/my-sessions');
+    await page.goto('/my-programs');
 
     // Should render the card with fallback to "Activo" badge since status is unknown
     await expect(page.getByText('Paquete Especial')).toBeVisible({ timeout: 10_000 });

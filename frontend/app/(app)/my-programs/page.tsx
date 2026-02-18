@@ -19,7 +19,7 @@ function SubscriptionCard({ sub }: { sub: Subscription }) {
 
   return (
     <Link
-      href={`/my-sessions/program/${sub.id}`}
+      href={`/my-programs/program/${sub.id}`}
       className="block bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-kore-gray-light/50 hover:border-kore-red/30 hover:shadow-sm transition-all duration-200"
     >
       <div className="flex items-start justify-between gap-4 mb-4">
@@ -86,7 +86,6 @@ export default function MySessionsPage() {
       <div className="w-full px-6 md:px-10 lg:px-16 pt-8 pb-16">
         {/* Header */}
         <div data-hero="badge" className="mb-8">
-          <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-1">Mis Sesiones</p>
           <h1 className="font-heading text-2xl md:text-3xl font-semibold text-kore-gray-dark">
             Mis Programas
           </h1>

@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import MySessionsPage from '@/app/(app)/my-sessions/page';
+import MySessionsPage from '@/app/(app)/my-programs/page';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useBookingStore } from '@/lib/stores/bookingStore';
 
@@ -104,7 +104,7 @@ describe('MySessionsPage', () => {
     mockedUseBookingStore.mockReturnValue({ subscriptions: [MOCK_SUB], loading: false, fetchSubscriptions: mockFetchSubscriptions });
     render(<MySessionsPage />);
     const link = screen.getByText('Gold').closest('a');
-    expect(link).toHaveAttribute('href', '/my-sessions/program/2');
+    expect(link).toHaveAttribute('href', '/my-programs/program/2');
   });
 
   it('renders expired badge for expired subscription', () => {

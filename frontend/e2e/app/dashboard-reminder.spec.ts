@@ -106,7 +106,7 @@ test.describe('Dashboard — Upcoming Session Reminder', () => {
 
     // Click "Ver detalle"
     await page.getByRole('link', { name: 'Ver detalle' }).click();
-    await page.waitForURL(/\/my-sessions\/program\/\d+\/session\/\d+/, { timeout: 15_000 });
+    await page.waitForURL(/\/my-programs\/program\/\d+/, { timeout: 15_000 });
   });
 
   test('reminder does NOT show when session is more than 48h away', async ({ page }) => {
@@ -138,7 +138,7 @@ test.describe('Dashboard — Upcoming Session Reminder', () => {
     await expect(page.getByText('¡Tienes una sesión próxima!')).not.toBeVisible();
   });
 
-  test('reminder with null subscription_id_display navigates to /my-sessions', async ({ page }) => {
+  test('reminder with null subscription_id_display navigates to /my-programs', async ({ page }) => {
     const now = new Date();
     const futureSlotStart = new Date(now.getTime() + 6 * 60 * 60 * 1000);
     const futureSlotEnd = new Date(futureSlotStart.getTime() + 60 * 60 * 1000);
@@ -164,9 +164,9 @@ test.describe('Dashboard — Upcoming Session Reminder', () => {
     await loginAsTestUser(page);
     await expect(page.getByText('¡Tienes una sesión próxima!')).toBeVisible({ timeout: 10_000 });
 
-    // "Ver detalle" link should point to /my-sessions (not /my-sessions/program/...)
+    // "Ver detalle" link should point to /my-programs (not /my-programs/program/...)
     const detailLink = page.getByRole('link', { name: 'Ver detalle' });
-    await expect(detailLink).toHaveAttribute('href', '/my-sessions');
+    await expect(detailLink).toHaveAttribute('href', '/my-programs');
   });
 
   test('dismissed reminder does NOT reappear when navigating back to dashboard', async ({ page }) => {

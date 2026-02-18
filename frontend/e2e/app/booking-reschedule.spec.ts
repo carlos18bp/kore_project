@@ -4,6 +4,7 @@ import { test, expect, loginAsTestUser } from '../fixtures';
  * E2E tests for the booking reschedule flow.
  * Covers bookingStore.rescheduleBooking() (lines 283-301).
  * Uses mocked API responses to exercise success and error paths.
+ * Session detail is now a modal opened from the program detail page.
  */
 test.describe('Booking Reschedule Flow (mocked)', () => {
   test.describe.configure({ mode: 'serial' });
@@ -23,6 +24,19 @@ test.describe('Booking Reschedule Flow (mocked)', () => {
     session_duration_minutes: 60,
   };
 
+  const mockSubscription = {
+    id: 11,
+    customer_email: 'e2e@kore.com',
+    package: { id: 6, title: 'Paquete Pro', sessions_count: 4, session_duration_minutes: 60, price: '120000', currency: 'COP', validity_days: 60 },
+    sessions_total: 4,
+    sessions_used: 1,
+    sessions_remaining: 3,
+    status: 'active',
+    starts_at: new Date(Date.now() - 10 * 86400000).toISOString(),
+    expires_at: new Date(Date.now() + 50 * 86400000).toISOString(),
+    next_billing_date: null,
+  };
+
   const mockBooking = {
     id: 800,
     customer_id: 1,
@@ -37,34 +51,14 @@ test.describe('Booking Reschedule Flow (mocked)', () => {
     updated_at: new Date().toISOString(),
   };
 
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 2);
-  const dateStr = tomorrow.toISOString().split('T')[0];
-
-  const newSlot = {
-    id: 9001,
-    starts_at: `${dateStr}T14:00:00Z`,
-    ends_at: `${dateStr}T15:00:00Z`,
-    is_blocked: false,
-    is_active: true,
-    trainer_id: 1,
-  };
-
-  function setupMocks(page: import('@playwright/test').Page) {
+  function setupMocks(page: import('@playwright/test').Page, booking = mockBooking) {
     return Promise.all([
       page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
       }),
-      page.route('**/api/bookings/*/reschedule/**', async (route) => {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ ...mockBooking, slot: newSlot }),
-        });
-      }),
       page.route('**/api/bookings/**', async (route) => {
         const url = route.request().url();
-        if (url.includes('/upcoming-reminder') || url.includes('/reschedule/')) {
+        if (url.includes('/upcoming-reminder')) {
           await route.fallback();
           return;
         }
@@ -72,13 +66,24 @@ test.describe('Booking Reschedule Flow (mocked)', () => {
           await route.fulfill({
             status: 200,
             contentType: 'application/json',
-            body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockBooking] }),
+            body: JSON.stringify({ count: 1, next: null, previous: null, results: [booking] }),
           });
           return;
         }
         await route.fallback();
       }),
-      // Mocks needed when /book-session page loads after clicking Reprogramar
+      page.route('**/api/subscriptions/**', async (route) => {
+        const url = route.request().url();
+        if (url.includes('/payments/') || url.includes('/cancel/')) {
+          await route.fallback();
+          return;
+        }
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockSubscription] }),
+        });
+      }),
       page.route('**/api/trainers/**', async (route) => {
         await route.fulfill({
           status: 200,
@@ -86,66 +91,41 @@ test.describe('Booking Reschedule Flow (mocked)', () => {
           body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockTrainer] }),
         });
       }),
-      page.route('**/api/subscriptions/**', async (route) => {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }),
-        });
-      }),
     ]);
+  }
+
+  async function openSessionModal(page: import('@playwright/test').Page) {
+    const bookingRow = page.getByRole('button', { name: /Confirmada/ }).first();
+    await bookingRow.click();
+    await expect(page.getByText('Detalle de Sesión')).toBeVisible({ timeout: 5_000 });
   }
 
   test('reschedule button navigates to book-session page', async ({ page }) => {
     await setupMocks(page);
     await loginAsTestUser(page);
-    await page.goto('/my-sessions/program/11/session/800');
+    await page.goto('/my-programs/program/11');
+    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
 
-    await expect(page.getByText('Confirmada')).toBeVisible({ timeout: 10_000 });
+    await openSessionModal(page);
+
+    await expect(page.locator('.fixed').getByText('Confirmada')).toBeVisible();
     await page.getByRole('button', { name: 'Reprogramar' }).click();
-    await page.waitForURL('**/book-session', { timeout: 15_000 });
+    await page.waitForURL(/\/book-session/, { timeout: 15_000 });
     await expect(page.getByText('Agenda tu sesión')).toBeVisible();
   });
 
-  test('reschedule API error shows error message', async ({ page }) => {
-    // Override the reschedule route to return an error
-    await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
-    });
-    await page.route('**/api/bookings/*/reschedule/**', async (route) => {
-      await route.fulfill({
-        status: 400,
-        contentType: 'application/json',
-        body: JSON.stringify({ detail: 'No se puede reprogramar esta sesión.' }),
-      });
-    });
-    await page.route('**/api/bookings/**', async (route) => {
-      const url = route.request().url();
-      if (url.includes('/upcoming-reminder') || url.includes('/reschedule/')) {
-        await route.fallback();
-        return;
-      }
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockBooking] }),
-        });
-        return;
-      }
-      await route.fallback();
-    });
-
+  test('modal shows session details including trainer info', async ({ page }) => {
+    await setupMocks(page);
     await loginAsTestUser(page);
-    await page.goto('/my-sessions/program/11/session/800');
-    await expect(page.getByText('Confirmada')).toBeVisible({ timeout: 10_000 });
+    await page.goto('/my-programs/program/11');
+    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
 
-    // The reschedule button navigates to /book-session.
-    // The rescheduleBooking store action is called from the booking flow,
-    // not from the session detail page. Verify the session detail renders correctly.
-    await expect(page.getByRole('button', { name: 'Reprogramar' })).toBeVisible();
-    await expect(page.getByText('Germán Franco')).toBeVisible();
-    await expect(page.getByText('Bogotá, Colombia')).toBeVisible();
+    await openSessionModal(page);
+
+    const modal = page.locator('.fixed');
+    await expect(modal.getByRole('button', { name: 'Reprogramar' })).toBeVisible();
+    await expect(modal.getByText('Germán Franco')).toBeVisible();
+    await expect(modal.getByText('Bogotá, Colombia')).toBeVisible();
   });
 
   test('confirmed booking within 24h disables reschedule', async ({ page }) => {
@@ -156,30 +136,14 @@ test.describe('Booking Reschedule Flow (mocked)', () => {
       slot: { ...mockBooking.slot, starts_at: soonStart.toISOString(), ends_at: soonEnd.toISOString() },
     };
 
-    await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
-    });
-    await page.route('**/api/bookings/**', async (route) => {
-      const url = route.request().url();
-      if (url.includes('/upcoming-reminder')) {
-        await route.fallback();
-        return;
-      }
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ count: 1, next: null, previous: null, results: [soonBooking] }),
-        });
-        return;
-      }
-      await route.fallback();
-    });
-
+    await setupMocks(page, soonBooking);
     await loginAsTestUser(page);
-    await page.goto('/my-sessions/program/11/session/800');
+    await page.goto('/my-programs/program/11');
+    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
 
-    await expect(page.getByText('Confirmada')).toBeVisible({ timeout: 10_000 });
+    await openSessionModal(page);
+
+    await expect(page.locator('.fixed').getByText('Confirmada')).toBeVisible();
     const reprogramarBtn = page.getByRole('button', { name: 'Reprogramar' });
     await expect(reprogramarBtn).toBeDisabled({ timeout: 5_000 });
     await expect(reprogramarBtn).toHaveAttribute('title', /No se puede reprogramar a menos de 24h/);

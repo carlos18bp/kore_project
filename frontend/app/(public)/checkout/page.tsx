@@ -51,6 +51,7 @@ function CheckoutContent() {
     reset,
   } = useCheckoutStore();
 
+  const prevPaymentStatusRef = useRef<string | null>(null);
   const [widgetLoaded, setWidgetLoaded] = useState(false);
   const [widgetError, setWidgetError] = useState(false);
   const [openingCheckout, setOpeningCheckout] = useState(false);
@@ -97,7 +98,10 @@ function CheckoutContent() {
       return;
     }
 
-    if (paymentStatus === 'success' || paymentStatus === 'error') {
+    const prev = prevPaymentStatusRef.current;
+    prevPaymentStatusRef.current = paymentStatus;
+
+    if (prev !== null && prev !== paymentStatus && (paymentStatus === 'success' || paymentStatus === 'error')) {
       sessionStorage.removeItem(CHECKOUT_REGISTRATION_TOKEN_KEY);
       sessionStorage.removeItem(CHECKOUT_REGISTRATION_PACKAGE_KEY);
     }
@@ -113,14 +117,34 @@ function CheckoutContent() {
     }
   }, [packageId, hasCheckoutAccess, fetchPackage, fetchWompiConfig, reset]);
 
-  // Load Wompi widget script with error handling and timeout
+  // Load Wompi widget script (programmatic mode — no data-public-key needed)
   useEffect(() => {
     if (!wompiConfig?.public_key) return;
-    if (document.getElementById('wompi-widget-script')) {
-      if (window.WidgetCheckout) {
-        setWidgetLoaded(true);
-      }
+
+    // Widget already available from a previous load
+    if (window.WidgetCheckout) {
+      setWidgetLoaded(true);
       return;
+    }
+
+    const existingScript = document.getElementById('wompi-widget-script');
+    if (existingScript) {
+      // Script tag exists but WidgetCheckout not yet available — poll for it
+      const interval = setInterval(() => {
+        if (window.WidgetCheckout) {
+          clearInterval(interval);
+          setWidgetLoaded(true);
+          setWidgetError(false);
+        }
+      }, 200);
+      const timeout = setTimeout(() => {
+        clearInterval(interval);
+        if (!window.WidgetCheckout) setWidgetError(true);
+      }, 15000);
+      return () => {
+        clearInterval(interval);
+        clearTimeout(timeout);
+      };
     }
 
     const script = document.createElement('script');
@@ -129,9 +153,7 @@ function CheckoutContent() {
     script.async = true;
 
     const timeout = setTimeout(() => {
-      if (!widgetLoaded) {
-        setWidgetError(true);
-      }
+      setWidgetError(true);
     }, 15000);
 
     script.onload = () => {
@@ -150,7 +172,15 @@ function CheckoutContent() {
     return () => {
       clearTimeout(timeout);
     };
-  }, [wompiConfig?.public_key, widgetLoaded]);
+  }, [wompiConfig?.public_key]);
+
+  // Clean up widget on unmount to prevent stale state across navigations / HMR
+  useEffect(() => {
+    return () => {
+      const script = document.getElementById('wompi-widget-script');
+      if (script) script.remove();
+    };
+  }, []);
 
   const handleCheckout = useCallback(async () => {
     if (!wompiConfig || !pkg || !window.WidgetCheckout) return;

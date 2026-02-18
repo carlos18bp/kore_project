@@ -61,7 +61,7 @@ describe('Sidebar', () => {
     render(<Sidebar />);
     expect(screen.getByText('Inicio')).toBeInTheDocument();
     expect(screen.getByText('Agendar Sesión')).toBeInTheDocument();
-    expect(screen.getByText('Mis Sesiones')).toBeInTheDocument();
+    expect(screen.getByText('Mis Programas')).toBeInTheDocument();
   });
 
   it('highlights active nav item based on pathname', () => {
@@ -71,11 +71,11 @@ describe('Sidebar', () => {
     expect(bookSessionLink).toHaveClass('bg-kore-red/10');
   });
 
-  it('highlights Mis Sesiones for nested routes', () => {
-    mockPathname = '/my-sessions/program/1';
+  it('highlights Mis Programas for nested routes', () => {
+    mockPathname = '/my-programs/program/1';
     render(<Sidebar />);
-    const mySessionsLink = screen.getByText('Mis Sesiones').closest('a');
-    expect(mySessionsLink).toHaveClass('bg-kore-red/10');
+    const myProgramsLink = screen.getByText('Mis Programas').closest('a');
+    expect(myProgramsLink).toHaveClass('bg-kore-red/10');
   });
 
   it('renders Soporte link and Cerrar sesión button', () => {

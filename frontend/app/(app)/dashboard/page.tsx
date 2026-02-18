@@ -102,7 +102,7 @@ export default function DashboardPage() {
                 {[
                   { label: 'Agendar sesión', icon: '📅', href: '/book-session' },
                   { label: 'Mi suscripción', icon: '�', href: '/subscription' },
-                  { label: 'Mis sesiones', icon: '�', href: '/my-sessions' },
+                  { label: 'Mis programas', icon: '📋', href: '/my-programs' },
                   { label: 'Soporte', icon: '💬', href: WHATSAPP_URL },
                 ].map((action) => (
                   <Link

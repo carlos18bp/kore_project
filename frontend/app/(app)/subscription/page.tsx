@@ -344,6 +344,7 @@ export default function SubscriptionPage() {
                         <>
                           {!showCancelConfirm ? (
                             <button
+                              disabled={true}
                               onClick={() => setShowCancelConfirm(true)}
                               className="w-full flex items-center justify-center gap-2 bg-kore-red/5 hover:bg-kore-red/10 text-kore-red font-medium py-3 rounded-lg transition-colors text-sm cursor-pointer"
                             >

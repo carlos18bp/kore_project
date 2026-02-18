@@ -1,11 +1,12 @@
 'use client';
 
-import { useRef, useEffect, useState, useMemo } from 'react';
+import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useBookingStore } from '@/lib/stores/bookingStore';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
+import SessionDetailModal from '@/app/components/booking/SessionDetailModal';
 import type { BookingData } from '@/lib/stores/bookingStore';
 
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
@@ -20,15 +21,15 @@ const BOOKING_STATUS_BADGE: Record<string, { label: string; className: string }>
   canceled: { label: 'Cancelada', className: 'bg-red-100 text-red-700' },
 };
 
-function BookingRow({ booking, subscriptionId }: { booking: BookingData; subscriptionId: string }) {
+function BookingRow({ booking, onClick }: { booking: BookingData; onClick: () => void }) {
   const badge = BOOKING_STATUS_BADGE[booking.status] ?? BOOKING_STATUS_BADGE.pending;
   const slotStart = new Date(booking.slot.starts_at);
-  const isPast = slotStart < new Date();
 
   return (
-    <Link
-      href={`/my-sessions/program/${subscriptionId}/session/${booking.id}`}
-      className="flex items-center justify-between gap-4 px-4 py-4 rounded-xl hover:bg-kore-cream/60 transition-colors"
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full flex items-center justify-between gap-4 px-4 py-4 rounded-xl hover:bg-kore-cream/60 transition-colors text-left cursor-pointer"
     >
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-kore-gray-dark capitalize">
@@ -51,7 +52,7 @@ function BookingRow({ booking, subscriptionId }: { booking: BookingData; subscri
       <span className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-semibold ${badge.className}`}>
         {badge.label}
       </span>
-    </Link>
+    </button>
   );
 }
 
@@ -73,6 +74,14 @@ export default function ProgramDetailPage() {
 
   const [page, setPage] = useState(1);
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
+  const [selectedBooking, setSelectedBooking] = useState<BookingData | null>(null);
+
+  const handleSessionCanceled = useCallback(() => {
+    setSelectedBooking(null);
+    if (subscriptionId) {
+      fetchBookings(Number(subscriptionId), page);
+    }
+  }, [subscriptionId, page, fetchBookings]);
 
   useEffect(() => {
     fetchSubscriptions();
@@ -116,8 +125,8 @@ export default function ProgramDetailPage() {
         {/* Breadcrumb */}
         <div data-hero="badge" className="mb-8">
           <div className="flex items-center gap-2 text-xs text-kore-gray-dark/40 mb-2">
-            <Link href="/my-sessions" className="hover:text-kore-red transition-colors">
-              Mis Sesiones
+            <Link href="/my-programs" className="hover:text-kore-red transition-colors">
+              Mis Programas
             </Link>
             <span>/</span>
             <span className="text-kore-gray-dark/60">Programa</span>
@@ -225,7 +234,7 @@ export default function ProgramDetailPage() {
           )}
 
           {!loading && filteredBookings.map((booking) => (
-            <BookingRow key={booking.id} booking={booking} subscriptionId={subscriptionId} />
+            <BookingRow key={booking.id} booking={booking} onClick={() => setSelectedBooking(booking)} />
           ))}
         </div>
 
@@ -252,6 +261,16 @@ export default function ProgramDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Session detail modal */}
+      {selectedBooking && (
+        <SessionDetailModal
+          booking={selectedBooking}
+          subscriptionId={Number(subscriptionId)}
+          onClose={() => setSelectedBooking(null)}
+          onCanceled={handleSessionCanceled}
+        />
+      )}
     </section>
   );
 }

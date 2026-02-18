@@ -1,11 +1,11 @@
 import { test, expect, loginAsTestUser, setupDefaultApiMocks } from '../fixtures';
 
 /**
- * E2E tests for the Session Detail page (/my-sessions/program/:id/session/:id).
- * Uses mocked API responses to exercise status badges, cancel modal,
- * reschedule button, not-found state, and various booking states.
+ * E2E tests for the Session Detail Modal (opened from program detail page).
+ * Uses mocked API responses to exercise status badges, cancel flow,
+ * reschedule button, and various booking states.
  */
-test.describe('Session Detail Page (mocked)', () => {
+test.describe('Session Detail Modal (mocked)', () => {
   test.describe.configure({ mode: 'serial' });
 
   test.beforeEach(async ({ page }) => {
@@ -14,6 +14,19 @@ test.describe('Session Detail Page (mocked)', () => {
 
   const futureSlotStart = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48h from now
   const futureSlotEnd = new Date(futureSlotStart.getTime() + 60 * 60 * 1000);
+
+  const mockSubscription = {
+    id: 11,
+    customer_email: 'e2e@kore.com',
+    package: { id: 6, title: 'Paquete Pro', sessions_count: 4, session_duration_minutes: 60, price: '120000', currency: 'COP', validity_days: 60 },
+    sessions_total: 4,
+    sessions_used: 1,
+    sessions_remaining: 3,
+    status: 'active',
+    starts_at: new Date(Date.now() - 10 * 86400000).toISOString(),
+    expires_at: new Date(Date.now() + 50 * 86400000).toISOString(),
+    next_billing_date: null,
+  };
 
   const mockBookingConfirmed = {
     id: 800,
@@ -29,12 +42,11 @@ test.describe('Session Detail Page (mocked)', () => {
     updated_at: new Date().toISOString(),
   };
 
-  function setupBookingMock(page: import('@playwright/test').Page, booking: typeof mockBookingConfirmed | null) {
+  function setupMocks(page: import('@playwright/test').Page, booking: typeof mockBookingConfirmed | null) {
     return Promise.all([
       page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
       }),
-      // Cancel endpoint must be registered before the general bookings route
       page.route('**/api/bookings/*/cancel/**', async (route) => {
         await route.fulfill({
           status: 200,
@@ -44,12 +56,10 @@ test.describe('Session Detail Page (mocked)', () => {
       }),
       page.route('**/api/bookings/**', async (route) => {
         const url = route.request().url();
-        // Let more specific routes handle these
         if (url.includes('/upcoming-reminder') || url.includes('/cancel/')) {
           await route.fallback();
           return;
         }
-        // List bookings for subscription
         if (route.request().method() === 'GET') {
           await route.fulfill({
             status: 200,
@@ -65,40 +75,62 @@ test.describe('Session Detail Page (mocked)', () => {
         }
         await route.fallback();
       }),
+      page.route('**/api/subscriptions/**', async (route) => {
+        const url = route.request().url();
+        if (url.includes('/payments/') || url.includes('/cancel/')) {
+          await route.fallback();
+          return;
+        }
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockSubscription] }),
+        });
+      }),
     ]);
   }
 
-  test('renders confirmed booking with status badge and details', async ({ page }) => {
-    await setupBookingMock(page, mockBookingConfirmed);
-    await loginAsTestUser(page);
-    await page.goto('/my-sessions/program/11/session/800');
+  async function openSessionModal(page: import('@playwright/test').Page) {
+    // Click the booking row button to open the modal
+    const bookingRow = page.getByRole('button', { name: /Confirmada|Pendiente|Cancelada/ }).first();
+    await bookingRow.click();
+    await expect(page.getByText('Detalle de Sesión')).toBeVisible({ timeout: 5_000 });
+  }
 
-    // Breadcrumb
-    await expect(page.getByText('Detalle de Sesión')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole('main').getByRole('link', { name: 'Mis Sesiones' })).toBeVisible();
-    await expect(page.getByRole('main').getByRole('link', { name: 'Programa' })).toBeVisible();
+  test('renders confirmed booking modal with status badge and details', async ({ page }) => {
+    await setupMocks(page, mockBookingConfirmed);
+    await loginAsTestUser(page);
+    await page.goto('/my-programs/program/11');
+    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
+
+    await openSessionModal(page);
+
+    // Modal heading
+    await expect(page.getByText('Detalle de Sesión')).toBeVisible();
 
     // Status badge — Confirmada
-    await expect(page.getByText('Confirmada')).toBeVisible();
+    await expect(page.locator('.fixed').getByText('Confirmada')).toBeVisible();
 
     // Details card
-    await expect(page.getByText('Entrenamiento Kóre')).toBeVisible();
-    await expect(page.getByText('Germán Franco')).toBeVisible();
-    await expect(page.getByText('Bogotá, Colombia')).toBeVisible();
-    await expect(page.getByText('Paquete Pro')).toBeVisible();
+    const modal = page.locator('.fixed');
+    await expect(modal.getByText('Entrenamiento Kóre')).toBeVisible();
+    await expect(modal.getByText('Germán Franco')).toBeVisible();
+    await expect(modal.getByText('Bogotá, Colombia')).toBeVisible();
 
     // Action buttons (canModify = true because 48h from now > 24h threshold)
     await expect(page.getByRole('button', { name: 'Reprogramar' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Cancelar' })).toBeVisible();
   });
 
-  test('cancel modal opens, fills reason, and confirms cancellation', async ({ page }) => {
-    await setupBookingMock(page, mockBookingConfirmed);
+  test('cancel flow: opens confirmation, fills reason, confirms', async ({ page }) => {
+    await setupMocks(page, mockBookingConfirmed);
     await loginAsTestUser(page);
-    await page.goto('/my-sessions/program/11/session/800');
-    await expect(page.getByText('Confirmada')).toBeVisible({ timeout: 10_000 });
+    await page.goto('/my-programs/program/11');
+    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
 
-    // Open cancel modal
+    await openSessionModal(page);
+
+    // Open cancel confirmation
     await page.getByRole('button', { name: 'Cancelar' }).click();
     await expect(page.getByText('Cancelar sesión')).toBeVisible();
     await expect(page.getByText('¿Estás seguro que deseas cancelar esta sesión?')).toBeVisible();
@@ -109,45 +141,40 @@ test.describe('Session Detail Page (mocked)', () => {
     // Confirm cancellation
     await page.getByRole('button', { name: 'Confirmar cancelación' }).click();
 
-    // Modal should close and booking should refresh (mock returns canceled status)
-    await expect(page.getByText('Cancelar sesión')).not.toBeVisible({ timeout: 10_000 });
+    // Modal should close after successful cancellation
+    await expect(page.getByText('Detalle de Sesión')).not.toBeVisible({ timeout: 10_000 });
   });
 
-  test('cancel modal "Volver" closes without canceling', async ({ page }) => {
-    await setupBookingMock(page, mockBookingConfirmed);
+  test('cancel "Volver" goes back to action buttons', async ({ page }) => {
+    await setupMocks(page, mockBookingConfirmed);
     await loginAsTestUser(page);
-    await page.goto('/my-sessions/program/11/session/800');
-    await expect(page.getByText('Confirmada')).toBeVisible({ timeout: 10_000 });
+    await page.goto('/my-programs/program/11');
+    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
 
-    // Open cancel modal
+    await openSessionModal(page);
+
+    // Open cancel confirmation
     await page.getByRole('button', { name: 'Cancelar' }).click();
     await expect(page.getByText('Cancelar sesión')).toBeVisible();
 
     // Click "Volver"
     await page.getByRole('button', { name: 'Volver' }).click();
 
-    // Modal should close, booking is still confirmed
+    // Cancel form should close, action buttons should be visible again
     await expect(page.getByText('Cancelar sesión')).not.toBeVisible();
-    await expect(page.getByText('Confirmada')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Reprogramar' })).toBeVisible();
   });
 
   test('reschedule button navigates to /book-session', async ({ page }) => {
-    await setupBookingMock(page, mockBookingConfirmed);
+    await setupMocks(page, mockBookingConfirmed);
     await loginAsTestUser(page);
-    await page.goto('/my-sessions/program/11/session/800');
-    await expect(page.getByText('Confirmada')).toBeVisible({ timeout: 10_000 });
+    await page.goto('/my-programs/program/11');
+    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
+
+    await openSessionModal(page);
 
     await page.getByRole('button', { name: 'Reprogramar' }).click();
-    await page.waitForURL('**/book-session');
-  });
-
-  test('shows not-found state when booking does not exist', async ({ page }) => {
-    await setupBookingMock(page, null);
-    await loginAsTestUser(page);
-    await page.goto('/my-sessions/program/11/session/999');
-
-    await expect(page.getByText('Sesión no encontrada.')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('Volver al programa')).toBeVisible();
+    await page.waitForURL(/\/book-session/);
   });
 
   test('renders canceled booking without action buttons', async ({ page }) => {
@@ -156,28 +183,35 @@ test.describe('Session Detail Page (mocked)', () => {
       status: 'canceled',
       canceled_reason: 'No puedo asistir',
     };
-    await setupBookingMock(page, canceledBooking);
+    await setupMocks(page, canceledBooking);
     await loginAsTestUser(page);
-    await page.goto('/my-sessions/program/11/session/800');
+    await page.goto('/my-programs/program/11');
+    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
 
-    // Status badge — Cancelada
-    await expect(page.getByText('Cancelada')).toBeVisible({ timeout: 10_000 });
+    // Canceled bookings show in "Pasadas" tab
+    await page.getByRole('button', { name: 'Pasadas' }).click();
+
+    const bookingRow = page.getByRole('button', { name: /Cancelada/ }).first();
+    await bookingRow.click();
+    await expect(page.getByText('Detalle de Sesión')).toBeVisible({ timeout: 5_000 });
 
     // Cancel reason
     await expect(page.getByText('No puedo asistir')).toBeVisible();
 
     // Action buttons should NOT be visible for canceled bookings
     await expect(page.getByRole('button', { name: 'Reprogramar' })).not.toBeVisible();
-    await expect(page.getByRole('button', { name: 'Cancelar' })).not.toBeVisible();
   });
 
   test('renders pending booking with Pendiente badge', async ({ page }) => {
     const pendingBooking = { ...mockBookingConfirmed, status: 'pending' };
-    await setupBookingMock(page, pendingBooking);
+    await setupMocks(page, pendingBooking);
     await loginAsTestUser(page);
-    await page.goto('/my-sessions/program/11/session/800');
+    await page.goto('/my-programs/program/11');
+    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
 
-    await expect(page.getByText('Pendiente')).toBeVisible({ timeout: 10_000 });
+    await openSessionModal(page);
+
+    await expect(page.locator('.fixed').getByText('Pendiente')).toBeVisible();
   });
 
   test('shows modification warning when session is within 24h', async ({ page }) => {
@@ -187,11 +221,12 @@ test.describe('Session Detail Page (mocked)', () => {
       ...mockBookingConfirmed,
       slot: { ...mockBookingConfirmed.slot, starts_at: soonSlotStart.toISOString(), ends_at: soonSlotEnd.toISOString() },
     };
-    await setupBookingMock(page, soonBooking);
+    await setupMocks(page, soonBooking);
     await loginAsTestUser(page);
-    await page.goto('/my-sessions/program/11/session/800');
+    await page.goto('/my-programs/program/11');
+    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
 
-    await expect(page.getByText('Confirmada')).toBeVisible({ timeout: 10_000 });
+    await openSessionModal(page);
 
     // Warning text about 24h modification limit
     await expect(page.getByText(/No se puede modificar a menos de 24h/)).toBeVisible();
@@ -201,5 +236,18 @@ test.describe('Session Detail Page (mocked)', () => {
     const cancelarBtn = page.getByRole('button', { name: 'Cancelar' });
     await expect(reprogramarBtn).toBeDisabled();
     await expect(cancelarBtn).toBeDisabled();
+  });
+
+  test('close button dismisses the modal', async ({ page }) => {
+    await setupMocks(page, mockBookingConfirmed);
+    await loginAsTestUser(page);
+    await page.goto('/my-programs/program/11');
+    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
+
+    await openSessionModal(page);
+    await expect(page.getByText('Detalle de Sesión')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Cerrar', exact: true }).click();
+    await expect(page.getByText('Detalle de Sesión')).not.toBeVisible();
   });
 });

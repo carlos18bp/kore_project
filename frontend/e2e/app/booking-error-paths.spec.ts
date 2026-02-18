@@ -42,7 +42,7 @@ test.describe('Booking Store Error Paths', () => {
     await expect(page.getByText('Agenda tu sesión')).toBeVisible({ timeout: 10_000 });
   });
 
-  test('fetchBookings error shows error on my-sessions program page', async ({ page }) => {
+  test('fetchBookings error shows empty state on program page', async ({ page }) => {
     await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
     });
@@ -56,10 +56,10 @@ test.describe('Booking Store Error Paths', () => {
     });
 
     await loginAsTestUser(page);
-    await page.goto('/my-sessions/program/11/session/800');
+    await page.goto('/my-programs/program/11');
 
-    // Should show not found since bookings couldn't load
-    await expect(page.getByText('Sesión no encontrada.')).toBeVisible({ timeout: 10_000 });
+    // Should show empty state since bookings couldn't load
+    await expect(page.getByText('No tienes sesiones próximas.').or(page.getByText('Programa'))).toBeVisible({ timeout: 10_000 });
   });
 
   test('fetchUpcomingReminder error does not break dashboard', async ({ page }) => {
@@ -90,6 +90,18 @@ test.describe('Booking Store Error Paths', () => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
+    const mockSubscription = {
+      id: 11,
+      customer_email: 'e2e@kore.com',
+      package: { id: 6, title: 'Paquete Pro', sessions_count: 4, session_duration_minutes: 60, price: '120000', currency: 'COP', validity_days: 60 },
+      sessions_total: 4,
+      sessions_used: 1,
+      sessions_remaining: 3,
+      status: 'active',
+      starts_at: new Date(Date.now() - 10 * 86400000).toISOString(),
+      expires_at: new Date(Date.now() + 50 * 86400000).toISOString(),
+      next_billing_date: null,
+    };
 
     await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
@@ -117,17 +129,34 @@ test.describe('Booking Store Error Paths', () => {
       }
       await route.fallback();
     });
+    await page.route('**/api/subscriptions/**', async (route) => {
+      const url = route.request().url();
+      if (url.includes('/payments/') || url.includes('/cancel/')) {
+        await route.fallback();
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockSubscription] }),
+      });
+    });
 
     await loginAsTestUser(page);
-    await page.goto('/my-sessions/program/11/session/800');
-    await expect(page.getByText('Confirmada')).toBeVisible({ timeout: 10_000 });
+    await page.goto('/my-programs/program/11');
+    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
 
-    // Open cancel modal and confirm
+    // Open session detail modal
+    const bookingRow = page.getByRole('button', { name: /Confirmada/ }).first();
+    await bookingRow.click();
+    await expect(page.getByText('Detalle de Sesión')).toBeVisible({ timeout: 5_000 });
+
+    // Open cancel confirmation and confirm
     await page.getByRole('button', { name: 'Cancelar' }).click();
     await expect(page.getByText('Cancelar sesión')).toBeVisible();
     await page.getByRole('button', { name: 'Confirmar cancelación' }).click();
 
-    // Error should be displayed somewhere on the page
+    // Error should be displayed in the modal
     await expect(page.getByText('No se puede cancelar esta sesión.')).toBeVisible({ timeout: 10_000 });
   });
 

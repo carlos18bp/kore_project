@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import ProgramDetailPage from '@/app/(app)/my-sessions/program/[subscriptionId]/page';
+import ProgramDetailPage from '@/app/(app)/my-programs/program/[subscriptionId]/page';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useBookingStore } from '@/lib/stores/bookingStore';
 

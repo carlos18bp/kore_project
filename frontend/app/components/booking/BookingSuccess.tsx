@@ -95,13 +95,14 @@ export default function BookingSuccess({ booking, onReset }: Props) {
           {/* Links */}
           <div className="space-y-3">
             <p className="text-sm text-kore-gray-dark/50">
-              ¿Necesitas hacer un cambio?{' '}
+              ¿Necesitas hacer un cambio? Visita{' '}
               <Link
-                href={`/my-sessions/program/${booking.subscription_id_display ?? ''}/session/${booking.id}`}
+                href={`/my-programs/program/${booking.subscription_id_display ?? ''}`}
                 className="text-kore-red hover:underline font-medium"
               >
-                Reprogramar o Cancelar
+                tu programa
               </Link>
+              {' '}para reprogramar o cancelar.
             </p>
             <button
               onClick={onReset}

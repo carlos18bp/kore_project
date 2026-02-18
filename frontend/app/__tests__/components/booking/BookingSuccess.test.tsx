@@ -87,11 +87,11 @@ describe('BookingSuccess', () => {
     expect(screen.getByText('Studio A')).toBeInTheDocument();
   });
 
-  it('renders reschedule/cancel link pointing to session detail', () => {
+  it('renders program link for changes', () => {
     render(<BookingSuccess booking={MOCK_BOOKING} onReset={onReset} />);
-    const link = screen.getByText('Reprogramar o Cancelar');
+    const link = screen.getByText('tu programa');
     expect(link).toBeInTheDocument();
-    expect(link.closest('a')).toHaveAttribute('href', '/my-sessions/program/2/session/100');
+    expect(link.closest('a')).toHaveAttribute('href', '/my-programs/program/2');
   });
 
   it('calls onReset when "Agendar otra sesión" clicked', async () => {
@@ -104,8 +104,8 @@ describe('BookingSuccess', () => {
   it('renders link with empty subscription id when subscription_id_display is null', () => {
     const bookingNoSub = { ...MOCK_BOOKING, subscription_id_display: null };
     render(<BookingSuccess booking={bookingNoSub} onReset={onReset} />);
-    const link = screen.getByText('Reprogramar o Cancelar');
-    expect(link.closest('a')).toHaveAttribute('href', '/my-sessions/program//session/100');
+    const link = screen.getByText('tu programa');
+    expect(link.closest('a')).toHaveAttribute('href', '/my-programs/program/');
   });
 
   it('does not render location row when trainer has no location', () => {
