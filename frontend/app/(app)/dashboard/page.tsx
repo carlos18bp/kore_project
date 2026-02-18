@@ -101,7 +101,7 @@ export default function DashboardPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
                   { label: 'Agendar sesión', icon: '📅', href: '/book-session' },
-                  { label: 'Mi suscripción', icon: '�', href: '/subscription' },
+                  { label: 'Mi suscripción', icon: '💎', href: '/subscription' },
                   { label: 'Mis programas', icon: '📋', href: '/my-programs' },
                   { label: 'Soporte', icon: '💬', href: WHATSAPP_URL },
                 ].map((action) => (

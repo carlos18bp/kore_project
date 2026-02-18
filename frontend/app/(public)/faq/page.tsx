@@ -71,10 +71,10 @@ export default function FAQPage() {
               </div>
             ) : error ? (
               <div className="text-center py-12">
-                <p className="text-kore-red mb-4">{error}</p>
+                <p className="text-kore-gray-dark/60 mb-4">{error}</p>
                 <button
                   onClick={() => window.location.reload()}
-                  className="px-6 py-2 bg-kore-red text-white rounded-lg hover:bg-kore-red-dark transition-colors"
+                  className="px-6 py-2 bg-kore-gray-dark/10 text-kore-gray-dark rounded-lg hover:bg-kore-gray-dark/20 transition-colors"
                 >
                   Reintentar
                 </button>

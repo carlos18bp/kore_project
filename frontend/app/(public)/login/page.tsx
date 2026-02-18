@@ -37,8 +37,13 @@ export default function LoginPage() {
 
   useEffect(() => {
     api.get('/google-captcha/site-key/')
-      .then((res) => setSiteKey(res.data.site_key))
-      .catch(() => {});
+      .then((res) => {
+        console.log('Captcha site key loaded:', res.data.site_key);
+        setSiteKey(res.data.site_key);
+      })
+      .catch((err) => {
+        console.warn('Could not load captcha site key:', err?.response?.status, err?.message);
+      });
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
