@@ -170,9 +170,10 @@ test.describe('Complete Booking Flow (mocked)', () => {
     await expect(main.getByText(E2E_USER.fullName)).toBeVisible();
     await expect(main.getByText(E2E_USER.email)).toBeVisible();
 
-    // Subscription info
-    await expect(main.getByText('Paquete Pro')).toBeVisible();
-    await expect(main.getByText(/sesiones restantes/)).toBeVisible();
+    // Subscription info (inside the confirmation panel, not the selector/header)
+    const confirmPanel = main.locator('label:has-text("Programa") + p');
+    await expect(confirmPanel.getByText(/Paquete Pro/)).toBeVisible();
+    await expect(confirmPanel.getByText(/sesiones restantes/)).toBeVisible();
 
     // TrainerInfoPanel content
     await expect(main.getByText('60 min')).toBeVisible();
@@ -181,18 +182,19 @@ test.describe('Complete Booking Flow (mocked)', () => {
     // Click "Confirmar"
     await main.getByRole('button', { name: 'Confirmar' }).click();
 
-    // Step 3 — Success screen
-    await expect(main.getByText('Esta reunión está programada')).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('Hemos enviado un correo electrónico')).toBeVisible();
+    // Step 3 — Success modal (calendar is visible behind, so scope assertions to the modal)
+    const modal = main.locator('.fixed.inset-0.z-50');
+    await expect(modal.getByText('Esta reunión está programada')).toBeVisible({ timeout: 10_000 });
+    await expect(modal.getByText('Hemos enviado un correo electrónico')).toBeVisible();
 
     // Summary table
-    await expect(main.getByText('Entrenamiento Kóre')).toBeVisible();
-    await expect(main.getByText('Germán Franco')).toBeVisible();
-    await expect(main.getByText('Bogotá, Colombia')).toBeVisible();
+    await expect(modal.getByText('Entrenamiento Kóre')).toBeVisible();
+    await expect(modal.getByText('Germán Franco')).toBeVisible();
+    await expect(modal.getByText('Bogotá, Colombia')).toBeVisible();
 
     // Links
-    await expect(main.getByText('Reprogramar o Cancelar')).toBeVisible();
-    await expect(main.getByText('Agendar otra sesión')).toBeVisible();
+    await expect(modal.getByText('Reprogramar o Cancelar')).toBeVisible();
+    await expect(modal.getByText('Agendar otra sesión')).toBeVisible();
   });
 
   test('confirmation step "Atrás" button returns to step 1', async ({ page }) => {
