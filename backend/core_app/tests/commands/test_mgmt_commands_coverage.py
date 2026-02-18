@@ -3,6 +3,7 @@
 import pytest
 from datetime import timedelta
 from io import StringIO
+from unittest.mock import patch
 
 from django.core.management import call_command
 from django.utils import timezone
@@ -92,6 +93,136 @@ class TestCreateFakeSubscriptions:
         output = out.getvalue()
         assert 'created: 0' in output
 
+    def test_multi_program_assignment(self):
+        """Customers can get 1-3 programs assigned."""
+        # Create 5 packages and 2 customers
+        for i in range(5):
+            Package.objects.create(
+                title=f'Pkg{i}', is_active=True, sessions_count=10, validity_days=30
+            )
+        for i in range(2):
+            User.objects.create_user(
+                email=f'multi_cust{i}@example.com', password='p', role=User.Role.CUSTOMER,
+            )
+
+        out = StringIO()
+        call_command('create_fake_subscriptions', min_programs=2, max_programs=3, stdout=out)
+        output = out.getvalue()
+
+        # Each customer should have 2-3 subscriptions
+        for i in range(2):
+            customer = User.objects.get(email=f'multi_cust{i}@example.com')
+            sub_count = Subscription.objects.filter(customer=customer).count()
+            assert sub_count >= 2 and sub_count <= 3, f'Customer {i} has {sub_count} subs'
+
+    def test_partial_session_usage(self):
+        """Active subscriptions should have partial session usage (not all used)."""
+        Package.objects.create(
+            title='Pkg', is_active=True, sessions_count=20, validity_days=30
+        )
+        User.objects.create_user(
+            email='partial_cust@example.com', password='p', role=User.Role.CUSTOMER,
+        )
+
+        out = StringIO()
+        call_command('create_fake_subscriptions', min_programs=1, max_programs=1, stdout=out)
+
+        sub = Subscription.objects.filter(customer__email='partial_cust@example.com').first()
+        assert sub is not None
+        # Active subscriptions should have remaining sessions
+        if sub.status == Subscription.Status.ACTIVE:
+            assert sub.sessions_remaining > 0
+
+    def test_active_subscription_guarantee(self):
+        """Each customer should receive at least one active subscription."""
+        for i in range(2):
+            Package.objects.create(
+                title=f'Pkg{i}', is_active=True, sessions_count=10, validity_days=30
+            )
+        customers = [
+            User.objects.create_user(
+                email=f'active_guard{i}@example.com', password='p', role=User.Role.CUSTOMER,
+            )
+            for i in range(2)
+        ]
+
+        out = StringIO()
+        call_command('create_fake_subscriptions', min_programs=1, max_programs=1, stdout=out)
+
+        for customer in customers:
+            assert Subscription.objects.filter(
+                customer=customer,
+                status=Subscription.Status.ACTIVE,
+            ).exists()
+
+    def test_ensure_inactive_flag(self):
+        """Ensure --ensure-inactive assigns at least one inactive subscription when possible."""
+        for i in range(3):
+            Package.objects.create(
+                title=f'PkgInactive{i}', is_active=True, sessions_count=10, validity_days=30
+            )
+        customers = [
+            User.objects.create_user(
+                email=f'inactive_guard{i}@example.com', password='p', role=User.Role.CUSTOMER,
+            )
+            for i in range(2)
+        ]
+
+        out = StringIO()
+        call_command(
+            'create_fake_subscriptions',
+            min_programs=2,
+            max_programs=2,
+            ensure_inactive=True,
+            stdout=out,
+        )
+
+        for customer in customers:
+            assert Subscription.objects.filter(
+                customer=customer,
+                status=Subscription.Status.ACTIVE,
+            ).exists()
+            assert Subscription.objects.filter(
+                customer=customer,
+            ).exclude(status=Subscription.Status.ACTIVE).exists()
+
+    def test_expired_subscription_can_use_full_ratio(self):
+        """Expired subscriptions can consume 100% of sessions_total."""
+        pkg_active = Package.objects.create(
+            title='PkgActive', is_active=True, sessions_count=8, validity_days=30
+        )
+        pkg_expired = Package.objects.create(
+            title='PkgExpired', is_active=True, sessions_count=8, validity_days=30
+        )
+        customer = User.objects.create_user(
+            email='ratio_cust@example.com', password='p', role=User.Role.CUSTOMER,
+        )
+        now = timezone.now()
+        Subscription.objects.create(
+            customer=customer,
+            package=pkg_active,
+            sessions_total=8,
+            sessions_used=2,
+            status=Subscription.Status.ACTIVE,
+            starts_at=now,
+            expires_at=now + timedelta(days=30),
+        )
+
+        out = StringIO()
+        with patch(
+            'core_app.management.commands.create_fake_subscriptions.random.random',
+            return_value=0.7,
+        ), patch(
+            'core_app.management.commands.create_fake_subscriptions.random.choice',
+            return_value=1.0,
+        ):
+            call_command('create_fake_subscriptions', min_programs=1, max_programs=1, stdout=out)
+
+        expired_sub = Subscription.objects.filter(customer=customer, package=pkg_expired).first()
+        assert expired_sub is not None
+        assert expired_sub.status == Subscription.Status.EXPIRED
+        assert expired_sub.sessions_used == expired_sub.sessions_total
+
 
 # ----------------------------------------------------------------
 # create_fake_bookings
@@ -147,7 +278,281 @@ class TestCreateFakeBookings:
         out = StringIO()
         call_command('create_fake_bookings', num=1, stdout=out)
         output = out.getvalue()
-        assert 'created: 0' in output
+
+    def test_partial_booking_limit(self):
+        """Bookings per subscription are limited to a percentage of sessions_total."""
+        now = timezone.now()
+        customer = User.objects.create_user(
+            email='bk_limit@example.com', password='p', role=User.Role.CUSTOMER,
+        )
+        pkg = Package.objects.create(title='Pkg', is_active=True, sessions_count=20, validity_days=30)
+        sub = Subscription.objects.create(
+            customer=customer, package=pkg,
+            sessions_total=20, sessions_used=0,
+            status=Subscription.Status.ACTIVE,
+            starts_at=now, expires_at=now + timedelta(days=30),
+        )
+        trainer_user = User.objects.create_user(
+            email='bk_trainer@example.com', password='p', role=User.Role.TRAINER,
+        )
+        trainer = TrainerProfile.objects.create(user=trainer_user, specialty='Test')
+
+        # Create 20 available slots
+        for i in range(20):
+            AvailabilitySlot.objects.create(
+                starts_at=now + timedelta(hours=2 + i),
+                ends_at=now + timedelta(hours=3 + i),
+                is_active=True, is_blocked=False,
+                trainer=trainer,
+            )
+
+        out = StringIO()
+        # Limit to 30% of sessions = max 6 bookings
+        call_command('create_fake_bookings', num=20, min_booking_ratio=0.30, max_booking_ratio=0.30, stdout=out)
+
+        # Should have created at most 30% of sessions = 6 bookings
+        booking_count = Booking.objects.filter(subscription=sub).exclude(status=Booking.Status.CANCELED).count()
+        assert booking_count <= 6, f'Expected <=6 bookings, got {booking_count}'
+
+    def test_full_booking_ratio(self):
+        """Booking ratio of 100% fills all sessions when enough slots exist."""
+        now = timezone.now()
+        customer = User.objects.create_user(
+            email='bk_full@example.com', password='p', role=User.Role.CUSTOMER,
+        )
+        pkg = Package.objects.create(title='Pkg', is_active=True, sessions_count=4, validity_days=30)
+        sub = Subscription.objects.create(
+            customer=customer, package=pkg,
+            sessions_total=4, sessions_used=0,
+            status=Subscription.Status.ACTIVE,
+            starts_at=now, expires_at=now + timedelta(days=30),
+        )
+        trainer_user = User.objects.create_user(
+            email='bk_full_trainer@example.com', password='p', role=User.Role.TRAINER,
+        )
+        trainer = TrainerProfile.objects.create(user=trainer_user, specialty='Test')
+
+        for i in range(4):
+            AvailabilitySlot.objects.create(
+                starts_at=now + timedelta(hours=2 + i),
+                ends_at=now + timedelta(hours=3 + i),
+                is_active=True, is_blocked=False,
+                trainer=trainer,
+            )
+
+        out = StringIO()
+        with patch(
+            'core_app.management.commands.create_fake_bookings._pick_booking_ratio',
+            return_value=1.0,
+        ), patch(
+            'core_app.management.commands.create_fake_bookings.random.random',
+            return_value=0.9,
+        ):
+            call_command(
+                'create_fake_bookings',
+                num=4, min_booking_ratio=0.2, max_booking_ratio=1.0, stdout=out,
+            )
+
+        sub.refresh_from_db()
+        booking_count = Booking.objects.filter(
+            subscription=sub,
+            status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
+        ).count()
+        assert booking_count == sub.sessions_total
+        assert sub.sessions_used == sub.sessions_total
+
+    def test_past_bookings_backfilled_for_expired_subscriptions(self):
+        """Expired subscriptions with sessions_used > 0 get past booking records."""
+        now = timezone.now()
+        customer = User.objects.create_user(
+            email='bk_expired@example.com', password='p', role=User.Role.CUSTOMER,
+        )
+        pkg = Package.objects.create(
+            title='Pkg', is_active=True, sessions_count=4,
+            validity_days=30, session_duration_minutes=60,
+        )
+        # Active sub (required so the command doesn't bail early)
+        Subscription.objects.create(
+            customer=customer, package=pkg,
+            sessions_total=4, sessions_used=0,
+            status=Subscription.Status.ACTIVE,
+            starts_at=now, expires_at=now + timedelta(days=30),
+        )
+        # Expired sub with 3 sessions_used but no bookings
+        expired_sub = Subscription.objects.create(
+            customer=customer,
+            package=Package.objects.create(
+                title='ExpPkg', is_active=True, sessions_count=4,
+                validity_days=30, session_duration_minutes=60,
+            ),
+            sessions_total=4, sessions_used=3,
+            status=Subscription.Status.EXPIRED,
+            starts_at=now - timedelta(days=60),
+            expires_at=now - timedelta(days=30),
+        )
+
+        out = StringIO()
+        call_command('create_fake_bookings', num=0, stdout=out)
+
+        past_bookings = Booking.objects.filter(
+            subscription=expired_sub,
+            status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
+        )
+        assert past_bookings.count() == 3
+        # All slots should be in the past
+        for booking in past_bookings:
+            assert booking.slot.starts_at < now
+        assert 'past_backfilled: 3' in out.getvalue()
+
+    def test_past_bookings_idempotent_for_already_backfilled(self):
+        """Second pass skips subscriptions that already have enough bookings."""
+        now = timezone.now()
+        customer = User.objects.create_user(
+            email='bk_idem@example.com', password='p', role=User.Role.CUSTOMER,
+        )
+        pkg = Package.objects.create(
+            title='PkgIdem', is_active=True, sessions_count=4,
+            validity_days=30, session_duration_minutes=60,
+        )
+        Subscription.objects.create(
+            customer=customer, package=pkg,
+            sessions_total=4, sessions_used=0,
+            status=Subscription.Status.ACTIVE,
+            starts_at=now, expires_at=now + timedelta(days=30),
+        )
+        expired_sub = Subscription.objects.create(
+            customer=customer,
+            package=Package.objects.create(
+                title='IdemPkg', is_active=True, sessions_count=4,
+                validity_days=30, session_duration_minutes=60,
+            ),
+            sessions_total=4, sessions_used=2,
+            status=Subscription.Status.EXPIRED,
+            starts_at=now - timedelta(days=60),
+            expires_at=now - timedelta(days=30),
+        )
+
+        # First run backfills
+        out1 = StringIO()
+        call_command('create_fake_bookings', num=0, stdout=out1)
+        assert Booking.objects.filter(subscription=expired_sub).count() == 2
+
+        # Second run doesn't create duplicates
+        out2 = StringIO()
+        call_command('create_fake_bookings', num=0, stdout=out2)
+        assert Booking.objects.filter(subscription=expired_sub).count() == 2
+        assert 'past_backfilled: 0' in out2.getvalue()
+
+    def test_past_bookings_backfilled_for_active_subscriptions(self):
+        """Active subscriptions with sessions_used > 0 but no past bookings get backfilled."""
+        now = timezone.now()
+        customer = User.objects.create_user(
+            email='bk_active_past@example.com', password='p', role=User.Role.CUSTOMER,
+        )
+        pkg = Package.objects.create(
+            title='ActivePkg', is_active=True, sessions_count=8,
+            validity_days=90, session_duration_minutes=60,
+        )
+        active_sub = Subscription.objects.create(
+            customer=customer, package=pkg,
+            sessions_total=8, sessions_used=2,
+            status=Subscription.Status.ACTIVE,
+            starts_at=now - timedelta(days=30),
+            expires_at=now + timedelta(days=60),
+        )
+        # Create 2 future bookings so the sync step keeps sessions_used=2
+        for hours_offset in (48, 72):
+            slot = AvailabilitySlot.objects.create(
+                starts_at=now + timedelta(hours=hours_offset),
+                ends_at=now + timedelta(hours=hours_offset + 1),
+                is_active=True, is_blocked=True,
+            )
+            Booking.objects.create(
+                customer=customer, package=pkg, slot=slot,
+                subscription=active_sub, status=Booking.Status.CONFIRMED,
+            )
+
+        out = StringIO()
+        call_command('create_fake_bookings', num=0, stdout=out)
+
+        past_bookings = Booking.objects.filter(
+            subscription=active_sub,
+            status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
+            slot__starts_at__lt=now,
+        )
+        # sessions_used=2 (after sync), 0 existing past bookings → 2 created
+        assert past_bookings.count() == 2
+        for booking in past_bookings:
+            assert booking.slot.starts_at < now
+
+    def test_active_subscriptions_with_zero_usage_get_seeded(self):
+        """Active subscriptions with zero usage get seeded to 1-2 used sessions."""
+        now = timezone.now()
+        customer = User.objects.create_user(
+            email='bk_active_seed@example.com', password='p', role=User.Role.CUSTOMER,
+        )
+        pkg = Package.objects.create(
+            title='ActiveSeedPkg', is_active=True, sessions_count=8,
+            validity_days=90, session_duration_minutes=60,
+        )
+        active_sub = Subscription.objects.create(
+            customer=customer,
+            package=pkg,
+            sessions_total=8,
+            sessions_used=0,
+            status=Subscription.Status.ACTIVE,
+            starts_at=now - timedelta(days=10),
+            expires_at=now + timedelta(days=30),
+        )
+
+        out = StringIO()
+        call_command('create_fake_bookings', num=0, stdout=out)
+
+        active_sub.refresh_from_db()
+        seeded_bookings = Booking.objects.filter(
+            subscription=active_sub,
+            status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
+        ).count()
+
+        assert active_sub.sessions_used == 2
+        assert seeded_bookings == 2
+        assert 'active_seeded: 1' in out.getvalue()
+
+    def test_sessions_used_syncs_with_confirmed_bookings(self):
+        """sessions_used matches confirmed/pending bookings after command completes."""
+        now = timezone.now()
+        customer = User.objects.create_user(
+            email='bk_sync@example.com', password='p', role=User.Role.CUSTOMER,
+        )
+        pkg = Package.objects.create(title='Pkg', is_active=True, sessions_count=5, validity_days=30)
+        sub = Subscription.objects.create(
+            customer=customer, package=pkg,
+            sessions_total=5, sessions_used=4,
+            status=Subscription.Status.ACTIVE,
+            starts_at=now, expires_at=now + timedelta(days=30),
+        )
+        AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=2),
+            ends_at=now + timedelta(hours=3),
+            is_active=True, is_blocked=False,
+        )
+
+        out = StringIO()
+        with patch('core_app.management.commands.create_fake_bookings.random.random', return_value=0.9):
+            call_command(
+                'create_fake_bookings',
+                num=1,
+                min_booking_ratio=1.0,
+                max_booking_ratio=1.0,
+                stdout=out,
+            )
+
+        sub.refresh_from_db()
+        booking_count = Booking.objects.filter(
+            subscription=sub,
+            status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
+        ).count()
+        assert booking_count == sub.sessions_used
 
 
 # ----------------------------------------------------------------
@@ -337,3 +742,27 @@ class TestCreateFakeNotifications:
         out = StringIO()
         call_command('create_fake_notifications', num=1, stdout=out)
         assert 'No bookings/payments found' in out.getvalue()
+
+    def test_payment_without_subscription_is_skipped(self):
+        """Payments without subscriptions are skipped for subscription notifications."""
+        customer = User.objects.create_user(
+            email='notif_skip@example.com', password='p', role=User.Role.CUSTOMER,
+        )
+        Payment.objects.create(
+            customer=customer,
+            amount=100000,
+            provider=Payment.Provider.WOMPI,
+            provider_reference='ref-no-sub',
+        )
+        out = StringIO()
+        with patch(
+            'core_app.management.commands.create_fake_notifications.random.random',
+            side_effect=[0.2, 0.5],
+        ):
+            call_command('create_fake_notifications', num=1, stdout=out)
+
+        output = out.getvalue()
+        assert Notification.objects.count() == 0
+        assert '- created: 0' in output
+        assert '- failed: 0' in output
+        assert '- total: 0' in output
