@@ -115,7 +115,7 @@ class TestCancelAction:
         response = api_client.post(url)
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert 'already canceled' in response.data['detail']
+        assert 'ya está cancelada' in response.data['detail']
 
     def test_cancel_within_24h_fails(self, api_client, customer, package):
         slot = _make_slot(hours_ahead=12)
@@ -179,7 +179,7 @@ class TestRescheduleAction:
 
         new_booking = Booking.objects.filter(slot=new_slot).first()
         assert new_booking is not None
-        assert new_booking.status == Booking.Status.CONFIRMED
+        assert new_booking.status == Booking.Status.PENDING
 
     def test_reschedule_canceled_booking_fails(self, api_client, customer, package):
         slot = _make_slot(hours_ahead=48)
@@ -230,6 +230,119 @@ class TestRescheduleAction:
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
+    def test_reschedule_before_last_session_fails(self, api_client, customer, package, trainer_profile, subscription):
+        """Reschedule to a slot before last session ends is rejected."""
+        now = timezone.now()
+        # First booking: 72 hours ahead
+        slot1 = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=72),
+            ends_at=now + timedelta(hours=73),
+            trainer=trainer_profile,
+            is_blocked=True,
+        )
+        booking1 = _make_booking(customer, package, slot1, trainer_profile, subscription)
+
+        # Second booking (to reschedule): 96 hours ahead
+        slot2 = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=96),
+            ends_at=now + timedelta(hours=97),
+            trainer=trainer_profile,
+            is_blocked=True,
+        )
+        booking2 = _make_booking(customer, package, slot2, trainer_profile, subscription)
+
+        # Try to reschedule booking2 to 48 hours ahead (before booking1 ends)
+        new_slot = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=48),
+            ends_at=now + timedelta(hours=49),
+            trainer=trainer_profile,
+        )
+
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-reschedule', args=[booking2.pk])
+        response = api_client.post(url, {'new_slot_id': new_slot.pk}, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'sesión anterior' in response.data['detail']
+
+    def test_reschedule_after_next_session_fails(self, api_client, customer, package, trainer_profile, subscription):
+        """Reschedule to a slot that ends after the next session starts is rejected."""
+        now = timezone.now()
+        # Previous booking: 48 hours ahead
+        slot1 = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=48),
+            ends_at=now + timedelta(hours=49),
+            trainer=trainer_profile,
+            is_blocked=True,
+        )
+        _make_booking(customer, package, slot1, trainer_profile, subscription)
+
+        # Booking to reschedule: 72 hours ahead
+        slot2 = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=72),
+            ends_at=now + timedelta(hours=73),
+            trainer=trainer_profile,
+            is_blocked=True,
+        )
+        booking2 = _make_booking(customer, package, slot2, trainer_profile, subscription)
+
+        # Next booking: 96 hours ahead
+        slot3 = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=96),
+            ends_at=now + timedelta(hours=97),
+            trainer=trainer_profile,
+            is_blocked=True,
+        )
+        _make_booking(customer, package, slot3, trainer_profile, subscription)
+
+        # Attempt to reschedule booking2 to a slot that ends after slot3 starts
+        new_slot = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=95),
+            ends_at=now + timedelta(hours=97),
+            trainer=trainer_profile,
+        )
+
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-reschedule', args=[booking2.pk])
+        response = api_client.post(url, {'new_slot_id': new_slot.pk}, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'siguiente sesión' in response.data['detail']
+
+    def test_reschedule_after_last_session_success(self, api_client, customer, package, trainer_profile, subscription):
+        """Reschedule succeeds when there is no next session constraint."""
+        now = timezone.now()
+        # Previous booking: 24 hours ahead
+        slot1 = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=24),
+            ends_at=now + timedelta(hours=25),
+            trainer=trainer_profile,
+            is_blocked=True,
+        )
+        _make_booking(customer, package, slot1, trainer_profile, subscription)
+
+        # Booking to reschedule: 48 hours ahead
+        slot2 = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=48),
+            ends_at=now + timedelta(hours=49),
+            trainer=trainer_profile,
+            is_blocked=True,
+        )
+        booking2 = _make_booking(customer, package, slot2, trainer_profile, subscription)
+
+        # Reschedule to 74 hours ahead (no next session exists)
+        new_slot = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=74),
+            ends_at=now + timedelta(hours=75),
+            trainer=trainer_profile,
+        )
+
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-reschedule', args=[booking2.pk])
+        response = api_client.post(url, {'new_slot_id': new_slot.pk}, format='json')
+
+        assert response.status_code == status.HTTP_201_CREATED
+
 
 # ----------------------------------------------------------------
 # Upcoming reminder tests
@@ -256,15 +369,16 @@ class TestUpcomingReminder:
         response = api_client.get(url)
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.content == b''
 
 
 # ----------------------------------------------------------------
-# "Only next session" validation
+# Reservas futuras múltiples (secuenciales)
 # ----------------------------------------------------------------
 
 @pytest.mark.django_db
 class TestOnlyNextSessionValidation:
-    def test_cannot_book_two_future_sessions(self, api_client, customer, package):
+    def test_can_book_two_future_sessions_sequentially(self, api_client, customer, package):
         slot1 = _make_slot(hours_ahead=48)
         slot2 = _make_slot(hours_ahead=72)
 
@@ -275,7 +389,13 @@ class TestOnlyNextSessionValidation:
         assert resp1.status_code == status.HTTP_201_CREATED
 
         resp2 = api_client.post(url, {'package_id': package.id, 'slot_id': slot2.id}, format='json')
-        assert resp2.status_code == status.HTTP_400_BAD_REQUEST
+        assert resp2.status_code == status.HTTP_201_CREATED
+
+        assert Booking.objects.filter(customer=customer).count() == 2
+        slot1.refresh_from_db()
+        slot2.refresh_from_db()
+        assert slot1.is_blocked is True
+        assert slot2.is_blocked is True
 
 
 # ----------------------------------------------------------------
@@ -367,4 +487,4 @@ class TestRescheduleUnavailableSlot:
         response = api_client.post(url, {'new_slot_id': inactive_slot.pk}, format='json')
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert 'not available' in response.data['detail']
+        assert 'no está disponible' in response.data['detail']

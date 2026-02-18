@@ -7,10 +7,13 @@ from core_app.models import (
     AnalyticsEvent,
     AvailabilitySlot,
     Booking,
+    ContactMessage,
+    FAQCategory,
     FAQItem,
     Notification,
     Package,
     Payment,
+    PaymentIntent,
     SiteSettings,
     Subscription,
     TrainerProfile,
@@ -56,6 +59,7 @@ class Command(BaseCommand):
         with transaction.atomic():
             deleted_summary.append(f"notifications: {Notification.objects.all().delete()[0]}")
             deleted_summary.append(f"payments: {Payment.objects.all().delete()[0]}")
+            deleted_summary.append(f"payment_intents: {PaymentIntent.objects.all().delete()[0]}")
             deleted_summary.append(f"bookings: {Booking.objects.all().delete()[0]}")
             deleted_summary.append(f"subscriptions: {Subscription.objects.all().delete()[0]}")
 
@@ -63,7 +67,9 @@ class Command(BaseCommand):
             deleted_summary.append(f"trainer_profiles: {TrainerProfile.objects.all().delete()[0]}")
 
             deleted_summary.append(f"analytics_events: {AnalyticsEvent.objects.all().delete()[0]}")
+            deleted_summary.append(f"contact_messages: {ContactMessage.objects.all().delete()[0]}")
             deleted_summary.append(f"faqs: {FAQItem.objects.all().delete()[0]}")
+            deleted_summary.append(f"faq_categories: {FAQCategory.objects.all().delete()[0]}")
             deleted_summary.append(f"packages: {Package.objects.all().delete()[0]}")
             deleted_summary.append(f"site_settings: {SiteSettings.objects.all().delete()[0]}")
 

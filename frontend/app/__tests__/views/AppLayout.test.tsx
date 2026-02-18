@@ -35,15 +35,16 @@ const mockUser = {
 describe('AppLayout', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.useFakeTimers();
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
+    useAuthStore.setState({
+      user: null,
+      accessToken: null,
+      isAuthenticated: false,
+      hydrated: true,
+    });
   });
 
   it('renders Sidebar and children when authenticated', () => {
-    useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
+    useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token', hydrated: true });
     render(
       <AppLayout>
         <div data-testid="child-content">Dashboard content</div>
@@ -54,15 +55,13 @@ describe('AppLayout', () => {
     expect(screen.getByTestId('child-content')).toBeInTheDocument();
   });
 
-  it('redirects to /login when not authenticated after timeout', async () => {
-    useAuthStore.setState({ user: null, isAuthenticated: false, accessToken: null });
+  it('redirects to /login when hydrated and not authenticated', async () => {
+    useAuthStore.setState({ user: null, isAuthenticated: false, accessToken: null, hydrated: true });
     render(
       <AppLayout>
         <div>Content</div>
       </AppLayout>
     );
-
-    jest.advanceTimersByTime(200);
 
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith('/login');
@@ -70,15 +69,14 @@ describe('AppLayout', () => {
   });
 
   it('does not redirect when authenticated', () => {
-    useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
+    useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token', hydrated: true });
     render(
       <AppLayout>
         <div>Content</div>
       </AppLayout>
     );
 
-    jest.advanceTimersByTime(200);
-
     expect(mockPush).not.toHaveBeenCalledWith('/login');
   });
+
 });

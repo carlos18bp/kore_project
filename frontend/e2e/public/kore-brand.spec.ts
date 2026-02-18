@@ -45,4 +45,17 @@ test.describe('Kore Brand Page', () => {
     await page.getByRole('link', { name: 'Nuestros programas' }).click();
     await expect(page).toHaveURL('/programs');
   });
+
+  test('"Nuestra esencia" button scrolls to #esencia section', async ({ page }) => {
+    // This exercises kore-brand/page.tsx line 157 (scrollIntoView onClick)
+    const esenciaButton = page.getByRole('button', { name: 'Nuestra esencia' });
+    await expect(esenciaButton).toBeVisible();
+
+    // Click the button to scroll
+    await esenciaButton.click();
+
+    // Wait for scroll to complete and verify #esencia section is in view
+    const esenciaSection = page.locator('#esencia');
+    await expect(esenciaSection).toBeInViewport({ timeout: 5_000 });
+  });
 });

@@ -13,6 +13,7 @@ class Notification(TimestampedModel):
         RECEIPT_EMAIL = 'receipt_email', 'Receipt email'
         SUBSCRIPTION_ACTIVATED = 'subscription_activated', 'Subscription activated'
         SUBSCRIPTION_CANCELED = 'subscription_canceled', 'Subscription canceled'
+        SUBSCRIPTION_EXPIRY_REMINDER = 'subscription_expiry_reminder', 'Subscription expiry reminder'
 
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'

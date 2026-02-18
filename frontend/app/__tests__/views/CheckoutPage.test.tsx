@@ -55,6 +55,14 @@ const MOCK_WOMPI_CONFIG = {
   environment: 'test',
 };
 
+const MOCK_CHECKOUT_PREPARATION = {
+  reference: 'ref-checkout-001',
+  signature: 'sig-checkout-001',
+  amount_in_cents: 30000000,
+  currency: 'COP',
+  package_title: 'Semi Presencial FLW',
+};
+
 describe('CheckoutPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -65,10 +73,12 @@ describe('CheckoutPage', () => {
       if (url.includes('/wompi/config')) return Promise.resolve({ data: MOCK_WOMPI_CONFIG });
       return Promise.reject(new Error('unexpected url'));
     });
+    mockedApi.post.mockResolvedValue({ data: MOCK_CHECKOUT_PREPARATION });
     useAuthStore.setState({
       user: { id: '1', email: 'test@kore.com', first_name: 'Test', last_name: 'User', phone: '', role: 'customer', name: 'Test User' },
       accessToken: 'fake-token',
       isAuthenticated: true,
+      hydrated: true,
     });
     useCheckoutStore.setState({
       package_: null,
@@ -80,10 +90,29 @@ describe('CheckoutPage', () => {
     });
   });
 
+  afterEach(() => {
+    const existingScript = document.getElementById('wompi-widget-script');
+    existingScript?.remove();
+    delete window.WidgetCheckout;
+  });
+
   it('redirects to register if not authenticated', () => {
-    useAuthStore.setState({ user: null, accessToken: null, isAuthenticated: false });
+    useAuthStore.setState({ user: null, accessToken: null, isAuthenticated: false, hydrated: true });
     render(<CheckoutPage />);
     expect(mockPush).toHaveBeenCalledWith('/register?package=1');
+  });
+
+  it('allows guest checkout when registration token exists for package', async () => {
+    useAuthStore.setState({ user: null, accessToken: null, isAuthenticated: false, hydrated: true });
+    window.sessionStorage.setItem('kore_checkout_registration_token', 'signed-token-abc');
+    window.sessionStorage.setItem('kore_checkout_registration_package', '1');
+
+    render(<CheckoutPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Resumen del programa')).toBeInTheDocument();
+    });
+    expect(mockPush).not.toHaveBeenCalledWith('/register?package=1');
   });
 
   it('shows package not found when API returns error', async () => {
@@ -115,6 +144,60 @@ describe('CheckoutPage', () => {
     });
   });
 
+  it('initializes widget with checkout parameters', async () => {
+    const open = jest.fn();
+    const widgetCheckoutMock = jest.fn().mockImplementation(() => ({ open }));
+    window.WidgetCheckout = widgetCheckoutMock;
+
+    const script = document.createElement('script');
+    script.id = 'wompi-widget-script';
+    document.body.appendChild(script);
+
+    render(<CheckoutPage />);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Pagar/ })).toBeEnabled();
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /Pagar/ }));
+
+    expect(widgetCheckoutMock).toHaveBeenCalledTimes(1);
+    const config = widgetCheckoutMock.mock.calls[0][0] as Record<string, unknown>;
+    expect(config.currency).toBe('COP');
+    expect(config.amountInCents).toBe(30000000);
+    expect(config.reference).toBe('ref-checkout-001');
+    expect(config.signature).toEqual({ integrity: 'sig-checkout-001' });
+    expect(config.collectCustomerLegalId).toBeUndefined();
+    expect(config['customer-data:email']).toBeUndefined();
+    expect(config['customer-data:full-name']).toBeUndefined();
+    expect(open).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows error when widget callback does not return a transaction id', async () => {
+    const open = jest.fn();
+    const widgetCheckoutMock = jest.fn().mockImplementation(() => ({ open }));
+    window.WidgetCheckout = widgetCheckoutMock;
+
+    const script = document.createElement('script');
+    script.id = 'wompi-widget-script';
+    document.body.appendChild(script);
+
+    render(<CheckoutPage />);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Pagar/ })).toBeEnabled();
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /Pagar/ }));
+
+    expect(open).toHaveBeenCalledTimes(1);
+    const callback = open.mock.calls[0][0] as (result: { transaction?: { id?: string } }) => Promise<void>;
+    await callback({});
+
+    expect(useCheckoutStore.getState().paymentStatus).toBe('error');
+    expect(useCheckoutStore.getState().error).toBe('No se pudo completar el pago. Intenta de nuevo.');
+  });
+
   it('shows processing state when payment is in progress', async () => {
     render(<CheckoutPage />);
     await waitFor(() => {
@@ -127,6 +210,13 @@ describe('CheckoutPage', () => {
   });
 
   it('shows success screen with purchase details', () => {
+    mockGet.mockReturnValue(null);
+    useAuthStore.setState({
+      user: { id: '1', email: 'test@kore.com', first_name: 'Test', last_name: 'User', phone: '', role: 'customer', name: 'Test User' },
+      accessToken: 'fake-token',
+      isAuthenticated: true,
+      hydrated: true,
+    });
     useCheckoutStore.setState({
       loading: false,
       package_: MOCK_PACKAGE,
@@ -182,7 +272,18 @@ describe('CheckoutPage', () => {
   it('shows recurring charge info', async () => {
     render(<CheckoutPage />);
     await waitFor(() => {
-      expect(screen.getByText('Se cobrará automáticamente cada 30 días')).toBeInTheDocument();
+      expect(
+        screen.getByText('El cobro automático aplica solo con tarjeta. Con otros métodos, deberás renovar manualmente cada 30 días.'),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it('shows payment methods with recurring and non-recurring distinction', async () => {
+    render(<CheckoutPage />);
+    await waitFor(() => {
+      expect(
+        screen.getByText('Métodos disponibles: Tarjeta (recurrente), Nequi, PSE y Bancolombia Transfer (no recurrentes).'),
+      ).toBeInTheDocument();
     });
   });
 });

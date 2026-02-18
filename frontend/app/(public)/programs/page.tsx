@@ -2,7 +2,9 @@
 
 import Image from 'next/image';
 import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
+import { useAuthStore } from '@/lib/stores/authStore';
 import { api } from '@/lib/services/http';
 
 type ApiPackage = {
@@ -77,7 +79,14 @@ export default function ProgramsPage() {
   const [packagesByCategory, setPackagesByCategory] = useState<Record<string, ApiPackage[]>>({});
   const [loading, setLoading] = useState(true);
   const heroRef = useRef<HTMLElement>(null);
+  const router = useRouter();
+  const { isAuthenticated, hydrate, hydrated } = useAuthStore();
+
   useHeroAnimation(heroRef);
+
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -210,15 +219,24 @@ export default function ProgramsPage() {
             {/* CTA */}
             {selectedPkg && (
               <div className="flex items-center gap-3 mb-10 lg:mb-0">
-                <a
-                  href={`/checkout?package=${selectedPkg.id}`}
-                  className="inline-flex items-center justify-center gap-2 bg-kore-red text-white px-6 py-3 rounded-full text-sm font-medium hover:bg-kore-red-dark transition-colors cursor-pointer"
+                <button
+                  disabled={!hydrated}
+                  onClick={() => {
+                    if (!hydrated) {
+                      return;
+                    }
+                    const destination = isAuthenticated
+                      ? `/checkout?package=${selectedPkg.id}`
+                      : `/register?package=${selectedPkg.id}`;
+                    router.push(destination);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 bg-kore-red text-white px-6 py-3 rounded-full text-sm font-medium hover:bg-kore-red-dark transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   Reservar {selectedPkg.title}
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
                   </svg>
-                </a>
+                </button>
                 <span className="text-sm text-kore-gray-dark/40">
                   {formatPrice(parseFloat(selectedPkg.price))}
                 </span>
@@ -253,8 +271,8 @@ export default function ProgramsPage() {
         </div>
 
         {/* Bottom — Glass Switch */}
-        <div className="absolute bottom-0 left-0 right-0 z-20 flex justify-center pb-6 lg:pb-8">
-          <div className="flex gap-1 p-1.5 rounded-full bg-white/40 backdrop-blur-xl border border-white/50 shadow-lg">
+        <div className="absolute bottom-0 left-0 right-0 z-20 flex justify-center pb-6 lg:pb-8 pointer-events-none">
+          <div className="flex gap-1 p-1.5 rounded-full bg-white/40 backdrop-blur-xl border border-white/50 shadow-lg pointer-events-auto">
             {programMeta.map((program, index) => (
               <button
                 key={program.category}

@@ -12,12 +12,12 @@ from core_app.models.base import TimestampedModel
 
 
 class PaymentIntent(TimestampedModel):
-    """Represents a pending payment attempt via Wompi tokenization.
+    """Represents a pending payment attempt for Wompi checkout.
 
-    Created when the user initiates a purchase from the checkout page.
-    The backend tokenizes the card, creates a payment source and a Wompi
-    transaction, then stores the intent here.  The webhook handler later
-    resolves the intent into a Payment + Subscription on success.
+    Created when the user prepares checkout.  The widget collects the
+    payment method and Wompi creates the transaction; the webhook then
+    updates this intent with the transaction/payment source IDs and
+    resolves it into a Payment + Subscription on success.
 
     Attributes:
         customer: The user who initiated the purchase.
@@ -37,6 +37,8 @@ class PaymentIntent(TimestampedModel):
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name='payment_intents',
+        null=True,
+        blank=True,
     )
     package = models.ForeignKey(
         'core_app.Package',
@@ -67,6 +69,12 @@ class PaymentIntent(TimestampedModel):
         help_text='Amount in the package currency (not cents).',
     )
     currency = models.CharField(max_length=10, default='COP')
+    pending_email = models.EmailField(blank=True, default='')
+    pending_first_name = models.CharField(max_length=150, blank=True, default='')
+    pending_last_name = models.CharField(max_length=150, blank=True, default='')
+    pending_phone = models.CharField(max_length=30, blank=True, default='')
+    pending_password_hash = models.CharField(max_length=128, blank=True, default='')
+    public_access_token = models.CharField(max_length=255, blank=True, default='', db_index=True)
 
     status = models.CharField(
         max_length=20,

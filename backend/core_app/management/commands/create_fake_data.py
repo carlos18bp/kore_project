@@ -7,21 +7,27 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('--customers', type=int, default=20)
-        parser.add_argument('--password', type=str, default='customer123456')
+        parser.add_argument('--password', type=str, default='ogthsv25')
         parser.add_argument('--admin-email', type=str, default='admin@kore.com')
-        parser.add_argument('--admin-password', type=str, default='admin123456')
+        parser.add_argument('--admin-password', type=str, default='ogthsv25')
         parser.add_argument('--no-admin', action='store_true', default=False)
         parser.add_argument('--skip-users', action='store_true', default=False)
 
         parser.add_argument('--skip-content', action='store_true', default=False)
 
-        parser.add_argument('--trainer-password', type=str, default='trainer123456')
+        parser.add_argument('--trainer-password', type=str, default='ogthsv25')
         parser.add_argument('--skip-trainers', action='store_true', default=False)
 
         parser.add_argument('--extra-packages', type=int, default=0)
         parser.add_argument('--skip-packages', action='store_true', default=False)
 
         parser.add_argument('--skip-subscriptions', action='store_true', default=False)
+        parser.add_argument(
+            '--no-ensure-inactive',
+            action='store_true',
+            default=False,
+            help='Do not force at least one inactive subscription per customer.',
+        )
 
         parser.add_argument('--days', type=int, default=30)
         parser.add_argument('--start-hour', type=int, default=9)
@@ -87,7 +93,11 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING('Skipped packages'))
 
         if not options['skip_subscriptions']:
-            call_command('create_fake_subscriptions', stdout=self.stdout)
+            call_command(
+                'create_fake_subscriptions',
+                ensure_inactive=not options['no_ensure_inactive'],
+                stdout=self.stdout,
+            )
             executed.append('subscriptions')
         else:
             self.stdout.write(self.style.WARNING('Skipped subscriptions'))

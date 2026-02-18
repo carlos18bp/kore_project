@@ -1,7 +1,8 @@
-"""Celery tasks for recurring subscription billing.
+"""Celery tasks for recurring billing and subscription reminders.
 
-Provides a periodic task that finds active subscriptions due for billing
-and creates Wompi transactions to charge the customer's saved payment source.
+Provides periodic tasks that:
+- Charge recurring subscriptions due for billing.
+- Email reminders for non-recurring subscriptions that are close to expiring.
 """
 
 import logging
@@ -13,6 +14,10 @@ from django.db import transaction as db_transaction
 from django.utils import timezone
 
 from core_app.models import Notification, Payment, Subscription
+from core_app.services.email_service import (
+    send_payment_receipt,
+    send_subscription_expiry_reminder,
+)
 from core_app.services.wompi_service import (
     WompiError,
     create_transaction,
@@ -26,8 +31,8 @@ logger = logging.getLogger(__name__)
 def process_recurring_billing(self):
     """Find active subscriptions due today and charge them.
 
-    For each subscription whose next_billing_date <= today and has
-    a valid payment_source_id:
+    For each subscription whose next_billing_date <= today, is marked
+    as recurring, and has a valid payment_source_id:
     1. Create a Wompi transaction using the saved payment source.
     2. Create a Payment record.
     3. Advance the next_billing_date by the package validity period.
@@ -41,6 +46,7 @@ def process_recurring_billing(self):
     due_subscriptions = Subscription.objects.filter(
         status=Subscription.Status.ACTIVE,
         next_billing_date__lte=today,
+        is_recurring=True,
     ).exclude(
         payment_source_id='',
     ).select_related('customer', 'package')
@@ -135,9 +141,48 @@ def _bill_subscription(sub):
                 },
             )
 
+            send_payment_receipt(payment)
+
     logger.info(
         'Billed subscription %s: txn=%s status=%s',
         sub.id,
         txn_data.get('id'),
         txn_status,
     )
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=300)
+def send_expiring_subscription_reminders(self):
+    """Send expiry reminders for non-recurring subscriptions.
+
+    Finds active, non-recurring subscriptions that expire within the next
+    7 days and have not yet received an email reminder, sends the reminder,
+    and records the send timestamp.
+
+    Returns:
+        dict: Summary with 'processed' and 'sent' counts.
+    """
+    now = timezone.now()
+    cutoff = now + timedelta(days=7)
+    subscriptions = Subscription.objects.filter(
+        status=Subscription.Status.ACTIVE,
+        is_recurring=False,
+        expiry_email_sent_at__isnull=True,
+        expires_at__gte=now,
+        expires_at__lte=cutoff,
+    ).select_related('customer', 'package')
+
+    processed = 0
+    sent = 0
+
+    for subscription in subscriptions:
+        processed += 1
+        notification = send_subscription_expiry_reminder(subscription)
+        if notification and notification.status == Notification.Status.SENT:
+            subscription.expiry_email_sent_at = timezone.now()
+            subscription.save(update_fields=['expiry_email_sent_at', 'updated_at'])
+            sent += 1
+
+    summary = {'processed': processed, 'sent': sent}
+    logger.info('Expiry reminders completed: %s', summary)
+    return summary

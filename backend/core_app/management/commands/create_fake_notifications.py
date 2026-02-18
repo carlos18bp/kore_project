@@ -19,6 +19,7 @@ PAYMENT_TYPES = [
 SUBSCRIPTION_TYPES = [
     Notification.Type.SUBSCRIPTION_ACTIVATED,
     Notification.Type.SUBSCRIPTION_CANCELED,
+    Notification.Type.SUBSCRIPTION_EXPIRY_REMINDER,
 ]
 
 ERROR_MESSAGES = [
@@ -54,6 +55,7 @@ class Command(BaseCommand):
 
             r = random.random()
             if r < 0.4 and payments:
+                # Payment notifications - linked to payment and optionally booking
                 payment = random.choice(payments)
                 Notification.objects.create(
                     payment=payment,
@@ -64,16 +66,20 @@ class Command(BaseCommand):
                     error_message=error_message,
                     payload={'source': 'fake_data'},
                 )
-            elif r < 0.6 and bookings:
-                booking = random.choice(bookings)
-                Notification.objects.create(
-                    booking=booking,
-                    notification_type=random.choice(SUBSCRIPTION_TYPES),
-                    status=notif_status,
-                    sent_to=booking.customer.email,
-                    error_message=error_message,
-                    payload={'source': 'fake_data'},
-                )
+            elif r < 0.6 and payments:
+                # Subscription notifications - linked to payment (subscription context)
+                payment = random.choice(payments)
+                if payment.subscription:
+                    Notification.objects.create(
+                        payment=payment,
+                        notification_type=random.choice(SUBSCRIPTION_TYPES),
+                        status=notif_status,
+                        sent_to=payment.customer.email,
+                        error_message=error_message,
+                        payload={'source': 'fake_data'},
+                    )
+                else:
+                    continue
             elif bookings:
                 booking = random.choice(bookings)
                 Notification.objects.create(

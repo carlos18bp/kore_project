@@ -1,0 +1,42 @@
+<h2 style="color:#c8102e; margin-top:0;">Comprobante de pago</h2>
+
+<p>Hola <strong>{{ customer_name }}</strong>,</p>
+
+<p>Tu pago ha sido procesado exitosamente. Aquí están los detalles de tu transacción:</p>
+
+<table role="presentation" cellpadding="8" cellspacing="0" style="width:100%; border-collapse:collapse; margin:16px 0;">
+  <tr style="background-color:#f5f0eb;">
+    <td style="padding:8px 12px; font-weight:bold; width:140px;">Referencia</td>
+    <td style="padding:8px 12px;">{{ reference }}</td>
+  </tr>
+  <tr>
+    <td style="padding:8px 12px; font-weight:bold;">Programa</td>
+    <td style="padding:8px 12px;">{{ package_title }}</td>
+  </tr>
+  <tr style="background-color:#f5f0eb;">
+    <td style="padding:8px 12px; font-weight:bold;">Monto</td>
+    <td style="padding:8px 12px; font-size:18px; font-weight:bold; color:#c8102e;">{{ amount }} {{ currency }}</td>
+  </tr>
+  <tr>
+    <td style="padding:8px 12px; font-weight:bold;">Sesiones</td>
+    <td style="padding:8px 12px;">{{ sessions_count }} sesiones</td>
+  </tr>
+  <tr style="background-color:#f5f0eb;">
+    <td style="padding:8px 12px; font-weight:bold;">Vigencia</td>
+    <td style="padding:8px 12px;">{{ validity_days }} días</td>
+  </tr>
+  <tr>
+    <td style="padding:8px 12px; font-weight:bold;">Fecha</td>
+    <td style="padding:8px 12px;">{{ payment_date|date:"l, d M Y" }} a las {{ payment_date|time:"H:i" }}</td>
+  </tr>
+  <tr style="background-color:#f5f0eb;">
+    <td style="padding:8px 12px; font-weight:bold;">Estado</td>
+    <td style="padding:8px 12px;"><span style="color:#28a745; font-weight:bold;">✓ Confirmado</span></td>
+  </tr>
+</table>
+
+<p style="color:#888888; font-size:14px;">
+  Este comprobante es válido como constancia de tu pago. Guárdalo para futuras referencias.
+</p>
+
+<p>Gracias por confiar en KÓRE. ¡Nos vemos en tu próxima sesión!</p>

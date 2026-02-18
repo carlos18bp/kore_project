@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useBookingStore } from '@/lib/stores/bookingStore';
+import { useAuthStore } from '@/lib/stores/authStore';
 
 export default function UpcomingSessionReminder() {
   const { upcomingReminder, fetchUpcomingReminder } = useBookingStore();
+  const { justLoggedIn, clearJustLoggedIn } = useAuthStore();
   const [dismissed, setDismissed] = useState(() => {
     if (typeof window !== 'undefined') {
       return sessionStorage.getItem('kore_reminder_dismissed') === 'true';
@@ -14,10 +16,12 @@ export default function UpcomingSessionReminder() {
   });
 
   useEffect(() => {
-    fetchUpcomingReminder();
-  }, [fetchUpcomingReminder]);
+    if (justLoggedIn) {
+      fetchUpcomingReminder();
+    }
+  }, [justLoggedIn, fetchUpcomingReminder]);
 
-  if (!upcomingReminder || dismissed) return null;
+  if (!justLoggedIn || !upcomingReminder || dismissed) return null;
 
   const slotStart = new Date(upcomingReminder.slot.starts_at);
   const now = new Date();
@@ -70,6 +74,7 @@ export default function UpcomingSessionReminder() {
             onClick={() => {
               setDismissed(true);
               sessionStorage.setItem('kore_reminder_dismissed', 'true');
+              clearJustLoggedIn();
             }}
             className="flex-1 py-3 rounded-xl border border-kore-gray-light/50 text-sm font-medium text-kore-gray-dark/60 hover:bg-kore-cream transition-colors cursor-pointer"
           >
@@ -77,6 +82,7 @@ export default function UpcomingSessionReminder() {
           </button>
           <Link
             href={detailUrl}
+            onClick={() => clearJustLoggedIn()}
             className="flex-1 py-3 rounded-xl bg-kore-red text-white text-sm font-semibold text-center hover:bg-kore-red/90 transition-colors"
           >
             Ver detalle

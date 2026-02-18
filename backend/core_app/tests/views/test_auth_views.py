@@ -1,10 +1,60 @@
+from unittest.mock import patch
+
 import pytest
 from django.urls import reverse
 from rest_framework import status
 
+from core_app.models import User
+
 
 @pytest.mark.django_db
-def test_register_user_success(api_client):
+@patch('core_app.views.auth_views.verify_recaptcha', return_value=True)
+def test_pre_register_user_success_without_creating_account(mock_captcha, api_client):
+    url = reverse('pre-register-user')
+    response = api_client.post(
+        url,
+        {
+            'email': 'pre_register@example.com',
+            'password': 'newuserpassword',
+            'password_confirm': 'newuserpassword',
+            'first_name': 'Pre',
+            'last_name': 'Register',
+            'phone': '123456789',
+            'captcha_token': 'captcha-ok',
+        },
+        format='json',
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert 'registration_token' in response.data
+    assert User.objects.filter(email='pre_register@example.com').count() == 0
+
+
+@pytest.mark.django_db
+@patch('core_app.views.auth_views.verify_recaptcha', return_value=True)
+def test_pre_register_existing_email_returns_error(mock_captcha, api_client, existing_user):
+    url = reverse('pre-register-user')
+    response = api_client.post(
+        url,
+        {
+            'email': existing_user.email,
+            'password': 'newuserpassword',
+            'password_confirm': 'newuserpassword',
+            'first_name': 'Pre',
+            'last_name': 'Register',
+            'phone': '123456789',
+            'captcha_token': 'captcha-ok',
+        },
+        format='json',
+    )
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert 'email' in response.data
+
+
+@pytest.mark.django_db
+@patch('core_app.views.auth_views.verify_recaptcha', return_value=True)
+def test_register_user_success(mock_captcha, api_client):
     url = reverse('register-user')
     response = api_client.post(
         url,
@@ -26,7 +76,8 @@ def test_register_user_success(api_client):
 
 
 @pytest.mark.django_db
-def test_login_user_success(api_client, existing_user):
+@patch('core_app.views.auth_views.verify_recaptcha', return_value=True)
+def test_login_user_success(mock_captcha, api_client, existing_user):
     url = reverse('login-user')
     response = api_client.post(
         url,

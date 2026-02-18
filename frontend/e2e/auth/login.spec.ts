@@ -1,7 +1,8 @@
-import { test, expect, E2E_USER, loginAsTestUser, mockLoginApi, setupDefaultApiMocks } from '../fixtures';
+import { test, expect, E2E_USER, loginAsTestUser, mockLoginApi, setupDefaultApiMocks, mockCaptchaSiteKey, mockLoginAsTestUser } from '../fixtures';
 
 test.describe('Login Page', () => {
   test.beforeEach(async ({ page }) => {
+    await mockCaptchaSiteKey(page);
     await page.goto('/login');
   });
 
@@ -17,7 +18,7 @@ test.describe('Login Page', () => {
       await route.fulfill({
         status: 400,
         contentType: 'application/json',
-        body: JSON.stringify({ non_field_errors: ['Invalid credentials.'] }),
+        body: JSON.stringify({ non_field_errors: ['Credenciales inválidas.'] }),
       });
     });
 
@@ -25,7 +26,7 @@ test.describe('Login Page', () => {
     await page.getByLabel(/Contraseña/i).fill('wrongpass');
     await page.getByRole('button', { name: 'Iniciar sesión' }).click();
 
-    await expect(page.getByText('Invalid credentials.')).toBeVisible();
+    await expect(page.getByText('Credenciales inválidas.')).toBeVisible();
   });
 
   test('successful login redirects to dashboard', async ({ page }) => {
@@ -53,13 +54,47 @@ test.describe('Login Page', () => {
   });
 
   test('already authenticated user is redirected to dashboard', async ({ page }) => {
-    await setupDefaultApiMocks(page);
-    await loginAsTestUser(page);
+    // Use mockLoginAsTestUser to inject cookies directly (bypasses form login)
+    await mockLoginAsTestUser(page);
 
-    // Navigate back to login
+    // Navigate to login - should redirect to dashboard since user is already authenticated
     await page.goto('/login');
 
     // Should be redirected back to dashboard
-    await page.waitForURL('**/dashboard');
+    await page.waitForURL('**/dashboard', { timeout: 15_000 });
+  });
+
+  test('shows error with detail field instead of non_field_errors', async ({ page }) => {
+    // Exercise the axiosErr.response?.data?.detail branch in authStore.login()
+    await page.route('**/api/auth/login/', async (route) => {
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Cuenta deshabilitada.' }),
+      });
+    });
+
+    await page.getByLabel(/Correo electrónico/i).fill('disabled@example.com');
+    await page.getByLabel(/Contraseña/i).fill('somepass');
+    await page.getByRole('button', { name: 'Iniciar sesión' }).click();
+
+    await expect(page.getByText('Cuenta deshabilitada.')).toBeVisible({ timeout: 10_000 });
+  });
+
+  test('shows fallback error when detail is non-string', async ({ page }) => {
+    // Exercise the typeof message !== 'string' fallback branch in authStore.login()
+    await page.route('**/api/auth/login/', async (route) => {
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: { code: 'AUTH_ERROR' } }),
+      });
+    });
+
+    await page.getByLabel(/Correo electrónico/i).fill('test@example.com');
+    await page.getByLabel(/Contraseña/i).fill('wrongpass');
+    await page.getByRole('button', { name: 'Iniciar sesión' }).click();
+
+    await expect(page.getByText('Correo o contraseña incorrectos')).toBeVisible({ timeout: 10_000 });
   });
 });

@@ -27,6 +27,31 @@ class IntegritySignatureResponseSerializer(serializers.Serializer):
     reference = serializers.CharField()
 
 
+class SubscriptionCheckoutPrepareSerializer(serializers.Serializer):
+    """Validates input for preparing a Wompi Checkout transaction."""
+
+    package_id = serializers.PrimaryKeyRelatedField(
+        queryset=Package.objects.filter(is_active=True),
+    )
+    registration_token = serializers.CharField(
+        max_length=2000,
+        required=False,
+        allow_blank=True,
+        help_text='Signed pre-registration token for guest checkout flow.',
+    )
+
+
+class CheckoutPreparationSerializer(serializers.Serializer):
+    """Response serializer for Wompi Checkout preparation."""
+
+    reference = serializers.CharField()
+    signature = serializers.CharField()
+    amount_in_cents = serializers.IntegerField(min_value=1)
+    currency = serializers.CharField(max_length=10)
+    package_title = serializers.CharField()
+    checkout_access_token = serializers.CharField(required=False, allow_blank=True)
+
+
 class SubscriptionPurchaseSerializer(serializers.Serializer):
     """Validates input for purchasing a subscription via Wompi tokenization.
 
@@ -42,6 +67,12 @@ class SubscriptionPurchaseSerializer(serializers.Serializer):
         max_length=255,
         help_text='Card token from Wompi Widget tokenization (e.g. tok_test_...)',
     )
+    registration_token = serializers.CharField(
+        max_length=2000,
+        required=False,
+        allow_blank=True,
+        help_text='Signed pre-registration token for guest checkout flow.',
+    )
 
 
 class PaymentIntentStatusSerializer(serializers.ModelSerializer):
@@ -52,6 +83,7 @@ class PaymentIntentStatusSerializer(serializers.ModelSerializer):
     """
 
     package_title = serializers.CharField(source='package.title', read_only=True)
+    checkout_access_token = serializers.CharField(source='public_access_token', read_only=True)
 
     class Meta:
         model = PaymentIntent
@@ -63,6 +95,7 @@ class PaymentIntentStatusSerializer(serializers.ModelSerializer):
             'amount',
             'currency',
             'package_title',
+            'checkout_access_token',
             'created_at',
         )
         read_only_fields = fields

@@ -30,7 +30,7 @@ class PaymentSerializer(serializers.ModelSerializer):
         user = getattr(request, 'user', None)
         if user and user.is_authenticated and not is_admin_user(user):
             if booking.customer_id != user.id:
-                raise serializers.ValidationError('You cannot create payments for other users bookings.')
+                raise serializers.ValidationError('No puedes crear pagos para reservas de otros usuarios.')
         return booking
 
     def create(self, validated_data):

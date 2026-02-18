@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import UpcomingSessionReminder from '@/app/components/booking/UpcomingSessionReminder';
 import { useBookingStore } from '@/lib/stores/bookingStore';
+import { useAuthStore } from '@/lib/stores/authStore';
 
 jest.mock('next/link', () => ({
   __esModule: true,
@@ -14,7 +15,14 @@ jest.mock('@/lib/stores/bookingStore', () => ({
   useBookingStore: jest.fn(),
 }));
 
+jest.mock('@/lib/stores/authStore', () => ({
+  useAuthStore: jest.fn(),
+}));
+
 const mockedUseBookingStore = useBookingStore as unknown as jest.Mock;
+const mockedUseAuthStore = useAuthStore as unknown as jest.Mock;
+
+const mockClearJustLoggedIn = jest.fn();
 
 function buildReminder(hoursFromNow: number) {
   const start = new Date(Date.now() + hoursFromNow * 60 * 60 * 1000);
@@ -40,12 +48,21 @@ describe('UpcomingSessionReminder', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     sessionStorage.clear();
+    mockedUseAuthStore.mockReturnValue({ justLoggedIn: true, clearJustLoggedIn: mockClearJustLoggedIn });
   });
 
   it('renders nothing when no upcoming reminder', () => {
     mockedUseBookingStore.mockReturnValue({ upcomingReminder: null, fetchUpcomingReminder });
     const { container } = render(<UpcomingSessionReminder />);
     expect(container.firstChild).toBeNull();
+  });
+
+  it('renders nothing when user is not just logged in', () => {
+    mockedUseAuthStore.mockReturnValue({ justLoggedIn: false, clearJustLoggedIn: mockClearJustLoggedIn });
+    mockedUseBookingStore.mockReturnValue({ upcomingReminder: buildReminder(12), fetchUpcomingReminder });
+    const { container } = render(<UpcomingSessionReminder />);
+    expect(container.firstChild).toBeNull();
+    expect(fetchUpcomingReminder).not.toHaveBeenCalled();
   });
 
   it('renders modal when booking is within 48h', () => {
@@ -75,6 +92,7 @@ describe('UpcomingSessionReminder', () => {
     await user.click(screen.getByText('Cerrar'));
     expect(screen.queryByText('¡Tienes una sesión próxima!')).not.toBeInTheDocument();
     expect(sessionStorage.getItem('kore_reminder_dismissed')).toBe('true');
+    expect(mockClearJustLoggedIn).toHaveBeenCalledTimes(1);
   });
 
   it('does not show modal when sessionStorage has dismissed flag', () => {
@@ -89,6 +107,16 @@ describe('UpcomingSessionReminder', () => {
     render(<UpcomingSessionReminder />);
     const link = screen.getByText('Ver detalle');
     expect(link.closest('a')).toHaveAttribute('href', '/my-sessions/program/2/session/100');
+  });
+
+  it('clears justLoggedIn when detail link is clicked', async () => {
+    const user = userEvent.setup();
+    mockedUseBookingStore.mockReturnValue({ upcomingReminder: buildReminder(12), fetchUpcomingReminder });
+    render(<UpcomingSessionReminder />);
+
+    await user.click(screen.getByText('Ver detalle'));
+
+    expect(mockClearJustLoggedIn).toHaveBeenCalledTimes(1);
   });
 
   it('renders fallback link to /my-sessions when subscription_id_display is null', () => {

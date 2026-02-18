@@ -29,16 +29,18 @@ class Command(BaseCommand):
 
         created = 0
         for booking in to_create:
-            # Status distribution: 70% confirmed, 10% pending, 10% failed, 10% refunded
-            r = random.random()
-            if r < 0.70:
-                pay_status = Payment.Status.CONFIRMED
-            elif r < 0.80:
-                pay_status = Payment.Status.PENDING
-            elif r < 0.90:
-                pay_status = Payment.Status.FAILED
+            # Business rule: Canceled bookings should have REFUNDED payments
+            if booking.status == Booking.Status.CANCELED:
+                pay_status = Payment.Status.REFUNDED
             else:
-                pay_status = Payment.Status.CANCELED
+                # Status distribution for non-canceled: 80% confirmed, 10% pending, 10% failed
+                r = random.random()
+                if r < 0.80:
+                    pay_status = Payment.Status.CONFIRMED
+                elif r < 0.90:
+                    pay_status = Payment.Status.PENDING
+                else:
+                    pay_status = Payment.Status.FAILED
 
             confirmed_at = timezone.now() if pay_status == Payment.Status.CONFIRMED else None
             ref = f'wompi-{uuid.uuid4().hex[:12]}'

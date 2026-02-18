@@ -26,9 +26,10 @@ export default function SessionDetailPage() {
 
   const {
     bookings,
+    bookingDetail,
     loading,
     error,
-    fetchBookings,
+    fetchBookingById,
     cancelBooking,
   } = useBookingStore();
 
@@ -36,15 +37,22 @@ export default function SessionDetailPage() {
   const [cancelReason, setCancelReason] = useState('');
 
   useEffect(() => {
-    if (subscriptionId) {
-      fetchBookings(Number(subscriptionId));
+    if (bookingId) {
+      fetchBookingById(Number(bookingId));
     }
-  }, [subscriptionId, fetchBookings]);
+  }, [bookingId, fetchBookingById]);
 
-  const booking = useMemo(
+  const bookingFromList = useMemo(
     () => bookings.find((b) => b.id === Number(bookingId)) ?? null,
     [bookings, bookingId],
   );
+
+  const resolvedBooking = bookingDetail ?? bookingFromList;
+  const booking = useMemo(() => {
+    if (!resolvedBooking) return null;
+    if (resolvedBooking.subscription_id_display !== Number(subscriptionId)) return null;
+    return resolvedBooking;
+  }, [resolvedBooking, subscriptionId]);
 
   const slotStart = booking ? new Date(booking.slot.starts_at) : null;
   const slotEnd = booking ? new Date(booking.slot.ends_at) : null;
@@ -64,13 +72,17 @@ export default function SessionDetailPage() {
     const result = await cancelBooking(booking.id, cancelReason);
     if (result) {
       setShowCancelModal(false);
-      fetchBookings(Number(subscriptionId));
     }
-  }, [booking, cancelReason, cancelBooking, subscriptionId, fetchBookings]);
+  }, [booking, cancelReason, cancelBooking]);
 
   const handleReschedule = useCallback(() => {
-    router.push('/book-session');
-  }, [router]);
+    const params = new URLSearchParams();
+    params.set('reschedule', bookingId);
+    if (subscriptionId) {
+      params.set('subscription', subscriptionId);
+    }
+    router.push(`/book-session?${params.toString()}`);
+  }, [router, bookingId, subscriptionId]);
 
   if (!user) {
     return (

@@ -44,11 +44,10 @@ export type Subscription = {
   sessions_total: number;
   sessions_used: number;
   sessions_remaining: number;
-  status: 'active' | 'paused' | 'expired' | 'canceled';
+  status: 'active' | 'expired' | 'canceled';
   starts_at: string;
   expires_at: string;
   next_billing_date: string | null;
-  paused_at: string | null;
 };
 
 export type BookingData = {
@@ -93,6 +92,7 @@ type BookingState = {
   monthSlots: Slot[];
   subscriptions: Subscription[];
   bookings: BookingData[];
+  bookingDetail: BookingData | null;
   bookingsPagination: { count: number; next: string | null; previous: string | null };
   upcomingReminder: BookingData | null;
 
@@ -112,6 +112,7 @@ type BookingState = {
   fetchMonthSlots: (trainerId?: number) => Promise<void>;
   fetchSubscriptions: () => Promise<void>;
   fetchBookings: (subscriptionId?: number, page?: number) => Promise<void>;
+  fetchBookingById: (bookingId: number) => Promise<BookingData | null>;
   fetchUpcomingReminder: () => Promise<void>;
   createBooking: (payload: {
     package_id: number;
@@ -129,6 +130,32 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function extractErrorMessage(errData: Record<string, unknown> | undefined): string {
+  if (!errData) return 'No se pudo crear la reserva.';
+
+  // DRF detail field (string or array)
+  if (errData.detail) {
+    if (typeof errData.detail === 'string') return errData.detail;
+    if (Array.isArray(errData.detail) && typeof errData.detail[0] === 'string') return errData.detail[0];
+  }
+
+  // DRF non_field_errors (string or array)
+  if (errData.non_field_errors) {
+    if (typeof errData.non_field_errors === 'string') return errData.non_field_errors;
+    if (Array.isArray(errData.non_field_errors) && typeof errData.non_field_errors[0] === 'string') return errData.non_field_errors[0];
+  }
+
+  // Field-specific errors (e.g., slot_id, subscription_id)
+  const fieldKeys = ['slot_id', 'subscription_id', 'package_id', 'trainer_id'];
+  for (const key of fieldKeys) {
+    const val = errData[key];
+    if (typeof val === 'string') return val;
+    if (Array.isArray(val) && typeof val[0] === 'string') return val[0];
+  }
+
+  return 'No se pudo crear la reserva.';
+}
+
 export const useBookingStore = create<BookingState>((set, get) => ({
   // Initial state
   step: 1,
@@ -142,6 +169,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   monthSlots: [],
   subscriptions: [],
   bookings: [],
+  bookingDetail: null,
   bookingsPagination: { count: 0, next: null, previous: null },
   upcomingReminder: null,
   loading: false,
@@ -170,7 +198,30 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       const trainers = data.results ?? data;
       set({ trainers: Array.isArray(trainers) ? trainers : [], trainer: (Array.isArray(trainers) ? trainers[0] : null) ?? null });
     } catch {
-      set({ error: 'Error loading trainers.' });
+      set({ error: 'No se pudieron cargar los entrenadores.' });
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  fetchBookingById: async (bookingId) => {
+    const cached = get().bookings.find((booking) => booking.id === bookingId)
+      ?? get().bookingDetail;
+    if (cached?.id === bookingId) {
+      set({ bookingDetail: cached });
+      return cached;
+    }
+
+    set({ loading: true, error: null });
+    try {
+      const { data } = await api.get<BookingData>(`/bookings/${bookingId}/`, {
+        headers: authHeaders(),
+      });
+      set({ bookingDetail: data });
+      return data;
+    } catch {
+      set({ error: 'No se pudo cargar la reserva.', bookingDetail: null });
+      return null;
     } finally {
       set({ loading: false });
     }
@@ -189,7 +240,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       const slots = data.results ?? data;
       set({ slots: Array.isArray(slots) ? slots : [] });
     } catch {
-      set({ error: 'Error loading slots.' });
+      set({ error: 'No se pudieron cargar los horarios.' });
     } finally {
       set({ loading: false });
     }
@@ -199,12 +250,31 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     try {
       const params: Record<string, string> = {};
       if (trainerId) params.trainer = String(trainerId);
-      const { data } = await api.get<PaginatedResponse<Slot>>('/availability-slots/', {
-        headers: authHeaders(),
-        params,
-      });
-      const slots = data.results ?? data;
-      set({ monthSlots: Array.isArray(slots) ? slots : [] });
+      const aggregated: Slot[] = [];
+      let nextUrl: string | null = '/availability-slots/';
+      let isFirstRequest = true;
+
+      while (nextUrl) {
+        const response: { data: PaginatedResponse<Slot> | Slot[] } = await api.get<
+          PaginatedResponse<Slot> | Slot[]
+        >(nextUrl, {
+          headers: authHeaders(),
+          ...(isFirstRequest ? { params } : {}),
+        });
+        const data: PaginatedResponse<Slot> | Slot[] = response.data;
+
+        if (Array.isArray(data)) {
+          aggregated.push(...data);
+          break;
+        }
+
+        const results = Array.isArray(data.results) ? data.results : [];
+        aggregated.push(...results);
+        nextUrl = data.next ?? null;
+        isFirstRequest = false;
+      }
+
+      set({ monthSlots: aggregated });
     } catch {
       set({ monthSlots: [] });
     }
@@ -219,7 +289,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       const subs = data.results ?? data;
       set({ subscriptions: Array.isArray(subs) ? subs : [] });
     } catch {
-      set({ error: 'Error loading subscriptions.' });
+      set({ error: 'No se pudieron cargar las suscripciones.' });
     } finally {
       set({ loading: false });
     }
@@ -239,7 +309,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
         bookingsPagination: { count: data.count, next: data.next, previous: data.previous },
       });
     } catch {
-      set({ error: 'Error loading bookings.' });
+      set({ error: 'No se pudieron cargar las reservas.' });
     } finally {
       set({ loading: false });
     }
@@ -265,13 +335,9 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       set({ bookingResult: data, step: 3 });
       return data;
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { detail?: string; non_field_errors?: string } } })
-          .response?.data?.detail ??
-        (err as { response?: { data?: { non_field_errors?: string } } })
-          .response?.data?.non_field_errors ??
-        'Error creating booking.';
-      set({ error: typeof msg === 'string' ? msg : 'Error creating booking.' });
+      const errData = (err as { response?: { data?: Record<string, unknown> } }).response?.data;
+      const msg = extractErrorMessage(errData);
+      set({ error: msg });
       return null;
     } finally {
       set({ loading: false });
@@ -286,12 +352,15 @@ export const useBookingStore = create<BookingState>((set, get) => ({
         reason ? { canceled_reason: reason } : {},
         { headers: authHeaders() },
       );
+      if (get().bookingDetail?.id === bookingId) {
+        set({ bookingDetail: data });
+      }
       return data;
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { detail?: string } } }).response?.data?.detail ??
-        'Error canceling booking.';
-      set({ error: typeof msg === 'string' ? msg : 'Error canceling booking.' });
+        'No se pudo cancelar la reserva.';
+      set({ error: typeof msg === 'string' ? msg : 'No se pudo cancelar la reserva.' });
       return null;
     } finally {
       set({ loading: false });
@@ -306,12 +375,13 @@ export const useBookingStore = create<BookingState>((set, get) => ({
         { new_slot_id: newSlotId },
         { headers: authHeaders() },
       );
+      set({ bookingResult: data, step: 3 });
       return data;
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { detail?: string } } }).response?.data?.detail ??
-        'Error rescheduling booking.';
-      set({ error: typeof msg === 'string' ? msg : 'Error rescheduling booking.' });
+        'No se pudo reprogramar la reserva.';
+      set({ error: typeof msg === 'string' ? msg : 'No se pudo reprogramar la reserva.' });
       return null;
     } finally {
       set({ loading: false });

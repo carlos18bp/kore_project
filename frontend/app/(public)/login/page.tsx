@@ -4,9 +4,11 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import ReCAPTCHA from 'react-google-recaptcha';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { WHATSAPP_URL } from '@/lib/constants';
+import { api } from '@/lib/services/http';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -14,9 +16,12 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [siteKey, setSiteKey] = useState<string>('');
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const router = useRouter();
-  const { login, isAuthenticated, hydrate } = useAuthStore();
+  const { login, isAuthenticated, hydrate, hydrated } = useAuthStore();
 
   useHeroAnimation(sectionRef);
 
@@ -25,25 +30,47 @@ export default function LoginPage() {
   }, [hydrate]);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (hydrated && isAuthenticated) {
       router.push('/dashboard');
     }
-  }, [isAuthenticated, router]);
+  }, [hydrated, isAuthenticated, router]);
+
+  useEffect(() => {
+    api.get('/google-captcha/site-key/')
+      .then((res) => setSiteKey(res.data.site_key))
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (siteKey && !captchaToken) {
+      setError('Por favor completa el captcha');
+      return;
+    }
+
     setIsLoading(true);
 
-    const result = await login(email, password);
+    const result = await login(email, password, captchaToken);
 
     if (result.success) {
       router.push('/dashboard');
     } else {
       setError(result.error || 'Error al iniciar sesión');
       setIsLoading(false);
+      recaptchaRef.current?.reset();
+      setCaptchaToken(null);
     }
   };
+
+  if (!hydrated) {
+    return (
+      <section className="min-h-screen bg-kore-cream flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-2 border-kore-red border-t-transparent rounded-full" />
+      </section>
+    );
+  }
 
   return (
     <section ref={sectionRef} className="min-h-screen bg-kore-cream flex items-center justify-center relative overflow-hidden">
@@ -140,6 +167,18 @@ export default function LoginPage() {
                 ¿Olvidaste tu contraseña? Contáctanos
               </a>
             </div>
+
+            {/* reCAPTCHA */}
+            {siteKey && (
+              <div className="flex justify-center">
+                <ReCAPTCHA
+                  ref={recaptchaRef}
+                  sitekey={siteKey}
+                  onChange={(token) => setCaptchaToken(token)}
+                  onExpired={() => setCaptchaToken(null)}
+                />
+              </div>
+            )}
 
             {/* Submit */}
             <button

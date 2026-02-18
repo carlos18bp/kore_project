@@ -110,6 +110,6 @@ class TestLoginSerializer:
             'password': 'mypassword',
         })
         assert not serializer.is_valid()
-        # The error should mention inactive, not invalid credentials
+        # The error should mention inactive user state.
         errors = serializer.errors
-        assert any('inactive' in str(v).lower() for v in errors.values())
+        assert any('inactivo' in str(v).lower() for v in errors.values())

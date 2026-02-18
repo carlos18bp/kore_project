@@ -17,6 +17,8 @@ describe('Footer', () => {
     expect(screen.getByText('Inicio')).toBeInTheDocument();
     expect(screen.getByText('La Marca')).toBeInTheDocument();
     expect(screen.getByText('Programas')).toBeInTheDocument();
+    expect(screen.getByText('FAQ')).toBeInTheDocument();
+    expect(screen.getByText('Contacto')).toBeInTheDocument();
   });
 
   it('renders social links', () => {

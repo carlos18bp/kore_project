@@ -185,6 +185,39 @@ def create_transaction(amount_in_cents, currency, customer_email, reference,
         raise WompiError(f'Failed to create transaction: {exc}', status_code=status_code) from exc
 
 
+def get_transaction_by_id(transaction_id):
+    """Fetch a Wompi transaction by its ID.
+
+    Uses the private key to retrieve the transaction status when webhook
+    delivery fails, enabling backend fallback polling.
+
+    Args:
+        transaction_id: Wompi transaction ID string.
+
+    Returns:
+        dict: Transaction data payload from Wompi.
+
+    Raises:
+        WompiError: If the API call fails or the transaction is missing.
+    """
+    url = f'{_get_base_url()}/transactions/{transaction_id}'
+    try:
+        resp = requests.get(url, headers=_get_private_headers(), timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+        txn = data.get('data', {})
+        if not txn:
+            raise WompiError('No transaction data returned', response_data=data)
+        return txn
+    except requests.RequestException as exc:
+        logger.error('Failed to fetch Wompi transaction %s: %s', transaction_id, exc)
+        status_code = getattr(exc.response, 'status_code', None) if hasattr(exc, 'response') else None
+        raise WompiError(
+            f'Failed to fetch transaction: {exc}',
+            status_code=status_code,
+        ) from exc
+
+
 def verify_event_checksum(event_body):
     """Verify the authenticity of a Wompi webhook event.
 

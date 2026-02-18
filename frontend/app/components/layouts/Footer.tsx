@@ -5,6 +5,8 @@ const navLinks = [
   { href: '/', label: 'Inicio' },
   { href: '/kore-brand', label: 'La Marca' },
   { href: '/programs', label: 'Programas' },
+  { href: '/faq', label: 'FAQ' },
+  { href: '/contact', label: 'Contacto' },
 ];
 
 const socialLinks = [

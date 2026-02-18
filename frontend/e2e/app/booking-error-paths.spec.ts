@@ -188,4 +188,5 @@ test.describe('Booking Store Error Paths', () => {
     // Should redirect to login (no auth)
     await page.waitForURL('**/login', { timeout: 10_000 });
   });
+
 });

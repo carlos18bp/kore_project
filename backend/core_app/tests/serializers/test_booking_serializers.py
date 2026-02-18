@@ -115,8 +115,8 @@ class TestBookingSerializerValidation:
         assert not serializer.is_valid()
         assert 'subscription_id' in serializer.errors
 
-    def test_only_next_session_rule(self, customer, package):
-        """Customer with existing future booking cannot book another (lines 150-158)."""
+    def test_can_book_multiple_future_sessions_without_overlap(self, customer, package):
+        """Customer with an existing future booking can reserve another non-overlapping slot."""
         now = timezone.now()
         slot1 = AvailabilitySlot.objects.create(
             starts_at=now + timedelta(hours=2),
@@ -135,8 +135,7 @@ class TestBookingSerializerValidation:
             data={'package_id': package.id, 'slot_id': slot2.id},
             context={'request': request},
         )
-        assert not serializer.is_valid()
-        assert 'non_field_errors' in serializer.errors
+        assert serializer.is_valid(), serializer.errors
 
     def test_overlapping_booking_rejected(self, customer, package):
         """Overlapping slot with active booking is rejected (lines 171-180)."""
@@ -160,8 +159,7 @@ class TestBookingSerializerValidation:
             context={'request': request},
         )
         assert not serializer.is_valid()
-        # Either non_field_errors or slot_id depending on which check fires first
-        assert 'non_field_errors' in serializer.errors or 'slot_id' in serializer.errors
+        assert 'slot_id' in serializer.errors
 
     def test_validate_no_overlap_direct(self, customer, package):
         """Direct call to _validate_no_overlap covers line 178."""
@@ -181,6 +179,102 @@ class TestBookingSerializerValidation:
         )
         with pytest.raises(DRFValidationError):
             BookingSerializer._validate_no_overlap(customer, overlapping_slot)
+
+    def test_chronological_order_slot_before_last_session_rejected(self, customer, package):
+        """New slot starting before last session ends is rejected."""
+        now = timezone.now()
+        sub = Subscription.objects.create(
+            customer=customer, package=package,
+            sessions_total=10, sessions_used=1,
+            status=Subscription.Status.ACTIVE,
+            starts_at=now, expires_at=now + timedelta(days=30),
+        )
+        # Existing booking: 10:00 - 11:00
+        slot1 = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=10),
+            ends_at=now + timedelta(hours=11),
+        )
+        slot1.is_blocked = True
+        slot1.save()
+        Booking.objects.create(
+            customer=customer, package=package, slot=slot1,
+            subscription=sub, status=Booking.Status.CONFIRMED,
+        )
+        # New slot: 8:00 - 9:00 (starts before slot1 ends at 11:00, but doesn't overlap)
+        slot2 = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=8),
+            ends_at=now + timedelta(hours=9),
+        )
+        request = _make_request(customer)
+        serializer = BookingSerializer(
+            data={'package_id': package.id, 'slot_id': slot2.id, 'subscription_id': sub.id},
+            context={'request': request},
+        )
+        assert not serializer.is_valid()
+        assert 'slot_id' in serializer.errors
+        assert 'última sesión' in str(serializer.errors['slot_id'])
+
+    def test_chronological_order_slot_after_last_session_allowed(self, customer, package):
+        """New slot starting after last session ends is allowed."""
+        now = timezone.now()
+        sub = Subscription.objects.create(
+            customer=customer, package=package,
+            sessions_total=10, sessions_used=1,
+            status=Subscription.Status.ACTIVE,
+            starts_at=now, expires_at=now + timedelta(days=30),
+        )
+        # Existing booking: 10:00 - 11:00
+        slot1 = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=10),
+            ends_at=now + timedelta(hours=11),
+        )
+        slot1.is_blocked = True
+        slot1.save()
+        Booking.objects.create(
+            customer=customer, package=package, slot=slot1,
+            subscription=sub, status=Booking.Status.CONFIRMED,
+        )
+        # New slot: 11:00 - 12:00 (starts exactly when slot1 ends - allowed)
+        slot2 = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=11),
+            ends_at=now + timedelta(hours=12),
+        )
+        request = _make_request(customer)
+        serializer = BookingSerializer(
+            data={'package_id': package.id, 'slot_id': slot2.id, 'subscription_id': sub.id},
+            context={'request': request},
+        )
+        assert serializer.is_valid(), serializer.errors
+
+    def test_chronological_order_ignores_canceled_bookings(self, customer, package):
+        """Canceled bookings are not considered for chronological order."""
+        now = timezone.now()
+        sub = Subscription.objects.create(
+            customer=customer, package=package,
+            sessions_total=10, sessions_used=0,
+            status=Subscription.Status.ACTIVE,
+            starts_at=now, expires_at=now + timedelta(days=30),
+        )
+        # Canceled booking: 10:00 - 11:00
+        slot1 = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=10),
+            ends_at=now + timedelta(hours=11),
+        )
+        Booking.objects.create(
+            customer=customer, package=package, slot=slot1,
+            subscription=sub, status=Booking.Status.CANCELED,
+        )
+        # New slot: 9:00 - 10:00 (before canceled booking - allowed)
+        slot2 = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=9),
+            ends_at=now + timedelta(hours=10),
+        )
+        request = _make_request(customer)
+        serializer = BookingSerializer(
+            data={'package_id': package.id, 'slot_id': slot2.id, 'subscription_id': sub.id},
+            context={'request': request},
+        )
+        assert serializer.is_valid(), serializer.errors
 
     def test_validate_without_slot_in_attrs(self, customer, package):
         """Validate with no slot in attrs skips slot checks (branch 106→109)."""
@@ -205,7 +299,7 @@ class TestBookingSerializerCreate:
         assert booking.customer == customer
         assert booking.package == package
         assert booking.slot == future_slot
-        assert booking.status == Booking.Status.CONFIRMED
+        assert booking.status == Booking.Status.PENDING
 
         future_slot.refresh_from_db()
         assert future_slot.is_blocked is True
@@ -315,3 +409,32 @@ class TestBookingSerializerCreate:
         assert output['package']['id'] == package.id
         assert isinstance(output['slot'], dict)
         assert output['slot']['id'] == future_slot.id
+
+    def test_create_allows_rebooking_canceled_slot(self, customer, package):
+        """Slot with canceled booking can be rebooked without deleting history."""
+        now = timezone.now()
+        slot = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=2),
+            ends_at=now + timedelta(hours=3),
+            is_blocked=False,
+        )
+        # Create a canceled booking on this slot
+        old_booking = Booking.objects.create(
+            customer=customer, package=package, slot=slot,
+            status=Booking.Status.CANCELED, canceled_reason='Test',
+        )
+
+        request = _make_request(customer)
+        serializer = BookingSerializer(
+            data={'package_id': package.id, 'slot_id': slot.id},
+            context={'request': request},
+        )
+        assert serializer.is_valid(), serializer.errors
+        new_booking = serializer.save()
+
+        # Old canceled booking remains for audit/history
+        assert Booking.objects.filter(pk=old_booking.pk, status=Booking.Status.CANCELED).exists()
+        # New booking should exist and share the same slot
+        assert new_booking.status == Booking.Status.PENDING
+        assert new_booking.slot == slot
+        assert Booking.objects.filter(slot=slot).count() == 2

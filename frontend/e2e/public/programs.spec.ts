@@ -53,24 +53,87 @@ test.describe('Programs Page', () => {
     await expect(page.getByText('Sesión Terapéutica')).toBeVisible();
   });
 
-  test('selecting a plan shows CTA with numeric package ID', async ({ page }) => {
+  test('unauthenticated user clicking reserve is redirected to register with package ID', async ({ page }) => {
     await expect(page.getByText('Sesión Individual')).toBeVisible({ timeout: 10_000 });
     await page.getByText('Sesión Individual').click();
-    const cta = page.getByRole('link', { name: /Reservar/ });
+    const cta = page.getByRole('button', { name: /Reservar/ });
     await expect(cta).toBeVisible();
-    await expect(cta).toHaveAttribute('href', '/checkout?package=1');
+    await cta.click();
+    await expect(page).toHaveURL(/\/register\?package=1/, { timeout: 10_000 });
+  });
+
+  test('authenticated user clicking reserve is redirected to checkout with package ID', async ({ page }) => {
+    await page.route('**/api/auth/profile/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          user: {
+            id: 999,
+            email: 'e2e@kore.com',
+            first_name: 'Usuario',
+            last_name: 'Prueba',
+            phone: '',
+            role: 'customer',
+          },
+        }),
+      });
+    });
+
+    const fakeUserCookie = encodeURIComponent(JSON.stringify({
+      id: '999',
+      email: 'e2e@kore.com',
+      first_name: 'Usuario',
+      last_name: 'Prueba',
+      phone: '',
+      role: 'customer',
+      name: 'Usuario Prueba',
+    }));
+
+    await page.context().addCookies([
+      { name: 'kore_token', value: 'fake-e2e-token', domain: 'localhost', path: '/' },
+      { name: 'kore_user', value: fakeUserCookie, domain: 'localhost', path: '/' },
+    ]);
+
+    await page.goto('/programs');
+    await expect(page.getByText('Sesión Individual')).toBeVisible({ timeout: 10_000 });
+    await page.getByText('Sesión Individual').click();
+
+    const cta = page.getByRole('button', { name: /Reservar/ });
+    await expect(cta).toBeVisible();
+    await cta.click();
+    await expect(page).toHaveURL(/\/checkout\?package=1/, { timeout: 10_000 });
   });
 
   test('switching programs resets plan selection', async ({ page }) => {
     await expect(page.getByText('Sesión Individual')).toBeVisible({ timeout: 10_000 });
     // Select a plan
     await page.getByText('Sesión Individual').click();
-    await expect(page.getByRole('link', { name: /Reservar/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Reservar/ })).toBeVisible();
 
     // Switch program
     await page.getByText('Semi-personalizado').first().click();
 
     // CTA should disappear
-    await expect(page.getByRole('link', { name: /Reservar/ })).not.toBeVisible();
+    await expect(page.getByRole('button', { name: /Reservar/ })).not.toBeVisible();
+  });
+
+  test('API fetch error shows empty plans state', async ({ page }) => {
+    // Override the packages route to return an error (exercises line 97)
+    await page.route('**/api/packages/**', async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Server error' }),
+      });
+    });
+
+    await page.goto('/programs');
+
+    // Page should still render with the program header
+    await expect(page.getByRole('heading', { name: 'Personalizado FLW' })).toBeVisible({ timeout: 10_000 });
+
+    // Should show "no plans available" message
+    await expect(page.getByText('No hay planes disponibles para este programa.')).toBeVisible();
   });
 });

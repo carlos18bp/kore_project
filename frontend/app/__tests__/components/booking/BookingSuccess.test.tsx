@@ -29,6 +29,39 @@ describe('BookingSuccess', () => {
 
   beforeEach(() => jest.clearAllMocks());
 
+  it('renders as a modal overlay with backdrop', () => {
+    render(<BookingSuccess booking={MOCK_BOOKING} onReset={onReset} />);
+    const backdrop = screen.getByText('Esta reunión está programada').closest('[class*="fixed inset-0"]');
+    expect(backdrop).toBeInTheDocument();
+  });
+
+  it('renders close button with aria-label', () => {
+    render(<BookingSuccess booking={MOCK_BOOKING} onReset={onReset} />);
+    expect(screen.getByLabelText('Cerrar')).toBeInTheDocument();
+  });
+
+  it('calls onReset when close button clicked', async () => {
+    const user = userEvent.setup();
+    render(<BookingSuccess booking={MOCK_BOOKING} onReset={onReset} />);
+    await user.click(screen.getByLabelText('Cerrar'));
+    expect(onReset).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onReset when backdrop clicked', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<BookingSuccess booking={MOCK_BOOKING} onReset={onReset} />);
+    const backdrop = container.firstChild as HTMLElement;
+    await user.click(backdrop);
+    expect(onReset).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call onReset when modal card clicked', async () => {
+    const user = userEvent.setup();
+    render(<BookingSuccess booking={MOCK_BOOKING} onReset={onReset} />);
+    await user.click(screen.getByText('Esta reunión está programada'));
+    expect(onReset).not.toHaveBeenCalled();
+  });
+
   it('renders success heading', () => {
     render(<BookingSuccess booking={MOCK_BOOKING} onReset={onReset} />);
     expect(screen.getByText('Esta reunión está programada')).toBeInTheDocument();

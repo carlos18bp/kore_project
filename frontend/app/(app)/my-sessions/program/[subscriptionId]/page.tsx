@@ -215,8 +215,8 @@ export default function ProgramDetailPage() {
               </p>
               {tab === 'upcoming' && (
                 <Link
-                  href="/book-session"
-                  className="mt-4 inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-kore-red text-white text-sm font-semibold hover:bg-kore-red/90 transition-colors"
+                  href={`/book-session?subscription=${subscriptionId}`}
+                  className="mt-4 inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-kore-red text-white text-sm font-semibold hover:bg-kore-red/90 transition-colors cursor-pointer"
                 >
                   Agendar sesión
                 </Link>

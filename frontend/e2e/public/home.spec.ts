@@ -72,4 +72,55 @@ test.describe('Home Page', () => {
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await page.waitForTimeout(500);
   });
+
+  test('Process section triggers fade-left and fade-right animations', async ({ page }) => {
+    // This exercises useScrollAnimations.ts lines 39-41 (fade-left, fade-right branches)
+    const processSection = page.locator('section').filter({ hasText: 'El proceso KÓRE' });
+
+    // Scroll to Process section to trigger animations
+    await processSection.scrollIntoViewIfNeeded();
+
+    // Wait for GSAP animations to initialize and process
+    await page.waitForTimeout(1000);
+
+    // Verify fade-left element is visible (the image container)
+    await expect(processSection.locator('[data-animate="fade-left"]')).toBeVisible();
+
+    // Verify fade-right elements are visible (the step cards)
+    const fadeRightElements = processSection.locator('[data-animate="fade-right"]');
+    await expect(fadeRightElements.first()).toBeVisible();
+
+    // Scroll a bit more to ensure all ScrollTriggers fire
+    await page.evaluate(() => window.scrollBy(0, 200));
+    await page.waitForTimeout(500);
+
+    // Verify all 6 steps are rendered
+    await expect(fadeRightElements).toHaveCount(6);
+  });
+
+  test('PricingTable tab switching changes displayed program', async ({ page }) => {
+    // This exercises PricingTable.tsx setActiveTab function
+    // Scroll to pricing section and wait for it to be in viewport
+    const pricingHeading = page.getByRole('heading', { name: 'Invierte en tu salud' });
+    await pricingHeading.scrollIntoViewIfNeeded();
+    await expect(pricingHeading).toBeInViewport();
+
+    // Default should show Personalizado
+    const personalizadoTab = page.getByRole('button', { name: 'Personalizado', exact: true });
+    await expect(personalizadoTab).toHaveClass(/bg-kore-red-bright/);
+
+    // Click Semi-personalizado tab
+    const semiTab = page.getByRole('button', { name: 'Semi-personalizado', exact: true });
+    await semiTab.click();
+    await expect(semiTab).toHaveClass(/bg-kore-red-light/, { timeout: 5_000 });
+
+    // Click Terapéutico tab
+    const terapeuticoTab = page.getByRole('button', { name: 'Terapéutico', exact: true });
+    await terapeuticoTab.click();
+    await expect(terapeuticoTab).toHaveClass(/bg-kore-red-lightest/, { timeout: 5_000 });
+
+    // Click back to Personalizado
+    await personalizadoTab.click();
+    await expect(personalizadoTab).toHaveClass(/bg-kore-red-bright/, { timeout: 5_000 });
+  });
 });

@@ -48,7 +48,6 @@ const MOCK_SUBSCRIPTION = {
   starts_at: '2025-01-01T00:00:00Z',
   expires_at: '2025-01-31T00:00:00Z',
   next_billing_date: '2025-01-31',
-  paused_at: null,
 };
 
 const MOCK_PAYMENTS = [
@@ -74,6 +73,7 @@ describe('SubscriptionPage', () => {
     useSubscriptionStore.setState({
       subscriptions: [],
       activeSubscription: null,
+      selectedSubscriptionId: null,
       payments: [],
       loading: false,
       actionLoading: false,
@@ -105,35 +105,49 @@ describe('SubscriptionPage', () => {
     render(<SubscriptionPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('Semi Presencial FLW')).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: /Semi Presencial FLW/i })).toBeInTheDocument();
     });
-    expect(screen.getByText('3 / 10 usadas')).toBeInTheDocument();
+    expect(screen.getAllByText('3 / 10 usadas').length).toBeGreaterThan(0);
   });
 
-  it('shows pause button for active subscription', async () => {
+  it('allows selecting inactive subscription from dropdown', async () => {
+    const inactiveSub = {
+      ...MOCK_SUBSCRIPTION,
+      id: 2,
+      status: 'expired' as const,
+      sessions_used: 10,
+      sessions_remaining: 0,
+      package: {
+        ...MOCK_SUBSCRIPTION.package,
+        title: 'Plan Expirado',
+      },
+      next_billing_date: null,
+    };
     mockedApi.get.mockImplementation((url: string) => {
+      if (url.includes(`/subscriptions/${inactiveSub.id}/payments/`)) {
+        return Promise.resolve({ data: [] });
+      }
       if (url.includes('/payments/')) return Promise.resolve({ data: MOCK_PAYMENTS });
-      return Promise.resolve({ data: { results: [MOCK_SUBSCRIPTION] } });
+      return Promise.resolve({ data: { results: [MOCK_SUBSCRIPTION, inactiveSub] } });
     });
     render(<SubscriptionPage />);
+    const user = userEvent.setup();
+
+    const dropdown = await screen.findByRole('combobox');
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: /Plan Expirado/i })).toBeInTheDocument();
+    });
+    await user.selectOptions(dropdown, String(inactiveSub.id));
 
     await waitFor(() => {
-      expect(screen.getByText('Pausar suscripción')).toBeInTheDocument();
+      expect(
+        screen.getByText('Esta suscripción está inactiva, por lo que no requiere acciones.')
+      ).toBeInTheDocument();
     });
-  });
-
-  it('shows resume button for paused subscription', async () => {
-    const pausedSub = { ...MOCK_SUBSCRIPTION, status: 'paused' as const, paused_at: '2025-01-15T00:00:00Z', next_billing_date: null };
-    mockedApi.get.mockImplementation((url: string) => {
-      if (url.includes('/payments/')) return Promise.resolve({ data: MOCK_PAYMENTS });
-      return Promise.resolve({ data: { results: [pausedSub] } });
-    });
-    render(<SubscriptionPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Reanudar suscripción')).toBeInTheDocument();
-    });
-    expect(screen.getByText('Pausada')).toBeInTheDocument();
+    expect(mockedApi.get).toHaveBeenCalledWith(
+      `/subscriptions/${inactiveSub.id}/payments/`,
+      expect.anything(),
+    );
   });
 
   it('shows cancel confirmation dialog', async () => {

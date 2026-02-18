@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import RegisterPage from '@/app/(public)/register/page';
 import { useAuthStore } from '@/lib/stores/authStore';
@@ -34,24 +34,13 @@ jest.mock('js-cookie', () => ({
 }));
 
 jest.mock('@/lib/services/http', () => ({
-  api: { post: jest.fn() },
+  api: { get: jest.fn(), post: jest.fn() },
 }));
 
 const mockedApi = api as jest.Mocked<typeof api>;
 
-const MOCK_REGISTER_RESPONSE = {
-  user: {
-    id: 30,
-    email: 'new@example.com',
-    first_name: 'Ana',
-    last_name: 'García',
-    phone: '3001234567',
-    role: 'customer',
-  },
-  tokens: {
-    access: 'fake-access-token',
-    refresh: 'fake-refresh-token',
-  },
+const MOCK_PRE_REGISTER_RESPONSE = {
+  registration_token: 'signed-registration-token-123',
 };
 
 jest.setTimeout(15000);
@@ -59,8 +48,12 @@ jest.setTimeout(15000);
 describe('RegisterPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGet.mockReturnValue(null);
-    useAuthStore.setState({ user: null, accessToken: null, isAuthenticated: false });
+    mockedApi.get.mockReset();
+    mockedApi.post.mockReset();
+    mockGet.mockReturnValue('5');
+    mockedApi.get.mockRejectedValue(new Error('captcha-key-unavailable-in-test'));
+    useAuthStore.setState({ user: null, accessToken: null, isAuthenticated: false, hydrated: true });
+    window.sessionStorage.clear();
   });
 
   it('renders the registration form with all fields', () => {
@@ -80,7 +73,7 @@ describe('RegisterPage', () => {
 
   it('renders the submit button', () => {
     render(<RegisterPage />);
-    expect(screen.getByRole('button', { name: 'Crear cuenta' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Continuar al pago' })).toBeInTheDocument();
   });
 
   it('renders link to login page', () => {
@@ -98,7 +91,7 @@ describe('RegisterPage', () => {
     await user.type(screen.getByLabelText(/Correo electrónico/i), 'new@example.com');
     await user.type(screen.getByLabelText(/^Contraseña$/i), 'password123');
     await user.type(screen.getByLabelText(/Confirmar contraseña/i), 'different123');
-    await user.click(screen.getByRole('button', { name: 'Crear cuenta' }));
+    await user.click(screen.getByRole('button', { name: 'Continuar al pago' }));
 
     expect(screen.getByText('Las contraseñas no coinciden')).toBeInTheDocument();
     expect(mockedApi.post).not.toHaveBeenCalled();
@@ -113,13 +106,13 @@ describe('RegisterPage', () => {
     await user.type(screen.getByLabelText(/Correo electrónico/i), 'new@example.com');
     await user.type(screen.getByLabelText(/^Contraseña$/i), 'short');
     await user.type(screen.getByLabelText(/Confirmar contraseña/i), 'short');
-    await user.click(screen.getByRole('button', { name: 'Crear cuenta' }));
+    await user.click(screen.getByRole('button', { name: 'Continuar al pago' }));
 
     expect(screen.getByText('La contraseña debe tener al menos 8 caracteres')).toBeInTheDocument();
   });
 
-  it('redirects to dashboard on successful registration', async () => {
-    mockedApi.post.mockResolvedValueOnce({ data: MOCK_REGISTER_RESPONSE });
+  it('stores registration token and redirects to checkout on successful pre-register', async () => {
+    mockedApi.post.mockResolvedValueOnce({ data: MOCK_PRE_REGISTER_RESPONSE });
 
     render(<RegisterPage />);
     const user = userEvent.setup();
@@ -129,35 +122,40 @@ describe('RegisterPage', () => {
     await user.type(screen.getByLabelText(/Correo electrónico/i), 'new@example.com');
     await user.type(screen.getByLabelText(/^Contraseña$/i), 'password123');
     await user.type(screen.getByLabelText(/Confirmar contraseña/i), 'password123');
-    await user.click(screen.getByRole('button', { name: 'Crear cuenta' }));
-
-    await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/dashboard');
-    });
-  });
-
-  it('redirects to checkout with package param on successful registration', async () => {
-    mockGet.mockReturnValue('5');
-    mockedApi.post.mockResolvedValueOnce({ data: MOCK_REGISTER_RESPONSE });
-
-    render(<RegisterPage />);
-    const user = userEvent.setup();
-
-    await user.type(screen.getByLabelText(/Nombre/i), 'Ana');
-    await user.type(screen.getByLabelText(/Apellido/i), 'García');
-    await user.type(screen.getByLabelText(/Correo electrónico/i), 'new@example.com');
-    await user.type(screen.getByLabelText(/^Contraseña$/i), 'password123');
-    await user.type(screen.getByLabelText(/Confirmar contraseña/i), 'password123');
-    await user.click(screen.getByRole('button', { name: 'Crear cuenta' }));
+    await user.click(screen.getByRole('button', { name: 'Continuar al pago' }));
 
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith('/checkout?package=5');
     });
+
+    expect(window.sessionStorage.getItem('kore_checkout_registration_token')).toBe('signed-registration-token-123');
+    expect(window.sessionStorage.getItem('kore_checkout_registration_package')).toBe('5');
   });
 
-  it('shows server error on failed registration', async () => {
+  it('redirects to programs when package param is missing', async () => {
+    mockGet.mockReturnValue(null);
+    mockedApi.post.mockResolvedValueOnce({ data: MOCK_PRE_REGISTER_RESPONSE });
+
+    render(<RegisterPage />);
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText(/Nombre/i), 'Ana');
+    await user.type(screen.getByLabelText(/Apellido/i), 'García');
+    await user.type(screen.getByLabelText(/Correo electrónico/i), 'new@example.com');
+    await user.type(screen.getByLabelText(/^Contraseña$/i), 'password123');
+    await user.type(screen.getByLabelText(/Confirmar contraseña/i), 'password123');
+    await user.click(screen.getByRole('button', { name: 'Continuar al pago' }));
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/programs');
+    });
+
+    expect(mockedApi.post).not.toHaveBeenCalled();
+  });
+
+  it('redirects to login when email already exists', async () => {
     const axiosError = new AxiosError('Request failed', '400', undefined, undefined, {
-      data: { email: ['A user with this email already exists.'] },
+      data: { email: ['Ya existe una cuenta con este correo.'] },
       status: 400,
       statusText: 'Bad Request',
       headers: {},
@@ -173,10 +171,18 @@ describe('RegisterPage', () => {
     await user.type(screen.getByLabelText(/Correo electrónico/i), 'existing@example.com');
     await user.type(screen.getByLabelText(/^Contraseña$/i), 'password123');
     await user.type(screen.getByLabelText(/Confirmar contraseña/i), 'password123');
-    await user.click(screen.getByRole('button', { name: 'Crear cuenta' }));
+    await user.click(screen.getByRole('button', { name: 'Continuar al pago' }));
 
     await waitFor(() => {
-      expect(screen.getByText('A user with this email already exists.')).toBeInTheDocument();
+      expect(screen.getByText('Ya existe una cuenta con este correo. Redirigiendo a iniciar sesión...')).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+    });
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/login');
     });
   });
 
@@ -191,9 +197,11 @@ describe('RegisterPage', () => {
     await user.type(screen.getByLabelText(/Correo electrónico/i), 'new@example.com');
     await user.type(screen.getByLabelText(/^Contraseña$/i), 'password123');
     await user.type(screen.getByLabelText(/Confirmar contraseña/i), 'password123');
-    await user.click(screen.getByRole('button', { name: 'Crear cuenta' }));
+    const submitBtn = screen.getByRole('button', { name: 'Continuar al pago' });
+    fireEvent.submit(submitBtn.closest('form')!);
 
-    expect(screen.getByText('Creando cuenta...')).toBeInTheDocument();
+    expect(mockedApi.post).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Validando datos...')).toBeInTheDocument();
   });
 
   it('redirects if already authenticated', () => {
@@ -201,8 +209,9 @@ describe('RegisterPage', () => {
       user: { id: '30', email: 'new@example.com', first_name: 'Ana', last_name: 'García', phone: '', role: 'customer', name: 'Ana García' },
       accessToken: 'token',
       isAuthenticated: true,
+      hydrated: true,
     });
     render(<RegisterPage />);
-    expect(mockPush).toHaveBeenCalledWith('/dashboard');
+    expect(mockPush).toHaveBeenCalledWith('/checkout?package=5');
   });
 });

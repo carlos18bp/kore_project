@@ -69,4 +69,24 @@ test.describe('Auth Persistence & Cookies', () => {
     // Should redirect to dashboard eventually
     await page.waitForURL('**/dashboard');
   });
+
+  test('hydrate with corrupted cookie clears auth state', async ({ page }) => {
+    // Exercise the catch block in authStore.hydrate() lines 144-148
+    // by setting an invalid JSON value for kore_user cookie
+    await page.context().addCookies([
+      { name: 'kore_token', value: 'some-fake-token', domain: 'localhost', path: '/' },
+      { name: 'kore_user', value: 'not-valid-json{{{', domain: 'localhost', path: '/' },
+    ]);
+
+    // Navigate to a protected page — hydrate runs but fails to parse user
+    await page.goto('/dashboard');
+
+    // Should be redirected to login because auth state was cleared
+    await page.waitForURL('**/login', { timeout: 10_000 });
+
+    // Verify cookies were cleared by the catch block
+    const cookies = await page.context().cookies();
+    const tokenCookie = cookies.find((c) => c.name === 'kore_token');
+    expect(!tokenCookie || tokenCookie.value === '').toBe(true);
+  });
 });

@@ -39,7 +39,6 @@ const MOCK_SUBSCRIPTION = {
   starts_at: '2025-02-01T00:00:00Z',
   expires_at: '2025-03-01T00:00:00Z',
   next_billing_date: null,
-  paused_at: null,
 };
 
 const MOCK_PAYMENT = {
@@ -52,11 +51,21 @@ const MOCK_PAYMENT = {
   created_at: '2025-02-01T00:00:00Z',
 };
 
+const MOCK_EXPIRING_SUBSCRIPTION = {
+  ...MOCK_SUBSCRIPTION,
+  id: 7,
+  is_recurring: false,
+  payment_method_type: 'NEQUI',
+  expires_at: '2025-03-03T00:00:00Z',
+};
+
 function resetStore() {
   useSubscriptionStore.setState({
     subscriptions: [],
     activeSubscription: null,
+    selectedSubscriptionId: null,
     payments: [],
+    expiryReminder: null,
     loading: false,
     actionLoading: false,
     error: '',
@@ -91,7 +100,7 @@ describe('subscriptionStore', () => {
       expect(state.activeSubscription).toEqual(MOCK_SUBSCRIPTION);
     });
 
-    it('sets activeSubscription to null when no active/paused subscription', async () => {
+    it('sets activeSubscription to null when no active subscription', async () => {
       const expired = { ...MOCK_SUBSCRIPTION, status: 'expired' as const };
       mockedApi.get.mockResolvedValueOnce({ data: [expired] });
       await useSubscriptionStore.getState().fetchSubscriptions();
@@ -108,84 +117,26 @@ describe('subscriptionStore', () => {
   });
 
   // ----------------------------------------------------------------
-  // pauseSubscription
+  // setSelectedSubscriptionId
   // ----------------------------------------------------------------
-  describe('pauseSubscription', () => {
-    it('updates subscription status and returns true on success', async () => {
-      useSubscriptionStore.setState({ subscriptions: [MOCK_SUBSCRIPTION] });
-      const pausedData = { status: 'paused', paused_at: '2025-02-15T00:00:00Z' };
-      mockedApi.post.mockResolvedValueOnce({ data: pausedData });
+  describe('setSelectedSubscriptionId', () => {
+    it('sets selected subscription and clears payments/error', () => {
+      useSubscriptionStore.setState({
+        payments: [MOCK_PAYMENT],
+        error: 'Error previo',
+      });
 
-      const result = await useSubscriptionStore.getState().pauseSubscription(2);
-      expect(result).toBe(true);
-
+      useSubscriptionStore.getState().setSelectedSubscriptionId(5);
       const state = useSubscriptionStore.getState();
-      expect(state.subscriptions[0].status).toBe('paused');
-      expect(state.activeSubscription?.status).toBe('paused');
-      expect(state.actionLoading).toBe(false);
+      expect(state.selectedSubscriptionId).toBe(5);
+      expect(state.payments).toEqual([]);
+      expect(state.error).toBe('');
     });
 
-    it('sets activeSubscription to null when no active/paused sub remains after pause', async () => {
-      const otherSub = { ...MOCK_SUBSCRIPTION, id: 99, status: 'expired' as const };
-      useSubscriptionStore.setState({ subscriptions: [MOCK_SUBSCRIPTION, otherSub] });
-      mockedApi.post.mockResolvedValueOnce({ data: { status: 'expired' } });
-
-      await useSubscriptionStore.getState().pauseSubscription(2);
-      const state = useSubscriptionStore.getState();
-      expect(state.subscriptions[1]).toEqual(otherSub);
-      expect(state.activeSubscription).toBeNull();
-    });
-
-    it('sets error and returns false on failure', async () => {
-      useSubscriptionStore.setState({ subscriptions: [MOCK_SUBSCRIPTION] });
-      mockedApi.post.mockRejectedValueOnce(new Error('fail'));
-
-      const result = await useSubscriptionStore.getState().pauseSubscription(2);
-      expect(result).toBe(false);
-      expect(useSubscriptionStore.getState().error).toBe('No se pudo pausar la suscripción.');
-      expect(useSubscriptionStore.getState().actionLoading).toBe(false);
-    });
-  });
-
-  // ----------------------------------------------------------------
-  // resumeSubscription
-  // ----------------------------------------------------------------
-  describe('resumeSubscription', () => {
-    it('updates subscription status and returns true on success', async () => {
-      const paused = { ...MOCK_SUBSCRIPTION, status: 'paused' as const };
-      useSubscriptionStore.setState({ subscriptions: [paused] });
-      const resumedData = { status: 'active', paused_at: null };
-      mockedApi.post.mockResolvedValueOnce({ data: resumedData });
-
-      const result = await useSubscriptionStore.getState().resumeSubscription(2);
-      expect(result).toBe(true);
-
-      const state = useSubscriptionStore.getState();
-      expect(state.subscriptions[0].status).toBe('active');
-      expect(state.activeSubscription?.status).toBe('active');
-      expect(state.actionLoading).toBe(false);
-    });
-
-    it('sets activeSubscription to null when no active/paused sub remains after resume', async () => {
-      const otherSub = { ...MOCK_SUBSCRIPTION, id: 99, status: 'expired' as const };
-      const paused = { ...MOCK_SUBSCRIPTION, status: 'paused' as const };
-      useSubscriptionStore.setState({ subscriptions: [paused, otherSub] });
-      mockedApi.post.mockResolvedValueOnce({ data: { status: 'expired' } });
-
-      await useSubscriptionStore.getState().resumeSubscription(2);
-      const state = useSubscriptionStore.getState();
-      expect(state.subscriptions[1]).toEqual(otherSub);
-      expect(state.activeSubscription).toBeNull();
-    });
-
-    it('sets error and returns false on failure', async () => {
-      useSubscriptionStore.setState({ subscriptions: [MOCK_SUBSCRIPTION] });
-      mockedApi.post.mockRejectedValueOnce(new Error('fail'));
-
-      const result = await useSubscriptionStore.getState().resumeSubscription(2);
-      expect(result).toBe(false);
-      expect(useSubscriptionStore.getState().error).toBe('No se pudo reanudar la suscripción.');
-      expect(useSubscriptionStore.getState().actionLoading).toBe(false);
+    it('allows clearing selection', () => {
+      useSubscriptionStore.setState({ selectedSubscriptionId: 2 });
+      useSubscriptionStore.getState().setSelectedSubscriptionId(null);
+      expect(useSubscriptionStore.getState().selectedSubscriptionId).toBeNull();
     });
   });
 
@@ -207,7 +158,7 @@ describe('subscriptionStore', () => {
       expect(state.actionLoading).toBe(false);
     });
 
-    it('preserves non-matching subscriptions and sets null when none active/paused', async () => {
+    it('preserves non-matching subscriptions and sets null when none active', async () => {
       const otherSub = { ...MOCK_SUBSCRIPTION, id: 99, status: 'expired' as const };
       useSubscriptionStore.setState({ subscriptions: [MOCK_SUBSCRIPTION, otherSub] });
       mockedApi.post.mockResolvedValueOnce({ data: { status: 'canceled' } });
@@ -241,9 +192,62 @@ describe('subscriptionStore', () => {
     });
 
     it('sets error on failure', async () => {
+      useSubscriptionStore.setState({ payments: [MOCK_PAYMENT] });
       mockedApi.get.mockRejectedValueOnce(new Error('fail'));
       await useSubscriptionStore.getState().fetchPaymentHistory(2);
       expect(useSubscriptionStore.getState().error).toBe('No se pudo cargar el historial de pagos.');
+      expect(useSubscriptionStore.getState().payments).toEqual([]);
+    });
+  });
+
+  // ----------------------------------------------------------------
+  // fetchExpiryReminder
+  // ----------------------------------------------------------------
+  describe('fetchExpiryReminder', () => {
+    it('sets expiryReminder when subscription has id', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: MOCK_EXPIRING_SUBSCRIPTION });
+      await useSubscriptionStore.getState().fetchExpiryReminder();
+      expect(useSubscriptionStore.getState().expiryReminder).toEqual(MOCK_EXPIRING_SUBSCRIPTION);
+    });
+
+    it('sets expiryReminder to null when response has no id', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: { detail: null } });
+      await useSubscriptionStore.getState().fetchExpiryReminder();
+      expect(useSubscriptionStore.getState().expiryReminder).toBeNull();
+    });
+
+    it('sets expiryReminder to null on error', async () => {
+      useSubscriptionStore.setState({ expiryReminder: MOCK_EXPIRING_SUBSCRIPTION as any });
+      mockedApi.get.mockRejectedValueOnce(new Error('fail'));
+      await useSubscriptionStore.getState().fetchExpiryReminder();
+      expect(useSubscriptionStore.getState().expiryReminder).toBeNull();
+    });
+  });
+
+  // ----------------------------------------------------------------
+  // acknowledgeExpiryReminder
+  // ----------------------------------------------------------------
+  describe('acknowledgeExpiryReminder', () => {
+    it('returns true and clears expiryReminder on success', async () => {
+      useSubscriptionStore.setState({ expiryReminder: MOCK_EXPIRING_SUBSCRIPTION as any });
+      mockedApi.post.mockResolvedValueOnce({ data: { status: 'ok' } });
+
+      const result = await useSubscriptionStore.getState().acknowledgeExpiryReminder(7);
+      expect(result).toBe(true);
+      expect(useSubscriptionStore.getState().expiryReminder).toBeNull();
+      expect(mockedApi.post).toHaveBeenCalledWith(
+        '/subscriptions/7/expiry-reminder/ack/',
+        {},
+        expect.objectContaining({ headers: expect.any(Object) }),
+      );
+    });
+
+    it('returns false on error and does not clear expiryReminder', async () => {
+      useSubscriptionStore.setState({ expiryReminder: MOCK_EXPIRING_SUBSCRIPTION as any });
+      mockedApi.post.mockRejectedValueOnce(new Error('fail'));
+
+      const result = await useSubscriptionStore.getState().acknowledgeExpiryReminder(7);
+      expect(result).toBe(false);
     });
   });
 });

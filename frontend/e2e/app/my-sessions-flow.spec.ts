@@ -69,7 +69,13 @@ test.describe('My Sessions Flow — Program Detail & Session Detail', () => {
     // If no upcoming bookings, should show empty message + CTA
     const isEmpty = await page.getByText('No tienes sesiones próximas.').isVisible({ timeout: 5_000 }).catch(() => false);
     if (isEmpty) {
-      await expect(page.getByText('Agendar sesión')).toBeVisible();
+      const link = page.getByRole('link', { name: 'Agendar sesión' });
+      await expect(link).toBeVisible();
+      const match = page.url().match(/\/my-sessions\/program\/(\d+)/);
+      const subscriptionId = match?.[1];
+      const href = await link.getAttribute('href');
+      expect(subscriptionId).toBeTruthy();
+      expect(href).toContain(`subscription=${subscriptionId}`);
     }
   });
 

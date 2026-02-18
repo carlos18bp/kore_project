@@ -185,11 +185,28 @@ WOMPI_PUBLIC_KEY = config('WOMPI_PUBLIC_KEY', default='')
 WOMPI_PRIVATE_KEY = config('WOMPI_PRIVATE_KEY', default='')
 WOMPI_INTEGRITY_KEY = config('WOMPI_INTEGRITY_KEY', default='')
 WOMPI_EVENTS_KEY = config('WOMPI_EVENTS_KEY', default='')
-WOMPI_API_BASE_URL = (
-    'https://api-sandbox.co.uat.wompi.dev/v1'
-    if WOMPI_ENVIRONMENT == 'test'
-    else 'https://production.wompi.co/v1'
-)
+
+
+def _resolve_wompi_base_url(environment: str) -> str:
+    """Resolve the Wompi API base URL from the configured environment name.
+
+    Accepts common sandbox aliases used in local/dev setups while preserving
+    production behavior for any non-sandbox value.
+
+    Args:
+        environment: Wompi environment string from settings/env.
+
+    Returns:
+        str: Wompi API base URL.
+    """
+    normalized = str(environment or '').strip().lower()
+    sandbox_aliases = {'test', 'sandbox', 'uat'}
+    if normalized in sandbox_aliases:
+        return 'https://sandbox.wompi.co/v1'
+    return 'https://production.wompi.co/v1'
+
+
+WOMPI_API_BASE_URL = _resolve_wompi_base_url(WOMPI_ENVIRONMENT)
 
 
 # Celery configuration
@@ -199,3 +216,8 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
+
+
+# Google reCAPTCHA configuration
+RECAPTCHA_SITE_KEY = config('RECAPTCHA_SITE_KEY', default='')
+RECAPTCHA_SECRET_KEY = config('RECAPTCHA_SECRET_KEY', default='')

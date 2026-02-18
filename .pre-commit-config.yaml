@@ -1,0 +1,8 @@
+repos:
+  - repo: local
+    hooks:
+      - id: test-quality-gate
+        name: Test Quality Gate
+        entry: python3 scripts/test_quality_gate.py --repo-root . --report-path test-results/test-quality-audit-report.json
+        language: system
+        pass_filenames: false

@@ -4,8 +4,13 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Suspense, useState, useRef, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import ReCAPTCHA from 'react-google-recaptcha';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 import { useAuthStore } from '@/lib/stores/authStore';
+import { api } from '@/lib/services/http';
+
+const CHECKOUT_REGISTRATION_TOKEN_KEY = 'kore_checkout_registration_token';
+const CHECKOUT_REGISTRATION_PACKAGE_KEY = 'kore_checkout_registration_package';
 
 export default function RegisterPage() {
   return (
@@ -25,10 +30,14 @@ function RegisterContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [siteKey, setSiteKey] = useState<string>('');
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
+  const redirectTimeoutRef = useRef<number | null>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { register, isAuthenticated, hydrate } = useAuthStore();
+  const { isAuthenticated, hydrate, hydrated } = useAuthStore();
 
   const packageId = searchParams.get('package');
 
@@ -39,14 +48,47 @@ function RegisterContent() {
   }, [hydrate]);
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (hydrated && isAuthenticated) {
       if (packageId) {
         router.push(`/checkout?package=${packageId}`);
       } else {
         router.push('/dashboard');
       }
     }
-  }, [isAuthenticated, router, packageId]);
+  }, [hydrated, isAuthenticated, router, packageId]);
+
+  useEffect(() => {
+    api.get('/google-captcha/site-key/')
+      .then((res) => setSiteKey(res.data.site_key))
+      .catch(() => {});
+
+    return () => {
+      if (redirectTimeoutRef.current !== null) {
+        window.clearTimeout(redirectTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const extractErrorMessage = (responseData: unknown): string => {
+    if (!responseData || typeof responseData !== 'object') {
+      return 'No se pudo validar el registro. Intenta de nuevo.';
+    }
+
+    const entries = Object.values(responseData as Record<string, unknown>);
+    if (entries.length === 0) {
+      return 'No se pudo validar el registro. Intenta de nuevo.';
+    }
+
+    const firstError = entries[0];
+    if (Array.isArray(firstError) && typeof firstError[0] === 'string') {
+      return firstError[0];
+    }
+    if (typeof firstError === 'string') {
+      return firstError;
+    }
+
+    return 'No se pudo validar el registro. Intenta de nuevo.';
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,28 +104,64 @@ function RegisterContent() {
       return;
     }
 
+    if (siteKey && !captchaToken) {
+      setError('Por favor completa el captcha');
+      return;
+    }
+
+    if (!packageId) {
+      setError('Selecciona un programa antes de continuar al pago.');
+      setIsLoading(false);
+      router.push('/programs');
+      return;
+    }
+
     setIsLoading(true);
 
-    const result = await register({
-      email,
-      password,
-      password_confirm: passwordConfirm,
-      first_name: firstName,
-      last_name: lastName,
-      phone: phone || undefined,
-    });
+    try {
+      const { data } = await api.post<{ registration_token: string }>('/auth/pre-register/', {
+        email,
+        password,
+        password_confirm: passwordConfirm,
+        first_name: firstName,
+        last_name: lastName,
+        phone: phone || undefined,
+        captcha_token: captchaToken,
+      });
 
-    if (result.success) {
-      if (packageId) {
-        router.push(`/checkout?package=${packageId}`);
-      } else {
-        router.push('/dashboard');
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(CHECKOUT_REGISTRATION_TOKEN_KEY, data.registration_token);
+        sessionStorage.setItem(CHECKOUT_REGISTRATION_PACKAGE_KEY, packageId);
       }
-    } else {
-      setError(result.error || 'Error al crear la cuenta');
+
+      router.push(`/checkout?package=${packageId}`);
+      return;
+    } catch (err) {
+      const axiosErr = err as { response?: { data?: unknown } };
+      const message = extractErrorMessage(axiosErr.response?.data);
+
+      if (/ya existe una cuenta|already exists|already registered/i.test(message)) {
+        setError('Ya existe una cuenta con este correo. Redirigiendo a iniciar sesión...');
+        redirectTimeoutRef.current = window.setTimeout(() => {
+          router.push('/login');
+        }, 1000);
+      } else {
+        setError(message);
+      }
+
       setIsLoading(false);
+      recaptchaRef.current?.reset();
+      setCaptchaToken(null);
     }
   };
+
+  if (!hydrated) {
+    return (
+      <section className="min-h-screen bg-kore-cream flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-2 border-kore-red border-t-transparent rounded-full" />
+      </section>
+    );
+  }
 
   return (
     <section ref={sectionRef} className="min-h-screen bg-kore-cream flex items-center justify-center relative overflow-hidden">
@@ -219,7 +297,7 @@ function RegisterContent() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-kore-gray-dark/30 hover:text-kore-gray-dark/60 transition-colors text-sm"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-kore-gray-dark/30 hover:text-kore-gray-dark/60 transition-colors text-sm cursor-pointer"
                 >
                   {showPassword ? 'Ocultar' : 'Ver'}
                 </button>
@@ -246,11 +324,23 @@ function RegisterContent() {
               />
             </div>
 
+            {/* reCAPTCHA */}
+            {siteKey && (
+              <div className="flex justify-center">
+                <ReCAPTCHA
+                  ref={recaptchaRef}
+                  sitekey={siteKey}
+                  onChange={(token) => setCaptchaToken(token)}
+                  onExpired={() => setCaptchaToken(null)}
+                />
+              </div>
+            )}
+
             {/* Submit */}
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-kore-red hover:bg-kore-red-dark text-white font-medium py-3.5 rounded-lg transition-colors duration-200 text-sm tracking-wide disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full bg-kore-red hover:bg-kore-red-dark text-white font-medium py-3.5 rounded-lg transition-colors duration-200 text-sm tracking-wide disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
             >
               {isLoading ? (
                 <span className="inline-flex items-center gap-2">
@@ -258,10 +348,10 @@ function RegisterContent() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  Creando cuenta...
+                  Validando datos...
                 </span>
               ) : (
-                'Crear cuenta'
+                'Continuar al pago'
               )}
             </button>
           </form>

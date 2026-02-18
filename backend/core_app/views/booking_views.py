@@ -103,14 +103,14 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         if booking.status == Booking.Status.CANCELED:
             return Response(
-                {'detail': 'Booking is already canceled.'},
+                {'detail': 'La reserva ya está cancelada.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         time_until = booking.slot.starts_at - timezone.now()
         if time_until < timedelta(hours=CANCEL_RESCHEDULE_HOURS):
             return Response(
-                {'detail': f'Cannot cancel less than {CANCEL_RESCHEDULE_HOURS} hours before the session.'},
+                {'detail': f'No puedes cancelar con menos de {CANCEL_RESCHEDULE_HOURS} horas de anticipación.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -146,6 +146,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         - Only the booking owner (or an admin) can reschedule.
         - The **current** session must be ≥24 hours in the future.
         - The new slot must be valid (active, unblocked, future, not booked).
+        - The new slot must fall between the previous and next sessions in the same program.
 
         Request body:
             ``{"new_slot_id": <int>}``
@@ -157,21 +158,21 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         if booking.status == Booking.Status.CANCELED:
             return Response(
-                {'detail': 'Cannot reschedule a canceled booking.'},
+                {'detail': 'No se puede reprogramar una reserva cancelada.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         time_until = booking.slot.starts_at - timezone.now()
         if time_until < timedelta(hours=CANCEL_RESCHEDULE_HOURS):
             return Response(
-                {'detail': f'Cannot reschedule less than {CANCEL_RESCHEDULE_HOURS} hours before the session.'},
+                {'detail': f'No puedes reprogramar con menos de {CANCEL_RESCHEDULE_HOURS} horas de anticipación.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         new_slot_id = request.data.get('new_slot_id')
         if not new_slot_id:
             return Response(
-                {'detail': 'new_slot_id is required.'},
+                {'detail': 'El campo new_slot_id es obligatorio.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -179,14 +180,14 @@ class BookingViewSet(viewsets.ModelViewSet):
             new_slot = AvailabilitySlot.objects.get(pk=new_slot_id)
         except AvailabilitySlot.DoesNotExist:
             return Response(
-                {'detail': 'New slot not found.'},
+                {'detail': 'No se encontró el nuevo horario.'},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
         with transaction.atomic():
             # Cancel current booking
             booking.status = Booking.Status.CANCELED
-            booking.canceled_reason = 'Rescheduled by user.'
+            booking.canceled_reason = 'Reprogramada por el usuario.'
             booking.save(update_fields=['status', 'canceled_reason', 'updated_at'])
 
             # Unblock old slot
@@ -203,9 +204,35 @@ class BookingViewSet(viewsets.ModelViewSet):
                 or Booking.objects.filter(slot=new_slot).exclude(status=Booking.Status.CANCELED).exists()
             ):
                 return Response(
-                    {'detail': 'New slot is not available.'},
+                    {'detail': 'El nuevo horario no está disponible.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+
+            # Chronological order validation: must remain between previous and next sessions
+            if booking.subscription:
+                base_qs = Booking.objects.filter(
+                    subscription=booking.subscription,
+                    status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
+                ).exclude(pk=booking.pk).select_related('slot')
+
+                previous_booking = base_qs.filter(
+                    slot__starts_at__lt=booking.slot.starts_at,
+                ).order_by('-slot__starts_at').first()
+                next_booking = base_qs.filter(
+                    slot__starts_at__gt=booking.slot.starts_at,
+                ).order_by('slot__starts_at').first()
+
+                if previous_booking and new_slot.starts_at < previous_booking.slot.ends_at:
+                    return Response(
+                        {'detail': 'La sesión debe iniciar después del final de la sesión anterior del programa.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                if next_booking and new_slot.ends_at > next_booking.slot.starts_at:
+                    return Response(
+                        {'detail': 'La sesión debe finalizar antes del inicio de la siguiente sesión del programa.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
             new_slot.is_blocked = True
             new_slot.save(update_fields=['is_blocked', 'updated_at'])
@@ -217,7 +244,7 @@ class BookingViewSet(viewsets.ModelViewSet):
                 slot=new_slot,
                 trainer=booking.trainer,
                 subscription=booking.subscription,
-                status=Booking.Status.CONFIRMED,
+                status=Booking.Status.PENDING,
             )
 
         send_booking_reschedule(booking, new_booking)
@@ -247,7 +274,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         )
 
         if not next_booking:
-            return Response({'detail': None}, status=status.HTTP_204_NO_CONTENT)
+            return Response(status=status.HTTP_204_NO_CONTENT)
 
         serializer = self.get_serializer(next_booking)
         return Response(serializer.data)

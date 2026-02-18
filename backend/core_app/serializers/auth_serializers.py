@@ -28,7 +28,7 @@ class RegisterUserSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if attrs.get('password') != attrs.get('password_confirm'):
-            raise serializers.ValidationError({'password_confirm': 'Passwords do not match.'})
+            raise serializers.ValidationError({'password_confirm': 'Las contraseñas no coinciden.'})
         return attrs
 
     def create(self, validated_data):
@@ -46,8 +46,8 @@ class LoginSerializer(serializers.Serializer):
         password = attrs.get('password')
         user = authenticate(username=email, password=password)
         if not user:
-            raise serializers.ValidationError('Invalid credentials.')
+            raise serializers.ValidationError('Credenciales inválidas.')
         if not user.is_active:
-            raise serializers.ValidationError('User is inactive.')
+            raise serializers.ValidationError('El usuario está inactivo.')
         attrs['user'] = user
         return attrs

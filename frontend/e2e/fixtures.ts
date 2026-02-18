@@ -69,6 +69,8 @@ export async function mockLoginAsTestUser(page: Page) {
  */
 export async function loginAsTestUser(page: Page) {
   await mockLoginApi(page);
+  await mockCaptchaSiteKey(page);
+  await mockAuthProfile(page);
 
   await page.goto('/login');
   await page.getByLabel(/Correo electrónico/i).fill(E2E_USER.email);
@@ -78,10 +80,44 @@ export async function loginAsTestUser(page: Page) {
 }
 
 /**
+ * Mock the captcha site-key endpoint to return 404, disabling captcha in E2E tests.
+ */
+export async function mockCaptchaSiteKey(page: Page) {
+  await page.route('**/api/google-captcha/site-key/', async (route) => {
+    await route.fulfill({ status: 404, body: '' });
+  });
+}
+
+/**
+ * Mock the auth profile endpoint for hydration.
+ */
+export async function mockAuthProfile(page: Page) {
+  await page.route('**/api/auth/profile/', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        user: {
+          id: 999,
+          email: E2E_USER.email,
+          first_name: E2E_USER.firstName,
+          last_name: E2E_USER.lastName,
+          phone: '',
+          role: 'customer',
+        },
+      }),
+    });
+  });
+}
+
+/**
  * Setup default API mocks for common endpoints so tests don't hit the real backend.
  * Individual tests can override specific routes after calling this.
  */
 export async function setupDefaultApiMocks(page: Page) {
+  await mockCaptchaSiteKey(page);
+  await mockAuthProfile(page);
+
   // Subscriptions — empty list
   await page.route('**/api/subscriptions/', async (route) => {
     if (route.request().method() === 'GET') {

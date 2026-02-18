@@ -35,9 +35,9 @@ describe('TrainerInfoPanel', () => {
     expect(screen.getByText('45 min')).toBeInTheDocument();
   });
 
-  it('renders location', () => {
+  it('renders location as Medellín', () => {
     render(<TrainerInfoPanel trainer={MOCK_TRAINER} />);
-    expect(screen.getByText(/Studio A/)).toBeInTheDocument();
+    expect(screen.getByText(/En persona — Medellín/)).toBeInTheDocument();
   });
 
   it('renders fallback "KÓRE" when trainer is null', () => {

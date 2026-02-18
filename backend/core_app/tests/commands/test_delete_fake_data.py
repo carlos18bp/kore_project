@@ -1,11 +1,12 @@
 import pytest
+from decimal import Decimal
 from io import StringIO
 
 from django.core.management import call_command
 
 from core_app.models import (
-    AnalyticsEvent, AvailabilitySlot, Booking, FAQItem,
-    Notification, Package, Payment, SiteSettings, User,
+    AnalyticsEvent, AvailabilitySlot, Booking, ContactMessage, FAQCategory, FAQItem,
+    Notification, Package, Payment, PaymentIntent, SiteSettings, User,
 )
 
 
@@ -45,6 +46,8 @@ class TestDeleteFakeData:
         assert AvailabilitySlot.objects.count() == 0
         assert AnalyticsEvent.objects.count() == 0
         assert FAQItem.objects.count() == 0
+        assert FAQCategory.objects.count() == 0
+        assert ContactMessage.objects.count() == 0
         assert Package.objects.count() == 0
 
     def test_protects_superusers(self):
@@ -61,4 +64,19 @@ class TestDeleteFakeData:
         call_command('delete_fake_data', confirm=True, keep_users=True, stdout=out)
 
         assert User.objects.count() == user_count_before
+        assert Package.objects.count() == 0
+
+    def test_deletes_payment_intents(self):
+        pkg = Package.objects.create(title='Pkg', is_active=True)
+        PaymentIntent.objects.create(
+            package=pkg,
+            reference='intent-1',
+            amount=Decimal('100.00'),
+        )
+        assert PaymentIntent.objects.count() == 1
+
+        out = StringIO()
+        call_command('delete_fake_data', confirm=True, stdout=out)
+
+        assert PaymentIntent.objects.count() == 0
         assert Package.objects.count() == 0

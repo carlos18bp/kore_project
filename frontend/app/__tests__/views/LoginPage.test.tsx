@@ -4,6 +4,7 @@ import LoginPage from '@/app/(public)/login/page';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { api } from '@/lib/services/http';
 import { AxiosError, AxiosHeaders } from 'axios';
+import React from 'react';
 
 const mockPush = jest.fn();
 
@@ -15,6 +16,22 @@ jest.mock('next/image', () => ({
   __esModule: true,
   default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => <img {...props} />,
 }));
+
+jest.mock('react-google-recaptcha', () => {
+  const ReactLib = require('react');
+  return ReactLib.forwardRef(
+    (
+      { onChange }: { onChange?: (token: string | null) => void },
+      ref: React.Ref<{ reset: () => void }>,
+    ) => {
+      ReactLib.useImperativeHandle(ref, () => ({ reset: () => {} }));
+      ReactLib.useEffect(() => {
+        onChange?.('test-captcha-token');
+      }, [onChange]);
+      return <div data-testid="mock-recaptcha" />;
+    },
+  );
+});
 
 jest.mock('next/link', () => ({
   __esModule: true,
@@ -30,7 +47,7 @@ jest.mock('js-cookie', () => ({
 }));
 
 jest.mock('@/lib/services/http', () => ({
-  api: { post: jest.fn() },
+  api: { post: jest.fn(), get: jest.fn() },
 }));
 
 const mockedApi = api as jest.Mocked<typeof api>;
@@ -50,10 +67,27 @@ const MOCK_LOGIN_RESPONSE = {
   },
 };
 
+const fillLoginForm = async (
+  user: ReturnType<typeof userEvent.setup>,
+  email: string,
+  password: string,
+) => {
+  await screen.findByTestId('mock-recaptcha');
+  await user.type(screen.getByLabelText(/Correo electrónico/i), email);
+  await user.type(screen.getByLabelText(/Contraseña/i), password);
+};
+
 describe('LoginPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    useAuthStore.setState({ user: null, accessToken: null, isAuthenticated: false });
+    mockedApi.get.mockResolvedValue({ data: { site_key: 'test-site-key' } });
+    useAuthStore.setState({
+      user: null,
+      accessToken: null,
+      isAuthenticated: false,
+      hydrated: true,
+      justLoggedIn: false,
+    });
   });
 
   it('renders the login form with email and password fields', () => {
@@ -88,7 +122,7 @@ describe('LoginPage', () => {
 
   it('shows error message on failed login', async () => {
     const axiosError = new AxiosError('Request failed', '400', undefined, undefined, {
-      data: { non_field_errors: ['Invalid credentials.'] },
+      data: { non_field_errors: ['Credenciales inválidas.'] },
       status: 400,
       statusText: 'Bad Request',
       headers: {},
@@ -99,12 +133,11 @@ describe('LoginPage', () => {
     render(<LoginPage />);
     const user = userEvent.setup();
 
-    await user.type(screen.getByLabelText(/Correo electrónico/i), 'wrong@email.com');
-    await user.type(screen.getByLabelText(/Contraseña/i), 'wrongpass');
+    await fillLoginForm(user, 'wrong@email.com', 'wrongpass');
     await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
 
     await waitFor(() => {
-      expect(screen.getByText('Invalid credentials.')).toBeInTheDocument();
+      expect(screen.getByText('Credenciales inválidas.')).toBeInTheDocument();
     });
   });
 
@@ -114,8 +147,7 @@ describe('LoginPage', () => {
     render(<LoginPage />);
     const user = userEvent.setup();
 
-    await user.type(screen.getByLabelText(/Correo electrónico/i), 'customer10@kore.com');
-    await user.type(screen.getByLabelText(/Contraseña/i), 'ogthsv25');
+    await fillLoginForm(user, 'customer10@kore.com', 'ogthsv25');
     await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
 
     await waitFor(() => {
@@ -124,7 +156,20 @@ describe('LoginPage', () => {
   });
 
   it('redirects to dashboard if already authenticated', () => {
-    useAuthStore.setState({ user: { id: '22', email: 'customer10@kore.com', first_name: 'Customer10', last_name: 'Kore', phone: '', role: 'customer', name: 'Customer10 Kore' }, accessToken: 'token', isAuthenticated: true });
+    useAuthStore.setState({
+      user: {
+        id: '22',
+        email: 'customer10@kore.com',
+        first_name: 'Customer10',
+        last_name: 'Kore',
+        phone: '',
+        role: 'customer',
+        name: 'Customer10 Kore',
+      },
+      accessToken: 'token',
+      isAuthenticated: true,
+      hydrated: true,
+    });
     render(<LoginPage />);
     expect(mockPush).toHaveBeenCalledWith('/dashboard');
   });
@@ -146,8 +191,7 @@ describe('LoginPage', () => {
     render(<LoginPage />);
     const user = userEvent.setup();
 
-    await user.type(screen.getByLabelText(/Correo electrónico/i), 'customer10@kore.com');
-    await user.type(screen.getByLabelText(/Contraseña/i), 'ogthsv25');
+    await fillLoginForm(user, 'customer10@kore.com', 'ogthsv25');
     await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
 
     // During the pending API call, the button should show "Ingresando..."

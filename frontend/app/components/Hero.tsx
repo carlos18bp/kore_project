@@ -94,6 +94,7 @@ export default function Hero() {
               sizes="(max-width: 768px) 480px, (max-width: 1280px) 700px, 1100px"
               className="object-contain opacity-90"
               priority
+              loading="eager"
             />
           </div>
         </div>

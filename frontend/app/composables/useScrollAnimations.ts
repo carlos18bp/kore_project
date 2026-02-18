@@ -94,13 +94,21 @@ export function useHeroAnimation(containerRef: React.RefObject<HTMLElement | nul
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
 
-      tl.from('[data-hero="badge"]', { opacity: 0, y: 20, duration: 0.6, delay: 0.2 })
-        .from('[data-hero="heading"]', { opacity: 0, y: 40, duration: 0.8 }, '-=0.3')
-        .from('[data-hero="subtitle"]', { opacity: 0, y: 30, duration: 0.7 }, '-=0.4')
-        .from('[data-hero="body"]', { opacity: 0, y: 25, duration: 0.7 }, '-=0.4')
-        .from('[data-hero="cta"]', { opacity: 0, y: 20, duration: 0.6 }, '-=0.3')
-        .from('[data-hero="stats"]', { opacity: 0, y: 20, duration: 0.6 }, '-=0.3')
-        .from('[data-hero="image"]', { opacity: 0, scale: 0.85, duration: 1.2, ease: 'power2.out' }, '-=0.8');
+      const badge = containerRef.current?.querySelector('[data-hero="badge"]');
+      const heading = containerRef.current?.querySelector('[data-hero="heading"]');
+      const subtitle = containerRef.current?.querySelector('[data-hero="subtitle"]');
+      const body = containerRef.current?.querySelector('[data-hero="body"]');
+      const cta = containerRef.current?.querySelector('[data-hero="cta"]');
+      const stats = containerRef.current?.querySelector('[data-hero="stats"]');
+      const image = containerRef.current?.querySelector('[data-hero="image"]');
+
+      if (badge) tl.from(badge, { opacity: 0, y: 20, duration: 0.6, delay: 0.2 });
+      if (heading) tl.from(heading, { opacity: 0, y: 40, duration: 0.8 }, badge ? '-=0.3' : undefined);
+      if (subtitle) tl.from(subtitle, { opacity: 0, y: 30, duration: 0.7 }, '-=0.4');
+      if (body) tl.from(body, { opacity: 0, y: 25, duration: 0.7 }, '-=0.4');
+      if (cta) tl.from(cta, { opacity: 0, y: 20, duration: 0.6 }, '-=0.3');
+      if (stats) tl.from(stats, { opacity: 0, y: 20, duration: 0.6 }, '-=0.3');
+      if (image) tl.from(image, { opacity: 0, scale: 0.85, duration: 1.2, ease: 'power2.out' }, '-=0.8');
     }, containerRef);
 
     return () => ctx.revert();

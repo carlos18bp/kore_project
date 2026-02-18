@@ -2,6 +2,13 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ProgramsPage from '@/app/(public)/programs/page';
 import { api } from '@/lib/services/http';
+import { useAuthStore } from '@/lib/stores/authStore';
+
+const mockPush = jest.fn();
+
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockPush }),
+}));
 
 jest.mock('next/image', () => ({
   __esModule: true,
@@ -28,6 +35,12 @@ describe('ProgramsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedApi.get.mockResolvedValue({ data: MOCK_PACKAGES });
+    useAuthStore.setState({
+      user: null,
+      accessToken: null,
+      isAuthenticated: false,
+      hydrated: true,
+    });
   });
 
   it('renders the tariff badge', async () => {
@@ -88,7 +101,7 @@ describe('ProgramsPage', () => {
     expect(screen.getByText('Movimiento como medicina')).toBeInTheDocument();
   });
 
-  it('shows CTA with numeric package ID when a plan is selected', async () => {
+  it('navigates to register with numeric package ID when unauthenticated', async () => {
     render(<ProgramsPage />);
     await waitFor(() => {
       expect(screen.getByText('Sesión Individual')).toBeInTheDocument();
@@ -98,10 +111,40 @@ describe('ProgramsPage', () => {
     const planButton = screen.getByText('Sesión Individual').closest('button')!;
     await user.click(planButton);
 
-    const cta = screen.getByText(/Reservar Sesión Individual/);
+    const cta = screen.getByRole('button', { name: /Reservar Sesión Individual/ });
     expect(cta).toBeInTheDocument();
-    // CTA href should use numeric package ID, not a string slug
-    expect(cta.closest('a')).toHaveAttribute('href', '/checkout?package=1');
+    await user.click(cta);
+    expect(mockPush).toHaveBeenCalledWith('/register?package=1');
+  });
+
+  it('navigates to checkout with numeric package ID when authenticated', async () => {
+    useAuthStore.setState({
+      user: {
+        id: '1',
+        email: 'customer@kore.com',
+        first_name: 'Customer',
+        last_name: 'Kore',
+        phone: '',
+        role: 'customer',
+        name: 'Customer Kore',
+      },
+      accessToken: 'token',
+      isAuthenticated: true,
+      hydrated: true,
+    });
+
+    render(<ProgramsPage />);
+    await waitFor(() => {
+      expect(screen.getByText('Sesión Individual')).toBeInTheDocument();
+    });
+
+    const user = userEvent.setup();
+    const planButton = screen.getByText('Sesión Individual').closest('button')!;
+    await user.click(planButton);
+
+    const cta = screen.getByRole('button', { name: /Reservar Sesión Individual/ });
+    await user.click(cta);
+    expect(mockPush).toHaveBeenCalledWith('/checkout?package=1');
   });
 
   it('resets plan selection when switching programs', async () => {

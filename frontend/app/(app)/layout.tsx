@@ -11,19 +11,17 @@ export default function AppLayout({
   children: React.ReactNode;
 }>) {
   const router = useRouter();
-  const { isAuthenticated, hydrate } = useAuthStore();
+  const { isAuthenticated, hydrate, hydrated } = useAuthStore();
 
   useEffect(() => {
     hydrate();
   }, [hydrate]);
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      const { isAuthenticated: stillAuth } = useAuthStore.getState();
-      if (!stillAuth) router.push('/login');
-    }, 150);
-    return () => clearTimeout(timeout);
-  }, [isAuthenticated, router]);
+    if (hydrated && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [hydrated, isAuthenticated, router]);
 
   return (
     <div className="min-h-screen bg-kore-cream">

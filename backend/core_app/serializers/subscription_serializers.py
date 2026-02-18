@@ -28,7 +28,6 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             'starts_at',
             'expires_at',
             'next_billing_date',
-            'paused_at',
             'created_at',
             'updated_at',
         )

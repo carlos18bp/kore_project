@@ -24,6 +24,7 @@ urlpatterns = [
     path('api/', include('core_app.urls.api_urls')),
     path('api/auth/', include('core_app.urls.auth_urls')),
     path('api/wompi/', include('core_app.urls.wompi_urls')),
+    path('api/google-captcha/', include('core_app.urls.captcha_urls')),
 ]
 
 if settings.DEBUG:

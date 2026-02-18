@@ -162,6 +162,107 @@ def send_booking_reschedule(old_booking, new_booking):
 
 
 # ------------------------------------------------------------------
+# Payment receipt sender
+# ------------------------------------------------------------------
+
+def send_payment_receipt(payment):
+    """Send a payment receipt email.
+
+    Creates a ``Notification`` record of type RECEIPT_EMAIL to track delivery.
+
+    Args:
+        payment: A ``Payment`` instance with related subscription and customer.
+
+    Returns:
+        Notification: The created notification instance, or None if payment
+            has no customer or subscription.
+    """
+    if not payment.customer:
+        logger.warning('Cannot send receipt: payment %s has no customer', payment.pk)
+        return None
+
+    subscription = payment.subscription
+    package = subscription.package if subscription else None
+
+    customer = payment.customer
+    customer_name = f'{customer.first_name} {customer.last_name}'.strip() or customer.email
+
+    context = {
+        'customer_name': customer_name,
+        'customer_email': customer.email,
+        'reference': payment.provider_reference or f'PAY-{payment.pk}',
+        'package_title': package.title if package else 'Suscripción KÓRE',
+        'amount': f'{int(payment.amount):,}'.replace(',', '.'),
+        'currency': payment.currency,
+        'sessions_count': package.sessions_count if package else '-',
+        'validity_days': package.validity_days if package else '-',
+        'payment_date': payment.created_at,
+        'payment_id': payment.pk,
+    }
+
+    success = send_template_email(
+        template_name='payment_receipt',
+        subject='Comprobante de pago — KÓRE',
+        to_emails=[customer.email],
+        context=context,
+    )
+
+    return _create_payment_notification(
+        payment=payment,
+        notification_type=Notification.Type.RECEIPT_EMAIL,
+        success=success,
+    )
+
+
+def send_subscription_expiry_reminder(subscription):
+    """Send a subscription expiry reminder email.
+
+    Creates a ``Notification`` record of type SUBSCRIPTION_EXPIRY_REMINDER to
+    track delivery status.
+
+    Args:
+        subscription: Subscription instance that is nearing expiry.
+
+    Returns:
+        Notification: The created notification instance, or None if the
+            subscription has no customer.
+    """
+    customer = subscription.customer
+    if not customer:
+        logger.warning('Cannot send expiry reminder: subscription %s has no customer', subscription.pk)
+        return None
+
+    package = subscription.package
+    customer_name = f'{customer.first_name} {customer.last_name}'.strip() or customer.email
+
+    context = {
+        'customer_name': customer_name,
+        'customer_email': customer.email,
+        'package_title': package.title if package else 'Suscripción KÓRE',
+        'expires_at': subscription.expires_at,
+        'validity_days': package.validity_days if package else '-',
+    }
+
+    success = send_template_email(
+        template_name='subscription_expiry_reminder',
+        subject='Tu suscripción está por vencer — KÓRE',
+        to_emails=[customer.email],
+        context=context,
+    )
+
+    return Notification.objects.create(
+        notification_type=Notification.Type.SUBSCRIPTION_EXPIRY_REMINDER,
+        status=Notification.Status.SENT if success else Notification.Status.FAILED,
+        sent_to=customer.email,
+        payload={
+            'subscription_id': subscription.pk,
+            'package_id': package.pk if package else None,
+            'expires_at': subscription.expires_at.isoformat() if subscription.expires_at else None,
+        },
+    )
+
+
+# ------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------
 
@@ -209,4 +310,23 @@ def _create_notification(booking, notification_type, success):
         notification_type=notification_type,
         status=Notification.Status.SENT if success else Notification.Status.FAILED,
         sent_to=booking.customer.email,
+    )
+
+
+def _create_payment_notification(payment, notification_type, success):
+    """Create a Notification record for a payment-related email.
+
+    Args:
+        payment: The related ``Payment`` instance.
+        notification_type: One of ``Notification.Type`` choices.
+        success: Whether the email was delivered successfully.
+
+    Returns:
+        Notification: The persisted notification instance.
+    """
+    return Notification.objects.create(
+        payment=payment,
+        notification_type=notification_type,
+        status=Notification.Status.SENT if success else Notification.Status.FAILED,
+        sent_to=payment.customer.email,
     )

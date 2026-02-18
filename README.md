@@ -283,7 +283,7 @@ e2e/
 |---|---|
 | `python manage.py runserver` | Inicia el servidor backend |
 | `python manage.py migrate` | Ejecuta migraciones de DB |
-| `python manage.py makemigrations` | Genera nuevas migraciones |
+| `python manage.py expire_subscriptions` | Ejecuta tarea diaria de expiración de suscripciones |
 | `python manage.py create_fake_data` | Crea datos de prueba completos |
 | `python manage.py delete_fake_data --confirm` | Elimina datos de prueba |
 | `npm run dev` | Inicia el servidor frontend |
@@ -294,6 +294,14 @@ e2e/
 | `npm run e2e:clean` | Limpia artefactos de E2E |
 
 ---
+
+## Automatizaciones
+
+Para expirar suscripciones automáticamente, programa el comando diario en cron:
+
+```bash
+0 0 * * * cd /path/to/kore_project/backend && source venv/bin/activate && python manage.py expire_subscriptions
+```
 
 ## Variables de Entorno
 

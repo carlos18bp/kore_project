@@ -6,7 +6,7 @@ from .availability import AvailabilitySlot
 from .booking import Booking
 from .payment import Payment
 from .notification import Notification
-from .content import FAQItem, SiteSettings
+from .content import ContactMessage, FAQCategory, FAQItem, SiteSettings
 from .analytics import AnalyticsEvent
 from .payment_intent import PaymentIntent
 
@@ -21,6 +21,8 @@ __all__ = [
     'PaymentIntent',
     'Notification',
     'SiteSettings',
+    'FAQCategory',
     'FAQItem',
+    'ContactMessage',
     'AnalyticsEvent',
 ]

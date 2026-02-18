@@ -6,6 +6,8 @@ from core_app.models import (
     AnalyticsEvent,
     AvailabilitySlot,
     Booking,
+    ContactMessage,
+    FAQCategory,
     FAQItem,
     Notification,
     Package,
@@ -102,17 +104,36 @@ class NotificationAdmin(admin.ModelAdmin):
     autocomplete_fields = ('booking', 'payment')
 
 
-@admin.register(FAQItem)
-class FAQItemAdmin(admin.ModelAdmin):
-    list_display = ('question', 'is_active', 'order', 'created_at')
+@admin.register(FAQCategory)
+class FAQCategoryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'slug', 'is_active', 'order', 'created_at')
     list_filter = ('is_active',)
     ordering = ('order', 'id')
+    search_fields = ('name', 'slug')
+    prepopulated_fields = {'slug': ('name',)}
+
+
+@admin.register(FAQItem)
+class FAQItemAdmin(admin.ModelAdmin):
+    list_display = ('question', 'category', 'is_active', 'order', 'created_at')
+    list_filter = ('is_active', 'category')
+    ordering = ('order', 'id')
     search_fields = ('question',)
+    autocomplete_fields = ('category',)
 
 
 @admin.register(SiteSettings)
 class SiteSettingsAdmin(admin.ModelAdmin):
-    list_display = ('company_name', 'email', 'phone', 'whatsapp')
+    list_display = ('company_name', 'email', 'phone', 'whatsapp', 'city', 'business_hours')
+
+
+@admin.register(ContactMessage)
+class ContactMessageAdmin(admin.ModelAdmin):
+    list_display = ('name', 'email', 'phone', 'status', 'created_at')
+    list_filter = ('status',)
+    search_fields = ('name', 'email', 'phone', 'message')
+    readonly_fields = ('name', 'email', 'phone', 'message', 'created_at', 'updated_at')
+    ordering = ('-created_at',)
 
 
 @admin.register(TrainerProfile)
@@ -128,7 +149,7 @@ class SubscriptionAdmin(admin.ModelAdmin):
     list_filter = ('status',)
     search_fields = ('customer__email', 'package__title')
     autocomplete_fields = ('customer', 'package')
-    readonly_fields = ('payment_source_id', 'wompi_transaction_id', 'paused_at')
+    readonly_fields = ('payment_source_id', 'wompi_transaction_id')
 
 
 @admin.register(AnalyticsEvent)

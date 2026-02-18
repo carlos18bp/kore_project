@@ -42,11 +42,11 @@ class TestBookingModel:
         assert Booking.Status.CONFIRMED == 'confirmed'
         assert Booking.Status.CANCELED == 'canceled'
 
-    def test_slot_is_one_to_one(self, customer, package, slot):
+    def test_slot_allows_multiple_bookings(self, customer, package, slot):
         Booking.objects.create(customer=customer, package=package, slot=slot)
         customer2 = User.objects.create_user(email='c2@example.com', password='p')
-        with pytest.raises(IntegrityError):
-            Booking.objects.create(customer=customer2, package=package, slot=slot)
+        Booking.objects.create(customer=customer2, package=package, slot=slot)
+        assert Booking.objects.filter(slot=slot).count() == 2
 
     def test_protect_on_customer_delete(self, customer, package, slot):
         Booking.objects.create(customer=customer, package=package, slot=slot)

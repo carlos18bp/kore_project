@@ -7,6 +7,7 @@ import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
 import { useBookingStore } from '@/lib/stores/bookingStore';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 import UpcomingSessionReminder from '@/app/components/booking/UpcomingSessionReminder';
+import SubscriptionExpiryReminder from '@/app/components/subscription/SubscriptionExpiryReminder';
 import { WHATSAPP_URL } from '@/lib/constants';
 
 export default function DashboardPage() {
@@ -46,6 +47,7 @@ export default function DashboardPage() {
   return (
     <section ref={sectionRef} className="min-h-screen bg-kore-cream">
       <UpcomingSessionReminder />
+      <SubscriptionExpiryReminder />
       <div className="w-full px-6 md:px-10 lg:px-16 pt-8 pb-16">
         {/* Top bar */}
         <div data-hero="badge" className="flex items-center justify-between mb-12">

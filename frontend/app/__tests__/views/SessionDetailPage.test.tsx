@@ -28,7 +28,7 @@ jest.mock('@/app/composables/useScrollAnimations', () => ({
   useHeroAnimation: jest.fn(),
 }));
 
-const mockFetchBookings = jest.fn();
+const mockFetchBookingById = jest.fn();
 const mockCancelBooking = jest.fn();
 
 jest.mock('@/lib/stores/bookingStore', () => ({
@@ -58,9 +58,10 @@ function buildBooking(hoursFromNow: number, status = 'confirmed') {
 function setupStore(overrides = {}) {
   mockedUseBookingStore.mockReturnValue({
     bookings: [],
+    bookingDetail: null,
     loading: false,
     error: null,
-    fetchBookings: mockFetchBookings,
+    fetchBookingById: mockFetchBookingById,
     cancelBooking: mockCancelBooking,
     ...overrides,
   });
@@ -85,6 +86,12 @@ describe('SessionDetailPage', () => {
     expect(screen.getByText('Detalle de Sesión')).toBeInTheDocument();
   });
 
+  it('renders details from bookingDetail when list is empty', () => {
+    setupStore({ bookings: [], bookingDetail: buildBooking(48) });
+    render(<SessionDetailPage />);
+    expect(screen.getByText('Germán Franco')).toBeInTheDocument();
+  });
+
   it('renders breadcrumb with links', () => {
     setupStore({ bookings: [buildBooking(48)] });
     render(<SessionDetailPage />);
@@ -95,6 +102,12 @@ describe('SessionDetailPage', () => {
 
   it('renders "not found" when booking does not exist', () => {
     setupStore({ bookings: [] });
+    render(<SessionDetailPage />);
+    expect(screen.getByText('Sesión no encontrada.')).toBeInTheDocument();
+  });
+
+  it('renders "not found" when bookingDetail subscription mismatches route', () => {
+    setupStore({ bookings: [], bookingDetail: { ...buildBooking(48), subscription_id_display: 99 } });
     render(<SessionDetailPage />);
     expect(screen.getByText('Sesión no encontrada.')).toBeInTheDocument();
   });
@@ -159,18 +172,18 @@ describe('SessionDetailPage', () => {
     setupStore({ bookings: [buildBooking(48)] });
     render(<SessionDetailPage />);
     await user.click(screen.getByText('Reprogramar'));
-    expect(mockPush).toHaveBeenCalledWith('/book-session');
+    expect(mockPush).toHaveBeenCalledWith('/book-session?reschedule=100&subscription=2');
   });
 
   it('renders error message when error is set', () => {
-    setupStore({ bookings: [buildBooking(48)], error: 'Cannot cancel within 24 hours.' });
+    setupStore({ bookings: [buildBooking(48)], error: 'No puedes cancelar con menos de 24 horas de anticipación.' });
     render(<SessionDetailPage />);
-    expect(screen.getByText('Cannot cancel within 24 hours.')).toBeInTheDocument();
+    expect(screen.getByText('No puedes cancelar con menos de 24 horas de anticipación.')).toBeInTheDocument();
   });
 
-  it('calls fetchBookings on mount', () => {
+  it('calls fetchBookingById on mount', () => {
     setupStore();
     render(<SessionDetailPage />);
-    expect(mockFetchBookings).toHaveBeenCalledWith(2);
+    expect(mockFetchBookingById).toHaveBeenCalledWith(100);
   });
 });

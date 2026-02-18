@@ -10,21 +10,32 @@ import logging
 from datetime import timedelta
 
 from django.conf import settings
-from django.db import transaction as db_transaction
+from django.db import IntegrityError, transaction as db_transaction
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from core_app.models import Payment, PaymentIntent, Subscription
+from core_app.models import Payment, PaymentIntent, Subscription, User
+from core_app.services.email_service import send_payment_receipt
 from core_app.services.wompi_service import (
     generate_integrity_signature,
     verify_event_checksum,
 )
 
 logger = logging.getLogger(__name__)
+ALLOWED_INITIAL_PAYMENT_METHOD_TYPES = {
+    # TODO: Confirm Wompi payment_method_type codes for cash and SU+ Pay with the client.
+    'CARD',
+    'NEQUI',
+    'BANCOLOMBIA_TRANSFER',
+    'PSE',
+}
+RECURRING_PAYMENT_METHOD_TYPES = {
+    'CARD',
+}
 
 
 @api_view(['GET'])
@@ -45,7 +56,7 @@ def wompi_config(request):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def generate_signature(request):
     """Generate an integrity signature for a Wompi transaction.
 
@@ -61,7 +72,7 @@ def generate_signature(request):
 
     if not reference or not amount_in_cents:
         return Response(
-            {'detail': 'reference and amount_in_cents are required.'},
+            {'detail': 'Los campos reference y amount_in_cents son obligatorios.'},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -69,7 +80,7 @@ def generate_signature(request):
         amount_in_cents = int(amount_in_cents)
     except (TypeError, ValueError):
         return Response(
-            {'detail': 'amount_in_cents must be a valid integer.'},
+            {'detail': 'amount_in_cents debe ser un entero válido.'},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -98,7 +109,7 @@ def wompi_webhook(request):
     if not verify_event_checksum(event_body):
         logger.warning('Invalid Wompi webhook checksum received')
         return Response(
-            {'detail': 'Invalid checksum'},
+            {'detail': 'Checksum inválido.'},
             status=status.HTTP_401_UNAUTHORIZED,
         )
 
@@ -129,6 +140,9 @@ def _handle_transaction_updated(data):
     transaction = data.get('transaction', {})
     txn_id = str(transaction.get('id', ''))
     txn_status = transaction.get('status', '')
+    txn_reference = str(transaction.get('reference', '')).strip()
+    payment_source_id = transaction.get('payment_source_id')
+    payment_method_type = str(transaction.get('payment_method_type', '')).upper()
 
     if not txn_id:
         logger.warning('Webhook transaction.updated missing transaction ID')
@@ -142,8 +156,35 @@ def _handle_transaction_updated(data):
     except PaymentIntent.DoesNotExist:
         intent = None
 
+    if intent is None and txn_reference:
+        try:
+            intent = PaymentIntent.objects.select_related(
+                'customer', 'package',
+            ).get(reference=txn_reference, status=PaymentIntent.Status.PENDING)
+        except PaymentIntent.DoesNotExist:
+            intent = None
+
     if intent is not None:
-        _resolve_payment_intent(intent, txn_status)
+        update_fields = []
+        if txn_id and intent.wompi_transaction_id != txn_id:
+            intent.wompi_transaction_id = txn_id
+            update_fields.append('wompi_transaction_id')
+        if payment_source_id and not intent.payment_source_id:
+            intent.payment_source_id = str(payment_source_id)
+            update_fields.append('payment_source_id')
+        if update_fields:
+            intent.save(update_fields=update_fields + ['updated_at'])
+        if payment_method_type and payment_method_type not in ALLOWED_INITIAL_PAYMENT_METHOD_TYPES:
+            logger.warning(
+                'PaymentIntent %s uses unsupported method %s',
+                intent.pk,
+                payment_method_type,
+            )
+            intent.status = PaymentIntent.Status.FAILED
+            intent.pending_password_hash = ''
+            intent.save(update_fields=['status', 'pending_password_hash', 'updated_at'])
+            return
+        _resolve_payment_intent(intent, txn_status, payment_method_type)
         return
 
     # --- Path 2: Update an existing Payment (recurring billing) ---
@@ -162,7 +203,7 @@ def _handle_transaction_updated(data):
     _update_existing_payment(payment, txn_id, txn_status)
 
 
-def _resolve_payment_intent(intent, txn_status):
+def _resolve_payment_intent(intent, txn_status, payment_method_type=''):
     """Resolve a PaymentIntent based on webhook transaction status.
 
     On APPROVED: creates Payment + Subscription in a single atomic
@@ -173,6 +214,7 @@ def _resolve_payment_intent(intent, txn_status):
     Args:
         intent: PaymentIntent instance.
         txn_status: Wompi transaction status string.
+        payment_method_type: Wompi payment method type from the webhook.
     """
     if intent.status != PaymentIntent.Status.PENDING:
         logger.info(
@@ -181,13 +223,68 @@ def _resolve_payment_intent(intent, txn_status):
         )
         return
 
+    normalized_method = str(payment_method_type or '').upper()
+    is_recurring = (
+        normalized_method in RECURRING_PAYMENT_METHOD_TYPES
+        if normalized_method
+        else True
+    )
+
     if txn_status == 'APPROVED':
+        if is_recurring and not intent.payment_source_id:
+            logger.info(
+                'PaymentIntent %s has no reusable payment source; '
+                'approving as non-recurring',
+                intent.pk,
+            )
+            is_recurring = False
         now = timezone.now()
         package = intent.package
+        next_billing_date = None
+        if is_recurring:
+            next_billing_date = (now + timedelta(days=package.validity_days)).date()
+
+        customer = intent.customer
+        if customer is None:
+            if not intent.pending_email or not intent.pending_password_hash:
+                logger.error(
+                    'PaymentIntent %s approved without pending registration payload',
+                    intent.pk,
+                )
+                intent.status = PaymentIntent.Status.FAILED
+                intent.pending_password_hash = ''
+                intent.save(update_fields=['status', 'pending_password_hash', 'updated_at'])
+                return
+
+            try:
+                customer = User.objects.create(
+                    email=intent.pending_email,
+                    first_name=intent.pending_first_name,
+                    last_name=intent.pending_last_name,
+                    phone=intent.pending_phone,
+                    role=User.Role.CUSTOMER,
+                    password=intent.pending_password_hash,
+                )
+            except IntegrityError:
+                customer = User.objects.filter(email=intent.pending_email).first()
+                if customer is None:
+                    logger.error(
+                        'Failed to resolve customer for PaymentIntent %s (email=%s)',
+                        intent.pk,
+                        intent.pending_email,
+                    )
+                    intent.status = PaymentIntent.Status.FAILED
+                    intent.pending_password_hash = ''
+                    intent.save(update_fields=['status', 'pending_password_hash', 'updated_at'])
+                    return
+
+            intent.customer = customer
+            intent.pending_password_hash = ''
+            intent.save(update_fields=['customer', 'pending_password_hash', 'updated_at'])
 
         with db_transaction.atomic():
             subscription = Subscription.objects.create(
-                customer=intent.customer,
+                customer=customer,
                 package=package,
                 sessions_total=package.sessions_count,
                 sessions_used=0,
@@ -195,14 +292,14 @@ def _resolve_payment_intent(intent, txn_status):
                 starts_at=now,
                 expires_at=now + timedelta(days=package.validity_days),
                 payment_source_id=intent.payment_source_id,
+                payment_method_type=normalized_method,
+                is_recurring=is_recurring,
                 wompi_transaction_id=intent.wompi_transaction_id,
-                next_billing_date=(
-                    now + timedelta(days=package.validity_days)
-                ).date(),
+                next_billing_date=next_billing_date,
             )
 
-            Payment.objects.create(
-                customer=intent.customer,
+            payment = Payment.objects.create(
+                customer=customer,
                 subscription=subscription,
                 amount=intent.amount,
                 currency=intent.currency,
@@ -224,9 +321,12 @@ def _resolve_payment_intent(intent, txn_status):
             intent.pk, subscription.pk, intent.wompi_transaction_id,
         )
 
+        send_payment_receipt(payment)
+
     elif txn_status in ('DECLINED', 'ERROR', 'VOIDED'):
         intent.status = PaymentIntent.Status.FAILED
-        intent.save(update_fields=['status', 'updated_at'])
+        intent.pending_password_hash = ''
+        intent.save(update_fields=['status', 'pending_password_hash', 'updated_at'])
         logger.warning(
             'PaymentIntent %s failed (txn %s, status %s)',
             intent.pk, intent.wompi_transaction_id, txn_status,
@@ -246,6 +346,8 @@ def _update_existing_payment(payment, txn_id, txn_status):
         payment.confirmed_at = timezone.now()
         payment.save(update_fields=['status', 'confirmed_at', 'updated_at'])
         logger.info('Payment %s confirmed via webhook (txn %s)', payment.pk, txn_id)
+
+        send_payment_receipt(payment)
 
     elif txn_status in ('DECLINED', 'ERROR'):
         payment.status = Payment.Status.FAILED

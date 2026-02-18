@@ -48,9 +48,6 @@ class TestSubscriptionWompiFields:
     def test_next_billing_date_defaults_to_none(self, subscription):
         assert subscription.next_billing_date is None
 
-    def test_paused_at_defaults_to_none(self, subscription):
-        assert subscription.paused_at is None
-
     def test_can_set_payment_source_id(self, subscription):
         subscription.payment_source_id = '12345'
         subscription.save()
@@ -63,33 +60,6 @@ class TestSubscriptionWompiFields:
         subscription.save()
         subscription.refresh_from_db()
         assert subscription.next_billing_date == billing_date
-
-
-@pytest.mark.django_db
-class TestSubscriptionPausedStatus:
-    def test_paused_status_exists(self):
-        assert 'paused' in [c[0] for c in Subscription.Status.choices]
-
-    def test_can_pause_subscription(self, subscription):
-        now = timezone.now()
-        subscription.status = Subscription.Status.PAUSED
-        subscription.paused_at = now
-        subscription.save()
-        subscription.refresh_from_db()
-        assert subscription.status == Subscription.Status.PAUSED
-        assert subscription.paused_at is not None
-
-    def test_can_resume_subscription(self, subscription):
-        subscription.status = Subscription.Status.PAUSED
-        subscription.paused_at = timezone.now()
-        subscription.save()
-
-        subscription.status = Subscription.Status.ACTIVE
-        subscription.paused_at = None
-        subscription.save()
-        subscription.refresh_from_db()
-        assert subscription.status == Subscription.Status.ACTIVE
-        assert subscription.paused_at is None
 
 
 @pytest.mark.django_db

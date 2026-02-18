@@ -3,17 +3,28 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useAuthStore } from '@/lib/stores/authStore';
 
 const navLinks = [
   { href: '/', label: 'Inicio' },
   { href: '/kore-brand', label: 'La Marca' },
   { href: '/programs', label: 'Programas' },
+  { href: '/faq', label: 'FAQ' },
+  { href: '/contact', label: 'Contacto' },
 ];
 
 export default function Navbar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { isAuthenticated, hydrate } = useAuthStore();
+
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
+
+  const desktopCtaHref = isAuthenticated ? '/dashboard' : '/login';
+  const desktopCtaLabel = isAuthenticated ? 'Mi sesión' : 'Iniciar sesión';
 
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href);
@@ -62,10 +73,10 @@ export default function Navbar() {
         {/* CTA Desktop */}
         <div className="hidden md:block shrink-0">
           <Link
-            href="/login"
+            href={desktopCtaHref}
             className="inline-flex items-center justify-center border-2 border-kore-red text-kore-red hover:bg-kore-red hover:text-white font-medium text-sm px-6 py-2.5 rounded-lg transition-colors duration-200"
           >
-            Iniciar sesión
+            {desktopCtaLabel}
           </Link>
         </div>
 
@@ -117,11 +128,11 @@ export default function Navbar() {
           ))}
           <li className="pt-2">
             <Link
-              href="/login"
+              href={desktopCtaHref}
               onClick={() => setMobileOpen(false)}
               className="inline-flex items-center justify-center border-2 border-kore-red text-kore-red hover:bg-kore-red hover:text-white font-medium text-sm px-6 py-2.5 rounded-lg transition-colors duration-200"
             >
-              Iniciar sesión
+              {desktopCtaLabel}
             </Link>
           </li>
         </ul>

@@ -18,10 +18,9 @@ class BookingSerializer(serializers.ModelSerializer):
     Validations enforced on create:
     - Slot must be active, unblocked, and in the future.
     - Slot must not already be booked.
-    - Customer must not have another pending/confirmed future booking
-      ("only next session" rule).
     - No time-overlap with the customer's other active bookings.
     - If a subscription is provided, it must have remaining sessions.
+    - New session must start after the end of the last session in the same subscription.
     """
 
     customer_id = serializers.IntegerField(read_only=True, source='customer.id')
@@ -88,10 +87,9 @@ class BookingSerializer(serializers.ModelSerializer):
 
         Checks performed:
         1. Slot is active, unblocked, future, and not already booked.
-        2. "Only next session" — customer has no pending/confirmed future booking.
-        3. Anti-overlap — requested slot does not overlap another active booking
+        2. Anti-overlap — requested slot does not overlap another active booking
            of the same customer.
-        4. Subscription (if provided) has remaining sessions.
+        3. Subscription (if provided) has remaining sessions.
 
         Returns:
             dict: Validated attributes.
@@ -107,14 +105,16 @@ class BookingSerializer(serializers.ModelSerializer):
             self._validate_slot_available(slot)
 
         if customer and customer.is_authenticated and slot:
-            self._validate_only_next_session(customer)
             self._validate_no_overlap(customer, slot)
 
         subscription = attrs.get('subscription')
         if subscription and subscription.sessions_remaining <= 0:
             raise serializers.ValidationError(
-                {'subscription_id': 'Subscription has no remaining sessions.'}
+                {'subscription_id': 'La suscripción no tiene sesiones disponibles.'}
             )
+
+        if subscription and slot:
+            self._validate_chronological_order(subscription, slot)
 
         return attrs
 
@@ -129,33 +129,13 @@ class BookingSerializer(serializers.ModelSerializer):
             serializers.ValidationError: If the slot cannot be booked.
         """
         if not slot.is_active:
-            raise serializers.ValidationError({'slot_id': 'Slot is not active.'})
+            raise serializers.ValidationError({'slot_id': 'El horario no está activo.'})
         if slot.is_blocked:
-            raise serializers.ValidationError({'slot_id': 'Slot is blocked.'})
+            raise serializers.ValidationError({'slot_id': 'El horario está bloqueado.'})
         if slot.ends_at <= timezone.now():
-            raise serializers.ValidationError({'slot_id': 'Slot is in the past.'})
+            raise serializers.ValidationError({'slot_id': 'El horario ya pasó.'})
         if Booking.objects.filter(slot=slot).exclude(status=Booking.Status.CANCELED).exists():
-            raise serializers.ValidationError({'slot_id': 'Slot is already booked.'})
-
-    @staticmethod
-    def _validate_only_next_session(customer):
-        """Ensure the customer does not already have a future active booking.
-
-        Args:
-            customer: User instance.
-
-        Raises:
-            serializers.ValidationError: If a future active booking exists.
-        """
-        has_active_future = Booking.objects.filter(
-            customer=customer,
-            status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
-            slot__ends_at__gt=timezone.now(),
-        ).exists()
-        if has_active_future:
-            raise serializers.ValidationError(
-                {'non_field_errors': 'You already have an upcoming session. Cancel or complete it before booking another.'}
-            )
+            raise serializers.ValidationError({'slot_id': 'El horario ya está reservado.'})
 
     @staticmethod
     def _validate_no_overlap(customer, slot):
@@ -176,7 +156,28 @@ class BookingSerializer(serializers.ModelSerializer):
         ).exists()
         if overlapping:
             raise serializers.ValidationError(
-                {'slot_id': 'This time overlaps with another active booking.'}
+                {'slot_id': 'Este horario se cruza con otra reserva activa.'}
+            )
+
+    @staticmethod
+    def _validate_chronological_order(subscription, slot):
+        """Ensure the new session starts after the end of the last session in the same subscription.
+
+        Args:
+            subscription: Subscription instance.
+            slot: AvailabilitySlot to check against.
+
+        Raises:
+            serializers.ValidationError: If the slot starts before the last session ends.
+        """
+        last_booking = Booking.objects.filter(
+            subscription=subscription,
+            status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
+        ).select_related('slot').order_by('-slot__ends_at').first()
+
+        if last_booking and slot.starts_at < last_booking.slot.ends_at:
+            raise serializers.ValidationError(
+                {'slot_id': 'La sesión debe iniciar después del final de la última sesión del programa.'}
             )
 
     # ------------------------------------------------------------------
@@ -203,7 +204,7 @@ class BookingSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         customer = getattr(request, 'user', None)
         if not customer or not customer.is_authenticated:
-            raise serializers.ValidationError('Authentication required.')
+            raise serializers.ValidationError('Autenticación requerida.')
 
         slot = validated_data['slot']
         subscription = validated_data.get('subscription')
@@ -216,7 +217,7 @@ class BookingSerializer(serializers.ModelSerializer):
                 or slot.ends_at <= timezone.now()
                 or Booking.objects.filter(slot=slot).exclude(status=Booking.Status.CANCELED).exists()
             ):
-                raise serializers.ValidationError({'slot_id': 'Slot is not available.'})
+                raise serializers.ValidationError({'slot_id': 'El horario no está disponible.'})
 
             slot.is_blocked = True
             slot.save(update_fields=['is_blocked'])
@@ -225,7 +226,7 @@ class BookingSerializer(serializers.ModelSerializer):
                 sub = Subscription.objects.select_for_update().get(pk=subscription.pk)
                 if sub.sessions_remaining <= 0:
                     raise serializers.ValidationError(
-                        {'subscription_id': 'Subscription has no remaining sessions.'}
+                        {'subscription_id': 'La suscripción no tiene sesiones disponibles.'}
                     )
                 sub.sessions_used = db_models.F('sessions_used') + 1
                 sub.save(update_fields=['sessions_used'])
@@ -233,7 +234,7 @@ class BookingSerializer(serializers.ModelSerializer):
 
             booking = Booking.objects.create(
                 customer=customer,
-                status=Booking.Status.CONFIRMED,
+                status=Booking.Status.PENDING,
                 **validated_data,
             )
 

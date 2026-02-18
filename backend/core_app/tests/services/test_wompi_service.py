@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from django.test import override_settings
 
+from core_project.settings import _resolve_wompi_base_url
 from core_app.services.wompi_service import (
     WompiError,
     create_payment_source,
@@ -13,6 +14,7 @@ from core_app.services.wompi_service import (
     generate_integrity_signature,
     generate_reference,
     get_acceptance_token,
+    get_transaction_by_id,
     verify_event_checksum,
 )
 
@@ -284,3 +286,41 @@ class TestCreateTransactionErrors:
 
         with pytest.raises(WompiError, match='Failed to create transaction'):
             create_transaction(5000000, 'COP', 'u@e.com', 'ref-err', 9999)
+
+
+class TestGetTransactionById:
+    @override_settings(**WOMPI_SETTINGS)
+    @patch('core_app.services.wompi_service.requests.get')
+    def test_returns_transaction_data(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status.return_value = None
+        mock_resp.json.return_value = {
+            'data': {'id': 'txn-123', 'status': 'APPROVED', 'payment_method_type': 'CARD'}
+        }
+        mock_get.return_value = mock_resp
+
+        txn = get_transaction_by_id('txn-123')
+
+        assert txn['id'] == 'txn-123'
+        mock_get.assert_called_once()
+
+    @override_settings(**WOMPI_SETTINGS)
+    @patch('core_app.services.wompi_service.requests.get')
+    def test_raises_wompi_error_on_request_failure(self, mock_get):
+        import requests as req
+        mock_resp = MagicMock()
+        mock_resp.status_code = 500
+        mock_get.side_effect = req.HTTPError('server error', response=mock_resp)
+
+        with pytest.raises(WompiError, match='Failed to fetch transaction'):
+            get_transaction_by_id('txn-500')
+
+
+class TestResolveWompiBaseUrl:
+    @pytest.mark.parametrize('environment', ['test', 'sandbox', 'uat'])
+    def test_sandbox_aliases_use_sandbox_base_url(self, environment):
+        assert _resolve_wompi_base_url(environment) == 'https://sandbox.wompi.co/v1'
+
+    @pytest.mark.parametrize('environment', ['production', 'prod', '', None])
+    def test_non_sandbox_values_use_production_base_url(self, environment):
+        assert _resolve_wompi_base_url(environment) == 'https://production.wompi.co/v1'

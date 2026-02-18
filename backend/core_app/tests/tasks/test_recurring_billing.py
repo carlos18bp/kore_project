@@ -112,10 +112,10 @@ class TestProcessRecurringBilling:
 
     @patch('core_app.tasks.create_transaction')
     @patch('core_app.tasks.generate_reference')
-    def test_skips_paused_subscriptions(
+    def test_skips_non_recurring_subscriptions(
         self, mock_ref, mock_txn, due_subscription
     ):
-        due_subscription.status = Subscription.Status.PAUSED
+        due_subscription.is_recurring = False
         due_subscription.save()
 
         result = process_recurring_billing()

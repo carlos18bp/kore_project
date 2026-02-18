@@ -19,11 +19,14 @@ class Subscription(TimestampedModel):
         status: Current lifecycle state (active / expired / canceled).
         starts_at: When the subscription becomes valid.
         expires_at: When the subscription expires.
+        payment_method_type: Wompi payment method used for the initial charge.
+        is_recurring: Whether the subscription can be auto-renewed.
+        expiry_email_sent_at: Timestamp when the expiry email reminder was sent.
+        expiry_ui_sent_at: Timestamp when the expiry UI reminder was shown.
     """
 
     class Status(models.TextChoices):
         ACTIVE = 'active', 'Active'
-        PAUSED = 'paused', 'Paused'
         EXPIRED = 'expired', 'Expired'
         CANCELED = 'canceled', 'Canceled'
 
@@ -56,6 +59,16 @@ class Subscription(TimestampedModel):
         blank=True,
         help_text='Wompi payment source ID for recurring charges.',
     )
+    payment_method_type = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        help_text='Wompi payment method type for the initial charge.',
+    )
+    is_recurring = models.BooleanField(
+        default=True,
+        help_text='Whether the subscription should be auto-renewed.',
+    )
     wompi_transaction_id = models.CharField(
         max_length=255,
         blank=True,
@@ -66,10 +79,15 @@ class Subscription(TimestampedModel):
         blank=True,
         help_text='Date of the next automatic recurring charge.',
     )
-    paused_at = models.DateTimeField(
+    expiry_email_sent_at = models.DateTimeField(
         null=True,
         blank=True,
-        help_text='Timestamp when the subscription was paused.',
+        help_text='Timestamp when the expiry email reminder was sent.',
+    )
+    expiry_ui_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Timestamp when the expiry UI reminder was shown.',
     )
 
     class Meta:

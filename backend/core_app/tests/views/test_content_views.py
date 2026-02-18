@@ -3,7 +3,7 @@ import pytest
 from django.urls import reverse
 from rest_framework import status
 
-from core_app.models import FAQItem, SiteSettings
+from core_app.models import ContactMessage, FAQCategory, FAQItem, SiteSettings
 from core_app.tests.helpers import get_results
 
 
@@ -73,3 +73,78 @@ class TestFAQItemViewSet:
         response = api_client.post(url, {'question': 'New Q?', 'answer': 'New A.'}, format='json')
         assert response.status_code == status.HTTP_201_CREATED
         assert FAQItem.objects.filter(question='New Q?').exists()
+
+
+@pytest.mark.django_db
+class TestFAQCategoryViewSet:
+    def test_list_public_shows_only_active_categories(self, api_client):
+        FAQCategory.objects.create(name='Active', slug='active', is_active=True)
+        FAQCategory.objects.create(name='Inactive', slug='inactive', is_active=False)
+
+        url = reverse('faq-category-list')
+        response = api_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        names = {category['name'] for category in get_results(response.data)}
+        assert names == {'Active'}
+
+    def test_list_admin_shows_all_categories(self, api_client, admin_user):
+        FAQCategory.objects.create(name='Active', slug='active', is_active=True)
+        FAQCategory.objects.create(name='Inactive', slug='inactive', is_active=False)
+
+        api_client.force_authenticate(user=admin_user)
+        url = reverse('faq-category-list')
+        response = api_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(get_results(response.data)) == 2
+
+
+@pytest.mark.django_db
+class TestFAQPublicGrouped:
+    def test_public_grouped_returns_categories_and_uncategorized_items(self, api_client):
+        category = FAQCategory.objects.create(name='General', slug='general', is_active=True, order=1)
+        empty_category = FAQCategory.objects.create(name='Empty', slug='empty', is_active=True, order=2)
+        FAQItem.objects.create(category=category, question='Q1', answer='A1', is_active=True, order=1)
+        FAQItem.objects.create(category=category, question='Q2', answer='A2', is_active=False, order=2)
+        FAQItem.objects.create(category=None, question='Q3', answer='A3', is_active=True, order=1)
+
+        url = reverse('faq-public')
+        response = api_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        groups = response.data
+        category_ids = {group['category']['id'] for group in groups if group['category']}
+        uncategorized_groups = [group for group in groups if group['category'] is None]
+
+        assert category.id in category_ids
+        assert empty_category.id not in category_ids
+        assert len(uncategorized_groups) == 1
+        assert {item['question'] for item in uncategorized_groups[0]['items']} == {'Q3'}
+
+
+@pytest.mark.django_db
+class TestContactMessageViewSet:
+    def test_create_allows_anonymous(self, api_client):
+        url = reverse('contact-message-list')
+        response = api_client.post(
+            url,
+            {'name': 'Ana', 'email': 'ana@example.com', 'phone': '300', 'message': 'Hola'},
+            format='json',
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data['detail'] == 'Mensaje recibido correctamente.'
+        assert ContactMessage.objects.filter(email='ana@example.com').exists()
+        assert ContactMessage.objects.get(email='ana@example.com').status == ContactMessage.Status.NEW
+
+    def test_list_requires_admin(self, api_client, existing_user):
+        ContactMessage.objects.create(
+            name='Ana', email='ana@example.com', phone='300', message='Hola',
+        )
+
+        api_client.force_authenticate(user=existing_user)
+        url = reverse('contact-message-list')
+        response = api_client.get(url)
+
+        assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)

@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Navbar from '@/app/components/layouts/Navbar';
+import { useAuthStore } from '@/lib/stores/authStore';
 
 jest.mock('next/image', () => ({
   __esModule: true,
@@ -22,6 +23,13 @@ jest.mock('next/link', () => ({
 describe('Navbar', () => {
   beforeEach(() => {
     mockPathname = '/';
+    useAuthStore.setState({
+      user: null,
+      accessToken: null,
+      isAuthenticated: false,
+      hydrated: true,
+      justLoggedIn: false,
+    });
   });
 
   it('renders the brand logo and name', () => {
@@ -35,11 +43,26 @@ describe('Navbar', () => {
     expect(screen.getAllByText('Inicio').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('La Marca').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Programas').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('FAQ').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Contacto').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders the login CTA button', () => {
     render(<Navbar />);
     expect(screen.getAllByText('Iniciar sesión').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders the dashboard CTA button when authenticated', () => {
+    useAuthStore.setState({
+      user: { id: '1', email: 'auth@kore.com', first_name: 'Auth', last_name: 'User', phone: '', role: 'customer', name: 'Auth User' },
+      accessToken: 'token',
+      isAuthenticated: true,
+      hydrated: true,
+      justLoggedIn: false,
+    });
+    render(<Navbar />);
+    const ctaLink = screen.getAllByText('Mi sesión')[0].closest('a');
+    expect(ctaLink).toHaveAttribute('href', '/dashboard');
   });
 
   it('toggles mobile menu on button click', async () => {

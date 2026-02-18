@@ -2,6 +2,7 @@ import Cookies from 'js-cookie';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { api } from '@/lib/services/http';
 import { AxiosError, AxiosHeaders } from 'axios';
+import { waitFor } from '@testing-library/react';
 
 jest.mock('js-cookie', () => ({
   get: jest.fn(),
@@ -10,7 +11,7 @@ jest.mock('js-cookie', () => ({
 }));
 
 jest.mock('@/lib/services/http', () => ({
-  api: { post: jest.fn() },
+  api: { post: jest.fn(), get: jest.fn() },
 }));
 
 const mockedCookies = Cookies as jest.Mocked<typeof Cookies>;
@@ -36,6 +37,7 @@ function resetStore() {
     user: null,
     accessToken: null,
     isAuthenticated: false,
+    hydrated: false,
   });
 }
 
@@ -74,7 +76,7 @@ describe('authStore', () => {
 
     it('returns error and does not change state on invalid credentials', async () => {
       const axiosError = new AxiosError('Request failed', '400', undefined, undefined, {
-        data: { non_field_errors: ['Invalid credentials.'] },
+        data: { non_field_errors: ['Credenciales inválidas.'] },
         status: 400,
         statusText: 'Bad Request',
         headers: {},
@@ -85,7 +87,7 @@ describe('authStore', () => {
       const { login } = useAuthStore.getState();
       const result = await login('wrong@email.com', 'wrong');
 
-      expect(result).toEqual({ success: false, error: 'Invalid credentials.' });
+      expect(result).toEqual({ success: false, error: 'Credenciales inválidas.' });
 
       const state = useAuthStore.getState();
       expect(state.isAuthenticated).toBe(false);
@@ -137,6 +139,7 @@ describe('authStore', () => {
       expect(mockedCookies.remove).toHaveBeenCalledWith('kore_token');
       expect(mockedCookies.remove).toHaveBeenCalledWith('kore_refresh');
       expect(mockedCookies.remove).toHaveBeenCalledWith('kore_user');
+      expect(mockedApi.get).not.toHaveBeenCalled();
     });
   });
 
@@ -162,7 +165,7 @@ describe('authStore', () => {
 
     it('returns first array error from response data', async () => {
       const axiosError = new AxiosError('fail', '400', undefined, undefined, {
-        data: { email: ['Email already exists.'] },
+        data: { email: ['Ya existe una cuenta con este correo.'] },
         status: 400,
         statusText: 'Bad Request',
         headers: {},
@@ -174,12 +177,12 @@ describe('authStore', () => {
         email: 'dup@kore.com', password: 'p', password_confirm: 'p',
         first_name: 'A', last_name: 'B',
       });
-      expect(result).toEqual({ success: false, error: 'Email already exists.' });
+      expect(result).toEqual({ success: false, error: 'Ya existe una cuenta con este correo.' });
     });
 
     it('returns string error from response data', async () => {
       const axiosError = new AxiosError('fail', '400', undefined, undefined, {
-        data: { detail: 'Registration disabled.' },
+        data: { detail: 'El registro está deshabilitado.' },
         status: 400,
         statusText: 'Bad Request',
         headers: {},
@@ -191,7 +194,7 @@ describe('authStore', () => {
         email: 'x@kore.com', password: 'p', password_confirm: 'p',
         first_name: 'A', last_name: 'B',
       });
-      expect(result).toEqual({ success: false, error: 'Registration disabled.' });
+      expect(result).toEqual({ success: false, error: 'El registro está deshabilitado.' });
     });
 
     it('returns generic error when no response data', async () => {
@@ -206,28 +209,77 @@ describe('authStore', () => {
   });
 
   describe('hydrate', () => {
-    it('restores session from valid cookies', () => {
-      const mockUser = {
-        id: '22',
-        email: 'customer10@kore.com',
-        first_name: 'Customer10',
-        last_name: 'Kore',
-        phone: '',
-        role: 'customer',
-        name: 'Customer10 Kore',
-      };
-      mockedCookies.get.mockImplementation((key: string) => {
-        if (key === 'kore_token') return 'some-token';
-        if (key === 'kore_user') return JSON.stringify(mockUser);
-        return undefined;
+    it('marks hydrated when already authenticated and skips profile lookup', () => {
+      useAuthStore.setState({
+        user: {
+          id: '22',
+          email: 'customer10@kore.com',
+          first_name: 'Customer10',
+          last_name: 'Kore',
+          phone: '',
+          role: 'customer',
+          name: 'Customer10 Kore',
+        },
+        accessToken: 'token-123',
+        isAuthenticated: true,
+        hydrated: false,
       });
 
       useAuthStore.getState().hydrate();
 
       const state = useAuthStore.getState();
-      expect(state.isAuthenticated).toBe(true);
-      expect(state.accessToken).toBe('some-token');
-      expect(state.user).toEqual(mockUser);
+      expect(state.hydrated).toBe(true);
+      expect(mockedApi.get).not.toHaveBeenCalled();
+    });
+
+    it('restores session from valid cookies after backend profile check', async () => {
+      mockedCookies.get.mockImplementation((key: string) => {
+        if (key === 'kore_token') return 'some-token';
+        if (key === 'kore_user') return JSON.stringify({
+          id: '22',
+          email: 'customer10@kore.com',
+          first_name: 'Customer10',
+          last_name: 'Kore',
+          phone: '',
+          role: 'customer',
+          name: 'Customer10 Kore',
+        });
+        return undefined;
+      });
+
+      mockedApi.get.mockResolvedValueOnce({
+        data: {
+          user: {
+            id: 22,
+            email: 'customer10@kore.com',
+            first_name: 'Customer10',
+            last_name: 'Kore',
+            phone: '',
+            role: 'customer',
+          },
+        },
+      });
+
+      useAuthStore.getState().hydrate();
+
+      await waitFor(() => {
+        const state = useAuthStore.getState();
+        expect(state.isAuthenticated).toBe(true);
+        expect(state.accessToken).toBe('some-token');
+        expect(state.user).toEqual({
+          id: '22',
+          email: 'customer10@kore.com',
+          first_name: 'Customer10',
+          last_name: 'Kore',
+          phone: '',
+          role: 'customer',
+          name: 'Customer10 Kore',
+        });
+      });
+
+      expect(mockedApi.get).toHaveBeenCalledWith('/auth/profile/', {
+        headers: { Authorization: 'Bearer some-token' },
+      });
     });
 
     it('clears cookies when user JSON is corrupted', () => {
@@ -254,6 +306,7 @@ describe('authStore', () => {
       const state = useAuthStore.getState();
       expect(state.isAuthenticated).toBe(false);
       expect(state.user).toBeNull();
+      expect(mockedApi.get).not.toHaveBeenCalled();
     });
 
     it('does nothing when token exists but user cookie is missing', () => {
@@ -266,6 +319,50 @@ describe('authStore', () => {
 
       const state = useAuthStore.getState();
       expect(state.isAuthenticated).toBe(false);
+      expect(mockedApi.get).not.toHaveBeenCalled();
+    });
+
+    it('clears stale auth when backend profile validation fails', async () => {
+      mockedCookies.get.mockImplementation((key: string) => {
+        if (key === 'kore_token') return 'stale-token';
+        if (key === 'kore_user') {
+          return JSON.stringify({
+            id: '99',
+            email: 'stale@example.com',
+            first_name: 'Stale',
+            last_name: 'User',
+            phone: '',
+            role: 'customer',
+            name: 'Stale User',
+          });
+        }
+        return undefined;
+      });
+      mockedApi.get.mockRejectedValueOnce(new Error('Unauthorized'));
+
+      useAuthStore.getState().hydrate();
+
+      await waitFor(() => {
+        const state = useAuthStore.getState();
+        expect(state.isAuthenticated).toBe(false);
+        expect(state.user).toBeNull();
+        expect(state.accessToken).toBeNull();
+        expect(state.hydrated).toBe(true);
+      });
+
+      expect(mockedCookies.remove).toHaveBeenCalledWith('kore_token');
+      expect(mockedCookies.remove).toHaveBeenCalledWith('kore_refresh');
+      expect(mockedCookies.remove).toHaveBeenCalledWith('kore_user');
+    });
+  });
+
+  describe('clearJustLoggedIn', () => {
+    it('clears justLoggedIn state', () => {
+      useAuthStore.setState({ justLoggedIn: true });
+
+      useAuthStore.getState().clearJustLoggedIn();
+
+      expect(useAuthStore.getState().justLoggedIn).toBe(false);
     });
   });
 });

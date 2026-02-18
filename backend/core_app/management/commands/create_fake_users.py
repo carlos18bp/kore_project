@@ -18,9 +18,9 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('--customers', type=int, default=20)
-        parser.add_argument('--customer-password', type=str, default='customer123456')
+        parser.add_argument('--customer-password', type=str, default='ogthsv25')
         parser.add_argument('--admin-email', type=str, default='admin@kore.com')
-        parser.add_argument('--admin-password', type=str, default='admin123456')
+        parser.add_argument('--admin-password', type=str, default='ogthsv25')
         parser.add_argument('--no-admin', action='store_true', default=False)
 
     def handle(self, *args, **options):

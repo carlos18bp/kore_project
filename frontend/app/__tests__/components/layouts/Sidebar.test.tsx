@@ -111,4 +111,31 @@ describe('Sidebar', () => {
     const backdrop = container.querySelector('div[class*="bg-black/30"]');
     expect(backdrop).toHaveClass('cursor-pointer');
   });
+
+  it('closes the mobile menu when backdrop is clicked', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<Sidebar />);
+    const aside = container.querySelector('aside');
+
+    await user.click(screen.getByLabelText('Abrir menú'));
+    expect(aside).toHaveClass('translate-x-0');
+
+    const backdrop = container.querySelector('div[class*="bg-black/30"]');
+    expect(backdrop).not.toBeNull();
+    await user.click(backdrop!);
+
+    expect(aside).toHaveClass('-translate-x-full');
+  });
+
+  it('closes the mobile menu when the close button is clicked', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<Sidebar />);
+    const aside = container.querySelector('aside');
+
+    await user.click(screen.getByLabelText('Abrir menú'));
+    expect(aside).toHaveClass('translate-x-0');
+
+    await user.click(screen.getByLabelText('Cerrar menú'));
+    expect(aside).toHaveClass('-translate-x-full');
+  });
 });

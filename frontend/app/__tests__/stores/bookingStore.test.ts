@@ -31,6 +31,7 @@ function resetStore() {
     monthSlots: [],
     subscriptions: [],
     bookings: [],
+    bookingDetail: null,
     bookingsPagination: { count: 0, next: null, previous: null },
     upcomingReminder: null,
     loading: false,
@@ -172,7 +173,7 @@ describe('bookingStore', () => {
     it('sets error on failure', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
       await useBookingStore.getState().fetchTrainers();
-      expect(useBookingStore.getState().error).toBe('Error loading trainers.');
+      expect(useBookingStore.getState().error).toBe('No se pudieron cargar los entrenadores.');
     });
   });
 
@@ -204,7 +205,7 @@ describe('bookingStore', () => {
     it('sets error on failure', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('err'));
       await useBookingStore.getState().fetchSlots();
-      expect(useBookingStore.getState().error).toBe('Error loading slots.');
+      expect(useBookingStore.getState().error).toBe('No se pudieron cargar los horarios.');
     });
   });
 
@@ -212,8 +213,32 @@ describe('bookingStore', () => {
   // fetchMonthSlots
   // ----------------------------------------------------------------
   describe('fetchMonthSlots', () => {
-    it('populates monthSlots without date param', async () => {
-      mockedApi.get.mockResolvedValueOnce({ data: { results: [MOCK_SLOT], count: 1, next: null, previous: null } });
+    it('aggregates paginated month slots', async () => {
+      const secondSlot = {
+        ...MOCK_SLOT,
+        id: 6,
+        starts_at: '2025-03-02T10:00:00Z',
+        ends_at: '2025-03-02T11:00:00Z',
+      };
+      mockedApi.get
+        .mockResolvedValueOnce({
+          data: { results: [MOCK_SLOT], count: 2, next: '/availability-slots/?page=2', previous: null },
+        })
+        .mockResolvedValueOnce({
+          data: { results: [secondSlot], count: 2, next: null, previous: '/availability-slots/?page=1' },
+        });
+      await useBookingStore.getState().fetchMonthSlots(1);
+      expect(mockedApi.get).toHaveBeenNthCalledWith(1, '/availability-slots/', expect.objectContaining({
+        params: { trainer: '1' },
+      }));
+      expect(mockedApi.get).toHaveBeenNthCalledWith(2, '/availability-slots/?page=2', expect.objectContaining({
+        headers: { Authorization: 'Bearer fake-token' },
+      }));
+      expect(useBookingStore.getState().monthSlots).toEqual([MOCK_SLOT, secondSlot]);
+    });
+
+    it('populates monthSlots from flat array response', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: [MOCK_SLOT] });
       await useBookingStore.getState().fetchMonthSlots(1);
       expect(mockedApi.get).toHaveBeenCalledWith('/availability-slots/', expect.objectContaining({
         params: { trainer: '1' },
@@ -269,7 +294,7 @@ describe('bookingStore', () => {
     it('sets error on failure', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
       await useBookingStore.getState().fetchSubscriptions();
-      expect(useBookingStore.getState().error).toBe('Error loading subscriptions.');
+      expect(useBookingStore.getState().error).toBe('No se pudieron cargar las suscripciones.');
       expect(useBookingStore.getState().loading).toBe(false);
     });
   });
@@ -300,8 +325,39 @@ describe('bookingStore', () => {
     it('sets error on failure', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
       await useBookingStore.getState().fetchBookings();
-      expect(useBookingStore.getState().error).toBe('Error loading bookings.');
+      expect(useBookingStore.getState().error).toBe('No se pudieron cargar las reservas.');
       expect(useBookingStore.getState().loading).toBe(false);
+    });
+  });
+
+  // ----------------------------------------------------------------
+  // fetchBookingById
+  // ----------------------------------------------------------------
+  describe('fetchBookingById', () => {
+    it('uses cached booking when available', async () => {
+      useBookingStore.setState({ bookings: [MOCK_BOOKING] });
+      const result = await useBookingStore.getState().fetchBookingById(100);
+      expect(result).toEqual(MOCK_BOOKING);
+      expect(useBookingStore.getState().bookingDetail).toEqual(MOCK_BOOKING);
+      expect(mockedApi.get).not.toHaveBeenCalled();
+    });
+
+    it('fetches booking when not cached', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: MOCK_BOOKING });
+      const result = await useBookingStore.getState().fetchBookingById(100);
+      expect(result).toEqual(MOCK_BOOKING);
+      expect(useBookingStore.getState().bookingDetail).toEqual(MOCK_BOOKING);
+      expect(mockedApi.get).toHaveBeenCalledWith('/bookings/100/', {
+        headers: { Authorization: 'Bearer fake-token' },
+      });
+    });
+
+    it('sets error on failure', async () => {
+      mockedApi.get.mockRejectedValueOnce(new Error('Network'));
+      const result = await useBookingStore.getState().fetchBookingById(100);
+      expect(result).toBeNull();
+      expect(useBookingStore.getState().bookingDetail).toBeNull();
+      expect(useBookingStore.getState().error).toBe('No se pudo cargar la reserva.');
     });
   });
 
@@ -317,6 +373,12 @@ describe('bookingStore', () => {
 
     it('sets null when response data has no id', async () => {
       mockedApi.get.mockResolvedValueOnce({ data: {} });
+      await useBookingStore.getState().fetchUpcomingReminder();
+      expect(useBookingStore.getState().upcomingReminder).toBeNull();
+    });
+
+    it('sets null when 204 returns empty body', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: '' });
       await useBookingStore.getState().fetchUpcomingReminder();
       expect(useBookingStore.getState().upcomingReminder).toBeNull();
     });
@@ -363,14 +425,56 @@ describe('bookingStore', () => {
       mockedApi.post.mockRejectedValueOnce(new Error('Network'));
       const result = await useBookingStore.getState().createBooking({ package_id: 1, slot_id: 5 });
       expect(result).toBeNull();
-      expect(useBookingStore.getState().error).toBe('Error creating booking.');
+      expect(useBookingStore.getState().error).toBe('No se pudo crear la reserva.');
     });
 
-    it('uses generic error when detail is not a string', async () => {
+    it('extracts first element when detail is an array', async () => {
       mockedApi.post.mockRejectedValueOnce({ response: { data: { detail: ['array error'] } } });
       const result = await useBookingStore.getState().createBooking({ package_id: 1, slot_id: 5 });
       expect(result).toBeNull();
-      expect(useBookingStore.getState().error).toBe('Error creating booking.');
+      expect(useBookingStore.getState().error).toBe('array error');
+    });
+
+    it('extracts first element when non_field_errors is an array', async () => {
+      mockedApi.post.mockRejectedValueOnce({ response: { data: { non_field_errors: ['No puedes reservar este horario.'] } } });
+      const result = await useBookingStore.getState().createBooking({ package_id: 1, slot_id: 5 });
+      expect(result).toBeNull();
+      expect(useBookingStore.getState().error).toBe('No puedes reservar este horario.');
+    });
+
+    it('extracts slot_id field error as string', async () => {
+      mockedApi.post.mockRejectedValueOnce({ response: { data: { slot_id: 'El horario está bloqueado.' } } });
+      const result = await useBookingStore.getState().createBooking({ package_id: 1, slot_id: 5 });
+      expect(result).toBeNull();
+      expect(useBookingStore.getState().error).toBe('El horario está bloqueado.');
+    });
+
+    it('extracts slot_id field error from array', async () => {
+      mockedApi.post.mockRejectedValueOnce({ response: { data: { slot_id: ['El horario no está activo.'] } } });
+      const result = await useBookingStore.getState().createBooking({ package_id: 1, slot_id: 5 });
+      expect(result).toBeNull();
+      expect(useBookingStore.getState().error).toBe('El horario no está activo.');
+    });
+
+    it('extracts subscription_id field error', async () => {
+      mockedApi.post.mockRejectedValueOnce({ response: { data: { subscription_id: ['La suscripción no tiene sesiones disponibles.'] } } });
+      const result = await useBookingStore.getState().createBooking({ package_id: 1, slot_id: 5 });
+      expect(result).toBeNull();
+      expect(useBookingStore.getState().error).toBe('La suscripción no tiene sesiones disponibles.');
+    });
+
+    it('extracts package_id field error', async () => {
+      mockedApi.post.mockRejectedValueOnce({ response: { data: { package_id: ['Invalid pk'] } } });
+      const result = await useBookingStore.getState().createBooking({ package_id: 999, slot_id: 5 });
+      expect(result).toBeNull();
+      expect(useBookingStore.getState().error).toBe('Invalid pk');
+    });
+
+    it('uses generic error for unknown field errors', async () => {
+      mockedApi.post.mockRejectedValueOnce({ response: { data: { unknown_field: ['Some error'] } } });
+      const result = await useBookingStore.getState().createBooking({ package_id: 1, slot_id: 5 });
+      expect(result).toBeNull();
+      expect(useBookingStore.getState().error).toBe('No se pudo crear la reserva.');
     });
   });
 
@@ -386,25 +490,33 @@ describe('bookingStore', () => {
       expect(mockedApi.post).toHaveBeenCalledWith('/bookings/100/cancel/', { canceled_reason: 'Personal' }, expect.anything());
     });
 
+    it('updates bookingDetail when canceling matching booking', async () => {
+      const canceled = { ...MOCK_BOOKING, status: 'canceled' as const, canceled_reason: 'Personal' };
+      useBookingStore.setState({ bookingDetail: MOCK_BOOKING });
+      mockedApi.post.mockResolvedValueOnce({ data: canceled });
+      await useBookingStore.getState().cancelBooking(100, 'Personal');
+      expect(useBookingStore.getState().bookingDetail).toEqual(canceled);
+    });
+
     it('sets error on 24h policy violation', async () => {
-      mockedApi.post.mockRejectedValueOnce({ response: { data: { detail: 'Cannot cancel within 24 hours.' } } });
+      mockedApi.post.mockRejectedValueOnce({ response: { data: { detail: 'No puedes cancelar con menos de 24 horas de anticipación.' } } });
       const result = await useBookingStore.getState().cancelBooking(100);
       expect(result).toBeNull();
-      expect(useBookingStore.getState().error).toBe('Cannot cancel within 24 hours.');
+      expect(useBookingStore.getState().error).toBe('No puedes cancelar con menos de 24 horas de anticipación.');
     });
 
     it('uses generic error when no detail in response', async () => {
       mockedApi.post.mockRejectedValueOnce(new Error('Network'));
       const result = await useBookingStore.getState().cancelBooking(100);
       expect(result).toBeNull();
-      expect(useBookingStore.getState().error).toBe('Error canceling booking.');
+      expect(useBookingStore.getState().error).toBe('No se pudo cancelar la reserva.');
     });
 
     it('uses generic error when detail is not a string', async () => {
       mockedApi.post.mockRejectedValueOnce({ response: { data: { detail: ['array error'] } } });
       const result = await useBookingStore.getState().cancelBooking(100);
       expect(result).toBeNull();
-      expect(useBookingStore.getState().error).toBe('Error canceling booking.');
+      expect(useBookingStore.getState().error).toBe('No se pudo cancelar la reserva.');
     });
 
     it('sends empty body when no reason provided', async () => {
@@ -424,28 +536,30 @@ describe('bookingStore', () => {
       mockedApi.post.mockResolvedValueOnce({ data: newBooking });
       const result = await useBookingStore.getState().rescheduleBooking(100, 10);
       expect(result).toEqual(newBooking);
+      expect(useBookingStore.getState().bookingResult).toEqual(newBooking);
+      expect(useBookingStore.getState().step).toBe(3);
       expect(mockedApi.post).toHaveBeenCalledWith('/bookings/100/reschedule/', { new_slot_id: 10 }, expect.anything());
     });
 
     it('sets error on failure', async () => {
-      mockedApi.post.mockRejectedValueOnce({ response: { data: { detail: 'Cannot reschedule.' } } });
+      mockedApi.post.mockRejectedValueOnce({ response: { data: { detail: 'No se pudo reprogramar la reserva.' } } });
       const result = await useBookingStore.getState().rescheduleBooking(100, 10);
       expect(result).toBeNull();
-      expect(useBookingStore.getState().error).toBe('Cannot reschedule.');
+      expect(useBookingStore.getState().error).toBe('No se pudo reprogramar la reserva.');
     });
 
     it('uses generic error when no detail in response', async () => {
       mockedApi.post.mockRejectedValueOnce(new Error('Network'));
       const result = await useBookingStore.getState().rescheduleBooking(100, 10);
       expect(result).toBeNull();
-      expect(useBookingStore.getState().error).toBe('Error rescheduling booking.');
+      expect(useBookingStore.getState().error).toBe('No se pudo reprogramar la reserva.');
     });
 
     it('uses generic error when detail is not a string', async () => {
       mockedApi.post.mockRejectedValueOnce({ response: { data: { detail: ['array error'] } } });
       const result = await useBookingStore.getState().rescheduleBooking(100, 10);
       expect(result).toBeNull();
-      expect(useBookingStore.getState().error).toBe('Error rescheduling booking.');
+      expect(useBookingStore.getState().error).toBe('No se pudo reprogramar la reserva.');
     });
   });
 });
