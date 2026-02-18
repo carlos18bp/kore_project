@@ -8,6 +8,9 @@ import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useCheckoutStore } from '@/lib/stores/checkoutStore';
 
+const CHECKOUT_REGISTRATION_TOKEN_KEY = 'kore_checkout_registration_token';
+const CHECKOUT_REGISTRATION_PACKAGE_KEY = 'kore_checkout_registration_package';
+
 export default function CheckoutPage() {
   return (
     <Suspense fallback={null}>
@@ -19,7 +22,10 @@ export default function CheckoutPage() {
 declare global {
   interface Window {
     WidgetCheckout?: new (config: Record<string, unknown>) => {
-      open: (cb: (result: { transaction?: { id: string } }) => void) => void;
+      open: (cb: (result: {
+        payment_source?: { token?: string; type?: string };
+        transaction?: { id?: string };
+      }) => void) => void;
     };
   }
 }
@@ -30,7 +36,7 @@ function CheckoutContent() {
   const searchParams = useSearchParams();
   const packageId = searchParams.get('package');
 
-  const { isAuthenticated, hydrate, user } = useAuthStore();
+  const { isAuthenticated, hydrate, hydrated } = useAuthStore();
   const {
     package_: pkg,
     wompiConfig,
@@ -40,12 +46,20 @@ function CheckoutContent() {
     error,
     fetchPackage,
     fetchWompiConfig,
-    purchaseSubscription,
+    prepareCheckout,
+    pollIntentStatus,
     reset,
   } = useCheckoutStore();
 
   const [widgetLoaded, setWidgetLoaded] = useState(false);
-  const [tokenizing, setTokenizing] = useState(false);
+  const [widgetError, setWidgetError] = useState(false);
+  const [openingCheckout, setOpeningCheckout] = useState(false);
+  const [registrationToken, setRegistrationToken] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const token = sessionStorage.getItem(CHECKOUT_REGISTRATION_TOKEN_KEY);
+    const tokenPkg = sessionStorage.getItem(CHECKOUT_REGISTRATION_PACKAGE_KEY);
+    return (token && packageId && tokenPkg === packageId) ? token : null;
+  });
 
   useHeroAnimation(sectionRef);
 
@@ -54,59 +68,145 @@ function CheckoutContent() {
   }, [hydrate]);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      const redirect = packageId ? `/register?package=${packageId}` : '/register';
-      router.push(redirect);
+    if (!hydrated) {
+      return;
     }
-  }, [isAuthenticated, router, packageId]);
+
+    if (isAuthenticated) {
+      setRegistrationToken(null);
+      return;
+    }
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const token = sessionStorage.getItem(CHECKOUT_REGISTRATION_TOKEN_KEY);
+    const tokenPackage = sessionStorage.getItem(CHECKOUT_REGISTRATION_PACKAGE_KEY);
+    if (token && packageId && tokenPackage === packageId) {
+      setRegistrationToken(token);
+      return;
+    }
+
+    const redirect = packageId ? `/register?package=${packageId}` : '/register';
+    router.push(redirect);
+  }, [hydrated, isAuthenticated, router, packageId]);
 
   useEffect(() => {
-    if (packageId && isAuthenticated) {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (paymentStatus === 'success' || paymentStatus === 'error') {
+      sessionStorage.removeItem(CHECKOUT_REGISTRATION_TOKEN_KEY);
+      sessionStorage.removeItem(CHECKOUT_REGISTRATION_PACKAGE_KEY);
+    }
+  }, [paymentStatus]);
+
+  const hasCheckoutAccess = isAuthenticated || Boolean(registrationToken);
+
+  useEffect(() => {
+    if (packageId && hasCheckoutAccess) {
+      reset();
       fetchPackage(packageId);
       fetchWompiConfig();
     }
-  }, [packageId, isAuthenticated, fetchPackage, fetchWompiConfig]);
+  }, [packageId, hasCheckoutAccess, fetchPackage, fetchWompiConfig, reset]);
 
-  // Load Wompi widget script
+  // Load Wompi widget script with error handling and timeout
   useEffect(() => {
     if (!wompiConfig?.public_key) return;
     if (document.getElementById('wompi-widget-script')) {
-      setWidgetLoaded(true);
+      if (window.WidgetCheckout) {
+        setWidgetLoaded(true);
+      }
       return;
     }
+
     const script = document.createElement('script');
     script.id = 'wompi-widget-script';
     script.src = 'https://checkout.wompi.co/widget.js';
     script.async = true;
-    script.onload = () => setWidgetLoaded(true);
-    document.body.appendChild(script);
-    return () => {
-      // Don't remove on cleanup — Wompi widget should persist
-    };
-  }, [wompiConfig?.public_key]);
 
-  const handleTokenize = useCallback(() => {
+    const timeout = setTimeout(() => {
+      if (!widgetLoaded) {
+        setWidgetError(true);
+      }
+    }, 15000);
+
+    script.onload = () => {
+      clearTimeout(timeout);
+      setWidgetLoaded(true);
+      setWidgetError(false);
+    };
+
+    script.onerror = () => {
+      clearTimeout(timeout);
+      setWidgetError(true);
+    };
+
+    document.body.appendChild(script);
+
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [wompiConfig?.public_key, widgetLoaded]);
+
+  const handleCheckout = useCallback(async () => {
     if (!wompiConfig || !pkg || !window.WidgetCheckout) return;
-    setTokenizing(true);
+    setOpeningCheckout(true);
+
+    const preparation = await prepareCheckout(
+      pkg.id,
+      isAuthenticated ? undefined : (registrationToken || undefined),
+    );
+    if (!preparation) {
+      setOpeningCheckout(false);
+      return;
+    }
+
+    let widgetCallbackFired = false;
+    const widgetTimeout = setTimeout(() => {
+      if (!widgetCallbackFired) {
+        useCheckoutStore.setState({
+          paymentStatus: 'error',
+          error: 'La pasarela de pago no respondió. Recarga la página e intenta de nuevo.',
+        });
+        setOpeningCheckout(false);
+      }
+    }, 60000);
 
     const checkout = new window.WidgetCheckout({
-      currency: pkg.currency,
-      amountInCents: Math.round(parseFloat(pkg.price) * 100),
-      reference: `kore-preview-${Date.now()}`,
       publicKey: wompiConfig.public_key,
-      collectCustomerLegalId: false,
-      'customer-data:email': user?.email || '',
-      'customer-data:full-name': user?.name || '',
+      currency: preparation.currency,
+      amountInCents: preparation.amount_in_cents,
+      reference: preparation.reference,
+      signature: { integrity: preparation.signature },
     });
 
     checkout.open(async (result) => {
-      const txnId = result?.transaction?.id;
-      if (txnId) {
-        await purchaseSubscription(pkg.id, txnId);
+      widgetCallbackFired = true;
+      clearTimeout(widgetTimeout);
+      const transactionId = result?.transaction?.id;
+      if (transactionId) {
+        useCheckoutStore.setState({ paymentStatus: 'polling', error: '' });
+        await pollIntentStatus(preparation.reference, preparation.checkout_access_token, transactionId);
+      } else {
+        useCheckoutStore.setState({
+          paymentStatus: 'error',
+          error: 'No se pudo completar el pago. Intenta de nuevo.',
+        });
       }
-      setTokenizing(false);
+      setOpeningCheckout(false);
     });
-  }, [wompiConfig, pkg, user, purchaseSubscription]);
+  }, [
+    wompiConfig,
+    pkg,
+    prepareCheckout,
+    pollIntentStatus,
+    isAuthenticated,
+    registrationToken,
+  ]);
 
   const formatPrice = (price: string) => {
     return new Intl.NumberFormat('en-US', {
@@ -117,9 +217,17 @@ function CheckoutContent() {
     }).format(parseFloat(price));
   };
 
-  const isProcessing = paymentStatus === 'processing' || paymentStatus === 'polling' || tokenizing;
+  const isProcessing = paymentStatus === 'processing' || paymentStatus === 'polling' || openingCheckout;
 
-  if (!isAuthenticated) return null;
+  if (!hydrated) {
+    return (
+      <section className="min-h-screen bg-kore-cream flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-2 border-kore-red border-t-transparent rounded-full" />
+      </section>
+    );
+  }
+
+  if (!hasCheckoutAccess) return null;
 
   if (paymentStatus === 'success' && intentResult) {
     return (
@@ -172,7 +280,7 @@ function CheckoutContent() {
             <div className="pt-4">
               <Link
                 href="/dashboard"
-                className="w-full inline-flex items-center justify-center bg-kore-red hover:bg-kore-red-dark text-white font-medium py-3.5 rounded-lg transition-colors duration-200 text-sm tracking-wide"
+                className="w-full inline-flex items-center justify-center bg-kore-red hover:bg-kore-red-dark text-white font-medium py-3.5 rounded-lg transition-colors duration-200 text-sm tracking-wide cursor-pointer"
               >
                 Ir a mi dashboard
               </Link>
@@ -199,7 +307,7 @@ function CheckoutContent() {
       <div className="w-full max-w-lg mx-auto px-6 py-16">
         {/* Header */}
         <div data-hero="badge" className="text-center mb-10">
-          <Link href="/">
+          <Link href="/" className="cursor-pointer">
             <span className="font-heading text-5xl font-semibold text-kore-gray-dark tracking-tight">
               KÓRE
             </span>
@@ -223,7 +331,10 @@ function CheckoutContent() {
               <p className="text-kore-gray-dark/50 text-sm">
                 {error || 'Paquete no encontrado'}
               </p>
-              <Link href="/programs" className="text-kore-red text-sm mt-2 inline-block hover:text-kore-red-dark transition-colors">
+              <Link
+                href="/programs"
+                className="text-kore-red text-sm mt-2 inline-block hover:text-kore-red-dark transition-colors cursor-pointer"
+              >
                 Ver programas disponibles
               </Link>
             </div>
@@ -253,7 +364,7 @@ function CheckoutContent() {
                     <span className="text-lg font-semibold text-kore-red">{formatPrice(pkg.price)}</span>
                   </div>
                   <p className="text-xs text-kore-gray-dark/40">
-                    Se cobrará automáticamente cada {pkg.validity_days} días
+                    El cobro automático aplica solo con tarjeta. Con otros métodos, deberás renovar manualmente cada {pkg.validity_days} días.
                   </p>
                 </div>
               </div>
@@ -267,28 +378,55 @@ function CheckoutContent() {
 
               {/* Payment button */}
               <div>
-                <button
-                  onClick={handleTokenize}
-                  disabled={!widgetLoaded || isProcessing}
-                  className="w-full bg-kore-red hover:bg-kore-red-dark text-white font-medium py-3.5 rounded-lg transition-colors duration-200 text-sm tracking-wide disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isProcessing ? (
-                    <span className="inline-flex items-center gap-2">
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      {paymentStatus === 'polling' ? 'Verificando pago...' : 'Procesando pago...'}
-                    </span>
-                  ) : !widgetLoaded ? (
-                    'Cargando pasarela de pago...'
-                  ) : (
-                    `Pagar ${formatPrice(pkg.price)}`
-                  )}
-                </button>
-                <p className="text-center text-xs text-kore-gray-dark/30 mt-3">
-                  Pago seguro procesado por Wompi
-                </p>
+                {widgetError ? (
+                  <div className="text-center py-4">
+                    <div className="bg-kore-red/5 border border-kore-red/20 rounded-lg px-4 py-3 mb-4">
+                      <p className="text-sm text-kore-red">
+                        No se pudo cargar la pasarela de pago. Por favor, recarga la página o intenta más tarde.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="text-kore-red text-sm hover:text-kore-red-dark transition-colors cursor-pointer"
+                    >
+                      Recargar página
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      onClick={handleCheckout}
+                      disabled={!widgetLoaded || isProcessing}
+                      className="w-full bg-kore-red hover:bg-kore-red-dark text-white font-medium py-3.5 rounded-lg transition-colors duration-200 text-sm tracking-wide disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      {isProcessing ? (
+                        <span className="inline-flex items-center gap-2">
+                          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                          {paymentStatus === 'polling' ? 'Verificando pago...' : 'Procesando pago...'}
+                        </span>
+                      ) : !widgetLoaded ? (
+                        <span className="inline-flex items-center gap-2">
+                          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                          Cargando pasarela de pago...
+                        </span>
+                      ) : (
+                        `Pagar ${formatPrice(pkg.price)}`
+                      )}
+                    </button>
+                    <p className="text-center text-xs text-kore-gray-dark/30 mt-3">
+                      Pago seguro procesado por Wompi
+                    </p>
+                    <p className="text-center text-xs text-kore-gray-dark/40 mt-2">
+                      Métodos disponibles: Tarjeta (recurrente), Nequi, PSE y Bancolombia Transfer (no recurrentes).
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -296,7 +434,10 @@ function CheckoutContent() {
 
         {/* Back link */}
         <p data-hero="cta" className="text-center text-xs text-kore-gray-dark/30 mt-8">
-          <Link href="/programs" className="text-kore-red hover:text-kore-red-dark transition-colors">
+          <Link
+            href="/programs"
+            className="text-kore-red hover:text-kore-red-dark transition-colors cursor-pointer"
+          >
             ← Volver a programas
           </Link>
         </p>
