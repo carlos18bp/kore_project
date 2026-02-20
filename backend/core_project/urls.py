@@ -13,10 +13,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('core_app.urls.api_urls')),
     path('api/auth/', include('core_app.urls.auth_urls')),
-<<<<<<< HEAD
     path('api/wompi/', include('core_app.urls.wompi_urls')),
     path('api/google-captcha/', include('core_app.urls.captcha_urls')),
-=======
 
     # Next.js static assets (JS/CSS chunks, images, icons, favicon)
     re_path(r'^_next/(?P<path>.*)$', static_serve, {'document_root': TEMPLATES_DIR / '_next'}),
@@ -24,7 +22,6 @@ urlpatterns = [
     re_path(r'^icons/(?P<path>.*)$', static_serve, {'document_root': TEMPLATES_DIR / 'icons'}),
     re_path(r'^favicon\.ico$', static_serve, {'document_root': str(TEMPLATES_DIR), 'path': 'favicon.ico'}),
     re_path(r'^apple-icon\.png$', static_serve, {'document_root': str(TEMPLATES_DIR), 'path': 'apple-icon.png'}),
->>>>>>> fc1b641 (release: beta only design)
 ]
 
 if settings.DEBUG:
