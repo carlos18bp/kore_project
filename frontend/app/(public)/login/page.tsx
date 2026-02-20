@@ -57,7 +57,7 @@ export default function LoginPage() {
 
     setIsLoading(true);
 
-    const result = await login(email, password, captchaToken);
+    const result = await login(email, password, captchaToken ?? undefined);
 
     if (result.success) {
       router.push('/dashboard');

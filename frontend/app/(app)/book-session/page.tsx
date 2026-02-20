@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useMemo, useCallback, useState } from 'react';
+import { Suspense, useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useBookingStore } from '@/lib/stores/bookingStore';
@@ -13,7 +13,7 @@ import BookingConfirmation from '@/app/components/booking/BookingConfirmation';
 import BookingSuccess from '@/app/components/booking/BookingSuccess';
 import NoSessionsModal from '@/app/components/booking/NoSessionsModal';
 
-export default function BookSessionPage() {
+function BookSessionContent() {
   const { user } = useAuthStore();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -426,5 +426,17 @@ export default function BookSessionPage() {
         <BookingSuccess booking={bookingResult} onReset={handleReset} />
       )}
     </section>
+  );
+}
+
+export default function BookSessionPage() {
+  return (
+    <Suspense fallback={
+      <section className="min-h-screen bg-kore-cream flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-2 border-kore-red border-t-transparent rounded-full" />
+      </section>
+    }>
+      <BookSessionContent />
+    </Suspense>
   );
 }

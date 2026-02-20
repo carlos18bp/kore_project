@@ -97,7 +97,7 @@ export default function BookingSuccess({ booking, onReset }: Props) {
             <p className="text-sm text-kore-gray-dark/50">
               ¿Necesitas hacer un cambio? Visita{' '}
               <Link
-                href={`/my-programs/program/${booking.subscription_id_display ?? ''}`}
+                href={`/my-programs/program?id=${booking.subscription_id_display ?? ''}`}
                 className="text-kore-red hover:underline font-medium"
               >
                 tu programa

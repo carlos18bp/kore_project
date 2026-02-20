@@ -19,7 +19,7 @@ function SubscriptionCard({ sub }: { sub: Subscription }) {
 
   return (
     <Link
-      href={`/my-programs/program/${sub.id}`}
+      href={`/my-programs/program?id=${sub.id}`}
       className="block bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-kore-gray-light/50 hover:border-kore-red/30 hover:shadow-sm transition-all duration-200"
     >
       <div className="flex items-start justify-between gap-4 mb-4">
