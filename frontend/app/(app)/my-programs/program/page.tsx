@@ -1,8 +1,8 @@
 'use client';
 
-import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
+import { Suspense, useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useBookingStore } from '@/lib/stores/bookingStore';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
@@ -56,10 +56,10 @@ function BookingRow({ booking, onClick }: { booking: BookingData; onClick: () =>
   );
 }
 
-export default function ProgramDetailPage() {
+function ProgramDetailContent() {
   const { user } = useAuthStore();
-  const params = useParams();
-  const subscriptionId = params.subscriptionId as string;
+  const searchParams = useSearchParams();
+  const subscriptionId = searchParams.get('id') ?? '';
   const sectionRef = useRef<HTMLElement>(null);
   useHeroAnimation(sectionRef);
 
@@ -113,6 +113,19 @@ export default function ProgramDetailPage() {
     return (
       <section className="min-h-screen bg-kore-cream flex items-center justify-center">
         <div className="animate-spin h-8 w-8 border-2 border-kore-red border-t-transparent rounded-full" />
+      </section>
+    );
+  }
+
+  if (!subscriptionId) {
+    return (
+      <section className="min-h-screen bg-kore-cream flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-kore-gray-dark/60 mb-4">No se especificó un programa</p>
+          <Link href="/my-programs" className="text-kore-red hover:underline">
+            Volver a Mis Programas
+          </Link>
+        </div>
       </section>
     );
   }
@@ -272,5 +285,17 @@ export default function ProgramDetailPage() {
         />
       )}
     </section>
+  );
+}
+
+export default function ProgramDetailPage() {
+  return (
+    <Suspense fallback={
+      <section className="min-h-screen bg-kore-cream flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-2 border-kore-red border-t-transparent rounded-full" />
+      </section>
+    }>
+      <ProgramDetailContent />
+    </Suspense>
   );
 }

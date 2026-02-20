@@ -41,7 +41,7 @@ export default function UpcomingSessionReminder() {
   });
 
   const detailUrl = upcomingReminder.subscription_id_display
-    ? `/my-programs/program/${upcomingReminder.subscription_id_display}`
+    ? `/my-programs/program?id=${upcomingReminder.subscription_id_display}`
     : `/my-programs`;
 
   return (
