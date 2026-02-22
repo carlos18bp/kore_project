@@ -86,23 +86,6 @@ export default function FAQPage() {
         </div>
       </section>
 
-      {/* Contact CTA */}
-      <section className="py-12 bg-kore-wine-dark">
-        <div className="w-full px-6 md:px-10 lg:px-16 text-center">
-          <h2 className="text-2xl md:text-3xl text-white mb-4">
-            ¿No encontraste lo que buscabas?
-          </h2>
-          <p className="text-white/70 mb-6">
-            Contáctanos y resolveremos todas tus dudas personalmente.
-          </p>
-          <a
-            href="/contact"
-            className="inline-block px-8 py-3 bg-kore-red text-white rounded-lg font-medium hover:bg-kore-red-dark transition-colors"
-          >
-            Contactar
-          </a>
-        </div>
-      </section>
     </main>
   );
 }

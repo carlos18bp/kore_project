@@ -15,8 +15,10 @@ type ProgramType = {
   id: string;
   name: string;
   shortName: string;
-  subtitle: string;
+  tagline: string;
   description: string;
+  includes: string[];
+  idealFor: string[];
   plans: Plan[];
   accent: string;
   accentBg: string;
@@ -28,8 +30,20 @@ const programTypes: ProgramType[] = [
     id: 'personalizado',
     name: 'Personalizado FLW',
     shortName: 'Personalizado',
-    subtitle: 'Sesiones individuales 1 a 1',
-    description: 'El programa más profundo. Cada sesión se adapta a tu estado real.',
+    tagline: 'Tu proceso. Tu ritmo.',
+    description: 'Entrenamiento uno a uno, completamente guiado y adaptado a tu estado físico, tu historia corporal y tus objetivos. Cada fase está estructurada para desarrollar fuerza, movilidad y rendimiento de forma sostenible.',
+    includes: [
+      'Evaluación funcional inicial',
+      'Planificación personalizada por fases',
+      'Corrección técnica constante',
+      'Progresión inteligente de cargas',
+      'Seguimiento continuo del proceso',
+    ],
+    idealFor: [
+      'Quienes buscan transformación real',
+      'Objetivos específicos de fuerza o rendimiento',
+      'Acompañamiento exclusivo y constante',
+    ],
     accent: 'text-kore-red-bright',
     accentBg: 'bg-kore-red-bright',
     accentBorder: 'border-kore-red-bright',
@@ -46,8 +60,20 @@ const programTypes: ProgramType[] = [
     id: 'semi',
     name: 'Semi-personalizado FLW',
     shortName: 'Semi-personalizado',
-    subtitle: '2-3 personas · Valor por persona',
-    description: 'Entrena en grupo reducido, guiado y consciente.',
+    tagline: 'Evolucionar en compañía, progresar con método.',
+    description: 'Entrenamiento en grupos reducidos (2 a 3 personas), manteniendo supervisión técnica individual dentro del entorno grupal. Combina estructura profesional con energía colectiva.',
+    includes: [
+      'Evaluación básica individual',
+      'Plan estructurado en grupo reducido',
+      'Corrección técnica personalizada',
+      'Progresión controlada',
+      'Trabajo funcional integral',
+    ],
+    idealFor: [
+      'Entrenar acompañado sin perder calidad',
+      'Mayor motivación y adherencia',
+      'Costo más accesible con supervisión',
+    ],
     accent: 'text-kore-red-light',
     accentBg: 'bg-kore-red-light',
     accentBorder: 'border-kore-red-light',
@@ -63,8 +89,20 @@ const programTypes: ProgramType[] = [
     id: 'terapeutico',
     name: 'Terapéutico FLW',
     shortName: 'Terapéutico',
-    subtitle: 'Movimiento como herramienta terapéutica',
-    description: 'Recuperación, rehabilitación y condiciones especiales.',
+    tagline: 'Recuperar el movimiento. Restaurar el equilibrio.',
+    description: 'Programa enfocado en mejorar movilidad, reducir molestias y optimizar patrones de movimiento mediante ejercicio terapéutico estructurado. En KÓRE trabajamos desde la causa del desequilibrio, reeducando el cuerpo para prevenir recaídas y fortalecer desde la base.',
+    includes: [
+      'Evaluación funcional y postural',
+      'Identificación de desbalances musculares',
+      'Ejercicio terapéutico específico',
+      'Fortalecimiento progresivo',
+      'Estrategias preventivas',
+    ],
+    idealFor: [
+      'Procesos de recuperación o rehabilitación',
+      'Molestias recurrentes o dolor crónico',
+      'Prevención y reeducación corporal',
+    ],
     accent: 'text-kore-red-lightest',
     accentBg: 'bg-kore-red-lightest',
     accentBorder: 'border-kore-red-lightest',
@@ -89,10 +127,10 @@ export default function PricingTable() {
       <div className="w-full px-6 md:px-10 lg:px-16">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <span data-animate="fade-up" className="inline-block text-kore-red text-sm font-medium tracking-widest uppercase mb-4">
+          <span data-animate="fade-up" className="inline-block text-kore-red text-sm font-medium tracking-widest uppercase mb-6">
             Tarifas 2026
           </span>
-          <h2 data-animate="split-text" data-delay="0.1" className="text-3xl md:text-4xl lg:text-5xl mb-6">
+          <h2 data-animate="split-text" data-delay="0.1" className="text-3xl md:text-4xl lg:text-5xl mb-8 leading-tight">
             Invierte en tu salud
           </h2>
           <p data-animate="fade-up" data-delay="0.2" className="text-lg text-kore-gray-dark/70 leading-relaxed">
@@ -119,11 +157,50 @@ export default function PricingTable() {
         </div>
 
         {/* Active Program Info */}
-        <div data-animate="fade-up" data-delay="0.2" className="text-center mb-10">
-          <h3 className={`text-2xl md:text-3xl font-heading font-semibold ${active.accent} mb-2`}>
-            {active.name}
-          </h3>
-          <p className="text-kore-gray-dark/60">{active.subtitle}</p>
+        <div data-animate="fade-up" data-delay="0.2" className="max-w-5xl mx-auto mb-12">
+          <div className="text-center mb-8">
+            <h3 className={`text-2xl md:text-3xl font-heading font-semibold ${active.accent} mb-3`}>
+              {active.name}
+            </h3>
+            <p className="text-lg text-kore-gray-dark/80 italic mb-4">{active.tagline}</p>
+            <p className="text-kore-gray-dark/70 leading-relaxed max-w-2xl mx-auto">
+              {active.description}
+            </p>
+          </div>
+
+          {/* Includes & Ideal For */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-white rounded-2xl p-8 border border-kore-gray-light">
+            <div>
+              <h4 className="text-sm font-medium tracking-widest uppercase text-kore-gray-dark/50 mb-4">Incluye</h4>
+              <ul className="space-y-3">
+                {active.includes.map((item, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <span className={`flex-shrink-0 w-5 h-5 rounded-full ${active.accentBg}/10 flex items-center justify-center mt-0.5`}>
+                      <svg className={`w-3 h-3 ${active.accent}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </span>
+                    <span className="text-sm text-kore-gray-dark/80">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium tracking-widest uppercase text-kore-gray-dark/50 mb-4">Ideal para</h4>
+              <ul className="space-y-3">
+                {active.idealFor.map((item, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <span className={`flex-shrink-0 w-5 h-5 rounded-full ${active.accentBg}/10 flex items-center justify-center mt-0.5`}>
+                      <svg className={`w-3 h-3 ${active.accent}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </span>
+                    <span className="text-sm text-kore-gray-dark/80">{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         </div>
 
         {/* Pricing Cards Grid */}
@@ -188,10 +265,10 @@ export default function PricingTable() {
                 {/* CTA */}
                 <a
                   href="#diagnostico"
-                  className={`block w-full text-center py-3 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                  className={`block w-full text-center py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
                     isPopular
                       ? `${active.accentBg} text-white hover:opacity-90`
-                      : `border-2 ${active.accentBorder} ${active.accent} hover:${active.accentBg} hover:text-white`
+                      : `border-2 ${active.accentBorder} ${active.accent} hover:bg-kore-wine-dark hover:border-kore-wine-dark hover:text-white`
                   }`}
                 >
                   Comenzar

@@ -8,7 +8,7 @@ import { useAuthStore } from '@/lib/stores/authStore';
 
 const navLinks = [
   { href: '/', label: 'Inicio' },
-  { href: '/kore-brand', label: 'La Marca' },
+  { href: '/kore-brand', label: 'Método Kore' },
   { href: '/programs', label: 'Programas' },
   { href: '/faq', label: 'FAQ' },
   { href: '/contact', label: 'Contacto' },

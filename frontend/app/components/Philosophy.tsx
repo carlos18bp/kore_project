@@ -6,23 +6,23 @@ import { useTextReveal } from '@/app/composables/useScrollAnimations';
 
 const pillars = [
   {
-    title: 'Desde el origen',
+    title: 'KÓRE',
     description:
-      'Entrenamos desde el centro del movimiento. No comenzamos con ejercicios, sino con preguntas: ¿cómo se mueve tu cuerpo? ¿qué historia trae?',
+      'El centro desde donde nace el movimiento. Aquí entendemos el cuerpo como un sistema conectado, no como partes aisladas.',
     image: '/images/spiral.webp',
     alt: 'Espiral - origen del movimiento',
   },
   {
-    title: 'Acompañamiento real',
+    title: 'Health',
     description:
-      'No entrenamos cuerpos aislados. Acompañamos personas completas. Cada sesión se adapta a tu estado real y a tu evolución.',
+      'Bienestar real: moverse mejor, sentirse mejor y construir salud sostenible en el tiempo.',
     image: '/images/hands.webp',
     alt: 'Manos abiertas - acompañamiento',
   },
   {
-    title: 'Conocimiento profundo',
+    title: 'Nuestro enfoque',
     description:
-      'Anatomía funcional, biomecánica aplicada, control motor y prevención de lesiones. Tu cuerpo merece ser entendido antes de ser exigido.',
+      'Acompañamos personas completas, entendiendo su historia, su contexto y su cuerpo para diseñar procesos con sentido.',
     image: '/images/pose/pose-02.webp',
     alt: 'Estudio anatómico - conocimiento del cuerpo',
   },
@@ -37,16 +37,14 @@ export default function Philosophy() {
       <div className="w-full px-6 md:px-10 lg:px-16">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-12">
-          <span data-animate="fade-up" className="inline-block text-kore-red text-sm font-medium tracking-widest uppercase mb-4">
-            Nuestra filosofía
+          <span data-animate="fade-up" className="inline-block text-kore-red text-sm font-medium tracking-widest uppercase mb-6">
+            Qué es KÓRE
           </span>
-          <h2 data-animate="split-text" data-delay="0.1" className="text-3xl md:text-4xl lg:text-5xl mb-6">
-            Salud que se construye desde el centro
+          <h2 data-animate="split-text" data-delay="0.1" className="text-3xl md:text-4xl lg:text-5xl mb-8">
+            KÓRE representa el origen, el núcleo, el centro desde donde el cuerpo se organiza y se adapta.
           </h2>
           <p data-animate="fade-up" data-delay="0.2" className="text-lg text-kore-gray-dark/70 leading-relaxed">
-            En KÓRE la salud no es un resultado final. Es un proceso que se
-            construye sesión a sesión, donde cada decisión tiene sentido y cada
-            movimiento construye algo más profundo.
+            Es un enfoque donde el entrenamiento deja de ser una rutina para convertirse en un proceso de salud guiado.
           </p>
         </div>
 
@@ -74,6 +72,16 @@ export default function Philosophy() {
               </p>
             </div>
           ))}
+        </div>
+
+        {/* CTA Button */}
+        <div data-animate="fade-up" data-delay="0.5" className="text-center mt-12">
+          <a
+            href="#valoracion"
+            className="inline-flex items-center justify-center bg-kore-red hover:bg-kore-red-dark text-white font-medium px-8 py-4 rounded-lg transition-colors duration-200 text-sm tracking-wide"
+          >
+            Agenda tu valoración
+          </a>
         </div>
       </div>
     </section>

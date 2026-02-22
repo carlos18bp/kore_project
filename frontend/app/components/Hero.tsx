@@ -37,55 +37,31 @@ export default function Hero() {
           </h1>
 
           {/* Subtitle */}
-          <p data-hero="subtitle" className="text-lg md:text-xl text-kore-gray-dark/60 leading-relaxed mb-10 max-w-md mx-auto lg:mx-0">
-            Movimiento consciente. Salud real.
-            <br className="hidden sm:block" />
-            <span className="text-kore-gray-dark/80 font-medium">Acompañamiento 1 a 1.</span>
+          <p data-hero="subtitle" className="text-lg md:text-xl text-kore-gray-dark/60 leading-relaxed mb-6 max-w-lg mx-auto lg:mx-0">
+            Un proceso de movimiento consciente para habitar tu cuerpo con fuerza, seguridad y sentido.
+          </p>
+
+          {/* Microtexto */}
+          <p data-hero="microtext" className="text-sm text-kore-gray-dark/50 mb-10 max-w-md mx-auto lg:mx-0">
+            Tu proceso no empieza con una rutina. Empieza con un diagnóstico real.
           </p>
 
           {/* CTA Buttons */}
           <div data-hero="cta" className="flex flex-col sm:flex-row justify-center lg:justify-start gap-4 mb-14">
             <a
-              href="#programs"
+              href="#valoracion"
               className="inline-flex items-center justify-center bg-kore-red hover:bg-kore-red-dark text-white font-medium px-8 py-4 rounded-lg transition-colors duration-200 text-sm tracking-wide"
             >
-              Ver programas
+              Agenda tu valoración
             </a>
             <a
-              href="/login"
+              href="/kore-brand"
               className="inline-flex items-center justify-center border-2 border-kore-gray-dark/20 text-kore-gray-dark hover:border-kore-red hover:text-kore-red font-medium px-8 py-4 rounded-lg transition-colors duration-200 text-sm tracking-wide"
             >
-              Iniciar sesión
+              Conoce el método
             </a>
           </div>
 
-          {/* Stats */}
-          <div data-hero="stats" className="flex justify-center lg:justify-start gap-10 lg:gap-14">
-            <div className="text-center lg:text-left">
-              <p className="font-heading text-2xl md:text-3xl font-semibold text-kore-wine-dark">
-                100%
-              </p>
-              <p className="text-xs text-kore-gray-dark/50 mt-1 tracking-wide">
-                Personalizado
-              </p>
-            </div>
-            <div className="text-center lg:text-left">
-              <p className="font-heading text-2xl md:text-3xl font-semibold text-kore-wine-dark">
-                1 a 1
-              </p>
-              <p className="text-xs text-kore-gray-dark/50 mt-1 tracking-wide">
-                Acompañamiento
-              </p>
-            </div>
-            <div className="text-center lg:text-left">
-              <p className="font-heading text-2xl md:text-3xl font-semibold text-kore-wine-dark">
-                360°
-              </p>
-              <p className="text-xs text-kore-gray-dark/50 mt-1 tracking-wide">
-                Evaluación
-              </p>
-            </div>
-          </div>
         </div>
 
         {/* Right Image */}

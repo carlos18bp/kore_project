@@ -61,10 +61,10 @@ export default function Programs() {
       <div className="w-full px-6 md:px-10 lg:px-16">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-12">
-          <span data-animate="fade-up" className="inline-block text-kore-red text-sm font-medium tracking-widest uppercase mb-4">
+          <span data-animate="fade-up" className="inline-block text-kore-red text-sm font-medium tracking-widest uppercase mb-6">
             Programas FLW
           </span>
-          <h2 data-animate="split-text" data-delay="0.1" className="text-3xl md:text-4xl lg:text-5xl mb-6">
+          <h2 data-animate="split-text" data-delay="0.1" className="text-3xl md:text-4xl lg:text-5xl mb-8 leading-tight">
             Tres caminos, un mismo centro
           </h2>
           <p data-animate="fade-up" data-delay="0.2" className="text-lg text-kore-gray-dark/70 leading-relaxed">
