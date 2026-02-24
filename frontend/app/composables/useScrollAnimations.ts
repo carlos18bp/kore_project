@@ -6,17 +6,46 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
+function isMobile() {
+  return typeof window !== 'undefined' && window.innerWidth < 768;
+}
+
 export function useTextReveal(containerRef: React.RefObject<HTMLElement | null>) {
   useEffect(() => {
     if (!containerRef.current) return;
+
+    const mobile = isMobile();
 
     const ctx = gsap.context(() => {
       const elements = containerRef.current!.querySelectorAll('[data-animate]');
 
       elements.forEach((el) => {
+        const htmlEl = el as HTMLElement;
+
+        // Skip elements inside Swiper (mobile carousels)
+        if (htmlEl.closest('.swiper')) return;
+
         const type = el.getAttribute('data-animate');
         const delay = parseFloat(el.getAttribute('data-delay') || '0');
 
+        if (mobile) {
+          // Mobile: opacity-only fade, no transforms that cause overlap
+          gsap.set(el, { opacity: 0 });
+          gsap.to(el, {
+            opacity: 1,
+            duration: 0.6,
+            delay,
+            ease: 'power2.out',
+            scrollTrigger: {
+              trigger: el,
+              start: 'top 90%',
+              toggleActions: 'play none none none',
+            },
+          });
+          return;
+        }
+
+        // Desktop: full animations with transforms
         gsap.set(el, { opacity: 0, y: 30 });
 
         const config: gsap.TweenVars = {
@@ -91,6 +120,8 @@ export function useHeroAnimation(containerRef: React.RefObject<HTMLElement | nul
   useEffect(() => {
     if (!containerRef.current) return;
 
+    const mobile = isMobile();
+
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
 
@@ -102,13 +133,25 @@ export function useHeroAnimation(containerRef: React.RefObject<HTMLElement | nul
       const stats = containerRef.current?.querySelector('[data-hero="stats"]');
       const image = containerRef.current?.querySelector('[data-hero="image"]');
 
-      if (badge) tl.from(badge, { opacity: 0, y: 20, duration: 0.6, delay: 0.2 });
-      if (heading) tl.from(heading, { opacity: 0, y: 40, duration: 0.8 }, badge ? '-=0.3' : undefined);
-      if (subtitle) tl.from(subtitle, { opacity: 0, y: 30, duration: 0.7 }, '-=0.4');
-      if (body) tl.from(body, { opacity: 0, y: 25, duration: 0.7 }, '-=0.4');
-      if (cta) tl.from(cta, { opacity: 0, y: 20, duration: 0.6 }, '-=0.3');
-      if (stats) tl.from(stats, { opacity: 0, y: 20, duration: 0.6 }, '-=0.3');
-      if (image) tl.from(image, { opacity: 0, scale: 0.85, duration: 1.2, ease: 'power2.out' }, '-=0.8');
+      if (mobile) {
+        // Mobile: simple sequential opacity fade, no y transforms
+        if (badge) tl.from(badge, { opacity: 0, duration: 0.4, delay: 0.1 });
+        if (heading) tl.from(heading, { opacity: 0, duration: 0.5 }, '-=0.2');
+        if (subtitle) tl.from(subtitle, { opacity: 0, duration: 0.4 }, '-=0.2');
+        if (body) tl.from(body, { opacity: 0, duration: 0.4 }, '-=0.2');
+        if (cta) tl.from(cta, { opacity: 0, duration: 0.4 }, '-=0.2');
+        if (stats) tl.from(stats, { opacity: 0, duration: 0.4 }, '-=0.2');
+        if (image) tl.from(image, { opacity: 0, scale: 0.9, duration: 0.8, ease: 'power2.out' }, '-=0.4');
+      } else {
+        // Desktop: full animations
+        if (badge) tl.from(badge, { opacity: 0, y: 20, duration: 0.6, delay: 0.2 });
+        if (heading) tl.from(heading, { opacity: 0, y: 40, duration: 0.8 }, badge ? '-=0.3' : undefined);
+        if (subtitle) tl.from(subtitle, { opacity: 0, y: 30, duration: 0.7 }, '-=0.4');
+        if (body) tl.from(body, { opacity: 0, y: 25, duration: 0.7 }, '-=0.4');
+        if (cta) tl.from(cta, { opacity: 0, y: 20, duration: 0.6 }, '-=0.3');
+        if (stats) tl.from(stats, { opacity: 0, y: 20, duration: 0.6 }, '-=0.3');
+        if (image) tl.from(image, { opacity: 0, scale: 0.85, duration: 1.2, ease: 'power2.out' }, '-=0.8');
+      }
     }, containerRef);
 
     return () => ctx.revert();

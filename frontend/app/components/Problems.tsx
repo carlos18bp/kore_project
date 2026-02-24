@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useRef } from 'react';
 import { useTextReveal } from '@/app/composables/useScrollAnimations';
+import MobileSwiper from '@/app/components/MobileSwiper';
 
 const problems = [
   {
@@ -59,7 +60,7 @@ export default function Problems() {
   return (
     <section ref={sectionRef} className="relative bg-white overflow-hidden">
       {/* Hero Image Section */}
-      <div className="relative h-[70vh] md:h-[80vh]">
+      <div className="relative h-[50vh] md:h-[70vh] lg:h-[80vh]">
         <div className="absolute inset-0">
           <img 
             src="https://images.unsplash.com/photo-1623092350739-4635ce84d47c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmcnVzdHJhdGVkJTIwd29ya291dCUyMGd5bSUyMHBhaW58ZW58MXx8fHwxNzcxNzkzNTA1fDA&ixlib=rb-4.1.0&q=80&w=1080" 
@@ -69,15 +70,15 @@ export default function Problems() {
           <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70"></div>
         </div>
 
-        <div className="relative h-full flex items-center">
-          <div className="w-full px-6 md:px-10 lg:px-16">
-            <p data-animate="fade-up" className="text-kore-red uppercase tracking-[0.25em] text-sm mb-6 font-medium">
+        <div className="relative h-full flex items-end pb-10 md:items-center md:pb-0">
+          <div className="w-full px-5 md:px-10 lg:px-16">
+            <p data-animate="fade-up" className="text-kore-red uppercase tracking-[0.25em] text-xs md:text-sm mb-3 md:mb-6 font-medium">
               El problema
             </p>
-            <h2 data-animate="split-text" data-delay="0.1" className="text-6xl md:text-7xl lg:text-8xl font-heading font-semibold text-white mb-6 leading-[0.95] max-w-4xl">
+            <h2 data-animate="split-text" data-delay="0.1" className="text-3xl md:text-7xl lg:text-8xl font-heading font-semibold text-white mb-5 md:mb-6 leading-[0.95] max-w-4xl">
               Lo que normalmente falla
             </h2>
-            <p data-animate="fade-up" data-delay="0.2" className="text-xl md:text-2xl text-kore-cream/90 max-w-2xl leading-relaxed">
+            <p data-animate="fade-up" data-delay="0.2" className="text-sm md:text-2xl text-kore-cream/90 max-w-2xl leading-relaxed">
               Entrenar sin método no es solo ineficaz. Es frustrante, insostenible y peligroso.
             </p>
           </div>
@@ -85,50 +86,59 @@ export default function Problems() {
       </div>
 
       {/* Problems List */}
-      <div className="w-full px-6 md:px-10 lg:px-16 py-20 lg:py-24">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 lg:gap-x-16 gap-y-12">
+      <div className="w-full px-5 md:px-10 lg:px-16 py-10 md:py-20 lg:py-24">
+        {/* Swiper on mobile */}
+        <MobileSwiper slidesPerView={1.15} spaceBetween={12} autoplayDelay={3500}>
           {problems.map((problem, index) => (
-            <div
-              key={index}
-              data-animate="fade-up"
-              data-delay={`${index * 0.1}`}
-              className="group"
-            >
-              <div className="flex items-start gap-6">
+            <div key={index} className="group bg-white rounded-2xl p-5 shadow-sm border border-kore-gray-light/50 h-full">
+              <div className="flex items-start gap-4">
                 <div className="flex-shrink-0">
-                  <div className="w-14 h-14 rounded-2xl bg-kore-rose/10 flex items-center justify-center group-hover:bg-kore-rose transition-colors duration-300">
-                    <div className="text-kore-rose group-hover:text-white transition-colors duration-300">
-                      {problem.icon}
-                    </div>
+                  <div className="w-11 h-11 rounded-xl bg-kore-rose/10 flex items-center justify-center">
+                    <div className="text-kore-rose">{problem.icon}</div>
                   </div>
                 </div>
-                <div className="flex-1 pt-1">
-                  <h3 className="text-2xl font-heading font-semibold text-kore-wine-dark mb-3">
-                    {problem.title}
-                  </h3>
-                  <p className="text-lg text-kore-gray-dark/70 leading-relaxed">
-                    {problem.description}
-                  </p>
+                <div className="flex-1 pt-0.5">
+                  <h3 className="text-lg font-heading font-semibold text-kore-wine-dark mb-1.5">{problem.title}</h3>
+                  <p className="text-sm text-kore-gray-dark/70 leading-relaxed">{problem.description}</p>
                 </div>
               </div>
             </div>
           ))}
+        </MobileSwiper>
 
-          {/* CTAs - Right Column */}
-          <div data-animate="fade-up" data-delay="0.6" className="flex flex-col gap-4">
-            <a
-              href="#valoracion"
-              className="inline-flex items-center justify-center bg-kore-red hover:bg-kore-red-dark text-white font-medium px-8 py-4 rounded-lg transition-colors duration-200 text-sm tracking-wide"
-            >
-              Quiero empezar bien
-            </a>
-            <a
-              href="/kore-brand"
-              className="inline-flex items-center justify-center border-2 border-kore-gray-dark/20 text-kore-gray-dark hover:border-kore-red hover:text-kore-red font-medium px-8 py-4 rounded-lg transition-colors duration-200 text-sm tracking-wide"
-            >
-              Conocer el método
-            </a>
-          </div>
+        {/* Grid on md+ */}
+        <div className="hidden md:grid grid-cols-2 gap-x-12 lg:gap-x-16 gap-y-12">
+          {problems.map((problem, index) => (
+            <div key={index} data-animate="fade-up" data-delay={`${index * 0.1}`} className="group">
+              <div className="flex items-start gap-6">
+                <div className="flex-shrink-0">
+                  <div className="w-14 h-14 rounded-2xl bg-kore-rose/10 flex items-center justify-center group-hover:bg-kore-rose transition-colors duration-300">
+                    <div className="text-kore-rose group-hover:text-white transition-colors duration-300">{problem.icon}</div>
+                  </div>
+                </div>
+                <div className="flex-1 pt-1">
+                  <h3 className="text-2xl font-heading font-semibold text-kore-wine-dark mb-3">{problem.title}</h3>
+                  <p className="text-lg text-kore-gray-dark/70 leading-relaxed">{problem.description}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* CTAs */}
+        <div data-animate="fade-up" data-delay="0.6" className="flex flex-col sm:flex-row justify-center gap-3 mt-8 md:mt-12">
+          <a
+            href="#valoracion"
+            className="inline-flex items-center justify-center bg-kore-red hover:bg-kore-red-dark text-white font-medium px-6 py-3 md:px-8 md:py-4 rounded-lg transition-colors duration-200 text-sm tracking-wide"
+          >
+            Quiero empezar bien
+          </a>
+          <a
+            href="/kore-brand"
+            className="inline-flex items-center justify-center border-2 border-kore-gray-dark/20 text-kore-gray-dark hover:border-kore-red hover:text-kore-red font-medium px-6 py-3 md:px-8 md:py-4 rounded-lg transition-colors duration-200 text-sm tracking-wide"
+          >
+            Conocer el método
+          </a>
         </div>
       </div>
 
@@ -154,9 +164,9 @@ export default function Problems() {
           </div>
         </div>
 
-        <div className="w-full px-6 md:px-10 lg:px-16 py-24 lg:py-32 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            <div data-animate="fade-right" className="relative h-[400px] lg:h-[500px] rounded-3xl overflow-hidden">
+        <div className="w-full px-5 md:px-10 lg:px-16 py-14 md:py-24 lg:py-32 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+            <div data-animate="fade-right" className="relative h-[280px] md:h-[400px] lg:h-[500px] rounded-2xl md:rounded-3xl overflow-hidden">
               <img 
                 src="https://images.unsplash.com/photo-1591259354202-d1e6123e7b66?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtaW5kZnVsJTIwbW92ZW1lbnQlMjB5b2dhJTIwZmxvd3xlbnwxfHx8fDE3NzE3OTM1MDZ8MA&ixlib=rb-4.1.0&q=80&w=1080" 
                 alt="KÓRE Movement" 
@@ -166,30 +176,30 @@ export default function Problems() {
             </div>
 
             <div data-animate="fade-left">
-              <span className="inline-block text-white text-sm font-medium tracking-widest uppercase mb-8">
+              <span className="inline-block text-white text-xs md:text-sm font-medium tracking-widest uppercase mb-4 md:mb-8">
                 La solución KÓRE
               </span>
 
-              <h3 className="text-4xl md:text-5xl lg:text-6xl font-heading font-semibold mb-6 leading-tight" style={{color: 'white'}}>
+              <h3 className="text-3xl md:text-5xl lg:text-6xl font-heading font-semibold mb-4 md:mb-6 leading-tight" style={{color: 'white'}}>
                 Devolvemos sentido al movimiento
               </h3>
 
-              <p className="text-xl md:text-2xl text-kore-cream/95 mb-10 leading-relaxed">
+              <p className="text-base md:text-2xl text-kore-cream/95 mb-6 md:mb-10 leading-relaxed">
                 No entrenamos para cumplir.
                 <br />
                 Entrenamos para <span className="text-kore-red-light font-semibold">transformar</span>.
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <a
                   href="/kore-brand"
-                  className="inline-flex items-center justify-center bg-white text-kore-wine-dark px-8 py-4 rounded-xl font-semibold text-lg hover:bg-kore-cream transition-all duration-300 shadow-xl"
+                  className="inline-flex items-center justify-center bg-white text-kore-wine-dark px-6 py-3 md:px-8 md:py-4 rounded-xl font-semibold text-sm md:text-lg hover:bg-kore-cream transition-all duration-300 shadow-xl"
                 >
                   Conocer el método
                 </a>
                 <a
                   href="#valoracion"
-                  className="inline-flex items-center justify-center bg-transparent text-white px-8 py-4 rounded-xl font-semibold text-lg border-2 border-white/30 hover:border-white hover:bg-white/10 transition-all duration-300"
+                  className="inline-flex items-center justify-center bg-transparent text-white px-6 py-3 md:px-8 md:py-4 rounded-xl font-semibold text-sm md:text-lg border-2 border-white/30 hover:border-white hover:bg-white/10 transition-all duration-300"
                 >
                   Agendar diagnóstico
                 </a>

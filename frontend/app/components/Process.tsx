@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useRef } from 'react';
 import { useTextReveal } from '@/app/composables/useScrollAnimations';
+import MobileSwiper from '@/app/components/MobileSwiper';
 
 const steps = [
   {
@@ -48,11 +49,11 @@ export default function Process() {
   useTextReveal(sectionRef);
 
   return (
-    <section ref={sectionRef} className="bg-kore-cream py-10 lg:py-12">
-      <div className="w-full px-6 md:px-10 lg:px-16">
-        <div className="flex flex-col lg:flex-row gap-16 lg:gap-20 items-center">
-          {/* Left - Image */}
-          <div data-animate="fade-left" className="flex-shrink-0">
+    <section ref={sectionRef} className="bg-kore-cream py-10 lg:py-12 overflow-hidden">
+      <div className="w-full px-5 md:px-10 lg:px-16">
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-20 items-center">
+          {/* Left - Image (hidden on mobile) */}
+          <div data-animate="fade-left" className="hidden md:block flex-shrink-0">
             <div className="relative w-[300px] h-[400px] lg:w-[400px] lg:h-[540px] rounded-3xl overflow-hidden">
               <Image
                 src="/images/pose/pose-08.webp"
@@ -65,15 +66,32 @@ export default function Process() {
           </div>
 
           {/* Right - Steps */}
-          <div className="flex-1">
-            <span data-animate="fade-up" className="inline-block text-kore-red text-sm font-medium tracking-widest uppercase mb-4">
+          <div className="flex-1 w-full">
+            <span data-animate="fade-up" className="inline-block text-kore-red text-xs md:text-sm font-medium tracking-widest uppercase mb-3 md:mb-4">
               Cómo funciona
             </span>
-            <h2 data-animate="split-text" data-delay="0.1" className="text-3xl md:text-4xl lg:text-5xl mb-12">
+            <h2 data-animate="split-text" data-delay="0.1" className="text-xl sm:text-2xl md:text-4xl lg:text-5xl mb-8 md:mb-12">
               El proceso KÓRE
             </h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-10">
+            {/* Steps - Swiper on mobile, grid on sm+ */}
+            <MobileSwiper slidesPerView={1.3} spaceBetween={12} autoplayDelay={3000}>
+              {steps.map((step) => (
+                <div key={step.number} className="relative pl-12 bg-white rounded-xl py-4 pr-4 border border-kore-gray-light/40 h-full">
+                  <span className="absolute left-2 top-4 font-heading text-3xl font-semibold text-kore-red/20">
+                    {step.number}
+                  </span>
+                  <h3 className="text-base font-heading font-semibold text-kore-wine-dark mb-1">
+                    {step.title}
+                  </h3>
+                  <p className="text-xs text-kore-gray-dark/70 leading-relaxed">
+                    {step.description}
+                  </p>
+                </div>
+              ))}
+            </MobileSwiper>
+
+            <div className="hidden md:grid grid-cols-2 gap-x-12 gap-y-10">
               {steps.map((step) => (
                 <div key={step.number} data-animate="fade-right" data-delay={`${parseInt(step.number) * 0.1}`} className="relative pl-16">
                   <span className="absolute left-0 top-0 font-heading text-4xl font-semibold text-kore-red/20">

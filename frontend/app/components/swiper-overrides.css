@@ -1,0 +1,25 @@
+/* Swiper Pagination Dots - KÓRE Brand Overrides */
+/* This file is imported AFTER swiper/css in MobileSwiper.tsx */
+
+.swiper-pagination-bullet {
+  background: #333333 !important;
+  opacity: 0.25 !important;
+  width: 7px !important;
+  height: 7px !important;
+}
+
+.swiper-pagination-bullet-active {
+  background: #E00000 !important;
+  opacity: 1 !important;
+}
+
+/* Position bullets below slides, not overlapping */
+.swiper-horizontal > .swiper-pagination-bullets,
+.swiper-pagination-bullets.swiper-pagination-horizontal {
+  bottom: 8px !important;
+}
+
+/* Ensure Swiper wrapper stretches for equal-height slides */
+.swiper-wrapper {
+  align-items: stretch;
+}

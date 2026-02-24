@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { useTextReveal } from '@/app/composables/useScrollAnimations';
+import MobileSwiper from '@/app/components/MobileSwiper';
 
 type Plan = {
   name: string;
@@ -15,6 +16,7 @@ type ProgramType = {
   id: string;
   name: string;
   shortName: string;
+  mobileShortName: string;
   tagline: string;
   description: string;
   includes: string[];
@@ -30,6 +32,7 @@ const programTypes: ProgramType[] = [
     id: 'personalizado',
     name: 'Personalizado FLW',
     shortName: 'Personalizado',
+    mobileShortName: '1 a 1',
     tagline: 'Tu proceso. Tu ritmo.',
     description: 'Entrenamiento uno a uno, completamente guiado y adaptado a tu estado físico, tu historia corporal y tus objetivos. Cada fase está estructurada para desarrollar fuerza, movilidad y rendimiento de forma sostenible.',
     includes: [
@@ -60,6 +63,7 @@ const programTypes: ProgramType[] = [
     id: 'semi',
     name: 'Semi-personalizado FLW',
     shortName: 'Semi-personalizado',
+    mobileShortName: '2-3 pers.',
     tagline: 'Evolucionar en compañía, progresar con método.',
     description: 'Entrenamiento en grupos reducidos (2 a 3 personas), manteniendo supervisión técnica individual dentro del entorno grupal. Combina estructura profesional con energía colectiva.',
     includes: [
@@ -89,6 +93,7 @@ const programTypes: ProgramType[] = [
     id: 'terapeutico',
     name: 'Terapéutico FLW',
     shortName: 'Terapéutico',
+    mobileShortName: 'Terapia',
     tagline: 'Recuperar el movimiento. Restaurar el equilibrio.',
     description: 'Programa enfocado en mejorar movilidad, reducir molestias y optimizar patrones de movimiento mediante ejercicio terapéutico estructurado. En KÓRE trabajamos desde la causa del desequilibrio, reeducando el cuerpo para prevenir recaídas y fortalecer desde la base.',
     includes: [
@@ -123,53 +128,74 @@ export default function PricingTable() {
   useTextReveal(sectionRef);
 
   return (
-    <section ref={sectionRef} className="bg-kore-cream py-10 lg:py-12">
-      <div className="w-full px-6 md:px-10 lg:px-16">
+    <section ref={sectionRef} className="bg-kore-cream py-10 lg:py-12 overflow-hidden">
+      <div className="w-full px-5 md:px-10 lg:px-16">
         {/* Header */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <span data-animate="fade-up" className="inline-block text-kore-red text-sm font-medium tracking-widest uppercase mb-6">
+        <div className="text-center max-w-3xl mx-auto mb-8 md:mb-16">
+          <span data-animate="fade-up" className="inline-block text-kore-red text-xs md:text-sm font-medium tracking-widest uppercase mb-3 md:mb-6">
             Tarifas 2026
           </span>
-          <h2 data-animate="split-text" data-delay="0.1" className="text-3xl md:text-4xl lg:text-5xl mb-8 leading-tight">
+          <h2 data-animate="split-text" data-delay="0.1" className="text-xl sm:text-2xl md:text-4xl lg:text-5xl mb-6 md:mb-8 leading-tight">
             Invierte en tu salud
           </h2>
-          <p data-animate="fade-up" data-delay="0.2" className="text-lg text-kore-gray-dark/70 leading-relaxed">
+          <p data-animate="fade-up" data-delay="0.2" className="text-sm md:text-lg text-kore-gray-dark/70 leading-relaxed">
             Todos los programas incluyen sesiones presenciales de 60 minutos a
             domicilio. KÓRE proporciona todo el material necesario.
           </p>
         </div>
 
-        {/* Program Type Tabs */}
-        <div data-animate="fade-up" data-delay="0.3" className="flex flex-col sm:flex-row justify-center gap-3 mb-12">
-          {programTypes.map((program, index) => (
-            <button
-              key={program.id}
-              onClick={() => setActiveTab(index)}
-              className={`px-8 py-4 rounded-xl text-sm font-medium tracking-wide uppercase transition-all duration-300 ${
-                activeTab === index
-                  ? `${program.accentBg} text-white shadow-lg`
-                  : 'bg-kore-cream text-kore-gray-dark hover:bg-kore-gray-light'
-              }`}
-            >
-              {program.shortName}
-            </button>
-          ))}
+        {/* Program Type Tabs - Mobile Optimized */}
+        <div data-animate="fade-up" data-delay="0.3" className="mb-8 md:mb-12">
+          {/* Mobile: Segmented control with short labels */}
+          <div className="md:hidden">
+            <div className="flex p-1 bg-kore-gray-light/50 rounded-2xl">
+              {programTypes.map((program, index) => (
+                <button
+                  key={program.id}
+                  onClick={() => setActiveTab(index)}
+                  className={`flex-1 py-3 px-2 rounded-xl text-xs font-semibold tracking-wide uppercase transition-all duration-300 ${
+                    activeTab === index
+                      ? `${program.accentBg} text-white shadow-md`
+                      : 'text-kore-gray-dark/70 hover:text-kore-gray-dark'
+                  }`}
+                >
+                  {program.mobileShortName}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Desktop: Full tabs */}
+          <div className="hidden md:flex md:justify-center gap-3">
+            {programTypes.map((program, index) => (
+              <button
+                key={program.id}
+                onClick={() => setActiveTab(index)}
+                className={`px-8 py-4 rounded-xl text-sm font-medium tracking-wide uppercase transition-all duration-300 whitespace-nowrap ${
+                  activeTab === index
+                    ? `${program.accentBg} text-white shadow-lg`
+                    : 'bg-kore-cream text-kore-gray-dark hover:bg-kore-gray-light'
+                }`}
+              >
+                {program.shortName}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Active Program Info */}
-        <div data-animate="fade-up" data-delay="0.2" className="max-w-5xl mx-auto mb-12">
-          <div className="text-center mb-8">
-            <h3 className={`text-2xl md:text-3xl font-heading font-semibold ${active.accent} mb-3`}>
+        <div data-animate="fade-up" data-delay="0.2" className="max-w-5xl mx-auto mb-8 md:mb-12">
+          <div className="text-center mb-6 md:mb-8">
+            <h3 className={`text-xl md:text-3xl font-heading font-semibold ${active.accent} mb-2 md:mb-3`}>
               {active.name}
             </h3>
-            <p className="text-lg text-kore-gray-dark/80 italic mb-4">{active.tagline}</p>
-            <p className="text-kore-gray-dark/70 leading-relaxed max-w-2xl mx-auto">
+            <p className="text-sm md:text-lg text-kore-gray-dark/80 italic mb-3 md:mb-4">{active.tagline}</p>
+            <p className="text-sm md:text-base text-kore-gray-dark/70 leading-relaxed max-w-2xl mx-auto">
               {active.description}
             </p>
           </div>
 
           {/* Includes & Ideal For */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-white rounded-2xl p-8 border border-kore-gray-light">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 bg-white rounded-2xl p-5 md:p-8 border border-kore-gray-light">
             <div>
               <h4 className="text-sm font-medium tracking-widest uppercase text-kore-gray-dark/50 mb-4">Incluye</h4>
               <ul className="space-y-3">
@@ -203,84 +229,78 @@ export default function PricingTable() {
           </div>
         </div>
 
-        {/* Pricing Cards Grid */}
-        <div data-animate="stagger-children" data-delay="0.3" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+        {/* Pricing Cards - Swiper on mobile, grid on sm+ */}
+        <MobileSwiper slidesPerView={1.15} spaceBetween={12} autoplayDelay={4500}>
           {active.plans.map((plan, index) => {
-            const isPopular =
-              index === Math.floor(active.plans.length / 2);
+            const isPopular = index === Math.floor(active.plans.length / 2);
+            return (
+              <div
+                key={plan.name}
+                className={`relative rounded-2xl p-5 h-full flex flex-col ${
+                  isPopular
+                    ? `border-2 ${active.accentBorder} bg-white shadow-xl mt-3`
+                    : 'border border-kore-gray-light bg-white'
+                }`}
+              >
+                {isPopular && (
+                  <span className={`inline-block self-center ${active.accentBg} text-white text-xs font-medium tracking-wide uppercase px-4 py-1 rounded-full mb-3`}>
+                    Más elegido
+                  </span>
+                )}
+                <p className="text-sm text-kore-gray-dark/50 uppercase tracking-wide mb-1">{plan.name}</p>
+                <div className="flex items-baseline gap-2 mb-3">
+                  <span className={`font-heading text-3xl font-semibold ${active.accent}`}>{plan.sessions}</span>
+                  <span className="text-kore-gray-dark/60 text-sm">{plan.sessions === 1 ? 'sesión' : 'sesiones'}</span>
+                </div>
+                <div className="border-t border-kore-gray-light my-3" />
+                <div className="space-y-2 mb-4">
+                  <div className="flex justify-between text-sm"><span className="text-kore-gray-dark/60">Duración</span><span className="font-medium text-kore-gray-dark">{plan.duration}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-kore-gray-dark/60">Valor/sesión</span><span className="font-medium text-kore-gray-dark">{plan.pricePerSession}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-kore-gray-dark/60">Total</span><span className={`font-semibold text-lg ${active.accent}`}>{plan.total}</span></div>
+                </div>
+                <div className="mt-auto">
+                  <a href="#diagnostico" className={`block w-full text-center py-3 rounded-lg text-sm font-medium transition-all duration-200 ${isPopular ? `${active.accentBg} text-white hover:opacity-90` : `border-2 ${active.accentBorder} ${active.accent} hover:bg-kore-wine-dark hover:border-kore-wine-dark hover:text-white`}`}>Comenzar</a>
+                </div>
+              </div>
+            );
+          })}
+        </MobileSwiper>
 
+        <div data-animate="stagger-children" data-delay="0.3" className="hidden sm:grid grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          {active.plans.map((plan, index) => {
+            const isPopular = index === Math.floor(active.plans.length / 2);
             return (
               <div
                 key={plan.name}
                 className={`relative rounded-2xl p-8 transition-all duration-300 ${
                   isPopular
-                    ? `border-2 ${active.accentBorder} bg-white shadow-xl scale-[1.02]`
+                    ? `border-2 ${active.accentBorder} bg-white shadow-xl scale-[1.02] mt-4`
                     : 'border border-kore-gray-light bg-white hover:shadow-lg'
                 }`}
               >
                 {isPopular && (
-                  <span
-                    className={`absolute -top-3 left-1/2 -translate-x-1/2 ${active.accentBg} text-white text-xs font-medium tracking-wide uppercase px-4 py-1 rounded-full`}
-                  >
-                    Más elegido
-                  </span>
+                  <span className={`inline-block self-center ${active.accentBg} text-white text-xs font-medium tracking-wide uppercase px-4 py-1 rounded-full mb-3`}>Más elegido</span>
                 )}
-
-                {/* Plan Name */}
-                <p className="text-sm text-kore-gray-dark/50 uppercase tracking-wide mb-1">
-                  {plan.name}
-                </p>
-
-                {/* Sessions */}
+                <p className="text-sm text-kore-gray-dark/50 uppercase tracking-wide mb-1">{plan.name}</p>
                 <div className="flex items-baseline gap-2 mb-4">
-                  <span className={`font-heading text-4xl font-semibold ${active.accent}`}>
-                    {plan.sessions}
-                  </span>
-                  <span className="text-kore-gray-dark/60 text-sm">
-                    {plan.sessions === 1 ? 'sesión' : 'sesiones'}
-                  </span>
+                  <span className={`font-heading text-4xl font-semibold ${active.accent}`}>{plan.sessions}</span>
+                  <span className="text-kore-gray-dark/60 text-sm">{plan.sessions === 1 ? 'sesión' : 'sesiones'}</span>
                 </div>
-
-                {/* Divider */}
                 <div className="border-t border-kore-gray-light my-4" />
-
-                {/* Details */}
                 <div className="space-y-3 mb-6">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-kore-gray-dark/60">Duración</span>
-                    <span className="font-medium text-kore-gray-dark">{plan.duration}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-kore-gray-dark/60">Valor por sesión</span>
-                    <span className="font-medium text-kore-gray-dark">{plan.pricePerSession}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-kore-gray-dark/60">Valor total</span>
-                    <span className={`font-semibold text-lg ${active.accent}`}>
-                      {plan.total}
-                    </span>
-                  </div>
+                  <div className="flex justify-between text-sm"><span className="text-kore-gray-dark/60">Duración</span><span className="font-medium text-kore-gray-dark">{plan.duration}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-kore-gray-dark/60">Valor por sesión</span><span className="font-medium text-kore-gray-dark">{plan.pricePerSession}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-kore-gray-dark/60">Valor total</span><span className={`font-semibold text-lg ${active.accent}`}>{plan.total}</span></div>
                 </div>
-
-                {/* CTA */}
-                <a
-                  href="#diagnostico"
-                  className={`block w-full text-center py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    isPopular
-                      ? `${active.accentBg} text-white hover:opacity-90`
-                      : `border-2 ${active.accentBorder} ${active.accent} hover:bg-kore-wine-dark hover:border-kore-wine-dark hover:text-white`
-                  }`}
-                >
-                  Comenzar
-                </a>
+                <a href="#diagnostico" className={`block w-full text-center py-3 rounded-lg text-sm font-medium transition-all duration-200 ${isPopular ? `${active.accentBg} text-white hover:opacity-90` : `border-2 ${active.accentBorder} ${active.accent} hover:bg-kore-wine-dark hover:border-kore-wine-dark hover:text-white`}`}>Comenzar</a>
               </div>
             );
           })}
         </div>
 
         {/* Footer note */}
-        <div data-animate="fade-up" data-delay="0.4" className="text-center mt-12 max-w-2xl mx-auto">
-          <p className="text-sm text-kore-gray-dark/50 leading-relaxed">
+        <div data-animate="fade-up" data-delay="0.4" className="text-center mt-8 md:mt-12 max-w-2xl mx-auto">
+          <p className="text-xs md:text-sm text-kore-gray-dark/50 leading-relaxed">
             Programas con contrato mensual. Vigencia desde el día de inicio
             hasta el mismo día del mes siguiente. El diagnóstico inicial es
             gratuito y sin compromiso.

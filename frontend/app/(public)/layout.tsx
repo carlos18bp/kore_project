@@ -7,10 +7,10 @@ export default function PublicLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <>
+    <div className="w-full max-w-[100vw] overflow-x-hidden">
       <Navbar />
       {children}
       <Footer />
-    </>
+    </div>
   );
 }
