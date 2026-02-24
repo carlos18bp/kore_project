@@ -74,7 +74,7 @@ export default function ContactPage() {
   return (
     <main className="min-h-screen bg-kore-cream">
       {/* Hero Section */}
-      <section className="py-16 md:py-24">
+      <section className="pt-28 py-16 md:py-24">
         <div className="w-full px-6 md:px-10 lg:px-16">
           <div className="text-center max-w-3xl mx-auto mb-12">
             <span className="inline-block text-kore-red text-sm font-medium tracking-widest uppercase mb-4">
@@ -104,7 +104,7 @@ export default function ContactPage() {
                     <div>
                       <h3 className="font-medium text-kore-gray-dark mb-1">Ubicación</h3>
                       <p className="text-kore-gray-dark/70">
-                        {settings?.city || 'Medellín'}, Colombia
+                        Bogotá, Colombia
                       </p>
                       {settings?.address && (
                         <p className="text-kore-gray-dark/70">{settings.address}</p>
@@ -126,22 +126,20 @@ export default function ContactPage() {
                   </div>
 
                   {/* Email */}
-                  {settings?.email && (
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 bg-kore-red/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Mail className="w-6 h-6 text-kore-red" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-kore-gray-dark mb-1">Email</h3>
-                        <a
-                          href={`mailto:${settings.email}`}
-                          className="text-kore-red hover:text-kore-red-dark transition-colors"
-                        >
-                          {settings.email}
-                        </a>
-                      </div>
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-kore-red/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Mail className="w-6 h-6 text-kore-red" />
                     </div>
-                  )}
+                    <div>
+                      <h3 className="font-medium text-kore-gray-dark mb-1">Email</h3>
+                      <a
+                        href="mailto:info@korehealths.com"
+                        className="text-kore-red hover:text-kore-red-dark transition-colors"
+                      >
+                        info@korehealths.com
+                      </a>
+                    </div>
+                  </div>
 
                   {/* Phone */}
                   {settings?.phone && (

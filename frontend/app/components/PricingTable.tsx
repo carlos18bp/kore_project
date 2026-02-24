@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import Link from 'next/link';
 import { useTextReveal } from '@/app/composables/useScrollAnimations';
 import MobileSwiper from '@/app/components/MobileSwiper';
 
@@ -144,28 +145,41 @@ export default function PricingTable() {
           </p>
         </div>
 
-        {/* Program Type Tabs - Mobile Optimized */}
-        <div data-animate="fade-up" data-delay="0.3" className="mb-8 md:mb-12">
-          {/* Mobile: Segmented control with short labels */}
-          <div className="md:hidden">
-            <div className="flex p-1 bg-kore-gray-light/50 rounded-2xl">
-              {programTypes.map((program, index) => (
-                <button
-                  key={program.id}
-                  onClick={() => setActiveTab(index)}
-                  className={`flex-1 py-3 px-2 rounded-xl text-xs font-semibold tracking-wide uppercase transition-all duration-300 ${
-                    activeTab === index
-                      ? `${program.accentBg} text-white shadow-md`
-                      : 'text-kore-gray-dark/70 hover:text-kore-gray-dark'
-                  }`}
-                >
-                  {program.mobileShortName}
-                </button>
-              ))}
-            </div>
-          </div>
-          {/* Desktop: Full tabs */}
-          <div className="hidden md:flex md:justify-center gap-3">
+        {/* ===== MOBILE: Compact Program Cards ===== */}
+        <div data-animate="fade-up" data-delay="0.3" className="md:hidden flex flex-col gap-3 mb-6">
+          {programTypes.map((program, index) => {
+            const minPrice = program.plans[0]?.total ?? '';
+            return (
+              <Link
+                key={program.id}
+                href={`/programs?program=${index}`}
+                className={`flex items-center gap-4 bg-white rounded-2xl p-4 border border-kore-gray-light/60 shadow-sm active:scale-[0.98] transition-all`}
+              >
+                <div className={`w-11 h-11 rounded-xl ${program.accentBg} flex items-center justify-center flex-shrink-0`}>
+                  <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-heading text-sm font-bold text-kore-gray-dark truncate">
+                    {program.name.replace(' FLW', '')}
+                  </h3>
+                  <p className="text-xs text-kore-gray-dark/50 mt-0.5">
+                    Desde <span className={`font-bold ${program.accent}`}>{minPrice}</span>
+                  </p>
+                </div>
+                <svg className="w-4 h-4 text-kore-gray-dark/30 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* ===== DESKTOP: Full pricing experience ===== */}
+        {/* Program Type Tabs */}
+        <div data-animate="fade-up" data-delay="0.3" className="hidden md:block mb-8 md:mb-12">
+          <div className="flex justify-center gap-3">
             {programTypes.map((program, index) => (
               <button
                 key={program.id}
@@ -182,8 +196,8 @@ export default function PricingTable() {
           </div>
         </div>
 
-        {/* Active Program Info */}
-        <div data-animate="fade-up" data-delay="0.2" className="max-w-5xl mx-auto mb-8 md:mb-12">
+        {/* Active Program Info - Desktop Only */}
+        <div data-animate="fade-up" data-delay="0.2" className="hidden md:block max-w-5xl mx-auto mb-8 md:mb-12">
           <div className="text-center mb-6 md:mb-8">
             <h3 className={`text-xl md:text-3xl font-heading font-semibold ${active.accent} mb-2 md:mb-3`}>
               {active.name}
@@ -229,44 +243,8 @@ export default function PricingTable() {
           </div>
         </div>
 
-        {/* Pricing Cards - Swiper on mobile, grid on sm+ */}
-        <MobileSwiper slidesPerView={1.15} spaceBetween={12} autoplayDelay={4500}>
-          {active.plans.map((plan, index) => {
-            const isPopular = index === Math.floor(active.plans.length / 2);
-            return (
-              <div
-                key={plan.name}
-                className={`relative rounded-2xl p-5 h-full flex flex-col ${
-                  isPopular
-                    ? `border-2 ${active.accentBorder} bg-white shadow-xl mt-3`
-                    : 'border border-kore-gray-light bg-white'
-                }`}
-              >
-                {isPopular && (
-                  <span className={`inline-block self-center ${active.accentBg} text-white text-xs font-medium tracking-wide uppercase px-4 py-1 rounded-full mb-3`}>
-                    Más elegido
-                  </span>
-                )}
-                <p className="text-sm text-kore-gray-dark/50 uppercase tracking-wide mb-1">{plan.name}</p>
-                <div className="flex items-baseline gap-2 mb-3">
-                  <span className={`font-heading text-3xl font-semibold ${active.accent}`}>{plan.sessions}</span>
-                  <span className="text-kore-gray-dark/60 text-sm">{plan.sessions === 1 ? 'sesión' : 'sesiones'}</span>
-                </div>
-                <div className="border-t border-kore-gray-light my-3" />
-                <div className="space-y-2 mb-4">
-                  <div className="flex justify-between text-sm"><span className="text-kore-gray-dark/60">Duración</span><span className="font-medium text-kore-gray-dark">{plan.duration}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-kore-gray-dark/60">Valor/sesión</span><span className="font-medium text-kore-gray-dark">{plan.pricePerSession}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-kore-gray-dark/60">Total</span><span className={`font-semibold text-lg ${active.accent}`}>{plan.total}</span></div>
-                </div>
-                <div className="mt-auto">
-                  <a href="#diagnostico" className={`block w-full text-center py-3 rounded-lg text-sm font-medium transition-all duration-200 ${isPopular ? `${active.accentBg} text-white hover:opacity-90` : `border-2 ${active.accentBorder} ${active.accent} hover:bg-kore-wine-dark hover:border-kore-wine-dark hover:text-white`}`}>Comenzar</a>
-                </div>
-              </div>
-            );
-          })}
-        </MobileSwiper>
-
-        <div data-animate="stagger-children" data-delay="0.3" className="hidden sm:grid grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+        {/* Pricing Cards - Desktop grid */}
+        <div data-animate="stagger-children" data-delay="0.3" className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {active.plans.map((plan, index) => {
             const isPopular = index === Math.floor(active.plans.length / 2);
             return (

@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useRef } from 'react';
 import { useTextReveal } from '@/app/composables/useScrollAnimations';
 import MobileSwiper from '@/app/components/MobileSwiper';
+import { WHATSAPP_URL } from '@/lib/constants';
 
 const problems = [
   {
@@ -58,7 +59,7 @@ export default function Problems() {
   useTextReveal(sectionRef);
 
   return (
-    <section ref={sectionRef} className="relative bg-white overflow-hidden">
+    <section ref={sectionRef} className="relative bg-kore-cream overflow-hidden">
       {/* Hero Image Section */}
       <div className="relative h-[50vh] md:h-[70vh] lg:h-[80vh]">
         <div className="absolute inset-0">
@@ -128,16 +129,18 @@ export default function Problems() {
         {/* CTAs */}
         <div data-animate="fade-up" data-delay="0.6" className="flex flex-col sm:flex-row justify-center gap-3 mt-8 md:mt-12">
           <a
-            href="#valoracion"
+            href={WHATSAPP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex items-center justify-center bg-kore-red hover:bg-kore-red-dark text-white font-medium px-6 py-3 md:px-8 md:py-4 rounded-lg transition-colors duration-200 text-sm tracking-wide"
           >
-            Quiero empezar bien
+            Agenda tu valoración gratis
           </a>
           <a
-            href="/kore-brand"
+            href="/programs"
             className="inline-flex items-center justify-center border-2 border-kore-gray-dark/20 text-kore-gray-dark hover:border-kore-red hover:text-kore-red font-medium px-6 py-3 md:px-8 md:py-4 rounded-lg transition-colors duration-200 text-sm tracking-wide"
           >
-            Conocer el método
+            Ver programas
           </a>
         </div>
       </div>
@@ -192,13 +195,15 @@ export default function Problems() {
 
               <div className="flex flex-col sm:flex-row gap-3">
                 <a
-                  href="/kore-brand"
+                  href="/programs"
                   className="inline-flex items-center justify-center bg-white text-kore-wine-dark px-6 py-3 md:px-8 md:py-4 rounded-xl font-semibold text-sm md:text-lg hover:bg-kore-cream transition-all duration-300 shadow-xl"
                 >
-                  Conocer el método
+                  Ver programas
                 </a>
                 <a
-                  href="#valoracion"
+                  href={WHATSAPP_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="inline-flex items-center justify-center bg-transparent text-white px-6 py-3 md:px-8 md:py-4 rounded-xl font-semibold text-sm md:text-lg border-2 border-white/30 hover:border-white hover:bg-white/10 transition-all duration-300"
                 >
                   Agendar diagnóstico

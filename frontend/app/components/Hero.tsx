@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useRef } from 'react';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
+import { WHATSAPP_URL } from '@/lib/constants';
 
 export default function Hero() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -49,16 +50,18 @@ export default function Hero() {
           {/* CTA Buttons */}
           <div data-hero="cta" className="flex flex-col sm:flex-row justify-center lg:justify-start gap-3 mb-8 md:mb-14">
             <a
-              href="#valoracion"
+              href={WHATSAPP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center justify-center bg-kore-red hover:bg-kore-red-dark text-white font-medium px-6 py-3 md:px-8 md:py-4 rounded-lg transition-colors duration-200 text-sm tracking-wide"
             >
-              Agenda tu valoración
+              Agenda tu valoración gratis
             </a>
             <a
-              href="/kore-brand"
+              href="/programs"
               className="inline-flex items-center justify-center border-2 border-kore-gray-dark/20 text-kore-gray-dark hover:border-kore-red hover:text-kore-red font-medium px-6 py-3 md:px-8 md:py-4 rounded-lg transition-colors duration-200 text-sm tracking-wide"
             >
-              Conoce el método
+              Ver programas
             </a>
           </div>
 

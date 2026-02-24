@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useRef } from 'react';
 import { useTextReveal } from '@/app/composables/useScrollAnimations';
 import MobileSwiper from '@/app/components/MobileSwiper';
+import { WHATSAPP_URL } from '@/lib/constants';
 
 const pillars = [
   {
@@ -91,10 +92,12 @@ export default function Philosophy() {
         {/* CTA Button */}
         <div data-animate="fade-up" data-delay="0.5" className="text-center mt-8 md:mt-12">
           <a
-            href="#valoracion"
+            href={WHATSAPP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="inline-flex items-center justify-center bg-kore-red hover:bg-kore-red-dark text-white font-medium px-6 py-3 md:px-8 md:py-4 rounded-lg transition-colors duration-200 text-sm tracking-wide"
           >
-            Agenda tu valoración
+            Agenda tu valoración gratis
           </a>
         </div>
       </div>

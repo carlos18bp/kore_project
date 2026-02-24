@@ -3,10 +3,10 @@
 export default function WhatsAppButton() {
   return (
     <a
-      href="https://wa.me/573238122373"
+      href="https://api.whatsapp.com/send/?phone=%2B573014645272&text&type=phone_number&app_absent=0"
       target="_blank"
       rel="noopener noreferrer"
-      className="fixed z-50 bottom-4 right-4 w-12 h-12 rounded-full bg-green-500 
+      className="fixed z-40 bottom-4 right-4 w-12 h-12 rounded-full bg-green-500 
                 flex items-center justify-center 
                 shadow-[0_0_15px_4px_rgba(34,197,94,0.6)]
                 cursor-pointer transition-transform hover:scale-110"

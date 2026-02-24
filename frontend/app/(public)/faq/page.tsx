@@ -48,7 +48,7 @@ export default function FAQPage() {
   return (
     <main className="min-h-screen bg-kore-cream">
       {/* Hero Section */}
-      <section className="py-16 md:py-24">
+      <section className="pt-28 py-16 md:py-24">
         <div className="w-full px-6 md:px-10 lg:px-16">
           <div className="text-center max-w-3xl mx-auto mb-12">
             <span className="inline-block text-kore-red text-sm font-medium tracking-widest uppercase mb-4">

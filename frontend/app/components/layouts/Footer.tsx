@@ -11,10 +11,9 @@ const navLinks = [
 ];
 
 const socialLinks = [
-  { href: 'https://instagram.com/', label: 'Instagram' },
-  { href: 'https://facebook.com/', label: 'Facebook' },
+  { href: 'https://www.instagram.com/fitnesslionwarrior?igsh=anFrOHdkeGc4Ym52&utm_source=qr', label: 'Instagram' },
   { href: WHATSAPP_URL, label: 'WhatsApp' },
-  { href: 'mailto:contacto@kore.co', label: 'contacto@kore.co' },
+  { href: 'mailto:info@korehealths.com', label: 'info@korehealths.com' },
 ];
 
 export default function Footer() {

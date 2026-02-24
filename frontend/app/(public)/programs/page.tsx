@@ -1,11 +1,12 @@
 'use client';
 
 import Image from 'next/image';
-import { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useRef, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useHeroAnimation, useTextReveal } from '@/app/composables/useScrollAnimations';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { api } from '@/lib/services/http';
+import { motion, AnimatePresence } from 'framer-motion';
 
 type ApiPackage = {
   id: number;
@@ -116,25 +117,51 @@ const programMeta: ProgramMeta[] = [
 ];
 
 function formatPrice(value: number) {
-  return '$' + value.toLocaleString('en-US');
+  return '$' + value.toLocaleString('es-CO');
 }
 
-export default function ProgramsPage() {
-  const [active, setActive] = useState(0);
-  const [selectedPlan, setSelectedPlan] = useState<number | null>(null);
+export default function ProgramsPageWrapper() {
+  return (
+    <Suspense>
+      <ProgramsPage />
+    </Suspense>
+  );
+}
+
+function ProgramsPage() {
+  const [activeHero, setActiveHero] = useState(0);
+  const touchStartX = useRef<number | null>(null);
+  const [selectedProgramIndex, setSelectedProgramIndex] = useState<number | null>(null);
+  const [selectedPlanIndex, setSelectedPlanIndex] = useState<number | null>(null);
   const [packagesByCategory, setPackagesByCategory] = useState<Record<string, ApiPackage[]>>({});
   const [loading, setLoading] = useState(true);
   const heroRef = useRef<HTMLElement>(null);
-  const cardsRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isAuthenticated, hydrate, hydrated } = useAuthStore();
 
   useHeroAnimation(heroRef);
-  useTextReveal(cardsRef);
 
   useEffect(() => {
     hydrate();
   }, [hydrate]);
+
+  // Auto-open modal if arriving with ?program=INDEX from home page
+  useEffect(() => {
+    const programParam = searchParams.get('program');
+    if (programParam !== null) {
+      const index = parseInt(programParam, 10);
+      if (!isNaN(index) && index >= 0 && index < programMeta.length) {
+        setActiveHero(index);
+        // Small delay to let packages load first
+        const timer = setTimeout(() => {
+          openProgramModal(index);
+        }, 600);
+        return () => clearTimeout(timer);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   useEffect(() => {
     let cancelled = false;
@@ -147,6 +174,10 @@ export default function ProgramsPage() {
           if (!grouped[pkg.category]) grouped[pkg.category] = [];
           grouped[pkg.category].push(pkg);
         }
+        // Sort plans by session count
+        Object.keys(grouped).forEach(key => {
+          grouped[key].sort((a, b) => a.sessions_count - b.sessions_count);
+        });
         setPackagesByCategory(grouped);
         setLoading(false);
       })
@@ -156,271 +187,348 @@ export default function ProgramsPage() {
     return () => { cancelled = true; };
   }, []);
 
-  const current = programMeta[active];
-  const plans = packagesByCategory[current.category] ?? [];
+  // Prevent background scroll when modal is open
+  useEffect(() => {
+    if (selectedProgramIndex !== null) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [selectedProgramIndex]);
 
-  function handleProgramChange(index: number) {
-    setActive(index);
-    setSelectedPlan(null);
+  const activeProgram = selectedProgramIndex !== null ? programMeta[selectedProgramIndex] : null;
+  const activePlans = activeProgram ? (packagesByCategory[activeProgram.category] ?? []) : [];
+  const selectedPkg = selectedPlanIndex !== null && activePlans.length > 0 ? activePlans[selectedPlanIndex] : null;
+
+  // Compute "desde" price for current hero program
+  const heroProgram = programMeta[activeHero];
+  const heroPlans = packagesByCategory[heroProgram.category] ?? [];
+  const heroMinPrice = heroPlans.length > 0 
+    ? Math.min(...heroPlans.map(p => parseFloat(p.price))) 
+    : null;
+
+  function openProgramModal(index: number) {
+    setSelectedProgramIndex(index);
+    setSelectedPlanIndex(null);
   }
 
-  const selectedPkg = selectedPlan !== null ? plans[selectedPlan] : null;
+  function closeProgramModal() {
+    setSelectedProgramIndex(null);
+  }
 
   return (
-    <main className="bg-kore-cream">
+    <main className="bg-kore-cream min-h-screen">
+      {/* ===== SEGMENTED HERO ===== */}
       <section
         ref={heroRef}
-        className="relative min-h-screen flex flex-col lg:flex-row items-stretch overflow-hidden"
+        className="relative h-screen flex flex-col"
+        onTouchStart={e => { touchStartX.current = e.touches[0].clientX; }}
+        onTouchEnd={e => {
+          if (touchStartX.current === null) return;
+          const diff = e.changedTouches[0].clientX - touchStartX.current;
+          if (diff < -50) setActiveHero(prev => Math.min(prev + 1, programMeta.length - 1));
+          else if (diff > 50) setActiveHero(prev => Math.max(prev - 1, 0));
+          touchStartX.current = null;
+        }}
       >
-        {/* Left — Content + Plans */}
-        <div className="flex-1 flex items-start px-6 md:px-10 lg:px-14 pt-28 lg:pt-32 pb-24 z-10 overflow-y-auto">
-          <div className="max-w-xl w-full">
-            <span
-              data-hero="badge"
-              className="inline-block text-kore-red text-xs font-medium tracking-[0.25em] uppercase mb-4"
-            >
-              Programas
-            </span>
+        {/* Background Images — instant switch */}
+        {programMeta.map((program, index) => (
+          <div
+            key={program.category}
+            className={`absolute inset-0 z-0 transition-opacity duration-200 ${activeHero === index ? 'opacity-100' : 'opacity-0'}`}
+          >
+            <Image
+              src={program.image}
+              alt={program.alt}
+              fill
+              className="object-cover"
+              priority={index === 0}
+            />
+          </div>
+        ))}
 
-            {/* Program Switch Tabs */}
-            <div className="flex gap-1 p-1.5 rounded-full bg-white/60 backdrop-blur-xl border border-white/50 shadow-sm mb-8 w-fit">
-              {programMeta.map((program, index) => (
-                <button
-                  key={program.category}
-                  onClick={() => handleProgramChange(index)}
-                  className={`relative px-4 py-2 rounded-full text-xs font-medium transition-all duration-300 cursor-pointer ${
-                    active === index
-                      ? 'bg-white text-kore-gray-dark shadow-md'
-                      : 'text-kore-gray-dark/60 hover:text-kore-gray-dark hover:bg-white/30'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <span
-                      className={`w-2 h-2 rounded-full transition-colors duration-300 ${
-                        active === index ? program.accent : 'bg-kore-gray-dark/20'
-                      }`}
-                    />
-                    <span className="hidden sm:inline">{program.name.replace(' FLW', '')}</span>
-                    <span className="sm:hidden">{program.mobileLabel}</span>
-                  </span>
-                </button>
-              ))}
+        {/* Gradient overlays */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-black/80 z-[1]" />
+
+        {/* Content overlay */}
+        <div className="relative z-10 flex flex-col h-full px-5 sm:px-8 pt-28 lg:pt-32 pb-8 max-w-3xl mx-auto w-full">
+
+          {/* Top badge */}
+          <span data-hero="badge" className="inline-block text-white/80 text-xs font-bold tracking-[0.25em] uppercase mb-6">
+            Programas KÓRE
+          </span>
+
+          {/* Pill Selectors */}
+          <div className="flex gap-2 mb-auto">
+            {programMeta.map((program, index) => (
+              <button
+                key={program.category}
+                onClick={() => setActiveHero(index)}
+                className={`px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 backdrop-blur-md border ${
+                  activeHero === index
+                    ? 'bg-white text-kore-gray-dark border-white/80 shadow-lg'
+                    : 'bg-white/10 text-white/90 border-white/20 hover:bg-white/20'
+                }`}
+              >
+                {program.mobileLabel}
+              </button>
+            ))}
+          </div>
+
+          {/* Program Info — Bottom */}
+          <div className="mt-auto">
+            <div>
+              <h1 className="font-heading text-3xl md:text-5xl text-white font-bold tracking-tight mb-2">
+                {heroProgram.name.replace(' FLW', '')}
+              </h1>
+              <p className="font-heading text-base md:text-lg text-white/80 italic mb-1">
+                {heroProgram.tagline}
+              </p>
+              <p className="text-sm text-white/60 mb-6 max-w-md leading-relaxed">
+                {heroProgram.subtitle}
+              </p>
             </div>
 
-            <p data-hero="subtitle" className="text-sm text-kore-gray-dark/60 leading-relaxed mb-8">
-              Tu programa no se elige por catálogo. Se define según tu diagnóstico y tus objetivos.
-            </p>
-
-            <h1 data-hero="heading" className="font-heading text-2xl md:text-3xl lg:text-4xl text-kore-gray-dark tracking-tight mb-2">
-              {current.name}
-            </h1>
-
-            <p className="font-heading text-base text-kore-burgundy font-semibold italic mb-4">
-              {current.tagline}
-            </p>
-
-            <p data-hero="body" className="text-sm text-kore-gray-dark/70 leading-relaxed mb-6">
-              {current.description}
-            </p>
-
-            {/* Includes & Ideal For */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8 p-5 bg-white/60 rounded-2xl border border-kore-gray-light/30">
-              <div>
-                <h4 className="text-[10px] font-medium tracking-widest uppercase text-kore-gray-dark/50 mb-3">Incluye</h4>
-                <ul className="space-y-2">
-                  {current.includes.map((item, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <svg className={`w-3.5 h-3.5 ${current.accentText} flex-shrink-0 mt-0.5`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="text-xs text-kore-gray-dark/70">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h4 className="text-[10px] font-medium tracking-widest uppercase text-kore-gray-dark/50 mb-3">Ideal para</h4>
-                <ul className="space-y-2">
-                  {current.idealFor.map((item, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <svg className={`w-3.5 h-3.5 ${current.accentText} flex-shrink-0 mt-0.5`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="text-xs text-kore-gray-dark/70">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-
-            {/* Quick CTAs */}
-            <div className="flex flex-wrap gap-3">
-              <a
-                href="/kore-brand"
-                className="inline-flex items-center gap-2 text-xs font-medium text-kore-gray-dark/60 hover:text-kore-red transition-colors"
+            {/* Price hint + CTA */}
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => openProgramModal(activeHero)}
+                className="inline-flex items-center justify-center gap-2 bg-white text-kore-gray-dark px-8 py-4 rounded-full text-sm md:text-base font-bold shadow-[0_10px_30px_rgba(0,0,0,0.25)] hover:scale-[1.03] active:scale-[0.97] transition-all"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                Ver planes y precios
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
                 </svg>
-                Ver detalles del método
-              </a>
-              <a
-                href="https://wa.me/573238122373"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-xs font-medium text-kore-gray-dark/60 hover:text-kore-red transition-colors"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 448 512" fill="currentColor">
-                  <path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157m-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1s56.2 81.2 56.1 130.5c0 101.8-84.9 184.6-186.6 184.6m101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8s-14.3 18-17.6 21.8c-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7.9-6.9-.5-9.7s-12.5-30.1-17.1-41.2c-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2s-9.7 1.4-14.8 6.9c-5.1 5.6-19.4 19-19.4 46.3s19.9 53.7 22.6 57.4c2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4s4.6-24.1 3.2-26.4c-1.3-2.5-5-3.9-10.5-6.6"/>
-                </svg>
-                Agenda tu valoración
-              </a>
+              </button>
+              {heroMinPrice !== null && (
+                <span className="text-white/70 text-sm font-medium">
+                  Desde <span className="text-white font-bold text-base">{formatPrice(heroMinPrice)}</span>
+                </span>
+              )}
             </div>
           </div>
+
+          {/* Dot indicators */}
+          <div className="flex gap-2 mt-6 justify-center">
+            {programMeta.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setActiveHero(index)}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  activeHero === index ? 'w-8 bg-white' : 'w-1.5 bg-white/40'
+                }`}
+              />
+            ))}
+          </div>
         </div>
+      </section>
 
-        {/* Right — Pricing Cards */}
-        <div data-hero="body" className="flex-1 flex items-start px-6 md:px-10 lg:px-14 pt-28 lg:pt-32 pb-24 z-10 overflow-y-auto">
-          <div ref={cardsRef} className="w-full">
-            {/* Header */}
-            <div data-animate="fade-up" className="mb-8">
-              <span className="inline-block text-kore-red text-xs font-medium tracking-[0.25em] uppercase mb-2">
-                Tarifas 2026
-              </span>
-              <h2 className="font-heading text-xl md:text-2xl text-kore-gray-dark tracking-tight">
-                Elige tu plan
-              </h2>
-            </div>
+      {/* Premium Bottom Sheet Modal */}
+      <AnimatePresence>
+        {selectedProgramIndex !== null && activeProgram && (
+          <>
+            {/* Backdrop with Glassmorphism */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeProgramModal}
+              className="fixed inset-0 bg-kore-gray-dark/40 backdrop-blur-sm z-50"
+            />
 
-            {/* Pricing Cards Grid */}
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <svg className="animate-spin h-6 w-6 text-kore-red" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
+            {/* Modal Content */}
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed bottom-0 left-0 right-0 z-50 flex flex-col h-[92vh] md:h-[85vh] bg-[#FDFBF7] rounded-t-[32px] shadow-[0_-20px_40px_rgb(0,0,0,0.1)] lg:left-1/2 lg:-translate-x-1/2 lg:w-[600px] lg:rounded-3xl lg:bottom-8"
+              // Cancel drag event bubbling to allow scrolling inside
+              onPointerDownCapture={e => e.stopPropagation()}
+            >
+              {/* Drag Handle (Sticky) */}
+              <div className="flex-shrink-0 pt-4 pb-2 px-6 bg-[#FDFBF7] rounded-t-[32px] z-20 absolute top-0 left-0 right-0 rounded-b-3xl">
+                <div className="w-12 h-1.5 bg-kore-gray-light rounded-full mx-auto" />
+                <button 
+                  onClick={closeProgramModal}
+                  className="absolute top-3 right-4 p-2 bg-black/10 hover:bg-black/20 backdrop-blur-md rounded-full transition-colors z-30"
+                >
+                  <svg className="w-5 h-5 text-kore-gray-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
-            ) : plans.length === 0 ? (
-              <p className="text-sm text-kore-gray-dark/40 text-center py-8">
-                No hay planes disponibles para este programa.
-              </p>
-            ) : (
-              <div data-animate="stagger-children" data-delay="0.2" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                {plans.map((pkg, i) => {
-                  const isSelected = selectedPlan === i;
-                  const price = parseFloat(pkg.price);
-                  const pricePerSession = Math.round(price / pkg.sessions_count);
-                  const isPopular = i === Math.floor(plans.length / 2);
 
-                  return (
-                    <button
-                      key={pkg.id}
-                      onClick={() => setSelectedPlan(i)}
-                      className={`relative text-left rounded-2xl p-6 transition-all duration-200 cursor-pointer ${
-                        isSelected
-                          ? `border-2 ${current.accentBorder} bg-white shadow-xl scale-[1.02]`
-                          : isPopular
-                            ? `border-2 ${current.accentBorder} bg-white shadow-lg`
-                            : 'border border-kore-gray-light bg-white hover:shadow-lg'
-                      }`}
-                    >
-                      {isPopular && (
-                        <span
-                          className={`absolute -top-3 left-1/2 -translate-x-1/2 ${current.accent} text-white text-[10px] font-medium tracking-wide uppercase px-3 py-1 rounded-full`}
-                        >
-                          Más elegido
-                        </span>
-                      )}
-
-                      {/* Plan Name */}
-                      <p className="text-[10px] text-kore-gray-dark/50 uppercase tracking-wide mb-1">
-                        {pkg.title}
+              {/* Scrollable Content Area */}
+              <div className="flex-1 overflow-y-auto w-full relative pb-28 pt-8">
+                
+                {/* Hero Image inside Modal */}
+                <div className="relative h-32 md:h-48 w-full mx-auto px-4 md:px-6 mb-4 mt-2">
+                  <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-md">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent z-10" />
+                    <Image
+                      src={activeProgram.image}
+                      alt={activeProgram.alt}
+                      fill
+                      className="object-cover object-center"
+                    />
+                    <div className="absolute bottom-3 left-4 right-4 z-20">
+                      <h2 className="font-heading text-xl md:text-2xl font-bold text-white">
+                        {activeProgram.name.replace(' FLW', '')}
+                      </h2>
+                      <p className="text-white/90 text-[10px] md:text-xs font-medium tracking-wide mt-0.5">
+                        {activeProgram.subtitle}
                       </p>
+                    </div>
+                  </div>
+                </div>
 
-                      {/* Sessions */}
-                      <div className="flex items-baseline gap-1.5 mb-3">
-                        <span className={`font-heading text-3xl font-semibold ${current.accentText}`}>
-                          {pkg.sessions_count}
-                        </span>
-                        <span className="text-kore-gray-dark/60 text-xs">
-                          {pkg.sessions_count === 1 ? 'sesión' : 'sesiones'}
-                        </span>
+                <div className="px-5 md:px-8 space-y-4">
+                  {/* Description */}
+                  <div>
+                    <p className="text-xs md:text-sm text-kore-gray-dark/80 leading-relaxed font-medium">
+                      {activeProgram.description}
+                    </p>
+                  </div>
+
+                  {/* 3 Icon Summary (Compact instead of long lists) */}
+                  <div className="grid grid-cols-3 gap-2 py-4 border-y border-kore-gray-light/30">
+                    <div className="flex flex-col items-center text-center gap-1.5">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-kore-cream ${activeProgram.accentText}`}>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                        </svg>
                       </div>
-
-                      {/* Divider */}
-                      <div className="border-t border-kore-gray-light my-3" />
-
-                      {/* Details */}
-                      <div className="space-y-2 mb-4">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-kore-gray-dark/60">Duración</span>
-                          <span className="font-medium text-kore-gray-dark">{pkg.session_duration_minutes} min</span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-kore-gray-dark/60">Valor por sesión</span>
-                          <span className="font-medium text-kore-gray-dark">{formatPrice(pricePerSession)}</span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-kore-gray-dark/60">Valor total</span>
-                          <span className={`font-semibold text-base ${current.accentText}`}>
-                            {formatPrice(price)}
-                          </span>
-                        </div>
+                      <span className="text-[9px] md:text-[10px] font-bold text-kore-gray-dark/80 uppercase tracking-wide">Evaluación<br/>Inicial</span>
+                    </div>
+                    <div className="flex flex-col items-center text-center gap-1.5">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-kore-cream ${activeProgram.accentText}`}>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 18a3.75 3.75 0 00.495-7.467 5.99 5.99 0 00-1.925 3.546 5.974 5.974 0 01-2.133-1A3.75 3.75 0 0012 18z" />
+                        </svg>
                       </div>
-
-                      {/* Selection indicator */}
-                      <div
-                        className={`w-full text-center py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
-                          isSelected
-                            ? `${current.accent} text-white`
-                            : `border ${current.accentBorder} ${current.accentText}`
-                        }`}
-                      >
-                        {isSelected ? 'Seleccionado' : 'Seleccionar'}
+                      <span className="text-[9px] md:text-[10px] font-bold text-kore-gray-dark/80 uppercase tracking-wide">Proceso<br/>Guiado</span>
+                    </div>
+                    <div className="flex flex-col items-center text-center gap-1.5">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-kore-cream ${activeProgram.accentText}`}>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                        </svg>
                       </div>
-                    </button>
-                  );
-                })}
+                      <span className="text-[9px] md:text-[10px] font-bold text-kore-gray-dark/80 uppercase tracking-wide">Seguimiento<br/>Continuo</span>
+                    </div>
+                  </div>
+
+                  {/* Pricing Plans Selection */}
+                  <div>
+                    <h3 className="font-heading text-lg font-bold text-kore-gray-dark mb-3">Opciones Disponibles</h3>
+                  
+                  {loading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <svg className="animate-spin h-6 w-6 text-kore-red" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    </div>
+                  ) : activePlans.length === 0 ? (
+                    <p className="text-sm text-kore-gray-dark/40 py-4 bg-white rounded-xl text-center border border-kore-gray-light/30">
+                      No hay planes disponibles para este programa.
+                    </p>
+                  ) : (
+                    <div className="flex flex-col gap-3 pb-24"> {/* Extra padding at bottom for the sticky button */}
+                      {activePlans.map((pkg, i) => {
+                        const isSelected = selectedPlanIndex === i;
+                        const price = parseFloat(pkg.price);
+                        const pricePerSession = Math.round(price / pkg.sessions_count);
+
+                        return (
+                          <button
+                            key={pkg.id}
+                            onClick={() => setSelectedPlanIndex(i)}
+                            className={`relative flex items-center p-4 md:p-5 w-full text-left bg-white rounded-2xl transition-all duration-300 ${
+                              isSelected 
+                                ? `border-2 ${activeProgram.accentBorder} shadow-[0_8px_20px_rgb(0,0,0,0.08)] bg-[#FAFAFA]` 
+                                : 'border border-kore-gray-light/60 hover:border-kore-gray-dark/20 hover:shadow-sm'
+                            }`}
+                          >
+                            {/* Number Badge */}
+                            <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center flex-shrink-0 mr-4 transition-colors ${
+                              isSelected ? `${activeProgram.accent} text-white` : 'bg-kore-cream text-kore-gray-dark/60'
+                            }`}>
+                              <span className="font-heading text-lg md:text-xl font-bold">{pkg.sessions_count}</span>
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex-1 min-w-0 pr-3">
+                              <h4 className={`font-bold text-sm md:text-base mb-0.5 truncate ${isSelected ? 'text-kore-gray-dark' : 'text-kore-gray-dark/80'}`}>
+                                {pkg.title}
+                              </h4>
+                              <div className="flex items-center text-xs text-kore-gray-dark/50 gap-1.5">
+                                <span>{formatPrice(pricePerSession)} / sesión</span>
+                                <span className="w-1 h-1 rounded-full bg-kore-gray-light block" />
+                                <span>{pkg.session_duration_minutes} min</span>
+                              </div>
+                            </div>
+
+                            {/* Price & Radio */}
+                            <div className="flex flex-col items-end flex-shrink-0">
+                              <span className={`font-bold text-base md:text-lg mb-1 ${isSelected ? activeProgram.accentText : 'text-kore-gray-dark'}`}>
+                                {formatPrice(price)}
+                              </span>
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                                isSelected ? `border-transparent ${activeProgram.accent}` : 'border-kore-gray-light'
+                              }`}>
+                                {isSelected && (
+                                  <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                  </svg>
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                </div>
               </div>
-            )}
 
-            {/* CTA */}
-            {selectedPkg && (
-              <div className="flex items-center gap-3 mt-8">
+              {/* Bottom Sticky Action Bar inside Modal */}
+              <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-[#FDFBF7] via-[#FDFBF7] to-transparent pt-10 rounded-b-3xl">
                 <button
-                  disabled={!hydrated}
+                  disabled={!hydrated || selectedPlanIndex === null}
                   onClick={() => {
-                    if (!hydrated) {
-                      return;
-                    }
+                    if (!hydrated || !selectedPkg) return;
                     const destination = isAuthenticated
                       ? `/checkout?package=${selectedPkg.id}`
                       : `/register?package=${selectedPkg.id}`;
                     router.push(destination);
                   }}
-                  className="inline-flex items-center justify-center gap-2 bg-kore-red text-white px-6 py-3 rounded-full text-sm font-medium hover:bg-kore-red-dark transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                  className={`w-full flex items-center justify-between p-4 rounded-2xl text-white font-bold transition-all shadow-lg ${
+                    selectedPlanIndex !== null 
+                      ? 'bg-[#1A1A1A] hover:bg-black hover:scale-[1.02] active:scale-[0.98] shadow-[0_10px_25px_rgba(0,0,0,0.2)]' 
+                      : 'bg-kore-gray-light text-kore-gray-dark/40 cursor-not-allowed'
+                  }`}
                 >
-                  Reservar {selectedPkg.title}
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                  </svg>
+                  <span className="text-sm md:text-base">
+                    {selectedPlanIndex !== null ? `Cotizar ${selectedPkg?.title}` : 'Selecciona un plan'}
+                  </span>
+                  {selectedPlanIndex !== null && (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                    </svg>
+                  )}
                 </button>
-                <span className="text-sm text-kore-gray-dark/40">
-                  {formatPrice(parseFloat(selectedPkg.price))}
-                </span>
               </div>
-            )}
-
-            {/* Footer note */}
-            <p className="text-[10px] text-kore-gray-dark/40 leading-relaxed mt-8">
-              Programas con contrato mensual. Vigencia desde el día de inicio hasta el mismo día del mes siguiente.
-              <br />
-              Al reservar, aceptas nuestros{' '}
-              <a href="/terms" className="underline hover:text-kore-red transition-colors">Términos y Condiciones</a>.
-            </p>
-          </div>
-        </div>
-      </section>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </main>
   );
 }
