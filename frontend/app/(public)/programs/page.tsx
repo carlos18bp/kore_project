@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { useState, useRef, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useHeroAnimation, useTextReveal } from '@/app/composables/useScrollAnimations';
+import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { api } from '@/lib/services/http';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -129,16 +129,22 @@ export default function ProgramsPageWrapper() {
 }
 
 function ProgramsPage() {
-  const [activeHero, setActiveHero] = useState(0);
-  const touchStartX = useRef<number | null>(null);
-  const [selectedProgramIndex, setSelectedProgramIndex] = useState<number | null>(null);
-  const [selectedPlanIndex, setSelectedPlanIndex] = useState<number | null>(null);
+  // Shared state
+  const [activeIndex, setActiveIndex] = useState(0);
   const [packagesByCategory, setPackagesByCategory] = useState<Record<string, ApiPackage[]>>({});
   const [loading, setLoading] = useState(true);
   const heroRef = useRef<HTMLElement>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated, hydrate, hydrated } = useAuthStore();
+
+  // Desktop state
+  const [desktopSelectedPlan, setDesktopSelectedPlan] = useState<number | null>(null);
+
+  // Mobile state
+  const touchStartX = useRef<number | null>(null);
+  const [selectedProgramIndex, setSelectedProgramIndex] = useState<number | null>(null);
+  const [selectedPlanIndex, setSelectedPlanIndex] = useState<number | null>(null);
 
   useHeroAnimation(heroRef);
 
@@ -152,7 +158,7 @@ function ProgramsPage() {
     if (programParam !== null) {
       const index = parseInt(programParam, 10);
       if (!isNaN(index) && index >= 0 && index < programMeta.length) {
-        setActiveHero(index);
+        setActiveIndex(index);
         // Small delay to let packages load first
         const timer = setTimeout(() => {
           openProgramModal(index);
@@ -187,7 +193,7 @@ function ProgramsPage() {
     return () => { cancelled = true; };
   }, []);
 
-  // Prevent background scroll when modal is open
+  // Prevent background scroll when mobile modal is open
   useEffect(() => {
     if (selectedProgramIndex !== null) {
       document.body.style.overflow = 'hidden';
@@ -199,16 +205,25 @@ function ProgramsPage() {
     };
   }, [selectedProgramIndex]);
 
+  // Derived data
+  const currentProgram = programMeta[activeIndex];
+  const currentPlans = packagesByCategory[currentProgram.category] ?? [];
+  const currentMinPrice = currentPlans.length > 0
+    ? Math.min(...currentPlans.map(p => parseFloat(p.price)))
+    : null;
+
+  // Mobile modal data
   const activeProgram = selectedProgramIndex !== null ? programMeta[selectedProgramIndex] : null;
   const activePlans = activeProgram ? (packagesByCategory[activeProgram.category] ?? []) : [];
   const selectedPkg = selectedPlanIndex !== null && activePlans.length > 0 ? activePlans[selectedPlanIndex] : null;
 
-  // Compute "desde" price for current hero program
-  const heroProgram = programMeta[activeHero];
-  const heroPlans = packagesByCategory[heroProgram.category] ?? [];
-  const heroMinPrice = heroPlans.length > 0 
-    ? Math.min(...heroPlans.map(p => parseFloat(p.price))) 
-    : null;
+  // Desktop selected package
+  const desktopPkg = desktopSelectedPlan !== null ? currentPlans[desktopSelectedPlan] : null;
+
+  function handleProgramChange(index: number) {
+    setActiveIndex(index);
+    setDesktopSelectedPlan(null);
+  }
 
   function openProgramModal(index: number) {
     setSelectedProgramIndex(index);
@@ -221,24 +236,202 @@ function ProgramsPage() {
 
   return (
     <main className="bg-kore-cream min-h-screen">
-      {/* ===== SEGMENTED HERO ===== */}
+
+      {/* ================================================================ */}
+      {/* ===== DESKTOP LAYOUT (lg+): Split view — original design ===== */}
+      {/* ================================================================ */}
       <section
         ref={heroRef}
-        className="relative h-screen flex flex-col"
+        className="hidden lg:flex relative min-h-screen flex-row items-stretch overflow-hidden"
+      >
+        {/* Left — Content + Plans */}
+        <div className="flex-1 flex items-start px-10 lg:px-14 pt-28 lg:pt-32 pb-24 z-10 overflow-y-auto">
+          <div className="max-w-xl w-full">
+            {/* Program Switch Tabs — Top */}
+            <div className="flex gap-1 p-1.5 rounded-full bg-white/60 backdrop-blur-xl border border-white/50 shadow-sm mb-8 w-fit">
+              {programMeta.map((program, index) => (
+                <button
+                  key={program.category}
+                  onClick={() => handleProgramChange(index)}
+                  className={`relative px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 cursor-pointer ${
+                    activeIndex === index
+                      ? 'bg-white text-kore-gray-dark shadow-md'
+                      : 'text-kore-gray-dark/60 hover:text-kore-gray-dark hover:bg-white/30'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span
+                      className={`w-2 h-2 rounded-full transition-colors duration-300 ${
+                        activeIndex === index ? program.accent : 'bg-kore-gray-dark/20'
+                      }`}
+                    />
+                    {program.name.replace(' FLW', '')}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <span
+              data-hero="badge"
+              className="inline-block text-kore-red text-xs font-medium tracking-[0.25em] uppercase mb-3"
+            >
+              Tarifas 2026
+            </span>
+
+            <h1 data-hero="heading" className="font-heading text-3xl lg:text-4xl text-kore-gray-dark tracking-tight mb-1">
+              {currentProgram.name}
+            </h1>
+
+            <p data-hero="subtitle" className="font-heading text-base text-kore-burgundy font-semibold mb-3">
+              {currentProgram.tagline}
+            </p>
+
+            <p data-hero="body" className="text-sm text-kore-gray-dark/60 leading-relaxed mb-6">
+              {currentProgram.description}
+            </p>
+
+            {/* Plans */}
+            <div data-hero="cta" className="space-y-2.5 mb-10">
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <svg className="animate-spin h-6 w-6 text-kore-red" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                </div>
+              ) : currentPlans.length === 0 ? (
+                <p className="text-sm text-kore-gray-dark/40 text-center py-8">
+                  No hay planes disponibles para este programa.
+                </p>
+              ) : (
+                currentPlans.map((pkg, i) => {
+                  const isSelected = desktopSelectedPlan === i;
+                  const price = parseFloat(pkg.price);
+                  const pricePerSession = Math.round(price / pkg.sessions_count);
+                  return (
+                    <button
+                      key={pkg.id}
+                      onClick={() => setDesktopSelectedPlan(i)}
+                      className={`w-full text-left rounded-xl p-4 border transition-all duration-200 cursor-pointer ${
+                        isSelected
+                          ? 'bg-white border-kore-red/30 shadow-md ring-1 ring-kore-red/20'
+                          : 'bg-white/50 border-kore-gray-light/40 hover:bg-white/80 hover:border-kore-gray-light/60'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        {/* Left info */}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors duration-200 ${
+                              isSelected
+                                ? 'border-kore-red bg-kore-red'
+                                : 'border-kore-gray-dark/20 bg-transparent'
+                            }`}
+                          >
+                            {isSelected && (
+                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                              </svg>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-kore-gray-dark truncate">
+                              {pkg.title}
+                            </p>
+                            <p className="text-xs text-kore-gray-dark/40">
+                              {pkg.sessions_count} {pkg.sessions_count === 1 ? 'sesión' : 'sesiones'} · {pkg.session_duration_minutes} min
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Right price */}
+                        <div className="text-right shrink-0">
+                          <p className={`text-sm font-semibold ${isSelected ? 'text-kore-red' : 'text-kore-gray-dark'}`}>
+                            {formatPrice(price)}
+                          </p>
+                          <p className="text-[11px] text-kore-gray-dark/40">
+                            {formatPrice(pricePerSession)}/sesión
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {/* CTA */}
+            {desktopPkg && (
+              <div className="flex items-center gap-3">
+                <button
+                  disabled={!hydrated}
+                  onClick={() => {
+                    if (!hydrated || !desktopPkg) return;
+                    const destination = isAuthenticated
+                      ? `/checkout?package=${desktopPkg.id}`
+                      : `/register?package=${desktopPkg.id}`;
+                    router.push(destination);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 bg-kore-red text-white px-6 py-3 rounded-full text-sm font-medium hover:bg-kore-red-dark transition-colors cursor-pointer"
+                >
+                  Reservar {desktopPkg.title}
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                  </svg>
+                </button>
+                <span className="text-sm text-kore-gray-dark/40">
+                  {formatPrice(parseFloat(desktopPkg.price))}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right — Image */}
+        <div data-hero="body" className="relative w-1/2 h-screen flex-shrink-0 order-last">
+          {programMeta.map((program, index) => (
+            <div
+              key={program.category}
+              className="absolute inset-0 transition-opacity duration-500"
+              style={{ opacity: activeIndex === index ? 1 : 0 }}
+            >
+              <Image
+                src={program.image}
+                alt={program.alt}
+                fill
+                sizes="50vw"
+                className="object-contain object-center"
+                priority={index === 0}
+              />
+            </div>
+          ))}
+          {/* Rounded vignette fade to kore-cream */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: 'radial-gradient(ellipse 65% 60% at center, transparent 45%, #EDE8DC 100%)' }}
+          />
+        </div>
+      </section>
+
+      {/* ================================================================ */}
+      {/* ===== MOBILE LAYOUT (<lg): Clean image + glass bottom card ==== */}
+      {/* ================================================================ */}
+      <section
+        className="lg:hidden relative h-screen flex flex-col"
         onTouchStart={e => { touchStartX.current = e.touches[0].clientX; }}
         onTouchEnd={e => {
           if (touchStartX.current === null) return;
           const diff = e.changedTouches[0].clientX - touchStartX.current;
-          if (diff < -50) setActiveHero(prev => Math.min(prev + 1, programMeta.length - 1));
-          else if (diff > 50) setActiveHero(prev => Math.max(prev - 1, 0));
+          if (diff < -50) setActiveIndex(prev => Math.min(prev + 1, programMeta.length - 1));
+          else if (diff > 50) setActiveIndex(prev => Math.max(prev - 1, 0));
           touchStartX.current = null;
         }}
       >
-        {/* Background Images — instant switch */}
+        {/* Background Images — clean, no overlay */}
         {programMeta.map((program, index) => (
           <div
             key={program.category}
-            className={`absolute inset-0 z-0 transition-opacity duration-200 ${activeHero === index ? 'opacity-100' : 'opacity-0'}`}
+            className={`absolute inset-0 z-0 transition-opacity duration-300 ${activeIndex === index ? 'opacity-100' : 'opacity-0'}`}
           >
             <Image
               src={program.image}
@@ -250,83 +443,72 @@ function ProgramsPage() {
           </div>
         ))}
 
-        {/* Gradient overlays */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-black/80 z-[1]" />
+        {/* Glass Bottom Card */}
+        <div className="absolute bottom-0 left-0 right-0 z-10 p-4 pb-8">
+          <div className="bg-white/70 backdrop-blur-2xl rounded-[28px] p-6 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] border border-white/50">
+            
+            {/* Program Title */}
+            <h1 className="font-heading text-2xl text-kore-gray-dark font-bold tracking-tight mb-1">
+              {currentProgram.name.replace(' FLW', '')}
+            </h1>
+            <p className="text-sm text-kore-gray-dark/60 mb-5">
+              {currentProgram.tagline}
+            </p>
 
-        {/* Content overlay */}
-        <div className="relative z-10 flex flex-col h-full px-5 sm:px-8 pt-28 lg:pt-32 pb-8 max-w-3xl mx-auto w-full">
-
-          {/* Top badge */}
-          <span data-hero="badge" className="inline-block text-white/80 text-xs font-bold tracking-[0.25em] uppercase mb-6">
-            Programas KÓRE
-          </span>
-
-          {/* Pill Selectors */}
-          <div className="flex gap-2 mb-auto">
-            {programMeta.map((program, index) => (
-              <button
-                key={program.category}
-                onClick={() => setActiveHero(index)}
-                className={`px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 backdrop-blur-md border ${
-                  activeHero === index
-                    ? 'bg-white text-kore-gray-dark border-white/80 shadow-lg'
-                    : 'bg-white/10 text-white/90 border-white/20 hover:bg-white/20'
-                }`}
-              >
-                {program.mobileLabel}
-              </button>
-            ))}
-          </div>
-
-          {/* Program Info — Bottom */}
-          <div className="mt-auto">
-            <div>
-              <h1 className="font-heading text-3xl md:text-5xl text-white font-bold tracking-tight mb-2">
-                {heroProgram.name.replace(' FLW', '')}
-              </h1>
-              <p className="font-heading text-base md:text-lg text-white/80 italic mb-1">
-                {heroProgram.tagline}
-              </p>
-              <p className="text-sm text-white/60 mb-6 max-w-md leading-relaxed">
-                {heroProgram.subtitle}
-              </p>
+            {/* Pill Selectors */}
+            <div className="flex gap-2 mb-5">
+              {programMeta.map((program, index) => (
+                <button
+                  key={program.category}
+                  onClick={() => setActiveIndex(index)}
+                  className={`flex-1 px-3 py-2.5 rounded-full text-xs font-semibold transition-all duration-300 border ${
+                    activeIndex === index
+                      ? `${program.accent} text-white border-transparent shadow-md`
+                      : 'bg-kore-cream/80 text-kore-gray-dark/70 border-kore-gray-light/50 hover:bg-kore-cream'
+                  }`}
+                >
+                  {program.mobileLabel}
+                </button>
+              ))}
             </div>
 
-            {/* Price hint + CTA */}
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => openProgramModal(activeHero)}
-                className="inline-flex items-center justify-center gap-2 bg-white text-kore-gray-dark px-8 py-4 rounded-full text-sm md:text-base font-bold shadow-[0_10px_30px_rgba(0,0,0,0.25)] hover:scale-[1.03] active:scale-[0.97] transition-all"
-              >
-                Ver planes y precios
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+            {/* CTA Button */}
+            <button
+              onClick={() => openProgramModal(activeIndex)}
+              className="w-full flex items-center justify-between bg-kore-gray-dark text-white px-6 py-4 rounded-2xl text-sm font-bold shadow-lg hover:bg-black transition-colors"
+            >
+              <span>Ver planes y precios</span>
+              <div className="flex items-center gap-3">
+                {currentMinPrice !== null && (
+                  <span className="text-white/60 text-xs font-normal">
+                    Desde {formatPrice(currentMinPrice)}
+                  </span>
+                )}
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
                 </svg>
-              </button>
-              {heroMinPrice !== null && (
-                <span className="text-white/70 text-sm font-medium">
-                  Desde <span className="text-white font-bold text-base">{formatPrice(heroMinPrice)}</span>
-                </span>
-              )}
-            </div>
-          </div>
+              </div>
+            </button>
 
-          {/* Dot indicators */}
-          <div className="flex gap-2 mt-6 justify-center">
-            {programMeta.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => setActiveHero(index)}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  activeHero === index ? 'w-8 bg-white' : 'w-1.5 bg-white/40'
-                }`}
-              />
-            ))}
+            {/* Dot indicators */}
+            <div className="flex gap-2 mt-4 justify-center">
+              {programMeta.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setActiveIndex(index)}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    activeIndex === index ? 'w-6 bg-kore-gray-dark' : 'w-1.5 bg-kore-gray-dark/20'
+                  }`}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Premium Bottom Sheet Modal */}
+      {/* ================================================================ */}
+      {/* ===== MOBILE Bottom Sheet Modal ================================ */}
+      {/* ================================================================ */}
       <AnimatePresence>
         {selectedProgramIndex !== null && activeProgram && (
           <>
@@ -345,8 +527,7 @@ function ProgramsPage() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 z-50 flex flex-col h-[92vh] md:h-[85vh] bg-[#FDFBF7] rounded-t-[32px] shadow-[0_-20px_40px_rgb(0,0,0,0.1)] lg:left-1/2 lg:-translate-x-1/2 lg:w-[600px] lg:rounded-3xl lg:bottom-8"
-              // Cancel drag event bubbling to allow scrolling inside
+              className="fixed bottom-0 left-0 right-0 z-50 flex flex-col h-[92vh] bg-[#FDFBF7] rounded-t-[32px] shadow-[0_-20px_40px_rgb(0,0,0,0.1)]"
               onPointerDownCapture={e => e.stopPropagation()}
             >
               {/* Drag Handle (Sticky) */}
@@ -366,7 +547,7 @@ function ProgramsPage() {
               <div className="flex-1 overflow-y-auto w-full relative pb-28 pt-8">
                 
                 {/* Hero Image inside Modal */}
-                <div className="relative h-32 md:h-48 w-full mx-auto px-4 md:px-6 mb-4 mt-2">
+                <div className="relative h-32 w-full mx-auto px-4 mb-4 mt-2">
                   <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-md">
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent z-10" />
                     <Image
@@ -376,25 +557,25 @@ function ProgramsPage() {
                       className="object-cover object-center"
                     />
                     <div className="absolute bottom-3 left-4 right-4 z-20">
-                      <h2 className="font-heading text-xl md:text-2xl font-bold text-white">
+                      <h2 className="font-heading text-xl font-bold text-white">
                         {activeProgram.name.replace(' FLW', '')}
                       </h2>
-                      <p className="text-white/90 text-[10px] md:text-xs font-medium tracking-wide mt-0.5">
+                      <p className="text-white/90 text-[10px] font-medium tracking-wide mt-0.5">
                         {activeProgram.subtitle}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="px-5 md:px-8 space-y-4">
+                <div className="px-5 space-y-4">
                   {/* Description */}
                   <div>
-                    <p className="text-xs md:text-sm text-kore-gray-dark/80 leading-relaxed font-medium">
+                    <p className="text-xs text-kore-gray-dark/80 leading-relaxed font-medium">
                       {activeProgram.description}
                     </p>
                   </div>
 
-                  {/* 3 Icon Summary (Compact instead of long lists) */}
+                  {/* 3 Icon Summary */}
                   <div className="grid grid-cols-3 gap-2 py-4 border-y border-kore-gray-light/30">
                     <div className="flex flex-col items-center text-center gap-1.5">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-kore-cream ${activeProgram.accentText}`}>
@@ -402,7 +583,7 @@ function ProgramsPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
                         </svg>
                       </div>
-                      <span className="text-[9px] md:text-[10px] font-bold text-kore-gray-dark/80 uppercase tracking-wide">Evaluación<br/>Inicial</span>
+                      <span className="text-[9px] font-bold text-kore-gray-dark/80 uppercase tracking-wide">Evaluación<br/>Inicial</span>
                     </div>
                     <div className="flex flex-col items-center text-center gap-1.5">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-kore-cream ${activeProgram.accentText}`}>
@@ -411,7 +592,7 @@ function ProgramsPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 18a3.75 3.75 0 00.495-7.467 5.99 5.99 0 00-1.925 3.546 5.974 5.974 0 01-2.133-1A3.75 3.75 0 0012 18z" />
                         </svg>
                       </div>
-                      <span className="text-[9px] md:text-[10px] font-bold text-kore-gray-dark/80 uppercase tracking-wide">Proceso<br/>Guiado</span>
+                      <span className="text-[9px] font-bold text-kore-gray-dark/80 uppercase tracking-wide">Proceso<br/>Guiado</span>
                     </div>
                     <div className="flex flex-col items-center text-center gap-1.5">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-kore-cream ${activeProgram.accentText}`}>
@@ -419,7 +600,7 @@ function ProgramsPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
                         </svg>
                       </div>
-                      <span className="text-[9px] md:text-[10px] font-bold text-kore-gray-dark/80 uppercase tracking-wide">Seguimiento<br/>Continuo</span>
+                      <span className="text-[9px] font-bold text-kore-gray-dark/80 uppercase tracking-wide">Seguimiento<br/>Continuo</span>
                     </div>
                   </div>
 
@@ -439,7 +620,7 @@ function ProgramsPage() {
                       No hay planes disponibles para este programa.
                     </p>
                   ) : (
-                    <div className="flex flex-col gap-3 pb-24"> {/* Extra padding at bottom for the sticky button */}
+                    <div className="flex flex-col gap-3 pb-24">
                       {activePlans.map((pkg, i) => {
                         const isSelected = selectedPlanIndex === i;
                         const price = parseFloat(pkg.price);
@@ -449,22 +630,22 @@ function ProgramsPage() {
                           <button
                             key={pkg.id}
                             onClick={() => setSelectedPlanIndex(i)}
-                            className={`relative flex items-center p-4 md:p-5 w-full text-left bg-white rounded-2xl transition-all duration-300 ${
+                            className={`relative flex items-center p-4 w-full text-left bg-white rounded-2xl transition-all duration-300 ${
                               isSelected 
                                 ? `border-2 ${activeProgram.accentBorder} shadow-[0_8px_20px_rgb(0,0,0,0.08)] bg-[#FAFAFA]` 
                                 : 'border border-kore-gray-light/60 hover:border-kore-gray-dark/20 hover:shadow-sm'
                             }`}
                           >
                             {/* Number Badge */}
-                            <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center flex-shrink-0 mr-4 transition-colors ${
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mr-4 transition-colors ${
                               isSelected ? `${activeProgram.accent} text-white` : 'bg-kore-cream text-kore-gray-dark/60'
                             }`}>
-                              <span className="font-heading text-lg md:text-xl font-bold">{pkg.sessions_count}</span>
+                              <span className="font-heading text-lg font-bold">{pkg.sessions_count}</span>
                             </div>
 
                             {/* Content */}
                             <div className="flex-1 min-w-0 pr-3">
-                              <h4 className={`font-bold text-sm md:text-base mb-0.5 truncate ${isSelected ? 'text-kore-gray-dark' : 'text-kore-gray-dark/80'}`}>
+                              <h4 className={`font-bold text-sm mb-0.5 truncate ${isSelected ? 'text-kore-gray-dark' : 'text-kore-gray-dark/80'}`}>
                                 {pkg.title}
                               </h4>
                               <div className="flex items-center text-xs text-kore-gray-dark/50 gap-1.5">
@@ -476,7 +657,7 @@ function ProgramsPage() {
 
                             {/* Price & Radio */}
                             <div className="flex flex-col items-end flex-shrink-0">
-                              <span className={`font-bold text-base md:text-lg mb-1 ${isSelected ? activeProgram.accentText : 'text-kore-gray-dark'}`}>
+                              <span className={`font-bold text-base mb-1 ${isSelected ? activeProgram.accentText : 'text-kore-gray-dark'}`}>
                                 {formatPrice(price)}
                               </span>
                               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
@@ -515,8 +696,8 @@ function ProgramsPage() {
                       : 'bg-kore-gray-light text-kore-gray-dark/40 cursor-not-allowed'
                   }`}
                 >
-                  <span className="text-sm md:text-base">
-                    {selectedPlanIndex !== null ? `Cotizar ${selectedPkg?.title}` : 'Selecciona un plan'}
+                  <span className="text-sm">
+                    {selectedPlanIndex !== null ? `Adquirir ${selectedPkg?.title}` : 'Selecciona un plan'}
                   </span>
                   {selectedPlanIndex !== null && (
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/stores/authStore';
 
@@ -16,12 +16,19 @@ const navLinks = [
 
 export default function Navbar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { isAuthenticated, hydrate } = useAuthStore();
 
   useEffect(() => {
     hydrate();
   }, [hydrate]);
+
+  // Hide navbar on checkout flow pages (register/checkout with package param)
+  const isCheckoutFlow = (pathname === '/register' || pathname === '/checkout') && searchParams.get('package');
+  if (isCheckoutFlow) {
+    return null;
+  }
 
   const desktopCtaHref = isAuthenticated ? '/dashboard' : '/login';
   const desktopCtaLabel = isAuthenticated ? 'Mi sesión' : 'Iniciar sesión';

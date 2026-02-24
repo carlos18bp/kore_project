@@ -1,0 +1,322 @@
+[
+{
+  "model": "core_app.package",
+  "pk": 3,
+  "fields": {
+    "created_at": "2026-02-18T18:26:25.448Z",
+    "updated_at": "2026-02-18T18:26:25.448Z",
+    "title": "Sesión Individual",
+    "short_description": "Sesión individual personalizada con tu entrenador.",
+    "description": "",
+    "category": "personalizado",
+    "sessions_count": 1,
+    "session_duration_minutes": 60,
+    "price": "85000.00",
+    "currency": "COP",
+    "validity_days": 30,
+    "terms_and_conditions": "Válido por 30 días. No reembolsable.",
+    "is_active": true,
+    "order": 1
+  }
+},
+{
+  "model": "core_app.package",
+  "pk": 4,
+  "fields": {
+    "created_at": "2026-02-18T18:26:25.575Z",
+    "updated_at": "2026-02-18T18:26:25.575Z",
+    "title": "Programa Básico",
+    "short_description": "Plan mensual personalizado, 1 sesión por semana.",
+    "description": "",
+    "category": "personalizado",
+    "sessions_count": 4,
+    "session_duration_minutes": 60,
+    "price": "320000.00",
+    "currency": "COP",
+    "validity_days": 30,
+    "terms_and_conditions": "Válido por 30 días. Renovación automática.",
+    "is_active": true,
+    "order": 2
+  }
+},
+{
+  "model": "core_app.package",
+  "pk": 5,
+  "fields": {
+    "created_at": "2026-02-18T18:26:25.601Z",
+    "updated_at": "2026-02-18T18:26:25.601Z",
+    "title": "Programa Continuidad",
+    "short_description": "Plan intensivo personalizado, 2 sesiones por semana.",
+    "description": "",
+    "category": "personalizado",
+    "sessions_count": 8,
+    "session_duration_minutes": 60,
+    "price": "600000.00",
+    "currency": "COP",
+    "validity_days": 60,
+    "terms_and_conditions": "Válido por 60 días. Renovación automática.",
+    "is_active": true,
+    "order": 3
+  }
+},
+{
+  "model": "core_app.package",
+  "pk": 6,
+  "fields": {
+    "created_at": "2026-02-18T18:26:25.615Z",
+    "updated_at": "2026-02-18T18:26:25.615Z",
+    "title": "Programa Avance",
+    "short_description": "Plan avanzado personalizado, 3 sesiones por semana.",
+    "description": "",
+    "category": "personalizado",
+    "sessions_count": 12,
+    "session_duration_minutes": 60,
+    "price": "840000.00",
+    "currency": "COP",
+    "validity_days": 60,
+    "terms_and_conditions": "Válido por 60 días. Renovación automática.",
+    "is_active": true,
+    "order": 4
+  }
+},
+{
+  "model": "core_app.package",
+  "pk": 7,
+  "fields": {
+    "created_at": "2026-02-18T18:26:25.639Z",
+    "updated_at": "2026-02-18T18:26:25.639Z",
+    "title": "Programa Consolidación",
+    "short_description": "Plan de consolidación personalizado.",
+    "description": "",
+    "category": "personalizado",
+    "sessions_count": 16,
+    "session_duration_minutes": 60,
+    "price": "1040000.00",
+    "currency": "COP",
+    "validity_days": 90,
+    "terms_and_conditions": "Válido por 90 días. Renovación automática.",
+    "is_active": true,
+    "order": 5
+  }
+},
+{
+  "model": "core_app.package",
+  "pk": 8,
+  "fields": {
+    "created_at": "2026-02-18T18:26:25.651Z",
+    "updated_at": "2026-02-18T18:26:25.651Z",
+    "title": "Programa Integral",
+    "short_description": "Plan integral personalizado.",
+    "description": "",
+    "category": "personalizado",
+    "sessions_count": 20,
+    "session_duration_minutes": 60,
+    "price": "1200000.00",
+    "currency": "COP",
+    "validity_days": 90,
+    "terms_and_conditions": "Válido por 90 días. Renovación automática.",
+    "is_active": true,
+    "order": 6
+  }
+},
+{
+  "model": "core_app.package",
+  "pk": 9,
+  "fields": {
+    "created_at": "2026-02-18T18:26:25.665Z",
+    "updated_at": "2026-02-18T18:26:25.665Z",
+    "title": "Programa Inicial",
+    "short_description": "Grupos reducidos de hasta 3 personas, 1 sesión/semana.",
+    "description": "",
+    "category": "semi_personalizado",
+    "sessions_count": 4,
+    "session_duration_minutes": 60,
+    "price": "240000.00",
+    "currency": "COP",
+    "validity_days": 30,
+    "terms_and_conditions": "Válido por 30 días. Máximo 3 participantes por sesión.",
+    "is_active": true,
+    "order": 7
+  }
+},
+{
+  "model": "core_app.package",
+  "pk": 10,
+  "fields": {
+    "created_at": "2026-02-18T18:26:25.677Z",
+    "updated_at": "2026-02-18T18:26:25.677Z",
+    "title": "Programa Continuidad",
+    "short_description": "Plan intensivo en grupo reducido, 2 sesiones/semana.",
+    "description": "",
+    "category": "semi_personalizado",
+    "sessions_count": 8,
+    "session_duration_minutes": 60,
+    "price": "440000.00",
+    "currency": "COP",
+    "validity_days": 30,
+    "terms_and_conditions": "Válido por 30 días. Máximo 3 participantes por sesión.",
+    "is_active": true,
+    "order": 8
+  }
+},
+{
+  "model": "core_app.package",
+  "pk": 11,
+  "fields": {
+    "created_at": "2026-02-18T18:26:25.690Z",
+    "updated_at": "2026-02-18T18:26:25.690Z",
+    "title": "Programa Avance",
+    "short_description": "Plan avanzado en grupo reducido, 3 sesiones/semana.",
+    "description": "",
+    "category": "semi_personalizado",
+    "sessions_count": 12,
+    "session_duration_minutes": 60,
+    "price": "600000.00",
+    "currency": "COP",
+    "validity_days": 60,
+    "terms_and_conditions": "Válido por 60 días. Máximo 3 participantes por sesión.",
+    "is_active": true,
+    "order": 9
+  }
+},
+{
+  "model": "core_app.package",
+  "pk": 12,
+  "fields": {
+    "created_at": "2026-02-18T18:26:25.711Z",
+    "updated_at": "2026-02-18T18:26:25.711Z",
+    "title": "Programa Consolidación",
+    "short_description": "Plan de consolidación en grupo reducido.",
+    "description": "",
+    "category": "semi_personalizado",
+    "sessions_count": 16,
+    "session_duration_minutes": 60,
+    "price": "760000.00",
+    "currency": "COP",
+    "validity_days": 90,
+    "terms_and_conditions": "Válido por 90 días. Máximo 3 participantes por sesión.",
+    "is_active": true,
+    "order": 10
+  }
+},
+{
+  "model": "core_app.package",
+  "pk": 13,
+  "fields": {
+    "created_at": "2026-02-18T18:26:25.727Z",
+    "updated_at": "2026-02-18T18:26:25.727Z",
+    "title": "Programa Integral",
+    "short_description": "Plan integral en grupo reducido.",
+    "description": "",
+    "category": "semi_personalizado",
+    "sessions_count": 20,
+    "session_duration_minutes": 60,
+    "price": "900000.00",
+    "currency": "COP",
+    "validity_days": 90,
+    "terms_and_conditions": "Válido por 90 días. Máximo 3 participantes por sesión.",
+    "is_active": true,
+    "order": 11
+  }
+},
+{
+  "model": "core_app.package",
+  "pk": 14,
+  "fields": {
+    "created_at": "2026-02-18T18:26:25.740Z",
+    "updated_at": "2026-02-18T18:26:25.740Z",
+    "title": "Sesión Terapéutica",
+    "short_description": "Sesión individual terapéutica.",
+    "description": "",
+    "category": "terapeutico",
+    "sessions_count": 1,
+    "session_duration_minutes": 60,
+    "price": "95000.00",
+    "currency": "COP",
+    "validity_days": 30,
+    "terms_and_conditions": "Requiere valoración inicial. Válido por 30 días.",
+    "is_active": true,
+    "order": 12
+  }
+},
+{
+  "model": "core_app.package",
+  "pk": 15,
+  "fields": {
+    "created_at": "2026-02-18T18:26:25.752Z",
+    "updated_at": "2026-02-18T18:26:25.752Z",
+    "title": "Programa Terapéutico",
+    "short_description": "Enfoque en rehabilitación y movilidad articular.",
+    "description": "",
+    "category": "terapeutico",
+    "sessions_count": 4,
+    "session_duration_minutes": 60,
+    "price": "360000.00",
+    "currency": "COP",
+    "validity_days": 30,
+    "terms_and_conditions": "Requiere valoración inicial. Válido por 30 días.",
+    "is_active": true,
+    "order": 13
+  }
+},
+{
+  "model": "core_app.package",
+  "pk": 16,
+  "fields": {
+    "created_at": "2026-02-18T18:26:25.763Z",
+    "updated_at": "2026-02-18T18:26:25.763Z",
+    "title": "Programa Recuperación",
+    "short_description": "Programa completo de rehabilitación, 2 sesiones/semana.",
+    "description": "",
+    "category": "terapeutico",
+    "sessions_count": 8,
+    "session_duration_minutes": 60,
+    "price": "680000.00",
+    "currency": "COP",
+    "validity_days": 60,
+    "terms_and_conditions": "Requiere valoración inicial. Válido por 60 días.",
+    "is_active": true,
+    "order": 14
+  }
+},
+{
+  "model": "core_app.package",
+  "pk": 17,
+  "fields": {
+    "created_at": "2026-02-18T18:26:25.790Z",
+    "updated_at": "2026-02-18T18:26:25.790Z",
+    "title": "Programa Funcional",
+    "short_description": "Programa funcional terapéutico, 3 sesiones/semana.",
+    "description": "",
+    "category": "terapeutico",
+    "sessions_count": 12,
+    "session_duration_minutes": 60,
+    "price": "960000.00",
+    "currency": "COP",
+    "validity_days": 60,
+    "terms_and_conditions": "Requiere valoración inicial. Válido por 60 días.",
+    "is_active": true,
+    "order": 15
+  }
+},
+{
+  "model": "core_app.package",
+  "pk": 18,
+  "fields": {
+    "created_at": "2026-02-18T18:26:25.829Z",
+    "updated_at": "2026-02-18T18:26:25.829Z",
+    "title": "Programa Integral",
+    "short_description": "Programa integral terapéutico.",
+    "description": "",
+    "category": "terapeutico",
+    "sessions_count": 20,
+    "session_duration_minutes": 60,
+    "price": "1500000.00",
+    "currency": "COP",
+    "validity_days": 90,
+    "terms_and_conditions": "Requiere valoración inicial. Válido por 90 días.",
+    "is_active": true,
+    "order": 16
+  }
+}
+]
