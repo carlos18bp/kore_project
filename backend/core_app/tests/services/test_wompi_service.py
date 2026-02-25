@@ -11,6 +11,7 @@ from core_app.services.wompi_service import (
     WompiError,
     create_payment_source,
     create_transaction,
+    create_transaction_with_payment_method,
     generate_integrity_signature,
     generate_reference,
     get_acceptance_token,
@@ -142,6 +143,7 @@ class TestCreateTransaction:
         payload = call_kwargs.kwargs.get('json') or call_kwargs[1].get('json')
         assert payload['recurrent'] is True
         assert payload['payment_source_id'] == 9999
+        assert payload['payment_method']['installments'] == 1
 
     @override_settings(**WOMPI_SETTINGS)
     @patch('core_app.services.wompi_service.requests.post')
@@ -153,6 +155,79 @@ class TestCreateTransaction:
 
         with pytest.raises(WompiError, match='No transaction ID'):
             create_transaction(5000000, 'COP', 'u@e.com', 'ref', 9999)
+
+    @override_settings(**WOMPI_SETTINGS)
+    @patch('core_app.services.wompi_service.requests.post')
+    def test_normalizes_installments_to_one(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status.return_value = None
+        mock_resp.json.return_value = {
+            'data': {'id': 'txn-002', 'status': 'PENDING'}
+        }
+        mock_post.return_value = mock_resp
+
+        create_transaction(
+            amount_in_cents=5000000,
+            currency='COP',
+            customer_email='user@example.com',
+            reference='kore-ref-124',
+            payment_source_id=9999,
+            recurrent=True,
+            installments=0,
+        )
+
+        call_kwargs = mock_post.call_args
+        payload = call_kwargs.kwargs.get('json') or call_kwargs[1].get('json')
+        assert payload['payment_method']['installments'] == 1
+
+
+class TestCreateTransactionWithPaymentMethod:
+    @override_settings(**WOMPI_SETTINGS)
+    @patch('core_app.services.wompi_service.get_acceptance_token', return_value='accept_test_123')
+    @patch('core_app.services.wompi_service.requests.post')
+    def test_returns_transaction_data(self, mock_post, mock_acceptance):
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status.return_value = None
+        mock_resp.json.return_value = {
+            'data': {'id': 'txn-alt-001', 'status': 'PENDING'}
+        }
+        mock_post.return_value = mock_resp
+
+        txn = create_transaction_with_payment_method(
+            amount_in_cents=2500000,
+            currency='COP',
+            customer_email='user@example.com',
+            reference='kore-alt-ref-001',
+            payment_method={
+                'type': 'PSE',
+                'financial_institution_code': '1007',
+                'user_type': 0,
+                'user_legal_id_type': 'CC',
+                'user_legal_id': '123456789',
+            },
+            customer_data={
+                'phone_number': '573001112233',
+                'full_name': 'Test User',
+            },
+        )
+
+        assert txn['id'] == 'txn-alt-001'
+        call_kwargs = mock_post.call_args
+        payload = call_kwargs.kwargs.get('json') or call_kwargs[1].get('json')
+        assert payload['acceptance_token'] == 'accept_test_123'
+        assert payload['payment_method']['type'] == 'PSE'
+        assert payload['customer_data']['full_name'] == 'Test User'
+
+    @override_settings(**WOMPI_SETTINGS)
+    def test_requires_payment_method_dict(self):
+        with pytest.raises(WompiError, match='payment_method must be a non-empty object'):
+            create_transaction_with_payment_method(
+                amount_in_cents=2500000,
+                currency='COP',
+                customer_email='user@example.com',
+                reference='kore-alt-ref-002',
+                payment_method=None,
+            )
 
 
 class TestVerifyEventChecksum:

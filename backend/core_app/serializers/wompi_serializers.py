@@ -67,12 +67,79 @@ class SubscriptionPurchaseSerializer(serializers.Serializer):
         max_length=255,
         help_text='Card token from Wompi Widget tokenization (e.g. tok_test_...)',
     )
+    installments = serializers.IntegerField(
+        required=False,
+        default=1,
+        min_value=1,
+        help_text='Card installments. Current backend policy allows only 1 installment.',
+    )
     registration_token = serializers.CharField(
         max_length=2000,
         required=False,
         allow_blank=True,
         help_text='Signed pre-registration token for guest checkout flow.',
     )
+
+    def validate_installments(self, value):
+        if value != 1:
+            raise serializers.ValidationError(
+                'Por ahora solo se admite 1 cuota para pagos con tarjeta.',
+            )
+        return value
+
+
+class PSEDataSerializer(serializers.Serializer):
+    """Validates required PSE fields for alternative subscription purchase."""
+
+    financial_institution_code = serializers.CharField(max_length=20)
+    user_type = serializers.IntegerField(min_value=0, max_value=1)
+    user_legal_id_type = serializers.CharField(max_length=10)
+    user_legal_id = serializers.CharField(max_length=50)
+    full_name = serializers.CharField(max_length=255)
+    phone_number = serializers.CharField(max_length=30)
+
+
+class SubscriptionPurchaseAlternativeSerializer(serializers.Serializer):
+    """Validates input for alternative payment methods (non-card)."""
+
+    package_id = serializers.PrimaryKeyRelatedField(
+        queryset=Package.objects.filter(is_active=True),
+    )
+    payment_method = serializers.ChoiceField(
+        choices=('NEQUI', 'PSE', 'BANCOLOMBIA_TRANSFER'),
+    )
+    phone_number = serializers.CharField(
+        max_length=30,
+        required=False,
+        allow_blank=True,
+        help_text='Required only for NEQUI payments.',
+    )
+    pse_data = PSEDataSerializer(
+        required=False,
+        help_text='Required only for PSE payments.',
+    )
+    registration_token = serializers.CharField(
+        max_length=2000,
+        required=False,
+        allow_blank=True,
+        help_text='Signed pre-registration token for guest checkout flow.',
+    )
+
+    def validate(self, attrs):
+        payment_method = attrs.get('payment_method')
+        if payment_method == 'NEQUI':
+            phone_number = str(attrs.get('phone_number', '')).strip()
+            if not phone_number:
+                raise serializers.ValidationError({
+                    'phone_number': 'Este campo es obligatorio para pagos con Nequi.',
+                })
+
+        if payment_method == 'PSE' and not attrs.get('pse_data'):
+            raise serializers.ValidationError({
+                'pse_data': 'Este campo es obligatorio para pagos con PSE.',
+            })
+
+        return attrs
 
 
 class PaymentIntentStatusSerializer(serializers.ModelSerializer):

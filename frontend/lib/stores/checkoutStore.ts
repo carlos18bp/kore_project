@@ -60,18 +60,62 @@ export type CheckoutPreparation = {
   checkout_access_token?: string;
 };
 
+export type CardTokenData = {
+  number: string;
+  cvc: string;
+  exp_month: string;
+  exp_year: string;
+  card_holder: string;
+};
+
+type WompiTokenResponse = {
+  status: string;
+  data: {
+    id: string;
+    created_at: string;
+    brand: string;
+    name: string;
+    last_four: string;
+    bin: string;
+    exp_year: string;
+    exp_month: string;
+    card_holder: string;
+    expires_at: string;
+  };
+};
+
+export type PSEPaymentData = {
+  financial_institution_code: string;
+  user_type: number;
+  user_legal_id_type: string;
+  user_legal_id: string;
+  full_name: string;
+  phone_number: string;
+};
+
+export type FinancialInstitution = {
+  financial_institution_code: string;
+  financial_institution_name: string;
+};
+
 type CheckoutState = {
   package_: PackageDetail | null;
   wompiConfig: WompiConfig | null;
   loading: boolean;
   paymentStatus: PaymentStatus;
   intentResult: PaymentIntentResult | null;
+  redirectUrl: string | null;
   error: string;
   fetchPackage: (id: string) => Promise<void>;
   fetchWompiConfig: () => Promise<void>;
   generateSignature: (amountInCents: number, currency: string) => Promise<SignatureData | null>;
   prepareCheckout: (packageId: number, registrationToken?: string) => Promise<CheckoutPreparation | null>;
+  tokenizeCard: (cardData: CardTokenData) => Promise<string | null>;
   purchaseSubscription: (packageId: number, cardToken: string, registrationToken?: string) => Promise<boolean>;
+  fetchPSEBanks: () => Promise<FinancialInstitution[]>;
+  purchaseWithNequi: (packageId: number, phoneNumber: string, registrationToken?: string) => Promise<boolean>;
+  purchaseWithPSE: (packageId: number, pseData: PSEPaymentData, registrationToken?: string) => Promise<boolean>;
+  purchaseWithBancolombia: (packageId: number, registrationToken?: string) => Promise<boolean>;
   pollIntentStatus: (reference: string, checkoutAccessToken?: string, transactionId?: string) => Promise<boolean>;
   reset: () => void;
 };
@@ -111,6 +155,7 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
   loading: false,
   paymentStatus: 'idle',
   intentResult: null,
+  redirectUrl: null,
   error: '',
 
   fetchPackage: async (id: string) => {
@@ -183,13 +228,60 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
     }
   },
 
+  tokenizeCard: async (cardData: CardTokenData) => {
+    const { wompiConfig } = get();
+    if (!wompiConfig?.public_key) {
+      set({ error: 'Configuración de pago no disponible.' });
+      return null;
+    }
+
+    const baseUrl = wompiConfig.environment === 'prod'
+      ? 'https://production.wompi.co/v1'
+      : 'https://sandbox.wompi.co/v1';
+
+    try {
+      const response = await fetch(`${baseUrl}/tokens/cards`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${wompiConfig.public_key}`,
+        },
+        body: JSON.stringify(cardData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('[Wompi tokenization error]', response.status, errorData);
+        const messages = errorData?.error?.messages;
+        let errorMessage = 'Error al procesar la tarjeta. Verifica los datos.';
+        if (messages) {
+          const allErrors = Object.entries(messages)
+            .map(([field, msgs]) => `${field}: ${(msgs as string[]).join(', ')}`)
+            .join('; ');
+          errorMessage = allErrors || errorData?.error?.message || errorMessage;
+        } else if (errorData?.error?.message) {
+          errorMessage = errorData.error.message;
+        }
+        set({ error: errorMessage });
+        return null;
+      }
+
+      const data: WompiTokenResponse = await response.json();
+      return data.data.id;
+    } catch {
+      set({ error: 'No se pudo procesar la tarjeta. Intenta de nuevo.' });
+      return null;
+    }
+  },
+
   purchaseSubscription: async (packageId: number, cardToken: string, registrationToken?: string) => {
     set({ paymentStatus: 'processing', error: '' });
     try {
       const token = Cookies.get('kore_token');
-      const payload: { package_id: number; card_token: string; registration_token?: string } = {
+      const payload: { package_id: number; card_token: string; installments: number; registration_token?: string } = {
         package_id: packageId,
         card_token: cardToken,
+        installments: 1,
       };
 
       if (registrationToken) {
@@ -262,6 +354,160 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
     return false;
   },
 
+  fetchPSEBanks: async () => {
+    const { wompiConfig } = get();
+    if (!wompiConfig?.public_key) {
+      return [];
+    }
+
+    const baseUrl = wompiConfig.environment === 'prod'
+      ? 'https://production.wompi.co/v1'
+      : 'https://sandbox.wompi.co/v1';
+
+    try {
+      const response = await fetch(`${baseUrl}/pse/financial_institutions`, {
+        headers: {
+          'Authorization': `Bearer ${wompiConfig.public_key}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch banks');
+      }
+
+      const data = await response.json();
+      return data.data || [];
+    } catch {
+      return [];
+    }
+  },
+
+  purchaseWithNequi: async (packageId: number, phoneNumber: string, registrationToken?: string) => {
+    set({ paymentStatus: 'processing', error: '' });
+    try {
+      const token = Cookies.get('kore_token');
+      const payload: {
+        package_id: number;
+        payment_method: string;
+        phone_number: string;
+        registration_token?: string;
+      } = {
+        package_id: packageId,
+        payment_method: 'NEQUI',
+        phone_number: phoneNumber,
+      };
+
+      if (registrationToken) {
+        payload.registration_token = registrationToken;
+      }
+
+      const requestConfig = token
+        ? { headers: { Authorization: `Bearer ${token}` } }
+        : undefined;
+
+      const { data } = await api.post<PaymentIntentResult & { redirect_url?: string }>(
+        '/subscriptions/purchase-alternative/',
+        payload,
+        requestConfig,
+      );
+      set({ intentResult: data, paymentStatus: 'polling' });
+      return await get().pollIntentStatus(data.reference, data.checkout_access_token);
+    } catch (err) {
+      const axiosErr = err as AxiosError<{ detail?: string }>;
+      const message = axiosErr.response?.data?.detail || 'Error al procesar el pago con Nequi.';
+      set({ paymentStatus: 'error', error: message });
+      return false;
+    }
+  },
+
+  purchaseWithPSE: async (packageId: number, pseData: PSEPaymentData, registrationToken?: string) => {
+    set({ paymentStatus: 'processing', error: '' });
+    try {
+      const token = Cookies.get('kore_token');
+      const payload: {
+        package_id: number;
+        payment_method: string;
+        pse_data: PSEPaymentData;
+        registration_token?: string;
+      } = {
+        package_id: packageId,
+        payment_method: 'PSE',
+        pse_data: pseData,
+      };
+
+      if (registrationToken) {
+        payload.registration_token = registrationToken;
+      }
+
+      const requestConfig = token
+        ? { headers: { Authorization: `Bearer ${token}` } }
+        : undefined;
+
+      const { data } = await api.post<PaymentIntentResult & { redirect_url?: string }>(
+        '/subscriptions/purchase-alternative/',
+        payload,
+        requestConfig,
+      );
+
+      if (data.redirect_url) {
+        set({ redirectUrl: data.redirect_url, intentResult: data, paymentStatus: 'polling' });
+        window.location.href = data.redirect_url;
+        return true;
+      }
+
+      set({ intentResult: data, paymentStatus: 'polling' });
+      return await get().pollIntentStatus(data.reference, data.checkout_access_token);
+    } catch (err) {
+      const axiosErr = err as AxiosError<{ detail?: string }>;
+      const message = axiosErr.response?.data?.detail || 'Error al procesar el pago con PSE.';
+      set({ paymentStatus: 'error', error: message });
+      return false;
+    }
+  },
+
+  purchaseWithBancolombia: async (packageId: number, registrationToken?: string) => {
+    set({ paymentStatus: 'processing', error: '' });
+    try {
+      const token = Cookies.get('kore_token');
+      const payload: {
+        package_id: number;
+        payment_method: string;
+        registration_token?: string;
+      } = {
+        package_id: packageId,
+        payment_method: 'BANCOLOMBIA_TRANSFER',
+      };
+
+      if (registrationToken) {
+        payload.registration_token = registrationToken;
+      }
+
+      const requestConfig = token
+        ? { headers: { Authorization: `Bearer ${token}` } }
+        : undefined;
+
+      const { data } = await api.post<PaymentIntentResult & { redirect_url?: string }>(
+        '/subscriptions/purchase-alternative/',
+        payload,
+        requestConfig,
+      );
+
+      if (data.redirect_url) {
+        set({ redirectUrl: data.redirect_url, intentResult: data, paymentStatus: 'polling' });
+        window.location.href = data.redirect_url;
+        return true;
+      }
+
+      set({ intentResult: data, paymentStatus: 'polling' });
+      return await get().pollIntentStatus(data.reference, data.checkout_access_token);
+    } catch (err) {
+      const axiosErr = err as AxiosError<{ detail?: string }>;
+      const message = axiosErr.response?.data?.detail || 'Error al procesar el pago con Bancolombia.';
+      set({ paymentStatus: 'error', error: message });
+      return false;
+    }
+  },
+
   reset: () => {
     set({
       package_: null,
@@ -269,6 +515,7 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
       loading: false,
       paymentStatus: 'idle',
       intentResult: null,
+      redirectUrl: null,
       error: '',
     });
   },

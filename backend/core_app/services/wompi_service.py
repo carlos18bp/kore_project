@@ -49,6 +49,33 @@ def _get_public_headers():
     }
 
 
+def _extract_response_details(exc):
+    """Extract status code and parsed body from a requests exception response."""
+    response = getattr(exc, 'response', None)
+    if response is None:
+        return None, None
+
+    status_code = getattr(response, 'status_code', None)
+    response_data = None
+
+    try:
+        response_data = response.json()
+    except ValueError:
+        raw_text = getattr(response, 'text', '')
+        if raw_text:
+            response_data = {'raw': raw_text[:2000]}
+    except Exception:
+        response_data = None
+
+    if response_data is not None and not isinstance(
+        response_data,
+        (dict, list, str, int, float, bool),
+    ):
+        response_data = str(response_data)
+
+    return status_code, response_data
+
+
 def generate_reference():
     """Generate a unique payment reference.
 
@@ -134,13 +161,22 @@ def create_payment_source(token, customer_email, source_type='CARD'):
             logger.warning('Payment source %s has status %s', source_id, status)
         return source_id
     except requests.RequestException as exc:
-        logger.error('Failed to create Wompi payment source: %s', exc)
-        status_code = getattr(exc.response, 'status_code', None) if hasattr(exc, 'response') else None
-        raise WompiError(f'Failed to create payment source: {exc}', status_code=status_code) from exc
+        status_code, response_data = _extract_response_details(exc)
+        logger.error(
+            'Failed to create Wompi payment source: %s | status=%s | response=%s',
+            exc,
+            status_code,
+            response_data,
+        )
+        raise WompiError(
+            f'Failed to create payment source: {exc}',
+            status_code=status_code,
+            response_data=response_data,
+        ) from exc
 
 
 def create_transaction(amount_in_cents, currency, customer_email, reference,
-                       payment_source_id, recurrent=True):
+                       payment_source_id, recurrent=True, installments=1):
     """Create a transaction in Wompi using a payment source.
 
     Used for both the initial charge and recurring charges. The transaction
@@ -153,6 +189,7 @@ def create_transaction(amount_in_cents, currency, customer_email, reference,
         reference: Unique payment reference.
         payment_source_id: Wompi payment source ID (int).
         recurrent: Whether this is a recurring charge (COF). Defaults to True.
+        installments: Number of card installments. Current policy uses 1.
 
     Returns:
         dict: Transaction data from Wompi response including 'id' and 'status'.
@@ -160,6 +197,10 @@ def create_transaction(amount_in_cents, currency, customer_email, reference,
     Raises:
         WompiError: If the API call fails.
     """
+    normalized_installments = int(installments or 1)
+    if normalized_installments < 1:
+        normalized_installments = 1
+
     signature = generate_integrity_signature(reference, amount_in_cents, currency)
     url = f'{_get_base_url()}/transactions'
     payload = {
@@ -170,6 +211,9 @@ def create_transaction(amount_in_cents, currency, customer_email, reference,
         'payment_source_id': payment_source_id,
         'signature': signature,
         'recurrent': recurrent,
+        'payment_method': {
+            'installments': normalized_installments,
+        },
     }
     try:
         resp = requests.post(url, json=payload, headers=_get_private_headers(), timeout=30)
@@ -180,9 +224,100 @@ def create_transaction(amount_in_cents, currency, customer_email, reference,
             raise WompiError('No transaction ID returned', response_data=data)
         return txn
     except requests.RequestException as exc:
-        logger.error('Failed to create Wompi transaction: %s', exc)
-        status_code = getattr(exc.response, 'status_code', None) if hasattr(exc, 'response') else None
-        raise WompiError(f'Failed to create transaction: {exc}', status_code=status_code) from exc
+        status_code, response_data = _extract_response_details(exc)
+        logger.error(
+            'Failed to create Wompi transaction: %s | status=%s | response=%s | payload=%s',
+            exc,
+            status_code,
+            response_data,
+            {
+                'amount_in_cents': amount_in_cents,
+                'currency': currency,
+                'customer_email': customer_email,
+                'reference': reference,
+                'payment_source_id': payment_source_id,
+                'recurrent': recurrent,
+                'payment_method': {
+                    'installments': normalized_installments,
+                },
+            },
+        )
+        raise WompiError(
+            f'Failed to create transaction: {exc}',
+            status_code=status_code,
+            response_data=response_data,
+        ) from exc
+
+
+def create_transaction_with_payment_method(
+    amount_in_cents,
+    currency,
+    customer_email,
+    reference,
+    payment_method,
+    customer_data=None,
+):
+    """Create a Wompi transaction with a direct payment_method payload.
+
+    Used for non-card-tokenized methods such as NEQUI, PSE and
+    BANCOLOMBIA_TRANSFER.
+
+    Args:
+        amount_in_cents: Amount to charge in cents (int).
+        currency: Currency code (e.g. 'COP').
+        customer_email: Customer's email.
+        reference: Unique payment reference.
+        payment_method: Wompi payment_method object.
+        customer_data: Optional customer_data object required by some methods.
+
+    Returns:
+        dict: Transaction data from Wompi response including 'id' and 'status'.
+
+    Raises:
+        WompiError: If validation fails or the API call fails.
+    """
+    if not isinstance(payment_method, dict) or not payment_method:
+        raise WompiError('payment_method must be a non-empty object')
+
+    signature = generate_integrity_signature(reference, amount_in_cents, currency)
+    acceptance_token = get_acceptance_token()
+
+    url = f'{_get_base_url()}/transactions'
+    payload = {
+        'amount_in_cents': amount_in_cents,
+        'currency': currency,
+        'customer_email': customer_email,
+        'reference': reference,
+        'signature': signature,
+        'acceptance_token': acceptance_token,
+        'payment_method': payment_method,
+    }
+    if customer_data:
+        payload['customer_data'] = customer_data
+
+    try:
+        resp = requests.post(url, json=payload, headers=_get_private_headers(), timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+        txn = data.get('data', {})
+        if not txn.get('id'):
+            raise WompiError('No transaction ID returned', response_data=data)
+        return txn
+    except requests.RequestException as exc:
+        status_code, response_data = _extract_response_details(exc)
+        logger.error(
+            'Failed to create Wompi transaction (payment_method flow): '
+            '%s | status=%s | response=%s | payload=%s',
+            exc,
+            status_code,
+            response_data,
+            payload,
+        )
+        raise WompiError(
+            f'Failed to create transaction: {exc}',
+            status_code=status_code,
+            response_data=response_data,
+        ) from exc
 
 
 def get_transaction_by_id(transaction_id):
@@ -210,11 +345,18 @@ def get_transaction_by_id(transaction_id):
             raise WompiError('No transaction data returned', response_data=data)
         return txn
     except requests.RequestException as exc:
-        logger.error('Failed to fetch Wompi transaction %s: %s', transaction_id, exc)
-        status_code = getattr(exc.response, 'status_code', None) if hasattr(exc, 'response') else None
+        status_code, response_data = _extract_response_details(exc)
+        logger.error(
+            'Failed to fetch Wompi transaction %s: %s | status=%s | response=%s',
+            transaction_id,
+            exc,
+            status_code,
+            response_data,
+        )
         raise WompiError(
             f'Failed to fetch transaction: {exc}',
             status_code=status_code,
+            response_data=response_data,
         ) from exc
 
 

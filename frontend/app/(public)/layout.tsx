@@ -1,5 +1,7 @@
 import Navbar from '@/app/components/layouts/Navbar';
-import Footer from '@/app/components/layouts/Footer';
+import ConditionalFooter from '@/app/components/layouts/ConditionalFooter';
+
+export const dynamic = 'force-dynamic';
 
 export default function PublicLayout({
   children,
@@ -10,7 +12,7 @@ export default function PublicLayout({
     <div className="w-full max-w-[100vw] overflow-x-hidden">
       <Navbar />
       {children}
-      <Footer />
+      <ConditionalFooter />
     </div>
   );
 }

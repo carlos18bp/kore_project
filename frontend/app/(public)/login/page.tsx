@@ -91,7 +91,7 @@ export default function LoginPage() {
         />
       </div>
 
-      <div className="w-full max-w-md mx-auto px-6 py-16">
+      <div className="w-full max-w-md mx-auto px-6 pt-24 pb-16 md:py-16">
         {/* Logo / Brand */}
         <div data-hero="badge" className="text-center mb-10">
           <Link href="/">
