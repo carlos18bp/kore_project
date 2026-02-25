@@ -171,25 +171,47 @@ function ProgramsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    api.get<{ results?: ApiPackage[] } | ApiPackage[]>('/packages/')
-      .then(({ data }) => {
-        if (cancelled) return;
-        const list = Array.isArray(data) ? data : (data.results ?? []);
-        const grouped: Record<string, ApiPackage[]> = {};
-        for (const pkg of list) {
-          if (!grouped[pkg.category]) grouped[pkg.category] = [];
-          grouped[pkg.category].push(pkg);
+
+    const fetchAllPackages = async () => {
+      const allPackages: ApiPackage[] = [];
+      let page = 1;
+      let hasMore = true;
+
+      while (hasMore) {
+        try {
+          const url = page === 1 ? '/packages/' : `/packages/?page=${page}`;
+          const { data } = await api.get(url);
+          if (cancelled) return;
+
+          if (Array.isArray(data)) {
+            allPackages.push(...data);
+            hasMore = false;
+          } else {
+            const results = data.results as ApiPackage[] | undefined;
+            allPackages.push(...(results ?? []));
+            hasMore = data.next !== null;
+            page++;
+          }
+        } catch {
+          break;
         }
-        // Sort plans by session count
-        Object.keys(grouped).forEach(key => {
-          grouped[key].sort((a, b) => a.sessions_count - b.sessions_count);
-        });
-        setPackagesByCategory(grouped);
-        setLoading(false);
-      })
-      .catch(() => {
-        if (!cancelled) setLoading(false);
+      }
+
+      if (cancelled) return;
+
+      const grouped: Record<string, ApiPackage[]> = {};
+      for (const pkg of allPackages) {
+        if (!grouped[pkg.category]) grouped[pkg.category] = [];
+        grouped[pkg.category].push(pkg);
+      }
+      Object.keys(grouped).forEach(key => {
+        grouped[key].sort((a, b) => a.sessions_count - b.sessions_count);
       });
+      setPackagesByCategory(grouped);
+      setLoading(false);
+    };
+
+    fetchAllPackages();
     return () => { cancelled = true; };
   }, []);
 
@@ -475,19 +497,19 @@ function ProgramsPage() {
             {/* CTA Button */}
             <button
               onClick={() => openProgramModal(activeIndex)}
-              className="w-full flex items-center justify-between bg-kore-gray-dark text-white px-6 py-4 rounded-2xl text-sm font-bold shadow-lg hover:bg-black transition-colors"
+              className="w-full flex items-center justify-between bg-kore-gray-dark text-white px-6 py-5 rounded-2xl shadow-lg hover:bg-black transition-colors"
             >
-              <span>Ver planes y precios</span>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col items-start">
+                <span className="text-sm font-bold">Ver planes y precios</span>
                 {currentMinPrice !== null && (
                   <span className="text-white/60 text-xs font-normal">
                     Desde {formatPrice(currentMinPrice)}
                   </span>
                 )}
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                </svg>
               </div>
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+              </svg>
             </button>
 
             {/* Dot indicators */}
@@ -636,11 +658,12 @@ function ProgramsPage() {
                                 : 'border border-kore-gray-light/60 hover:border-kore-gray-dark/20 hover:shadow-sm'
                             }`}
                           >
-                            {/* Number Badge */}
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mr-4 transition-colors ${
+                            {/* Sessions Badge */}
+                            <div className={`w-12 h-12 rounded-full flex flex-col items-center justify-center flex-shrink-0 mr-4 transition-colors ${
                               isSelected ? `${activeProgram.accent} text-white` : 'bg-kore-cream text-kore-gray-dark/60'
                             }`}>
-                              <span className="font-heading text-lg font-bold">{pkg.sessions_count}</span>
+                              <span className="font-heading text-base font-bold leading-none">{pkg.sessions_count}</span>
+                              <span className="text-[8px] font-medium uppercase tracking-wide leading-none mt-0.5 opacity-80">ses</span>
                             </div>
 
                             {/* Content */}
