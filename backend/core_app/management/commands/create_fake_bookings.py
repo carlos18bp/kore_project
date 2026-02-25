@@ -314,13 +314,16 @@ class Command(BaseCommand):
 
         Any subscription (active, expired, or canceled) may have
         ``sessions_used > 0`` without corresponding past booking rows.
-        This method counts only **past** bookings (slot before *now*) and
-        creates the missing ones so the frontend can display session history.
+        This method computes how many bookings are still missing considering
+        current active bookings (past + future), then creates those missing
+        records in the past window. The generated amount is capped by
+        ``sessions_total`` so fake data cannot overbook a subscription.
 
         Returns:
             int: Number of past bookings created.
         """
         now = timezone.now()
+        active_statuses = [Booking.Status.PENDING, Booking.Status.CONFIRMED]
         subs_with_usage = list(
             Subscription.objects.filter(
                 sessions_used__gt=0,
@@ -333,13 +336,15 @@ class Command(BaseCommand):
             if sub.starts_at >= now:
                 continue
 
-            # Count only bookings whose slot is in the past
-            existing_past = Booking.objects.filter(
+            # Count active bookings in any time window (past + future).
+            # Backfill should only create what is still missing overall.
+            existing_active = Booking.objects.filter(
                 subscription=sub,
-                status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
-                slot__starts_at__lt=now,
+                status__in=active_statuses,
             ).count()
-            needed = sub.sessions_used - existing_past
+
+            target_bookings = min(sub.sessions_used, sub.sessions_total)
+            needed = target_bookings - existing_active
             if needed <= 0:
                 continue
 

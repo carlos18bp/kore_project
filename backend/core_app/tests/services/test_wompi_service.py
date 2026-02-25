@@ -4,9 +4,9 @@ import hashlib
 from unittest.mock import MagicMock, patch
 
 import pytest
+from core_project.settings import _resolve_wompi_base_url
 from django.test import override_settings
 
-from core_project.settings import _resolve_wompi_base_url
 from core_app.services.wompi_service import (
     WompiError,
     create_payment_source,
@@ -29,18 +29,25 @@ WOMPI_SETTINGS = {
 
 
 class TestGenerateReference:
+    """Covers unique payment reference generation."""
+
     def test_returns_string_with_kore_prefix(self):
+        """Generated references include the expected kore- prefix."""
         ref = generate_reference()
         assert ref.startswith('kore-')
 
     def test_returns_unique_values(self):
+        """Reference generator yields unique values across repeated calls."""
         refs = {generate_reference() for _ in range(100)}
         assert len(refs) == 100
 
 
 class TestGenerateIntegritySignature:
+    """Covers integrity signature generation for Wompi payloads."""
+
     @override_settings(**WOMPI_SETTINGS)
     def test_produces_correct_sha256(self):
+        """Integrity signature matches expected SHA256 concatenation contract."""
         ref = 'test-ref-123'
         amount = 5000000
         currency = 'COP'
@@ -52,15 +59,19 @@ class TestGenerateIntegritySignature:
 
     @override_settings(**WOMPI_SETTINGS)
     def test_different_inputs_produce_different_signatures(self):
+        """Changing signature input data produces a different hash value."""
         sig1 = generate_integrity_signature('ref-1', 1000, 'COP')
         sig2 = generate_integrity_signature('ref-2', 1000, 'COP')
         assert sig1 != sig2
 
 
 class TestGetAcceptanceToken:
+    """Covers acceptance token retrieval from Wompi merchant endpoint."""
+
     @override_settings(**WOMPI_SETTINGS)
     @patch('core_app.services.wompi_service.requests.get')
     def test_returns_acceptance_token(self, mock_get):
+        """Returns the acceptance token from Wompi merchant details response."""
         mock_resp = MagicMock()
         mock_resp.raise_for_status.return_value = None
         mock_resp.json.return_value = {
@@ -79,17 +90,23 @@ class TestGetAcceptanceToken:
     @override_settings(**WOMPI_SETTINGS)
     @patch('core_app.services.wompi_service.requests.get')
     def test_raises_wompi_error_on_failure(self, mock_get):
+        """Network failures during acceptance token retrieval raise WompiError."""
         import requests as req
         mock_get.side_effect = req.ConnectionError('network error')
-        with pytest.raises(WompiError):
+        with pytest.raises(WompiError) as exc_info:
             get_acceptance_token()
+        assert 'network error' in str(exc_info.value)
+        mock_get.assert_called_once()
 
 
 class TestCreatePaymentSource:
+    """Covers payment source creation request/response handling."""
+
     @override_settings(**WOMPI_SETTINGS)
     @patch('core_app.services.wompi_service.get_acceptance_token', return_value='eyJ_test')
     @patch('core_app.services.wompi_service.requests.post')
     def test_returns_source_id(self, mock_post, mock_accept):
+        """Returns the created payment source id and sends expected payload."""
         mock_resp = MagicMock()
         mock_resp.raise_for_status.return_value = None
         mock_resp.json.return_value = {
@@ -110,19 +127,26 @@ class TestCreatePaymentSource:
     @patch('core_app.services.wompi_service.get_acceptance_token', return_value='eyJ_test')
     @patch('core_app.services.wompi_service.requests.post')
     def test_raises_wompi_error_on_no_id(self, mock_post, mock_accept):
+        """Missing payment source id in provider payload raises WompiError."""
         mock_resp = MagicMock()
         mock_resp.raise_for_status.return_value = None
         mock_resp.json.return_value = {'data': {}}
         mock_post.return_value = mock_resp
 
-        with pytest.raises(WompiError, match='No payment source ID'):
+        with pytest.raises(WompiError, match='No payment source ID') as exc_info:
             create_payment_source('tok_test_123', 'user@example.com')
+        assert 'No payment source ID' in str(exc_info.value)
+        mock_post.assert_called_once()
+        mock_accept.assert_called_once()
 
 
 class TestCreateTransaction:
+    """Covers transaction creation payload handling and error cases."""
+
     @override_settings(**WOMPI_SETTINGS)
     @patch('core_app.services.wompi_service.requests.post')
     def test_returns_transaction_data(self, mock_post):
+        """Returns transaction data and keeps recurrent payload fields."""
         mock_resp = MagicMock()
         mock_resp.raise_for_status.return_value = None
         mock_resp.json.return_value = {
@@ -139,6 +163,7 @@ class TestCreateTransaction:
             recurrent=True,
         )
         assert result['id'] == 'txn-001'
+        mock_post.assert_called_once()
         call_kwargs = mock_post.call_args
         payload = call_kwargs.kwargs.get('json') or call_kwargs[1].get('json')
         assert payload['recurrent'] is True
@@ -148,13 +173,16 @@ class TestCreateTransaction:
     @override_settings(**WOMPI_SETTINGS)
     @patch('core_app.services.wompi_service.requests.post')
     def test_raises_wompi_error_on_no_txn_id(self, mock_post):
+        """Missing transaction id in provider response raises WompiError."""
         mock_resp = MagicMock()
         mock_resp.raise_for_status.return_value = None
         mock_resp.json.return_value = {'data': {}}
         mock_post.return_value = mock_resp
 
-        with pytest.raises(WompiError, match='No transaction ID'):
+        with pytest.raises(WompiError, match='No transaction ID') as exc_info:
             create_transaction(5000000, 'COP', 'u@e.com', 'ref', 9999)
+        assert 'No transaction ID' in str(exc_info.value)
+        mock_post.assert_called_once()
 
     @override_settings(**WOMPI_SETTINGS)
     @patch('core_app.services.wompi_service.requests.post')
@@ -231,8 +259,11 @@ class TestCreateTransactionWithPaymentMethod:
 
 
 class TestVerifyEventChecksum:
+    """Covers webhook event checksum verification scenarios."""
+
     @override_settings(**WOMPI_SETTINGS)
     def test_valid_checksum_returns_true(self):
+        """Valid signed event payload passes checksum verification."""
         txn_id = '1234-txn'
         txn_status = 'APPROVED'
         amount = 4490000
@@ -265,6 +296,7 @@ class TestVerifyEventChecksum:
 
     @override_settings(**WOMPI_SETTINGS)
     def test_invalid_checksum_returns_false(self):
+        """Checksum verification fails when payload checksum does not match."""
         event_body = {
             'event': 'transaction.updated',
             'data': {
@@ -280,7 +312,9 @@ class TestVerifyEventChecksum:
 
     @override_settings(**WOMPI_SETTINGS)
     def test_malformed_event_returns_false(self):
-        assert verify_event_checksum({}) is False
+        """Malformed webhook payload fails checksum verification."""
+        result = verify_event_checksum({})
+        assert result is False
 
     @override_settings(**WOMPI_SETTINGS)
     def test_non_dict_nested_value_returns_empty_string(self):
@@ -308,6 +342,8 @@ class TestVerifyEventChecksum:
 
 
 class TestGetPublicHeaders:
+    """Covers public-auth header construction used by Wompi requests."""
+
     @override_settings(**WOMPI_SETTINGS)
     def test_returns_public_key_header(self):
         """Covers _get_public_headers (line 46)."""
@@ -318,6 +354,8 @@ class TestGetPublicHeaders:
 
 
 class TestCreatePaymentSourceErrors:
+    """Covers payment source error branches and warning paths."""
+
     @override_settings(**WOMPI_SETTINGS)
     @patch('core_app.services.wompi_service.get_acceptance_token', return_value='eyJ_test')
     @patch('core_app.services.wompi_service.requests.post')
@@ -332,6 +370,8 @@ class TestCreatePaymentSourceErrors:
 
         source_id = create_payment_source('tok_test_456', 'u@e.com')
         assert source_id == 7777
+        mock_post.assert_called_once()
+        mock_accept.assert_called_once()
 
     @override_settings(**WOMPI_SETTINGS)
     @patch('core_app.services.wompi_service.get_acceptance_token', return_value='eyJ_test')
@@ -344,11 +384,16 @@ class TestCreatePaymentSourceErrors:
         exc = req.HTTPError('server error', response=mock_resp)
         mock_post.side_effect = exc
 
-        with pytest.raises(WompiError, match='Failed to create payment source'):
+        with pytest.raises(WompiError, match='Failed to create payment source') as exc_info:
             create_payment_source('tok_test_789', 'u@e.com')
+        assert exc_info.value.status_code == 500
+        mock_post.assert_called_once()
+        mock_accept.assert_called_once()
 
 
 class TestCreateTransactionErrors:
+    """Covers create_transaction request exception handling."""
+
     @override_settings(**WOMPI_SETTINGS)
     @patch('core_app.services.wompi_service.requests.post')
     def test_request_exception_raises_wompi_error(self, mock_post):
@@ -359,14 +404,19 @@ class TestCreateTransactionErrors:
         exc = req.HTTPError('bad gateway', response=mock_resp)
         mock_post.side_effect = exc
 
-        with pytest.raises(WompiError, match='Failed to create transaction'):
+        with pytest.raises(WompiError, match='Failed to create transaction') as exc_info:
             create_transaction(5000000, 'COP', 'u@e.com', 'ref-err', 9999)
+        assert exc_info.value.status_code == 502
+        mock_post.assert_called_once()
 
 
 class TestGetTransactionById:
+    """Covers transaction lookup behavior and request failures."""
+
     @override_settings(**WOMPI_SETTINGS)
     @patch('core_app.services.wompi_service.requests.get')
     def test_returns_transaction_data(self, mock_get):
+        """Transaction lookup returns parsed transaction data when provider succeeds."""
         mock_resp = MagicMock()
         mock_resp.raise_for_status.return_value = None
         mock_resp.json.return_value = {
@@ -381,21 +431,45 @@ class TestGetTransactionById:
 
     @override_settings(**WOMPI_SETTINGS)
     @patch('core_app.services.wompi_service.requests.get')
+    def test_raises_wompi_error_when_response_has_no_transaction_data(self, mock_get):
+        """Transaction lookup raises WompiError when provider response has empty data payload."""
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status.return_value = None
+        mock_resp.json.return_value = {'data': {}}
+        mock_get.return_value = mock_resp
+
+        with pytest.raises(WompiError, match='No transaction data returned') as exc_info:
+            get_transaction_by_id('txn-empty-001')
+
+        assert 'No transaction data returned' in str(exc_info.value)
+        mock_get.assert_called_once()
+
+    @override_settings(**WOMPI_SETTINGS)
+    @patch('core_app.services.wompi_service.requests.get')
     def test_raises_wompi_error_on_request_failure(self, mock_get):
+        """HTTP failures during transaction lookup raise WompiError."""
         import requests as req
         mock_resp = MagicMock()
         mock_resp.status_code = 500
         mock_get.side_effect = req.HTTPError('server error', response=mock_resp)
 
-        with pytest.raises(WompiError, match='Failed to fetch transaction'):
+        with pytest.raises(WompiError, match='Failed to fetch transaction') as exc_info:
             get_transaction_by_id('txn-500')
+        assert exc_info.value.status_code == 500
+        mock_get.assert_called_once()
 
 
 class TestResolveWompiBaseUrl:
+    """Covers environment-to-base-url mapping for Wompi endpoints."""
+
     @pytest.mark.parametrize('environment', ['test', 'sandbox', 'uat'])
     def test_sandbox_aliases_use_sandbox_base_url(self, environment):
-        assert _resolve_wompi_base_url(environment) == 'https://sandbox.wompi.co/v1'
+        """Sandbox aliases map to the sandbox Wompi base URL."""
+        resolved = _resolve_wompi_base_url(environment)
+        assert resolved == 'https://sandbox.wompi.co/v1'
 
     @pytest.mark.parametrize('environment', ['production', 'prod', '', None])
     def test_non_sandbox_values_use_production_base_url(self, environment):
-        assert _resolve_wompi_base_url(environment) == 'https://production.wompi.co/v1'
+        """Non-sandbox values map to the production Wompi base URL."""
+        resolved = _resolve_wompi_base_url(environment)
+        assert resolved == 'https://production.wompi.co/v1'

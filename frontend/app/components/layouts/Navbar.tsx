@@ -113,6 +113,7 @@ export default function Navbar() {
 
       {/* Mobile Menu */}
       <div
+        data-testid="mobile-nav-menu"
         className={`md:hidden overflow-hidden transition-all duration-300 bg-kore-cream/95 backdrop-blur-md ${
           mobileOpen ? 'max-h-80 border-b border-kore-gray-light/50' : 'max-h-0'
         }`}

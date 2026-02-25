@@ -67,7 +67,11 @@ export default function FAQPage() {
           <div className="max-w-3xl mx-auto">
             {loading ? (
               <div className="flex justify-center py-12">
-                <div className="w-8 h-8 border-4 border-kore-red border-t-transparent rounded-full animate-spin" />
+                <div
+                  role="status"
+                  aria-label="Cargando preguntas frecuentes"
+                  className="w-8 h-8 border-4 border-kore-red border-t-transparent rounded-full animate-spin"
+                />
               </div>
             ) : error ? (
               <div className="text-center py-12">

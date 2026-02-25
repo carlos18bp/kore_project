@@ -1,17 +1,29 @@
+"""Tests for booking API views."""
+
+from datetime import datetime, timedelta
+from datetime import timezone as dt_timezone
+
 import pytest
-from datetime import timedelta
 from django.urls import reverse
-from django.utils import timezone
 from rest_framework import status
 
 from core_app.models import AvailabilitySlot, Booking, Package
 from core_app.tests.helpers import get_results
 
+FIXED_NOW = datetime(2026, 1, 15, 12, 0, tzinfo=dt_timezone.utc)
+
+
+@pytest.fixture(autouse=True)
+def freeze_now(monkeypatch):
+    """Freeze timezone.now for deterministic booking view test expectations."""
+    monkeypatch.setattr('django.utils.timezone.now', lambda: FIXED_NOW)
+
 
 @pytest.mark.django_db
 def test_booking_create_requires_login(api_client):
+    """Reject booking creation requests from anonymous users."""
     package = Package.objects.create(title='P1', is_active=True)
-    now = timezone.now()
+    now = FIXED_NOW
     slot = AvailabilitySlot.objects.create(starts_at=now + timedelta(hours=1), ends_at=now + timedelta(hours=2))
 
     url = reverse('booking-list')
@@ -22,10 +34,11 @@ def test_booking_create_requires_login(api_client):
 
 @pytest.mark.django_db
 def test_booking_create_blocks_slot_and_prevents_double_booking(api_client, existing_user):
+    """Block slot after first booking and reject a second booking for the same slot."""
     api_client.force_authenticate(user=existing_user)
 
     package = Package.objects.create(title='P1', is_active=True)
-    now = timezone.now()
+    now = FIXED_NOW
     slot = AvailabilitySlot.objects.create(starts_at=now + timedelta(hours=1), ends_at=now + timedelta(hours=2))
 
     url = reverse('booking-list')
@@ -43,8 +56,9 @@ def test_booking_create_blocks_slot_and_prevents_double_booking(api_client, exis
 
 @pytest.mark.django_db
 def test_booking_list_returns_only_own_bookings_for_customer(api_client, existing_user, admin_user):
+    """List endpoint returns only bookings owned by the authenticated customer."""
     package = Package.objects.create(title='P1', is_active=True)
-    now = timezone.now()
+    now = FIXED_NOW
 
     slot_1 = AvailabilitySlot.objects.create(starts_at=now + timedelta(hours=1), ends_at=now + timedelta(hours=2), is_blocked=True)
     slot_2 = AvailabilitySlot.objects.create(starts_at=now + timedelta(hours=3), ends_at=now + timedelta(hours=4), is_blocked=True)
@@ -62,8 +76,9 @@ def test_booking_list_returns_only_own_bookings_for_customer(api_client, existin
 
 @pytest.mark.django_db
 def test_booking_list_returns_all_for_admin(api_client, existing_user, admin_user):
+    """List endpoint returns bookings for all customers when requester is admin."""
     package = Package.objects.create(title='P1', is_active=True)
-    now = timezone.now()
+    now = FIXED_NOW
 
     slot_1 = AvailabilitySlot.objects.create(starts_at=now + timedelta(hours=1), ends_at=now + timedelta(hours=2), is_blocked=True)
     slot_2 = AvailabilitySlot.objects.create(starts_at=now + timedelta(hours=3), ends_at=now + timedelta(hours=4), is_blocked=True)

@@ -153,14 +153,25 @@ class Config:
     """
     
     # File discovery
-    backend_app_name: str = "gym_app"
-    py_allowed_folders: frozenset[str] = frozenset({"models", "serializers", "views", "utils", "tasks"})
+    backend_app_name: str = "core_app"
+    py_allowed_folders: frozenset[str] = frozenset(
+        {
+            "commands",
+            "models",
+            "permissions",
+            "serializers",
+            "services",
+            "tasks",
+            "utils",
+            "views",
+        }
+    )
     py_test_file_glob: str = "test_*.py"
     js_unit_suffixes: tuple[str, ...] = (".test.js", ".spec.js", ".test.ts", ".spec.ts")
     js_e2e_suffixes: tuple[str, ...] = (".spec.js", ".spec.ts")
     
     # Frontend paths
-    frontend_unit_dir: str = "test"
+    frontend_unit_dir: str = "app/__tests__"
     frontend_e2e_dir: str = "e2e"
     frontend_unit_allowed_folders: frozenset[str] = frozenset({
         "stores", "composables", "router", "shared", "views", "components", "utils"

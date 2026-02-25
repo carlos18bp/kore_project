@@ -1,18 +1,27 @@
-"""Tests for the send_expiring_subscription_reminders Celery task."""
+"""Tests for the send_expiring_subscription_reminders Huey task."""
 
-from datetime import timedelta
+from datetime import datetime, timedelta
+from datetime import timezone as dt_timezone
 from decimal import Decimal
 from unittest.mock import patch
 
 import pytest
-from django.utils import timezone
 
 from core_app.models import Notification, Package, Subscription
 from core_app.tasks import send_expiring_subscription_reminders
 
+FIXED_NOW = datetime(2026, 1, 15, 12, 0, tzinfo=dt_timezone.utc)
+
+
+@pytest.fixture(autouse=True)
+def freeze_now(monkeypatch):
+    """Freeze timezone.now so reminder-window assertions remain deterministic."""
+    monkeypatch.setattr('django.utils.timezone.now', lambda: FIXED_NOW)
+
 
 @pytest.fixture
 def package(db):
+    """Create an active package fixture used by reminder task scenarios."""
     return Package.objects.create(
         title='Expiry Pkg',
         sessions_count=10,
@@ -25,7 +34,8 @@ def package(db):
 
 @pytest.fixture
 def non_recurring_expiring_sub(existing_user, package):
-    now = timezone.now()
+    """Create a non-recurring subscription that expires within reminder window."""
+    now = FIXED_NOW
     return Subscription.objects.create(
         customer=existing_user,
         package=package,
@@ -40,18 +50,20 @@ def non_recurring_expiring_sub(existing_user, package):
 
 @pytest.mark.django_db
 class TestSendExpiringSubscriptionReminders:
+    """Validate reminder task processing, filtering, and side-effect behavior."""
 
     @patch('core_app.tasks.send_subscription_expiry_reminder')
     def test_sends_reminder_and_marks_email_sent(
         self, mock_send, non_recurring_expiring_sub
     ):
+        """Marks reminder timestamp when notification is sent successfully."""
         mock_send.return_value = Notification(
             notification_type=Notification.Type.SUBSCRIPTION_EXPIRY_REMINDER,
             status=Notification.Status.SENT,
             sent_to=non_recurring_expiring_sub.customer.email,
         )
 
-        result = send_expiring_subscription_reminders()
+        result = send_expiring_subscription_reminders.call_local()
 
         assert result == {'processed': 1, 'sent': 1}
         mock_send.assert_called_once_with(non_recurring_expiring_sub)
@@ -63,13 +75,14 @@ class TestSendExpiringSubscriptionReminders:
     def test_does_not_mark_sent_on_failure(
         self, mock_send, non_recurring_expiring_sub
     ):
+        """Leave expiry_email_sent_at empty when notification status is failed."""
         mock_send.return_value = Notification(
             notification_type=Notification.Type.SUBSCRIPTION_EXPIRY_REMINDER,
             status=Notification.Status.FAILED,
             sent_to=non_recurring_expiring_sub.customer.email,
         )
 
-        result = send_expiring_subscription_reminders()
+        result = send_expiring_subscription_reminders.call_local()
 
         assert result == {'processed': 1, 'sent': 0}
         non_recurring_expiring_sub.refresh_from_db()
@@ -79,7 +92,8 @@ class TestSendExpiringSubscriptionReminders:
     def test_skips_recurring_subscriptions(
         self, mock_send, existing_user, package
     ):
-        now = timezone.now()
+        """Skips recurring subscriptions from one-time expiry reminder workflow."""
+        now = FIXED_NOW
         Subscription.objects.create(
             customer=existing_user,
             package=package,
@@ -92,7 +106,7 @@ class TestSendExpiringSubscriptionReminders:
             payment_source_id='ps-123',
         )
 
-        result = send_expiring_subscription_reminders()
+        result = send_expiring_subscription_reminders.call_local()
 
         assert result == {'processed': 0, 'sent': 0}
         mock_send.assert_not_called()
@@ -101,10 +115,11 @@ class TestSendExpiringSubscriptionReminders:
     def test_skips_already_emailed_subscriptions(
         self, mock_send, non_recurring_expiring_sub
     ):
-        non_recurring_expiring_sub.expiry_email_sent_at = timezone.now()
+        """Skip subscriptions already marked as reminded in previous executions."""
+        non_recurring_expiring_sub.expiry_email_sent_at = FIXED_NOW
         non_recurring_expiring_sub.save(update_fields=['expiry_email_sent_at'])
 
-        result = send_expiring_subscription_reminders()
+        result = send_expiring_subscription_reminders.call_local()
 
         assert result == {'processed': 0, 'sent': 0}
         mock_send.assert_not_called()
@@ -113,7 +128,8 @@ class TestSendExpiringSubscriptionReminders:
     def test_skips_subscription_expiring_beyond_7_days(
         self, mock_send, existing_user, package
     ):
-        now = timezone.now()
+        """Skips subscriptions that are outside the seven-day reminder window."""
+        now = FIXED_NOW
         Subscription.objects.create(
             customer=existing_user,
             package=package,
@@ -125,7 +141,7 @@ class TestSendExpiringSubscriptionReminders:
             payment_method_type='PSE',
         )
 
-        result = send_expiring_subscription_reminders()
+        result = send_expiring_subscription_reminders.call_local()
 
         assert result == {'processed': 0, 'sent': 0}
         mock_send.assert_not_called()
@@ -134,7 +150,8 @@ class TestSendExpiringSubscriptionReminders:
     def test_skips_expired_subscriptions(
         self, mock_send, existing_user, package
     ):
-        now = timezone.now()
+        """Skips subscriptions already expired before task execution time."""
+        now = FIXED_NOW
         Subscription.objects.create(
             customer=existing_user,
             package=package,
@@ -146,7 +163,7 @@ class TestSendExpiringSubscriptionReminders:
             payment_method_type='NEQUI',
         )
 
-        result = send_expiring_subscription_reminders()
+        result = send_expiring_subscription_reminders.call_local()
 
         assert result == {'processed': 0, 'sent': 0}
         mock_send.assert_not_called()
@@ -155,9 +172,10 @@ class TestSendExpiringSubscriptionReminders:
     def test_handles_none_notification_return(
         self, mock_send, non_recurring_expiring_sub
     ):
+        """Treat None notification responses as unsent without timestamp updates."""
         mock_send.return_value = None
 
-        result = send_expiring_subscription_reminders()
+        result = send_expiring_subscription_reminders.call_local()
 
         assert result == {'processed': 1, 'sent': 0}
         non_recurring_expiring_sub.refresh_from_db()

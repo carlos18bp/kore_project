@@ -1,16 +1,12 @@
-import { test, expect, loginAsTestUser, setupDefaultApiMocks } from '../fixtures';
+import { test, expect, mockLoginAsTestUser } from '../fixtures';
+import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
  * E2E tests for the Session Detail Modal (opened from program detail page).
  * Uses mocked API responses to exercise status badges, cancel flow,
  * reschedule button, and various booking states.
  */
-test.describe('Session Detail Modal (mocked)', () => {
-  test.describe.configure({ mode: 'serial' });
-
-  test.beforeEach(async ({ page }) => {
-    await setupDefaultApiMocks(page);
-  });
+test.describe('Session Detail Modal (mocked)', { tag: [...FlowTags.BOOKING_SESSION_DETAIL, RoleTags.USER] }, () => {
 
   const futureSlotStart = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48h from now
   const futureSlotEnd = new Date(futureSlotStart.getTime() + 60 * 60 * 1000);
@@ -90,32 +86,35 @@ test.describe('Session Detail Modal (mocked)', () => {
     ]);
   }
 
+  function getSessionDialog(page: import('@playwright/test').Page) {
+    return page.getByRole('dialog', { name: 'Detalle de Sesión' });
+  }
+
   async function openSessionModal(page: import('@playwright/test').Page) {
     // Click the booking row button to open the modal
-    const bookingRow = page.getByRole('button', { name: /Confirmada|Pendiente|Cancelada/ }).first();
+    const bookingRow = page.getByRole('button', { name: /Confirmada|Pendiente|Cancelada/ });
     await bookingRow.click();
-    await expect(page.getByText('Detalle de Sesión')).toBeVisible({ timeout: 5_000 });
+    await expect(getSessionDialog(page)).toBeVisible({ timeout: 5_000 });
+  }
+
+  async function expectConfirmedSessionDetails(dialog: import('@playwright/test').Locator) {
+    await expect(dialog.getByText('Detalle de Sesión')).toBeVisible();
+    await expect(dialog.getByText('Confirmada')).toBeVisible();
+    await expect(dialog.getByText('Entrenamiento Kóre')).toBeVisible();
+    await expect(dialog.getByText('Germán Franco')).toBeVisible();
+    await expect(dialog.getByText('Bogotá, Colombia')).toBeVisible();
   }
 
   test('renders confirmed booking modal with status badge and details', async ({ page }) => {
+    await mockLoginAsTestUser(page);
     await setupMocks(page, mockBookingConfirmed);
-    await loginAsTestUser(page);
     await page.goto('/my-programs/program/11');
-    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 10_000 });
 
     await openSessionModal(page);
+    const dialog = getSessionDialog(page);
 
-    // Modal heading
-    await expect(page.getByText('Detalle de Sesión')).toBeVisible();
-
-    // Status badge — Confirmada
-    await expect(page.locator('.fixed').getByText('Confirmada')).toBeVisible();
-
-    // Details card
-    const modal = page.locator('.fixed');
-    await expect(modal.getByText('Entrenamiento Kóre')).toBeVisible();
-    await expect(modal.getByText('Germán Franco')).toBeVisible();
-    await expect(modal.getByText('Bogotá, Colombia')).toBeVisible();
+    await expectConfirmedSessionDetails(dialog);
 
     // Action buttons (canModify = true because 48h from now > 24h threshold)
     await expect(page.getByRole('button', { name: 'Reprogramar' })).toBeVisible();
@@ -123,10 +122,10 @@ test.describe('Session Detail Modal (mocked)', () => {
   });
 
   test('cancel flow: opens confirmation, fills reason, confirms', async ({ page }) => {
+    await mockLoginAsTestUser(page);
     await setupMocks(page, mockBookingConfirmed);
-    await loginAsTestUser(page);
     await page.goto('/my-programs/program/11');
-    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 10_000 });
 
     await openSessionModal(page);
 
@@ -146,10 +145,10 @@ test.describe('Session Detail Modal (mocked)', () => {
   });
 
   test('cancel "Volver" goes back to action buttons', async ({ page }) => {
+    await mockLoginAsTestUser(page);
     await setupMocks(page, mockBookingConfirmed);
-    await loginAsTestUser(page);
     await page.goto('/my-programs/program/11');
-    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 10_000 });
 
     await openSessionModal(page);
 
@@ -166,10 +165,10 @@ test.describe('Session Detail Modal (mocked)', () => {
   });
 
   test('reschedule button navigates to /book-session', async ({ page }) => {
+    await mockLoginAsTestUser(page);
     await setupMocks(page, mockBookingConfirmed);
-    await loginAsTestUser(page);
     await page.goto('/my-programs/program/11');
-    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 10_000 });
 
     await openSessionModal(page);
 
@@ -183,17 +182,18 @@ test.describe('Session Detail Modal (mocked)', () => {
       status: 'canceled',
       canceled_reason: 'No puedo asistir',
     };
+    await mockLoginAsTestUser(page);
     await setupMocks(page, canceledBooking);
-    await loginAsTestUser(page);
     await page.goto('/my-programs/program/11');
-    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: 'Pasadas' })).toBeVisible({ timeout: 10_000 });
 
     // Canceled bookings show in "Pasadas" tab
     await page.getByRole('button', { name: 'Pasadas' }).click();
+    await expect(page.getByRole('button', { name: /Cancelada/ })).toBeVisible({ timeout: 10_000 });
 
-    const bookingRow = page.getByRole('button', { name: /Cancelada/ }).first();
+    const bookingRow = page.getByRole('button', { name: /Cancelada/ });
     await bookingRow.click();
-    await expect(page.getByText('Detalle de Sesión')).toBeVisible({ timeout: 5_000 });
+    await expect(getSessionDialog(page)).toBeVisible({ timeout: 5_000 });
 
     // Cancel reason
     await expect(page.getByText('No puedo asistir')).toBeVisible();
@@ -204,14 +204,14 @@ test.describe('Session Detail Modal (mocked)', () => {
 
   test('renders pending booking with Pendiente badge', async ({ page }) => {
     const pendingBooking = { ...mockBookingConfirmed, status: 'pending' };
+    await mockLoginAsTestUser(page);
     await setupMocks(page, pendingBooking);
-    await loginAsTestUser(page);
     await page.goto('/my-programs/program/11');
-    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /Pendiente/ })).toBeVisible({ timeout: 10_000 });
 
     await openSessionModal(page);
 
-    await expect(page.locator('.fixed').getByText('Pendiente')).toBeVisible();
+    await expect(getSessionDialog(page).getByText('Pendiente')).toBeVisible();
   });
 
   test('shows modification warning when session is within 24h', async ({ page }) => {
@@ -221,10 +221,10 @@ test.describe('Session Detail Modal (mocked)', () => {
       ...mockBookingConfirmed,
       slot: { ...mockBookingConfirmed.slot, starts_at: soonSlotStart.toISOString(), ends_at: soonSlotEnd.toISOString() },
     };
+    await mockLoginAsTestUser(page);
     await setupMocks(page, soonBooking);
-    await loginAsTestUser(page);
     await page.goto('/my-programs/program/11');
-    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 10_000 });
 
     await openSessionModal(page);
 
@@ -239,13 +239,13 @@ test.describe('Session Detail Modal (mocked)', () => {
   });
 
   test('close button dismisses the modal', async ({ page }) => {
+    await mockLoginAsTestUser(page);
     await setupMocks(page, mockBookingConfirmed);
-    await loginAsTestUser(page);
     await page.goto('/my-programs/program/11');
-    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 10_000 });
 
     await openSessionModal(page);
-    await expect(page.getByText('Detalle de Sesión')).toBeVisible();
+    await expect(getSessionDialog(page)).toBeVisible();
 
     await page.getByRole('button', { name: 'Cerrar', exact: true }).click();
     await expect(page.getByText('Detalle de Sesión')).not.toBeVisible();

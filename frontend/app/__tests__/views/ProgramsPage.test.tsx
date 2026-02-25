@@ -102,19 +102,20 @@ describe('ProgramsPage', () => {
   });
 
   it('navigates to register with numeric package ID when unauthenticated', async () => {
+    const user = userEvent.setup();
     render(<ProgramsPage />);
     await waitFor(() => {
       expect(screen.getByText('Sesión Individual')).toBeInTheDocument();
     });
 
-    const user = userEvent.setup();
     const planButton = screen.getByText('Sesión Individual').closest('button')!;
     await user.click(planButton);
 
-    const cta = screen.getByRole('button', { name: /Reservar Sesión Individual/ });
-    expect(cta).toBeInTheDocument();
+    const cta = await screen.findByRole('button', { name: /Reservar Sesión Individual/ });
     await user.click(cta);
-    expect(mockPush).toHaveBeenCalledWith('/register?package=1');
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/register?package=1');
+    });
   });
 
   it('navigates to checkout with numeric package ID when authenticated', async () => {
@@ -133,18 +134,20 @@ describe('ProgramsPage', () => {
       hydrated: true,
     });
 
+    const user = userEvent.setup();
     render(<ProgramsPage />);
     await waitFor(() => {
       expect(screen.getByText('Sesión Individual')).toBeInTheDocument();
     });
 
-    const user = userEvent.setup();
     const planButton = screen.getByText('Sesión Individual').closest('button')!;
     await user.click(planButton);
 
-    const cta = screen.getByRole('button', { name: /Reservar Sesión Individual/ });
+    const cta = await screen.findByRole('button', { name: /Reservar Sesión Individual/ });
     await user.click(cta);
-    expect(mockPush).toHaveBeenCalledWith('/checkout?package=1');
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/checkout?package=1');
+    });
   });
 
   it('resets plan selection when switching programs', async () => {

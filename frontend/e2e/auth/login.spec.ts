@@ -1,12 +1,14 @@
-import { test, expect, E2E_USER, loginAsTestUser, mockLoginApi, setupDefaultApiMocks, mockCaptchaSiteKey, mockLoginAsTestUser } from '../fixtures';
+import { test, expect, E2E_USER, mockLoginApi, setupDefaultApiMocks, mockCaptchaSiteKey, mockLoginAsTestUser } from '../fixtures';
+import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
-test.describe('Login Page', () => {
-  test.beforeEach(async ({ page }) => {
+test.describe('Login Page', { tag: [...FlowTags.AUTH_LOGIN, RoleTags.GUEST] }, () => {
+  async function openLoginPage(page: import('@playwright/test').Page) {
     await mockCaptchaSiteKey(page);
     await page.goto('/login');
-  });
+  }
 
   test('renders the login form with brand name', async ({ page }) => {
+    await openLoginPage(page);
     await expect(page.getByRole('link', { name: 'KÓRE', exact: true })).toBeVisible();
     await expect(page.getByLabel(/Correo electrónico/i)).toBeVisible();
     await expect(page.getByLabel(/Contraseña/i)).toBeVisible();
@@ -22,6 +24,8 @@ test.describe('Login Page', () => {
       });
     });
 
+    await openLoginPage(page);
+
     await page.getByLabel(/Correo electrónico/i).fill('wrong@email.com');
     await page.getByLabel(/Contraseña/i).fill('wrongpass');
     await page.getByRole('button', { name: 'Iniciar sesión' }).click();
@@ -32,6 +36,7 @@ test.describe('Login Page', () => {
   test('successful login redirects to dashboard', async ({ page }) => {
     await setupDefaultApiMocks(page);
     await mockLoginApi(page);
+    await openLoginPage(page);
 
     await page.getByLabel(/Correo electrónico/i).fill(E2E_USER.email);
     await page.getByLabel(/Contraseña/i).fill(E2E_USER.password);
@@ -42,6 +47,7 @@ test.describe('Login Page', () => {
   });
 
   test('toggle password visibility works', async ({ page }) => {
+    await openLoginPage(page);
     const passwordInput = page.getByLabel(/Contraseña/i);
     await expect(passwordInput).toHaveAttribute('type', 'password');
 
@@ -62,6 +68,7 @@ test.describe('Login Page', () => {
 
     // Should be redirected back to dashboard
     await page.waitForURL('**/dashboard', { timeout: 15_000 });
+    await expect(page.getByText(`Hola, ${E2E_USER.firstName}`)).toBeVisible();
   });
 
   test('shows error with detail field instead of non_field_errors', async ({ page }) => {
@@ -73,6 +80,8 @@ test.describe('Login Page', () => {
         body: JSON.stringify({ detail: 'Cuenta deshabilitada.' }),
       });
     });
+
+    await openLoginPage(page);
 
     await page.getByLabel(/Correo electrónico/i).fill('disabled@example.com');
     await page.getByLabel(/Contraseña/i).fill('somepass');
@@ -90,6 +99,8 @@ test.describe('Login Page', () => {
         body: JSON.stringify({ detail: { code: 'AUTH_ERROR' } }),
       });
     });
+
+    await openLoginPage(page);
 
     await page.getByLabel(/Correo electrónico/i).fill('test@example.com');
     await page.getByLabel(/Contraseña/i).fill('wrongpass');

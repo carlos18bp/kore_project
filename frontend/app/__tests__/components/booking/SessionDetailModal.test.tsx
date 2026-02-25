@@ -156,6 +156,18 @@ describe('SessionDetailModal', () => {
     expect(onCanceled).toHaveBeenCalledTimes(1);
   });
 
+  it('passes typed cancel reason to cancelBooking', async () => {
+    const user = userEvent.setup();
+    mockCancelBooking.mockResolvedValue(true);
+    setupStore();
+    render(<SessionDetailModal booking={buildBooking(48)} subscriptionId={2} onClose={onClose} onCanceled={onCanceled} />);
+    await user.click(screen.getByText('Cancelar'));
+    const textarea = screen.getByPlaceholderText('Motivo de cancelación (opcional)');
+    await user.type(textarea, 'Viaje imprevisto');
+    await user.click(screen.getByText('Confirmar cancelación'));
+    expect(mockCancelBooking).toHaveBeenCalledWith(100, 'Viaje imprevisto');
+  });
+
   it('cancel confirm Volver goes back to action buttons', async () => {
     const user = userEvent.setup();
     setupStore();
@@ -187,5 +199,28 @@ describe('SessionDetailModal', () => {
     const booking = { ...buildBooking(48, 'canceled'), canceled_reason: 'No puedo asistir' };
     render(<SessionDetailModal booking={booking} subscriptionId={2} onClose={onClose} />);
     expect(screen.getByText('No puedo asistir')).toBeInTheDocument();
+  });
+
+  it('falls back to pending badge for unknown booking status', () => {
+    setupStore();
+    const booking = { ...buildBooking(48), status: 'unknown' as 'confirmed' };
+    render(<SessionDetailModal booking={booking} subscriptionId={2} onClose={onClose} />);
+    expect(screen.getByText('Pendiente')).toBeInTheDocument();
+  });
+
+  it('shows Cancelando... label when loading inside cancel confirmation', async () => {
+    const user = userEvent.setup();
+    setupStore({ loading: false });
+    const { rerender } = render(
+      <SessionDetailModal booking={buildBooking(48)} subscriptionId={2} onClose={onClose} />,
+    );
+    await user.click(screen.getByText('Cancelar'));
+    expect(screen.getByText('Confirmar cancelación')).toBeInTheDocument();
+
+    setupStore({ loading: true });
+    rerender(
+      <SessionDetailModal booking={buildBooking(48)} subscriptionId={2} onClose={onClose} />,
+    );
+    expect(screen.getByText('Cancelando...')).toBeInTheDocument();
   });
 });

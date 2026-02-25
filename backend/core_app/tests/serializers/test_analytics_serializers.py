@@ -1,3 +1,5 @@
+"""Tests for analytics event serializers."""
+
 import pytest
 
 from core_app.models import AnalyticsEvent, User
@@ -6,7 +8,10 @@ from core_app.serializers import AnalyticsEventSerializer
 
 @pytest.mark.django_db
 class TestAnalyticsEventSerializer:
+    """Validate AnalyticsEventSerializer read and write behavior."""
+
     def test_serialization_fields(self):
+        """Expose expected analytics event fields and persisted values."""
         event = AnalyticsEvent.objects.create(
             event_type=AnalyticsEvent.Type.WHATSAPP_CLICK,
             session_id='sess-123',
@@ -22,6 +27,7 @@ class TestAnalyticsEventSerializer:
         assert data['session_id'] == 'sess-123'
 
     def test_read_only_timestamps(self):
+        """Ignore created_at input to keep timestamp fields read-only."""
         serializer = AnalyticsEventSerializer(data={
             'event_type': 'package_view',
             'created_at': '2020-01-01T00:00:00Z',
@@ -31,6 +37,7 @@ class TestAnalyticsEventSerializer:
         assert str(event.created_at) != '2020-01-01 00:00:00+00:00'
 
     def test_deserialization_creates_event(self):
+        """Create analytics events from valid serializer payloads."""
         user = User.objects.create_user(email='analytics_s@example.com', password='p')
         serializer = AnalyticsEventSerializer(data={
             'event_type': 'booking_created',
@@ -46,6 +53,7 @@ class TestAnalyticsEventSerializer:
         assert event.metadata == {'key': 'val'}
 
     def test_user_is_optional(self):
+        """Allow events without an associated user."""
         serializer = AnalyticsEventSerializer(data={
             'event_type': 'whatsapp_click',
         })

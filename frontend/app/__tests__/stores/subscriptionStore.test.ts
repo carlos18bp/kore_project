@@ -54,8 +54,6 @@ const MOCK_PAYMENT = {
 const MOCK_EXPIRING_SUBSCRIPTION = {
   ...MOCK_SUBSCRIPTION,
   id: 7,
-  is_recurring: false,
-  payment_method_type: 'NEQUI',
   expires_at: '2025-03-03T00:00:00Z',
 };
 
@@ -76,7 +74,7 @@ describe('subscriptionStore', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     resetStore();
-    mockedCookies.get.mockReturnValue('fake-token');
+    (mockedCookies.get as jest.Mock).mockReturnValue('fake-token');
   });
 
   // ----------------------------------------------------------------
@@ -217,7 +215,7 @@ describe('subscriptionStore', () => {
     });
 
     it('sets expiryReminder to null on error', async () => {
-      useSubscriptionStore.setState({ expiryReminder: MOCK_EXPIRING_SUBSCRIPTION as any });
+      useSubscriptionStore.setState({ expiryReminder: MOCK_EXPIRING_SUBSCRIPTION });
       mockedApi.get.mockRejectedValueOnce(new Error('fail'));
       await useSubscriptionStore.getState().fetchExpiryReminder();
       expect(useSubscriptionStore.getState().expiryReminder).toBeNull();
@@ -229,7 +227,7 @@ describe('subscriptionStore', () => {
   // ----------------------------------------------------------------
   describe('acknowledgeExpiryReminder', () => {
     it('returns true and clears expiryReminder on success', async () => {
-      useSubscriptionStore.setState({ expiryReminder: MOCK_EXPIRING_SUBSCRIPTION as any });
+      useSubscriptionStore.setState({ expiryReminder: MOCK_EXPIRING_SUBSCRIPTION });
       mockedApi.post.mockResolvedValueOnce({ data: { status: 'ok' } });
 
       const result = await useSubscriptionStore.getState().acknowledgeExpiryReminder(7);
@@ -243,7 +241,7 @@ describe('subscriptionStore', () => {
     });
 
     it('returns false on error and does not clear expiryReminder', async () => {
-      useSubscriptionStore.setState({ expiryReminder: MOCK_EXPIRING_SUBSCRIPTION as any });
+      useSubscriptionStore.setState({ expiryReminder: MOCK_EXPIRING_SUBSCRIPTION });
       mockedApi.post.mockRejectedValueOnce(new Error('fail'));
 
       const result = await useSubscriptionStore.getState().acknowledgeExpiryReminder(7);

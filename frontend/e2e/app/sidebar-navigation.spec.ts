@@ -1,6 +1,7 @@
 import { test, expect, loginAsTestUser } from '../fixtures';
+import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
-test.describe('Sidebar — Navigation & Active States', () => {
+test.describe('Sidebar — Navigation & Active States', { tag: [...FlowTags.APP_SIDEBAR_NAVIGATION, RoleTags.USER] }, () => {
   test.describe.configure({ mode: 'serial' });
 
   test('mobile sidebar opens with hamburger and closes with backdrop click', async ({ page }) => {

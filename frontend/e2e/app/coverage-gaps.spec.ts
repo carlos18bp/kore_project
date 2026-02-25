@@ -1,114 +1,104 @@
-import { test, expect, loginAsTestUser } from '../fixtures';
+import { test, expect, mockLoginAsTestUser } from '../fixtures';
+import type { Page } from '@playwright/test';
+import { FlowTags, RoleTags } from '../helpers/flow-tags';
+
+function buildSingleFutureSlot(dateIso: string) {
+  return {
+    id: 100,
+    trainer_id: 1,
+    starts_at: `${dateIso}T10:00:00Z`,
+    ends_at: `${dateIso}T11:00:00Z`,
+    is_active: true,
+    is_blocked: false,
+  };
+}
+
+async function mockBookSessionCoverageRoutes(page: Page, dateIso: string) {
+  const mockSlot = buildSingleFutureSlot(dateIso);
+  await page.route('**/api/availability-slots/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockSlot] }),
+    });
+  });
+  await page.route('**/api/trainers/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        count: 1,
+        next: null,
+        previous: null,
+        results: [{
+          id: 1,
+          user_id: 100,
+          first_name: 'Test',
+          last_name: 'Trainer',
+          email: 'trainer@kore.com',
+          specialty: 'Funcional',
+          bio: '',
+          location: 'Bogotá',
+          session_duration_minutes: 60,
+        }],
+      }),
+    });
+  });
+  await page.route('**/api/subscriptions/**', async (route) => {
+    const url = route.request().url();
+    if (url.includes('/payments/') || url.includes('/cancel/')) {
+      await route.fallback();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        count: 1,
+        next: null,
+        previous: null,
+        results: [{
+          id: 1,
+          customer_email: 'e2e@kore.com',
+          package: { id: 1, title: 'Test Package', sessions_count: 4, session_duration_minutes: 60, price: '100000', currency: 'COP', validity_days: 30 },
+          sessions_total: 4,
+          sessions_used: 0,
+          sessions_remaining: 4,
+          status: 'active',
+          starts_at: new Date().toISOString(),
+          expires_at: new Date(Date.now() + 30 * 86400000).toISOString(),
+          next_billing_date: null,
+        }],
+      }),
+    });
+  });
+  await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
+  });
+}
 
 /**
  * E2E tests targeting specific coverage gaps identified in the coverage report.
  * These tests exercise branches that were not hit by other tests.
  */
-test.describe('Coverage Gap Tests', () => {
+test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleTags.USER] }, () => {
   test.describe.configure({ mode: 'serial' });
 
   // ─────────────────────────────────────────────────────────────────────────
   // TimeSlotPicker.tsx line 24 — Empty slots fallback
   // ─────────────────────────────────────────────────────────────────────────
   test('TimeSlotPicker shows empty message when no slots available', async ({ page }) => {
-    // Create a slot for tomorrow so the day is enabled, but no slots for day after tomorrow
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    await mockLoginAsTestUser(page);
+    await mockBookSessionCoverageRoutes(page, tomorrowStr);
 
-    const dayAfter = new Date();
-    dayAfter.setDate(dayAfter.getDate() + 2);
-    const dayAfterStr = dayAfter.toISOString().split('T')[0];
-
-    const mockSlot = {
-      id: 100,
-      trainer_id: 1,
-      starts_at: `${tomorrowStr}T10:00:00Z`,
-      ends_at: `${tomorrowStr}T11:00:00Z`,
-      is_active: true,
-      is_blocked: false,
-    };
-
-    // Return slots only for tomorrow, not for day after
-    await page.route('**/api/availability-slots/**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockSlot] }),
-      });
-    });
-    await page.route('**/api/trainers/**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          count: 1,
-          next: null,
-          previous: null,
-          results: [{
-            id: 1,
-            user_id: 100,
-            first_name: 'Test',
-            last_name: 'Trainer',
-            email: 'trainer@kore.com',
-            specialty: 'Funcional',
-            bio: '',
-            location: 'Bogotá',
-            session_duration_minutes: 60,
-          }],
-        }),
-      });
-    });
-    await page.route('**/api/subscriptions/**', async (route) => {
-      const url = route.request().url();
-      if (url.includes('/payments/') || url.includes('/cancel/')) {
-        await route.fallback();
-        return;
-      }
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          count: 1,
-          next: null,
-          previous: null,
-          results: [{
-            id: 1,
-            customer_email: 'e2e@kore.com',
-            package: { id: 1, title: 'Test Package', sessions_count: 4, session_duration_minutes: 60, price: '100000', currency: 'COP', validity_days: 30 },
-            sessions_total: 4,
-            sessions_used: 0,
-            sessions_remaining: 4,
-            status: 'active',
-            starts_at: new Date().toISOString(),
-            expires_at: new Date(Date.now() + 30 * 86400000).toISOString(),
-            next_billing_date: null,
-          }],
-        }),
-      });
-    });
-    await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
-    });
-
-    await loginAsTestUser(page);
     await page.goto('/book-session');
 
-    // Wait for the page to load
     await expect(page.getByText('Agenda tu sesión')).toBeVisible({ timeout: 10_000 });
-
-    // Click on the day with slots (tomorrow) first to select date, then
-    // the slots should appear. For empty slots test, we need to select a day
-    // that IS in the available dates but has no matching slots after date filter.
-    // Actually, the calendar only enables days that have slots in monthSlots.
-    // So we need a different approach: click the enabled day, it will show slots.
-    // Let's verify the flow works - when slots exist, they show.
-    // For empty slots, we need the day to be enabled but slotsForDate to be empty.
-    // This happens when selectedDate doesn't match any slot's date.
-
-    // Since the calendar only enables days with slots, let's click the enabled day
-    // and verify slots appear (as a baseline)
-    const enabledDay = page.locator('button:not([disabled])').filter({ hasText: /^\d{1,2}$/ }).first();
+    const targetDay = String(tomorrow.getDate());
+    const enabledDay = page.getByRole('button', { name: new RegExp(`^${targetDay}$`) });
     const dayExists = await enabledDay.isVisible().catch(() => false);
     if (dayExists) {
       await enabledDay.click();
@@ -123,6 +113,7 @@ test.describe('Coverage Gap Tests', () => {
   // my-programs/page.tsx lines 16-20 — SubscriptionCard with active subscription
   // ─────────────────────────────────────────────────────────────────────────
   test('my-programs shows SubscriptionCard with active subscription', async ({ page }) => {
+    await mockLoginAsTestUser(page);
     const activeSub = {
       id: 11,
       customer_email: 'e2e@kore.com',
@@ -152,7 +143,6 @@ test.describe('Coverage Gap Tests', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
     });
 
-    await loginAsTestUser(page);
     await page.goto('/my-programs');
 
     // Verify SubscriptionCard renders with active subscription details
@@ -163,6 +153,7 @@ test.describe('Coverage Gap Tests', () => {
   });
 
   test('my-programs shows SubscriptionCard with expired subscription', async ({ page }) => {
+    await mockLoginAsTestUser(page);
     const expiredSub = {
       id: 12,
       customer_email: 'e2e@kore.com',
@@ -192,7 +183,6 @@ test.describe('Coverage Gap Tests', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
     });
 
-    await loginAsTestUser(page);
     await page.goto('/my-programs');
 
     // Verify SubscriptionCard renders with expired status badge
@@ -201,6 +191,7 @@ test.describe('Coverage Gap Tests', () => {
   });
 
   test('my-programs shows SubscriptionCard with canceled subscription', async ({ page }) => {
+    await mockLoginAsTestUser(page);
     const canceledSub = {
       id: 13,
       customer_email: 'e2e@kore.com',
@@ -230,7 +221,6 @@ test.describe('Coverage Gap Tests', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
     });
 
-    await loginAsTestUser(page);
     await page.goto('/my-programs');
 
     // Verify SubscriptionCard renders with canceled status badge
@@ -242,6 +232,7 @@ test.describe('Coverage Gap Tests', () => {
   // my-programs/page.tsx line 17 — STATUS_BADGE fallback (unknown status)
   // ─────────────────────────────────────────────────────────────────────────
   test('my-programs SubscriptionCard uses fallback badge for unknown status', async ({ page }) => {
+    await mockLoginAsTestUser(page);
     const unknownStatusSub = {
       id: 14,
       customer_email: 'e2e@kore.com',
@@ -271,7 +262,6 @@ test.describe('Coverage Gap Tests', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
     });
 
-    await loginAsTestUser(page);
     await page.goto('/my-programs');
 
     // Should render the card with fallback to "Activo" badge since status is unknown
@@ -280,15 +270,221 @@ test.describe('Coverage Gap Tests', () => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // BookingConfirmation.tsx lines 46-52 — User name/email fallbacks
-  // This test is covered by edge-case-branches.spec.ts with trainer=null test
-  // which exercises the fallback pattern. Skipping duplicate test.
+  // subscriptionStore.ts lines 57-59 — fetchSubscriptions error path
   // ─────────────────────────────────────────────────────────────────────────
-  test.skip('BookingConfirmation shows dash fallback for user without name', async ({ page }) => {
-    // This branch is difficult to test via E2E because:
-    // 1. The authStore always constructs user.name from first_name + last_name
-    // 2. Even with empty strings, the name field is set, not null
-    // 3. The fallback only triggers when user is completely undefined
-    // This is better covered by unit tests.
+  test('subscriptionStore fetchSubscriptions error shows message on subscription page', async ({ page }) => {
+    await mockLoginAsTestUser(page);
+    await page.route('**/api/subscriptions/**', async (route) => {
+      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'Server error' }) });
+    });
+    await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
+    });
+
+    await page.goto('/subscription');
+
+    await expect(page.getByText('No se pudieron cargar las suscripciones.')).toBeVisible({ timeout: 10_000 });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // subscriptionStore.ts lines 89-91 — fetchPaymentHistory error path
+  // ─────────────────────────────────────────────────────────────────────────
+  test('subscriptionStore fetchPaymentHistory error shows message on subscription page', async ({ page }) => {
+    await mockLoginAsTestUser(page);
+    const mockSub = {
+      id: 30,
+      customer_email: 'e2e@kore.com',
+      package: { id: 6, title: 'Paquete Error', sessions_count: 4, session_duration_minutes: 60, price: '120000', currency: 'COP', validity_days: 30 },
+      sessions_total: 4,
+      sessions_used: 1,
+      sessions_remaining: 3,
+      status: 'active',
+      starts_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+      expires_at: new Date(Date.now() + 25 * 86400000).toISOString(),
+      next_billing_date: null,
+    };
+
+    await page.route('**/api/subscriptions/*/payments/**', async (route) => {
+      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'Server error' }) });
+    });
+    await page.route('**/api/subscriptions/**', async (route) => {
+      const url = route.request().url();
+      if (url.includes('/payments/') || url.includes('/cancel/') || url.includes('/expiry-reminder')) {
+        await route.fallback();
+        return;
+      }
+      await route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockSub] }),
+      });
+    });
+    await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
+    });
+
+    await page.goto('/subscription');
+
+    await expect(page.getByText('No se pudo cargar el historial de pagos.')).toBeVisible({ timeout: 10_000 });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // bookingStore.ts lines 143-145 — extractErrorMessage non_field_errors branch
+  // bookingStore.ts lines 149-153 — extractErrorMessage field-key (slot_id) branch
+  // Both exercised via createBooking() failure on the book-session confirmation step
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const _bktomorrow = new Date();
+  _bktomorrow.setDate(_bktomorrow.getDate() + 1);
+  const _bkdateStr = _bktomorrow.toISOString().split('T')[0];
+  const _bkSlot = {
+    id: 601,
+    starts_at: `${_bkdateStr}T10:00:00Z`,
+    ends_at: `${_bkdateStr}T11:00:00Z`,
+    is_blocked: false,
+    is_active: true,
+    trainer_id: 1,
+  };
+  const _bkSub = {
+    id: 11,
+    customer_email: 'e2e@kore.com',
+    package: { id: 6, title: 'Paquete Pro', sessions_count: 4, session_duration_minutes: 60, price: '120000', currency: 'COP', validity_days: 60 },
+    sessions_total: 4,
+    sessions_used: 1,
+    sessions_remaining: 3,
+    status: 'active',
+    starts_at: new Date(Date.now() - 10 * 86400000).toISOString(),
+    expires_at: new Date(Date.now() + 50 * 86400000).toISOString(),
+    next_billing_date: null,
+  };
+  const _bkSlotLabel = (() => {
+    const fmt = (iso: string) => new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+    return `${fmt(_bkSlot.starts_at)} — ${fmt(_bkSlot.ends_at)}`;
+  })();
+
+  async function setupBookSessionMocksForError(page: Page) {
+    await page.route('**/api/trainers/**', async (route) => {
+      await route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({ count: 1, next: null, previous: null, results: [{ id: 1, user_id: 100, first_name: 'Test', last_name: 'Trainer', email: 'trainer@kore.com', specialty: 'Funcional', bio: '', location: 'Bogotá', session_duration_minutes: 60 }] }),
+      });
+    });
+    await page.route('**/api/availability-slots/**', async (route) => {
+      await route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({ count: 1, next: null, previous: null, results: [_bkSlot] }),
+      });
+    });
+    await page.route('**/api/subscriptions/**', async (route) => {
+      const url = route.request().url();
+      if (url.includes('/payments/') || url.includes('/cancel/')) { await route.fallback(); return; }
+      await route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({ count: 1, next: null, previous: null, results: [_bkSub] }),
+      });
+    });
+    await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
+    });
+  }
+
+  async function goToBookSessionConfirmStep(page: Page) {
+    await page.goto('/book-session');
+    await page.getByText('Lun').waitFor({ state: 'visible', timeout: 10_000 });
+    const dayNum = _bktomorrow.getDate().toString();
+    await page.evaluate((num) => {
+      const buttons = document.querySelectorAll('button');
+      for (const btn of buttons) {
+        if (btn.textContent?.trim() === num) {
+          const propsKey = Object.keys(btn).find(k => k.startsWith('__reactProps$'));
+          if (propsKey) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const props = (btn as unknown as Record<string, any>)[propsKey];
+            if (typeof props?.onClick === 'function') { props.onClick(); }
+          }
+          break;
+        }
+      }
+    }, dayNum);
+    await page.getByRole('button', { name: _bkSlotLabel, exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
+    await page.getByRole('button', { name: _bkSlotLabel, exact: true }).click();
+    await expect(page.getByRole('main').getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
+  }
+
+  test('bookingStore.createBooking non_field_errors string surfaces in BookingConfirmation', async ({ page }) => {
+    await mockLoginAsTestUser(page);
+    await setupBookSessionMocksForError(page);
+    await page.route('**/api/bookings/', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ non_field_errors: 'El horario ya no está disponible.' }) });
+      } else {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }) });
+      }
+    });
+
+    await goToBookSessionConfirmStep(page);
+    await page.getByRole('button', { name: /Confirmar/i }).click();
+
+    await expect(page.getByText('El horario ya no está disponible.')).toBeVisible({ timeout: 10_000 });
+  });
+
+  test('bookingStore.createBooking slot_id field error surfaces in BookingConfirmation', async ({ page }) => {
+    await mockLoginAsTestUser(page);
+    await setupBookSessionMocksForError(page);
+    await page.route('**/api/bookings/', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ slot_id: ['Este horario ya está reservado.'] }) });
+      } else {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }) });
+      }
+    });
+
+    await goToBookSessionConfirmStep(page);
+    await page.getByRole('button', { name: /Confirmar/i }).click();
+
+    await expect(page.getByText('Este horario ya está reservado.')).toBeVisible({ timeout: 10_000 });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // TimeSlotPicker.tsx lines 10-15 — use24h=false branch of formatTime
+  // Exercised by clicking the '12h' toggle button when slots are rendered.
+  // ─────────────────────────────────────────────────────────────────────────
+  test('TimeSlotPicker 12h toggle changes slot time format to AM/PM', async ({ page }) => {
+    await mockLoginAsTestUser(page);
+    await setupBookSessionMocksForError(page);
+    await page.route('**/api/bookings/', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }) });
+      } else {
+        await route.fallback();
+      }
+    });
+
+    await page.goto('/book-session');
+    await page.getByText('Lun').waitFor({ state: 'visible', timeout: 10_000 });
+
+    const dayNum = _bktomorrow.getDate().toString();
+    await page.evaluate((n) => {
+      for (const btn of document.querySelectorAll('button')) {
+        if (btn.textContent?.trim() === n && !(btn as HTMLButtonElement).disabled) {
+          const k = Object.keys(btn).find((key) => key.startsWith('__reactProps$'));
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if (k) { const p = (btn as any)[k]; if (typeof p?.onClick === 'function') p.onClick(); }
+          break;
+        }
+      }
+    }, dayNum);
+
+    // Slot should appear in 24h format initially
+    await page.getByRole('button', { name: _bkSlotLabel, exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
+
+    // Click 12h toggle — exercises TimeSlotPicker.tsx use24h=false branch
+    await page.getByRole('button', { name: '12h' }).click();
+
+    // Slot button should now show AM/PM format
+    await expect(page.getByRole('button', { name: /AM|PM/i }).first()).toBeVisible({ timeout: 5_000 });
+
+    // Toggle back to 24h
+    await page.getByRole('button', { name: '24h' }).click();
+    await expect(page.getByRole('button', { name: _bkSlotLabel, exact: true })).toBeVisible({ timeout: 5_000 });
   });
 });

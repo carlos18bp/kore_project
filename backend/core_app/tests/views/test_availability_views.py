@@ -1,5 +1,8 @@
+"""Tests for availability slot API views."""
+
+from datetime import datetime, timedelta
+
 import pytest
-from datetime import timedelta
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -7,10 +10,17 @@ from rest_framework import status
 from core_app.models import AvailabilitySlot, TrainerProfile, User
 from core_app.tests.helpers import get_results
 
+FIXED_NOW = timezone.make_aware(datetime(2100, 2, 3, 10, 0, 0), timezone.get_current_timezone())
+
+
+def _fixed_now() -> datetime:
+    return FIXED_NOW
+
 
 @pytest.mark.django_db
 def test_availability_slot_list_filters_for_anonymous(api_client):
-    now = timezone.now()
+    """List only publicly available slots for anonymous users."""
+    now = _fixed_now()
     AvailabilitySlot.objects.create(starts_at=now, ends_at=now + timedelta(hours=1), is_active=True, is_blocked=False)
     AvailabilitySlot.objects.create(starts_at=now + timedelta(hours=2), ends_at=now + timedelta(hours=3), is_active=True, is_blocked=True)
 
@@ -23,7 +33,8 @@ def test_availability_slot_list_filters_for_anonymous(api_client):
 
 @pytest.mark.django_db
 def test_availability_slot_list_returns_all_for_admin(api_client, admin_user):
-    now = timezone.now()
+    """Allow admins to list both blocked and unblocked slots."""
+    now = _fixed_now()
     AvailabilitySlot.objects.create(starts_at=now, ends_at=now + timedelta(hours=1), is_active=True, is_blocked=False)
     AvailabilitySlot.objects.create(starts_at=now + timedelta(hours=2), ends_at=now + timedelta(hours=3), is_active=True, is_blocked=True)
 
@@ -38,7 +49,8 @@ def test_availability_slot_list_returns_all_for_admin(api_client, admin_user):
 
 @pytest.mark.django_db
 def test_availability_slot_create_requires_admin(api_client):
-    now = timezone.now()
+    """Reject slot creation requests from non-admin users."""
+    now = _fixed_now()
 
     url = reverse('availability-slot-list')
     response = api_client.post(
@@ -53,7 +65,7 @@ def test_availability_slot_create_requires_admin(api_client):
 @pytest.mark.django_db
 def test_availability_slot_list_with_malformed_date_param(api_client):
     """Malformed date param is silently ignored (lines 59-63)."""
-    now = timezone.now()
+    now = _fixed_now()
     AvailabilitySlot.objects.create(
         starts_at=now + timedelta(hours=1),
         ends_at=now + timedelta(hours=2),
@@ -71,10 +83,10 @@ def test_availability_slot_list_with_malformed_date_param(api_client):
 @pytest.mark.django_db
 def test_availability_slot_list_filters_by_valid_date(api_client, admin_user):
     """Valid date param filters slots by date (line 60-61)."""
-    now = timezone.now()
+    now = _fixed_now()
     target_date = (now + timedelta(days=1)).date()
     target_start = timezone.make_aware(
-        timezone.datetime.combine(target_date, timezone.datetime.min.time()),
+        datetime.combine(target_date, datetime.min.time()),
         timezone.get_current_timezone(),
     )
     AvailabilitySlot.objects.create(
@@ -107,7 +119,7 @@ def test_availability_slot_list_filters_by_trainer(api_client):
     trainer = TrainerProfile.objects.create(
         user=trainer_user, specialty='Yoga', location='Studio',
     )
-    now = timezone.now()
+    now = _fixed_now()
     AvailabilitySlot.objects.create(
         starts_at=now + timedelta(hours=1),
         ends_at=now + timedelta(hours=2),

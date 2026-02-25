@@ -1,4 +1,5 @@
-import { test, expect, loginAsTestUser, E2E_USER } from '../fixtures';
+import { test, expect, mockLoginAsTestUser, E2E_USER } from '../fixtures';
+import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
  * Full booking flow tests that exercise BookingConfirmation, BookingSuccess,
@@ -9,7 +10,7 @@ import { test, expect, loginAsTestUser, E2E_USER } from '../fixtures';
  * this by using page.evaluate to remove the disabled attribute and triggering
  * a click, which lets React's handler fire and the mock API respond.
  */
-test.describe('Complete Booking Flow (mocked)', () => {
+test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMPLETE_FLOW, RoleTags.USER] }, () => {
   test.describe.configure({ mode: 'serial' });
 
   const mockTrainer = {
@@ -64,30 +65,49 @@ test.describe('Complete Booking Flow (mocked)', () => {
     expires_at: new Date(Date.now() + 50 * 86400000).toISOString(),
   };
 
+  function slotLabelFor(slot: { starts_at: string; ends_at: string }) {
+    const formatTime = (isoString: string) => (
+      new Date(isoString).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+    );
+    return `${formatTime(slot.starts_at)} — ${formatTime(slot.ends_at)}`;
+  }
+
+  const primarySlotLabel = slotLabelFor(mockSlots[0]);
+
+  async function expectPrimarySlotButton(page: import('@playwright/test').Page) {
+    await expect(page.getByRole('button', { name: primarySlotLabel, exact: true })).toBeVisible({ timeout: 10_000 });
+  }
+
+  async function selectPrimarySlot(page: import('@playwright/test').Page) {
+    const primarySlotButton = page.getByRole('button', { name: primarySlotLabel, exact: true });
+    await expect(primarySlotButton).toBeVisible({ timeout: 10_000 });
+    await primarySlotButton.click();
+  }
+
   function setupMocks(page: import('@playwright/test').Page) {
     return Promise.all([
-      page.route('**/api/trainers/*', async (route) => {
+      page.route('**/api/trainers/**', async (route) => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockTrainer] }),
         });
       }),
-      page.route('**/api/availability-slots/*', async (route) => {
+      page.route('**/api/availability-slots/**', async (route) => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({ count: mockSlots.length, next: null, previous: null, results: mockSlots }),
         });
       }),
-      page.route('**/api/subscriptions/*', async (route) => {
+      page.route('**/api/subscriptions/**', async (route) => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockSubscription] }),
         });
       }),
-      page.route('**/api/bookings/upcoming-reminder/*', async (route) => {
+      page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -123,9 +143,20 @@ test.describe('Complete Booking Flow (mocked)', () => {
     }, dayNum);
   }
 
-  test('full flow: select date → slot → confirmation → confirm booking → success', async ({ page }) => {
-    await setupMocks(page);
+  async function goToConfirmationStep(page: import('@playwright/test').Page) {
+    await page.goto('/book-session');
 
+    const dayNum = tomorrow.getDate().toString();
+    await forceClickCalendarDay(page, dayNum);
+    await expectPrimarySlotButton(page);
+    await selectPrimarySlot(page);
+
+    const main = page.getByRole('main');
+    await expect(main.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
+    return main;
+  }
+
+  async function mockSuccessfulBookingCreate(page: import('@playwright/test').Page) {
     await page.route('**/api/bookings/', async (route) => {
       if (route.request().method() === 'POST') {
         await route.fulfill({
@@ -149,63 +180,51 @@ test.describe('Complete Booking Flow (mocked)', () => {
         await route.continue();
       }
     });
+  }
 
-    await loginAsTestUser(page);
-    await page.goto('/book-session');
-    await expect(page.getByText('Agenda tu sesión')).toBeVisible();
-
-    // Force-click the target date in the calendar
-    const dayNum = tomorrow.getDate().toString();
-    await forceClickCalendarDay(page, dayNum);
-
-    // Wait for mocked slots to appear in the TimeSlotPicker
-    await expect(page.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ }).first()).toBeVisible({ timeout: 10_000 });
-
-    // Select the first slot
-    await page.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ }).first().click();
-
-    // Step 2 — Confirmation screen
-    const main = page.getByRole('main');
-    await expect(main.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
+  async function expectConfirmationDetails(main: import('@playwright/test').Locator) {
     await expect(main.getByText(E2E_USER.fullName)).toBeVisible();
     await expect(main.getByText(E2E_USER.email)).toBeVisible();
 
-    // Subscription info (inside the confirmation panel, not the selector/header)
     const confirmPanel = main.locator('label:has-text("Programa") + p');
     await expect(confirmPanel.getByText(/Paquete Pro/)).toBeVisible();
     await expect(confirmPanel.getByText(/sesiones restantes/)).toBeVisible();
-
-    // TrainerInfoPanel content
     await expect(main.getByText('60 min')).toBeVisible();
     await expect(main.getByText('En persona')).toBeVisible();
+  }
 
-    // Click "Confirmar"
-    await main.getByRole('button', { name: 'Confirmar' }).click();
-
-    // Step 3 — Success modal (calendar is visible behind, so scope assertions to the modal)
+  async function expectSuccessModal(main: import('@playwright/test').Locator) {
     const modal = main.locator('.fixed.inset-0.z-50');
     await expect(modal.getByText('Esta reunión está programada')).toBeVisible({ timeout: 10_000 });
     await expect(modal.getByText('Hemos enviado un correo electrónico')).toBeVisible();
-
-    // Summary table
     await expect(modal.getByText('Entrenamiento Kóre')).toBeVisible();
     await expect(modal.getByText('Germán Franco')).toBeVisible();
-    await expect(modal.getByText('Bogotá, Colombia')).toBeVisible();
-
-    // Links
     await expect(modal.getByText('Reprogramar o Cancelar')).toBeVisible();
     await expect(modal.getByText('Agendar otra sesión')).toBeVisible();
+  }
+
+  test('full flow: select date → slot → confirmation → confirm booking → success', async ({ page }) => {
+    await mockLoginAsTestUser(page);
+    await setupMocks(page);
+    await mockSuccessfulBookingCreate(page);
+
+    const main = await goToConfirmationStep(page);
+    await expectConfirmationDetails(main);
+    await expect(main.getByRole('button', { name: 'Confirmar' })).toBeVisible();
+    await main.getByRole('button', { name: 'Confirmar' }).click();
+
+    await expectSuccessModal(main);
   });
 
   test('confirmation step "Atrás" button returns to step 1', async ({ page }) => {
+    await mockLoginAsTestUser(page);
     await setupMocks(page);
-    await loginAsTestUser(page);
     await page.goto('/book-session');
 
     const dayNum = tomorrow.getDate().toString();
     await forceClickCalendarDay(page, dayNum);
-    await expect(page.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ }).first()).toBeVisible({ timeout: 10_000 });
-    await page.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ }).first().click();
+    await expectPrimarySlotButton(page);
+    await selectPrimarySlot(page);
     await expect(page.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
 
     // Go back
@@ -217,38 +236,16 @@ test.describe('Complete Booking Flow (mocked)', () => {
   });
 
   test('success screen "Agendar otra sesión" resets to step 1', async ({ page }) => {
+    await mockLoginAsTestUser(page);
     await setupMocks(page);
-    await page.route('**/api/bookings/', async (route) => {
-      if (route.request().method() === 'POST') {
-        await route.fulfill({
-          status: 201,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            id: 999,
-            subscription_id_display: mockSubscription.id,
-            status: 'confirmed',
-            slot: mockSlots[0],
-            trainer: mockTrainer,
-            package: mockSubscription.package,
-            customer_id: 1,
-            notes: '',
-            canceled_reason: '',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
+    await mockSuccessfulBookingCreate(page);
 
-    await loginAsTestUser(page);
     await page.goto('/book-session');
 
     const dayNum = tomorrow.getDate().toString();
     await forceClickCalendarDay(page, dayNum);
-    await expect(page.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ }).first()).toBeVisible({ timeout: 10_000 });
-    await page.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ }).first().click();
+    await expectPrimarySlotButton(page);
+    await selectPrimarySlot(page);
     await expect(page.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
     await page.getByRole('button', { name: 'Confirmar' }).click();
     await expect(page.getByText('Esta reunión está programada')).toBeVisible({ timeout: 10_000 });
@@ -261,13 +258,13 @@ test.describe('Complete Booking Flow (mocked)', () => {
   });
 
   test('time slot picker 12h/24h toggle changes format', async ({ page }) => {
+    await mockLoginAsTestUser(page);
     await setupMocks(page);
-    await loginAsTestUser(page);
     await page.goto('/book-session');
 
     const dayNum = tomorrow.getDate().toString();
     await forceClickCalendarDay(page, dayNum);
-    await expect(page.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ }).first()).toBeVisible({ timeout: 10_000 });
+    await expectPrimarySlotButton(page);
 
     // Toggle to 12h
     const toggle12 = page.getByRole('button', { name: '12h' });
@@ -281,6 +278,7 @@ test.describe('Complete Booking Flow (mocked)', () => {
   });
 
   test('booking error is displayed on confirmation screen', async ({ page }) => {
+    await mockLoginAsTestUser(page);
     await setupMocks(page);
 
     await page.route('**/api/bookings/', async (route) => {
@@ -295,13 +293,12 @@ test.describe('Complete Booking Flow (mocked)', () => {
       }
     });
 
-    await loginAsTestUser(page);
     await page.goto('/book-session');
 
     const dayNum = tomorrow.getDate().toString();
     await forceClickCalendarDay(page, dayNum);
-    await expect(page.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ }).first()).toBeVisible({ timeout: 10_000 });
-    await page.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ }).first().click();
+    await expectPrimarySlotButton(page);
+    await selectPrimarySlot(page);
     await expect(page.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
 
     // Confirm — should show error

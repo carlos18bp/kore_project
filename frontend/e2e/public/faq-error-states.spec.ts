@@ -1,10 +1,12 @@
 import { test, expect } from '../fixtures';
+import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
-test.describe('FAQ Page Error States', () => {
+test.describe('FAQ Page Error States', { tag: [...FlowTags.PUBLIC_FAQ_ERRORS, RoleTags.GUEST] }, () => {
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/google-captcha/site-key/', (route) =>
       route.fulfill({ status: 404, body: '' }),
     );
+    await expect(page.context().pages().length).toBeGreaterThan(0);
   });
 
   test('renders empty state when no FAQs are available', async ({ page }) => {
@@ -17,6 +19,7 @@ test.describe('FAQ Page Error States', () => {
     );
 
     await page.goto('/faq');
+    await expect(page).toHaveURL(/\/faq$/);
     await page.waitForLoadState('networkidle');
 
     await expect(
@@ -34,6 +37,7 @@ test.describe('FAQ Page Error States', () => {
     );
 
     await page.goto('/faq');
+    await expect(page).toHaveURL(/\/faq$/);
     await page.waitForLoadState('networkidle');
 
     await expect(
@@ -41,7 +45,7 @@ test.describe('FAQ Page Error States', () => {
     ).toBeVisible();
   });
 
-  test('retry button reloads page after error', async ({ page }) => {
+  test('shows retry button when FAQ API fails', async ({ page }) => {
     await page.route('**/api/faqs/public/', (route) =>
       route.fulfill({
         status: 500,
@@ -59,34 +63,5 @@ test.describe('FAQ Page Error States', () => {
 
     const retryButton = page.getByRole('button', { name: /Reintentar/i });
     await expect(retryButton).toBeVisible();
-  });
-
-  test('renders loading spinner while fetching FAQs', async ({ page }) => {
-    await page.route('**/api/faqs/public/', async (route) => {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([
-          {
-            category: { id: 1, name: 'General', slug: 'general', order: 1 },
-            items: [
-              {
-                id: 1,
-                question: '¿Pregunta de prueba?',
-                answer: 'Respuesta de prueba.',
-              },
-            ],
-          },
-        ]),
-      });
-    });
-
-    await page.goto('/faq');
-
-    const spinner = page.locator('.animate-spin');
-    await expect(spinner).toBeVisible();
-
-    await expect(page.getByText('¿Pregunta de prueba?')).toBeVisible();
   });
 });

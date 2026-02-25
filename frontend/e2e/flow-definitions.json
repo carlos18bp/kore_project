@@ -1,0 +1,237 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-02-23",
+  "flows": {
+    "auth-login": {
+      "name": "Login",
+      "module": "auth",
+      "priority": "P1",
+      "roles": ["guest"],
+      "description": "Authenticate with valid credentials and handle login errors."
+    },
+    "auth-logout": {
+      "name": "Logout",
+      "module": "auth",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "Sign out from the app and return to a public page."
+    },
+    "auth-session-persistence": {
+      "name": "Session Persistence",
+      "module": "auth",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "Persist authenticated sessions across reloads and handle cookie errors."
+    },
+    "auth-register": {
+      "name": "Register",
+      "module": "auth",
+      "priority": "P1",
+      "roles": ["guest"],
+      "description": "Register a new account and handle registration errors."
+    },
+    "booking-session-page": {
+      "name": "Book Session Page",
+      "module": "booking",
+      "priority": "P1",
+      "roles": ["guest", "user"],
+      "description": "Access the book session page with proper auth redirects."
+    },
+    "booking-session-flow": {
+      "name": "Book Session Flow",
+      "module": "booking",
+      "priority": "P1",
+      "roles": ["user"],
+      "description": "Select a date and slot to proceed through the booking flow."
+    },
+    "booking-complete-flow": {
+      "name": "Complete Booking Flow",
+      "module": "booking",
+      "priority": "P1",
+      "roles": ["user"],
+      "description": "Complete booking creation end-to-end with confirmation."
+    },
+    "booking-error-paths": {
+      "name": "Booking Error Paths",
+      "module": "booking",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "Display booking-related API failures and error states."
+    },
+    "booking-reschedule": {
+      "name": "Booking Reschedule",
+      "module": "booking",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "Reschedule existing bookings while enforcing time limits."
+    },
+    "booking-calendar-redirect": {
+      "name": "Calendar Redirect",
+      "module": "booking",
+      "priority": "P2",
+      "roles": ["guest", "user"],
+      "description": "Redirect the calendar route based on authentication state."
+    },
+    "booking-calendar-edge-cases": {
+      "name": "Calendar Edge Cases",
+      "module": "booking",
+      "priority": "P3",
+      "roles": ["user"],
+      "description": "Handle disabled days and empty availability in the calendar."
+    },
+    "booking-no-sessions": {
+      "name": "No Sessions Modal",
+      "module": "booking",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "Show the no sessions modal when subscriptions are exhausted."
+    },
+    "booking-session-detail": {
+      "name": "Session Detail",
+      "module": "booking",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "View and manage session detail modal states."
+    },
+    "app-coverage-gaps": {
+      "name": "App Coverage Gaps",
+      "module": "app",
+      "priority": "P3",
+      "roles": ["user"],
+      "description": "Exercise UI states that are underserved by existing coverage."
+    },
+    "app-edge-case-branches": {
+      "name": "App Edge Case Branches",
+      "module": "app",
+      "priority": "P3",
+      "roles": ["user"],
+      "description": "Cover edge case UI branches in booking and auth flows."
+    },
+    "app-store-error-paths": {
+      "name": "Store Error Paths",
+      "module": "app",
+      "priority": "P3",
+      "roles": ["user"],
+      "description": "Handle store hydration and API error branches."
+    },
+    "app-sidebar-navigation": {
+      "name": "Sidebar Navigation",
+      "module": "navigation",
+      "priority": "P3",
+      "roles": ["user"],
+      "description": "Navigate the app via sidebar and mobile menu."
+    },
+    "dashboard-overview": {
+      "name": "Dashboard Overview",
+      "module": "dashboard",
+      "priority": "P1",
+      "roles": ["user"],
+      "description": "Render dashboard overview sections and data."
+    },
+    "dashboard-reminder": {
+      "name": "Dashboard Reminder",
+      "module": "dashboard",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "Show upcoming session reminder behavior."
+    },
+    "my-programs-list": {
+      "name": "My Programs List",
+      "module": "programs",
+      "priority": "P1",
+      "roles": ["guest", "user"],
+      "description": "List subscriptions and handle empty states on My Programs."
+    },
+    "my-programs-detail": {
+      "name": "My Programs Detail",
+      "module": "programs",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "Navigate program detail and session history."
+    },
+    "subscription-page": {
+      "name": "Subscription Page",
+      "module": "subscription",
+      "priority": "P1",
+      "roles": ["user"],
+      "description": "View subscription details, status, and history."
+    },
+    "subscription-expiry-reminder": {
+      "name": "Subscription Expiry Reminder",
+      "module": "subscription",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "Prompt users about expiring subscriptions."
+    },
+    "checkout-flow": {
+      "name": "Checkout Flow",
+      "module": "checkout",
+      "priority": "P1",
+      "roles": ["guest", "user"],
+      "description": "Complete checkout page flow for subscriptions."
+    },
+    "checkout-guest-redirect": {
+      "name": "Checkout Guest Redirect",
+      "module": "checkout",
+      "priority": "P2",
+      "roles": ["guest"],
+      "description": "Redirect guest checkout when registration is required."
+    },
+    "checkout-coverage-gaps": {
+      "name": "Checkout Coverage Gaps",
+      "module": "checkout",
+      "priority": "P3",
+      "roles": ["guest", "user"],
+      "description": "Cover checkout edge cases and error handling."
+    },
+    "public-home": {
+      "name": "Public Home",
+      "module": "public",
+      "priority": "P2",
+      "roles": ["guest"],
+      "description": "Render the public home page sections and CTAs."
+    },
+    "public-navbar": {
+      "name": "Public Navbar",
+      "module": "public",
+      "priority": "P3",
+      "roles": ["guest"],
+      "description": "Interact with public navigation across breakpoints."
+    },
+    "public-brand": {
+      "name": "Public Brand",
+      "module": "public",
+      "priority": "P3",
+      "roles": ["guest"],
+      "description": "Render the Kore brand experience page."
+    },
+    "public-programs": {
+      "name": "Public Programs",
+      "module": "programs",
+      "priority": "P2",
+      "roles": ["guest", "user"],
+      "description": "Browse programs and handle authentication redirects."
+    },
+    "public-contact": {
+      "name": "Public Contact",
+      "module": "public",
+      "priority": "P3",
+      "roles": ["guest"],
+      "description": "Submit the contact form and validate required fields."
+    },
+    "public-faq": {
+      "name": "Public FAQ",
+      "module": "public",
+      "priority": "P3",
+      "roles": ["guest"],
+      "description": "Render FAQ content and accordion behavior."
+    },
+    "public-faq-errors": {
+      "name": "Public FAQ Errors",
+      "module": "public",
+      "priority": "P3",
+      "roles": ["guest"],
+      "description": "Handle FAQ loading, empty, and error states."
+    }
+  }
+}

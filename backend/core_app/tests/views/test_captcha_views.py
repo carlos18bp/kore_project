@@ -1,11 +1,11 @@
 """Tests for Google reCAPTCHA views."""
 
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 import requests
-from django.urls import reverse
 from django.test import override_settings
+from django.urls import reverse
 from rest_framework import status
 
 from core_app.views.captcha_views import verify_recaptcha
@@ -30,6 +30,7 @@ def test_verify_captcha_success(mock_verify, api_client):
 
     assert response.status_code == status.HTTP_200_OK
     assert response.data['success'] is True
+    mock_verify.assert_called_once_with('valid-token')
 
 
 @pytest.mark.django_db
@@ -41,6 +42,7 @@ def test_verify_captcha_failure(mock_verify, api_client):
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert response.data['success'] is False
+    mock_verify.assert_called_once_with('invalid-token')
 
 
 @pytest.mark.django_db
@@ -56,34 +58,43 @@ def test_login_captcha_failure_returns_error(mock_verify, api_client, existing_u
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'captcha_token' in response.data
+    mock_verify.assert_called_once_with('')
 
 
 @pytest.mark.django_db
 def test_verify_recaptcha_returns_true_without_secret_key():
+    """Treat captcha verification as pass-through when secret key is unset."""
     with override_settings(RECAPTCHA_SECRET_KEY=''):
         assert verify_recaptcha('any-token') is True
 
 
 @pytest.mark.django_db
 def test_verify_recaptcha_returns_false_without_token():
+    """Reject captcha verification when token is missing."""
     with override_settings(RECAPTCHA_SECRET_KEY='secret'):
         assert verify_recaptcha('') is False
 
 
 @pytest.mark.django_db
 def test_verify_recaptcha_returns_false_on_request_exception():
+    """Return false when captcha provider request raises an exception."""
     with override_settings(RECAPTCHA_SECRET_KEY='secret'):
-        with patch('core_app.views.captcha_views.requests.post', side_effect=requests.RequestException('fail')):
+        with patch('core_app.views.captcha_views.requests.post', side_effect=requests.RequestException) as mock_post:
             assert verify_recaptcha('token') is False
+        mock_post.assert_called_once()
 
 
 @pytest.mark.django_db
 def test_verify_recaptcha_returns_false_when_api_fails():
-    mock_response = Mock()
-    mock_response.json.return_value = {'success': False}
+    """Return false when captcha provider response reports unsuccessful verification."""
+    class ApiFailureResponse:
+        def json(self):
+            return {'success': False}
+
     with override_settings(RECAPTCHA_SECRET_KEY='secret'):
-        with patch('core_app.views.captcha_views.requests.post', return_value=mock_response):
+        with patch('core_app.views.captcha_views.requests.post', return_value=ApiFailureResponse()) as mock_post:
             assert verify_recaptcha('token') is False
+        mock_post.assert_called_once()
 
 
 @pytest.mark.django_db
@@ -105,3 +116,4 @@ def test_register_captcha_failure_returns_error(mock_verify, api_client):
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'captcha_token' in response.data
+    mock_verify.assert_called_once_with('')

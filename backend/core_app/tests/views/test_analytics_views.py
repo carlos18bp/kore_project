@@ -1,5 +1,6 @@
-import pytest
+"""Tests for analytics event API views."""
 
+import pytest
 from django.urls import reverse
 from rest_framework import status
 
@@ -9,6 +10,7 @@ from core_app.tests.helpers import get_results
 
 @pytest.mark.django_db
 def test_analytics_create_public(api_client):
+    """Allow public creation of analytics events through list endpoint."""
     url = reverse('analytics-event-list')
     response = api_client.post(url, {
         'event_type': 'whatsapp_click',
@@ -21,6 +23,7 @@ def test_analytics_create_public(api_client):
 
 @pytest.mark.django_db
 def test_analytics_list_requires_admin(api_client, existing_user):
+    """Deny non-admin authenticated users from listing analytics events."""
     api_client.force_authenticate(user=existing_user)
     url = reverse('analytics-event-list')
     response = api_client.get(url)
@@ -29,6 +32,7 @@ def test_analytics_list_requires_admin(api_client, existing_user):
 
 @pytest.mark.django_db
 def test_analytics_list_anonymous_denied(api_client):
+    """Reject anonymous users attempting to list analytics events."""
     url = reverse('analytics-event-list')
     response = api_client.get(url)
     assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
@@ -36,6 +40,7 @@ def test_analytics_list_anonymous_denied(api_client):
 
 @pytest.mark.django_db
 def test_analytics_list_allowed_for_admin(api_client, admin_user):
+    """Return analytics event list when requester has admin privileges."""
     AnalyticsEvent.objects.create(event_type=AnalyticsEvent.Type.WHATSAPP_CLICK)
     AnalyticsEvent.objects.create(event_type=AnalyticsEvent.Type.PACKAGE_VIEW)
 
@@ -48,6 +53,7 @@ def test_analytics_list_allowed_for_admin(api_client, admin_user):
 
 @pytest.mark.django_db
 def test_analytics_delete_requires_admin(api_client, existing_user):
+    """Deny delete action to non-admin authenticated users."""
     event = AnalyticsEvent.objects.create(event_type=AnalyticsEvent.Type.WHATSAPP_CLICK)
     api_client.force_authenticate(user=existing_user)
     url = reverse('analytics-event-detail', args=[event.id])

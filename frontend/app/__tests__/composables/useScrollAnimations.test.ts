@@ -2,6 +2,23 @@ import { renderHook } from '@testing-library/react';
 import gsap from 'gsap';
 import { useTextReveal, useHeroAnimation } from '@/app/composables/useScrollAnimations';
 
+function buildTextRevealContainer() {
+  const container = document.createElement('div');
+
+  ['fade-up', 'fade-up-slow', 'fade-left', 'fade-right', 'scale-in', 'split-text'].forEach((mode) => {
+    const element = document.createElement('div');
+    element.setAttribute('data-animate', mode);
+    container.appendChild(element);
+  });
+
+  const staggerElement = document.createElement('div');
+  staggerElement.setAttribute('data-animate', 'stagger-children');
+  staggerElement.appendChild(document.createElement('span'));
+  container.appendChild(staggerElement);
+
+  return container;
+}
+
 describe('useScrollAnimations', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -38,39 +55,7 @@ describe('useScrollAnimations', () => {
     });
 
     it('exercises animation branches including fade-up-slow via gsap.context callback', () => {
-      const div = document.createElement('div');
-
-      // Create elements with various data-animate attributes
-      const fadeUp = document.createElement('div');
-      fadeUp.setAttribute('data-animate', 'fade-up');
-      div.appendChild(fadeUp);
-
-      const fadeUpSlow = document.createElement('div');
-      fadeUpSlow.setAttribute('data-animate', 'fade-up-slow');
-      div.appendChild(fadeUpSlow);
-
-      const fadeLeft = document.createElement('div');
-      fadeLeft.setAttribute('data-animate', 'fade-left');
-      div.appendChild(fadeLeft);
-
-      const fadeRight = document.createElement('div');
-      fadeRight.setAttribute('data-animate', 'fade-right');
-      div.appendChild(fadeRight);
-
-      const scaleIn = document.createElement('div');
-      scaleIn.setAttribute('data-animate', 'scale-in');
-      div.appendChild(scaleIn);
-
-      const splitText = document.createElement('div');
-      splitText.setAttribute('data-animate', 'split-text');
-      div.appendChild(splitText);
-
-      const staggerEl = document.createElement('div');
-      staggerEl.setAttribute('data-animate', 'stagger-children');
-      staggerEl.appendChild(document.createElement('span'));
-      div.appendChild(staggerEl);
-
-      const ref = { current: div };
+      const ref = { current: buildTextRevealContainer() };
 
       // Capture the callback passed to gsap.context and invoke it
       let contextCallback: (() => void) | null = null;

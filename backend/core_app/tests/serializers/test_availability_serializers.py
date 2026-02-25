@@ -1,15 +1,23 @@
+"""Tests for availability slot serializers."""
+
+from datetime import datetime, timedelta
+
 import pytest
-from datetime import timedelta
 from django.utils import timezone
 
 from core_app.models import AvailabilitySlot
 from core_app.serializers import AvailabilitySlotSerializer
 
+FIXED_NOW = timezone.make_aware(datetime(2024, 1, 15, 10, 0, 0))
+
 
 @pytest.mark.django_db
 class TestAvailabilitySlotSerializer:
+    """Validate AvailabilitySlotSerializer read and write behavior."""
+
     def test_serialization_fields(self):
-        now = timezone.now()
+        """Expose expected serialized fields and default boolean values."""
+        now = FIXED_NOW
         slot = AvailabilitySlot.objects.create(
             starts_at=now, ends_at=now + timedelta(hours=1),
         )
@@ -23,7 +31,8 @@ class TestAvailabilitySlotSerializer:
         assert data['is_blocked'] is False
 
     def test_read_only_timestamps(self):
-        now = timezone.now()
+        """Ignore created_at and updated_at inputs during deserialization."""
+        now = FIXED_NOW
         serializer = AvailabilitySlotSerializer(data={
             'starts_at': now.isoformat(),
             'ends_at': (now + timedelta(hours=1)).isoformat(),
@@ -35,7 +44,8 @@ class TestAvailabilitySlotSerializer:
         assert str(slot.created_at) != '2020-01-01 00:00:00+00:00'
 
     def test_deserialization_creates_slot(self):
-        now = timezone.now()
+        """Create an availability slot from a valid serializer payload."""
+        now = FIXED_NOW
         serializer = AvailabilitySlotSerializer(data={
             'starts_at': (now + timedelta(hours=1)).isoformat(),
             'ends_at': (now + timedelta(hours=2)).isoformat(),

@@ -12,14 +12,19 @@ jest.mock('js-cookie', () => ({
   remove: jest.fn(),
 }));
 
-jest.mock('@/lib/stores/bookingStore', () => ({
-  useBookingStore: () => ({
-    upcomingReminder: null,
-    bookings: [],
-    fetchUpcomingReminder: jest.fn(),
-    fetchBookings: jest.fn(),
-  }),
-}));
+jest.mock('@/lib/stores/bookingStore', () => {
+  const fetchUpcomingReminder = jest.fn();
+  const fetchBookings = jest.fn();
+
+  return {
+    useBookingStore: () => ({
+      upcomingReminder: null,
+      bookings: [],
+      fetchUpcomingReminder,
+      fetchBookings,
+    }),
+  };
+});
 
 jest.mock('@/lib/services/http', () => ({
   api: { get: jest.fn().mockRejectedValue(new Error('no subs')), post: jest.fn() },
@@ -78,7 +83,7 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Acciones rápidas')).toBeInTheDocument();
     expect(screen.getByText('Agendar sesión')).toBeInTheDocument();
     expect(screen.getByText('Mi suscripción')).toBeInTheDocument();
-    expect(screen.getByText('Mis sesiones')).toBeInTheDocument();
+    expect(screen.getByText('Mis programas')).toBeInTheDocument();
     expect(screen.getByText('Soporte')).toBeInTheDocument();
   });
 

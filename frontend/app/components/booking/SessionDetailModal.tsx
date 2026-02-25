@@ -67,7 +67,12 @@ export default function SessionDetailModal({ booking, subscriptionId, onClose, o
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
       onClick={handleBackdropClick}
     >
-      <div className="bg-white rounded-2xl w-full max-w-lg mx-4 shadow-xl relative max-h-[90vh] overflow-y-auto">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="session-detail-title"
+        className="bg-white rounded-2xl w-full max-w-lg mx-4 shadow-xl relative max-h-[90vh] overflow-y-auto"
+      >
         {/* Close button */}
         <button
           onClick={onClose}
@@ -82,7 +87,7 @@ export default function SessionDetailModal({ booking, subscriptionId, onClose, o
         <div className="p-6 space-y-6">
           {/* Header */}
           <div className="text-center">
-            <h2 className="font-heading text-xl font-semibold text-kore-gray-dark">
+            <h2 id="session-detail-title" className="font-heading text-xl font-semibold text-kore-gray-dark">
               Detalle de Sesión
             </h2>
           </div>

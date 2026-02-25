@@ -166,16 +166,16 @@ class FrontendUnitAnalyzer:
         issues = []
         rel_path = file_path.relative_to(self.repo_root)
         
-        # Unit tests should be in frontend/test/
-        expected_prefix = Path("frontend") / "test"
+        # Unit tests should be in configured frontend unit test directory.
+        expected_prefix = Path("frontend") / self.config.frontend_unit_dir
         if not str(rel_path).startswith(str(expected_prefix)):
             issues.append(Issue(
                 file=str(rel_path),
-                message=f"Unit test file should be in frontend/test/",
+                message=f"Unit test file should be in {expected_prefix.as_posix()}/",
                 severity=Severity.WARNING,
                 category=IssueCategory.MISPLACED_FILE,
                 line=1,
-                suggestion=f"Move to frontend/test/ directory",
+                suggestion=f"Move to {expected_prefix.as_posix()}/ directory",
             ))
         
         return issues

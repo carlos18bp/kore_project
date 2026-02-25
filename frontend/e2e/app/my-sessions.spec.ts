@@ -1,6 +1,7 @@
 import { test, expect, loginAsTestUser } from '../fixtures';
+import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
-test.describe('My Programs Page', () => {
+test.describe('My Programs Page', { tag: [...FlowTags.MY_PROGRAMS_LIST, RoleTags.USER] }, () => {
   test('unauthenticated user is redirected to login', async ({ page }) => {
     await page.goto('/my-programs');
     await page.waitForURL('**/login');
@@ -10,7 +11,7 @@ test.describe('My Programs Page', () => {
   test('authenticated user sees My Programs heading', async ({ page }) => {
     await loginAsTestUser(page);
     await page.goto('/my-programs');
-    await expect(page.getByText('Mis Programas')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Mis Programas' })).toBeVisible();
   });
 
   test('sidebar link navigates to my-programs', async ({ page }) => {

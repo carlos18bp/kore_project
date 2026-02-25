@@ -27,9 +27,13 @@ __pycache__/
 .env.production.local
 
 # Test & Coverage artifacts
+.coverage
+coverage.json
+htmlcov/
+test-results/
+test-reports/
 /frontend/coverage/
-/frontend/coverage-e2e/
-/frontend/monocart-report/
+/frontend/e2e-results/
 /frontend/test-results/
 /frontend/playwright-report/
 /frontend/blob-report/
@@ -40,7 +44,7 @@ __pycache__/
 /backend/coverage.xml
 
 # IDE & tooling
-.windsurf/
+.windsurf/plans/
 .idea/
 .vscode/
 *.swp
@@ -50,4 +54,5 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-/backend/coverage.json
+# Windsuft
+.windsurf/plans/

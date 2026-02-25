@@ -150,40 +150,38 @@ describe('SubscriptionPage', () => {
     );
   });
 
-  it('shows cancel confirmation dialog', async () => {
+  it('shows cancel action as disabled for active subscription', async () => {
     mockedApi.get.mockImplementation((url: string) => {
       if (url.includes('/payments/')) return Promise.resolve({ data: MOCK_PAYMENTS });
       return Promise.resolve({ data: { results: [MOCK_SUBSCRIPTION] } });
     });
     render(<SubscriptionPage />);
-    const user = userEvent.setup();
 
     await waitFor(() => {
       expect(screen.getByText('Cancelar suscripción')).toBeInTheDocument();
     });
 
-    await user.click(screen.getByText('Cancelar suscripción'));
-    expect(screen.getByText('¿Seguro que deseas cancelar?')).toBeInTheDocument();
-    expect(screen.getByText('Sí, cancelar')).toBeInTheDocument();
-    expect(screen.getByText('No, volver')).toBeInTheDocument();
+    const cancelButton = screen.getByRole('button', { name: 'Cancelar suscripción' });
+    expect(cancelButton).toBeDisabled();
+    expect(screen.queryByText('¿Seguro que deseas cancelar?')).not.toBeInTheDocument();
+    expect(screen.queryByText('Sí, cancelar')).not.toBeInTheDocument();
+    expect(screen.queryByText('No, volver')).not.toBeInTheDocument();
   });
 
-  it('dismisses cancel confirmation on "No, volver"', async () => {
+  it('keeps confirmation actions hidden when cancel action is disabled', async () => {
     mockedApi.get.mockImplementation((url: string) => {
       if (url.includes('/payments/')) return Promise.resolve({ data: MOCK_PAYMENTS });
       return Promise.resolve({ data: { results: [MOCK_SUBSCRIPTION] } });
     });
     render(<SubscriptionPage />);
-    const user = userEvent.setup();
 
     await waitFor(() => {
       expect(screen.getByText('Cancelar suscripción')).toBeInTheDocument();
     });
 
-    await user.click(screen.getByText('Cancelar suscripción'));
-    await user.click(screen.getByText('No, volver'));
-
+    expect(screen.getByRole('button', { name: 'Cancelar suscripción' })).toBeDisabled();
     expect(screen.queryByText('¿Seguro que deseas cancelar?')).not.toBeInTheDocument();
+    expect(screen.queryByText('No, volver')).not.toBeInTheDocument();
   });
 
   it('renders payment history', async () => {

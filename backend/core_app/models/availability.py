@@ -36,7 +36,10 @@ class AvailabilitySlot(TimestampedModel):
     class Meta:
         ordering = ('starts_at',)
         constraints = [
-            models.CheckConstraint(check=models.Q(ends_at__gt=models.F('starts_at')), name='slot_ends_after_starts'),
+            models.CheckConstraint(
+                condition=models.Q(ends_at__gt=models.F('starts_at')),
+                name='slot_ends_after_starts',
+            ),
             models.UniqueConstraint(fields=('starts_at', 'ends_at'), name='unique_slot_window'),
         ]
 

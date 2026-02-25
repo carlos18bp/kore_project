@@ -1,10 +1,10 @@
 """Extended booking view tests for cancel, reschedule, upcoming-reminder, and new validations."""
 
-import pytest
-from datetime import timedelta
+from datetime import datetime, timedelta
+from datetime import timezone as dt_timezone
 
+import pytest
 from django.urls import reverse
-from django.utils import timezone
 from rest_framework import status
 
 from core_app.models import (
@@ -17,6 +17,14 @@ from core_app.models import (
 )
 from core_app.tests.helpers import get_results
 
+FIXED_NOW = datetime(2026, 1, 15, 12, 0, tzinfo=dt_timezone.utc)
+
+
+@pytest.fixture(autouse=True)
+def freeze_now(monkeypatch):
+    """Freeze timezone.now to a fixed instant for deterministic booking tests."""
+    monkeypatch.setattr('django.utils.timezone.now', lambda: FIXED_NOW)
+
 
 # ----------------------------------------------------------------
 # Fixtures
@@ -24,6 +32,7 @@ from core_app.tests.helpers import get_results
 
 @pytest.fixture
 def customer(db):
+    """Create a customer user for booking API scenarios."""
     return User.objects.create_user(
         email='bk_cust@example.com', password='p',
         first_name='Cust', last_name='One', role=User.Role.CUSTOMER,
@@ -32,6 +41,7 @@ def customer(db):
 
 @pytest.fixture
 def trainer_user(db):
+    """Create a trainer user linked to availability slots."""
     return User.objects.create_user(
         email='bk_trainer@example.com', password='p',
         first_name='Trainer', last_name='One', role=User.Role.TRAINER,
@@ -40,6 +50,7 @@ def trainer_user(db):
 
 @pytest.fixture
 def trainer_profile(trainer_user):
+    """Create a trainer profile associated with the trainer user."""
     return TrainerProfile.objects.create(
         user=trainer_user, specialty='Functional', location='Studio',
     )
@@ -47,12 +58,14 @@ def trainer_profile(trainer_user):
 
 @pytest.fixture
 def package(db):
+    """Create an active package used for booking creation tests."""
     return Package.objects.create(title='TestPkg', sessions_count=10, is_active=True)
 
 
 @pytest.fixture
 def subscription(customer, package):
-    now = timezone.now()
+    """Create an active subscription consumed by booking and reschedule flows."""
+    now = FIXED_NOW
     return Subscription.objects.create(
         customer=customer, package=package,
         sessions_total=10, sessions_used=0,
@@ -62,7 +75,7 @@ def subscription(customer, package):
 
 
 def _make_slot(trainer_profile=None, hours_ahead=48):
-    now = timezone.now()
+    now = FIXED_NOW
     return AvailabilitySlot.objects.create(
         starts_at=now + timedelta(hours=hours_ahead),
         ends_at=now + timedelta(hours=hours_ahead + 1),
@@ -83,7 +96,10 @@ def _make_booking(customer, package, slot, trainer=None, subscription=None, stat
 
 @pytest.mark.django_db
 class TestCancelAction:
+    """Covers booking cancel endpoint outcomes and guard rails."""
+
     def test_cancel_success(self, api_client, customer, package, trainer_profile, subscription):
+        """Cancels a booking, unblocks the slot, and restores subscription usage."""
         slot = _make_slot(trainer_profile, hours_ahead=48)
         slot.is_blocked = True
         slot.save()
@@ -107,6 +123,7 @@ class TestCancelAction:
         assert subscription.sessions_used == 0
 
     def test_cancel_already_canceled(self, api_client, customer, package):
+        """Cancel endpoint rejects bookings already in canceled status."""
         slot = _make_slot(hours_ahead=48)
         booking = _make_booking(customer, package, slot, stat=Booking.Status.CANCELED)
 
@@ -118,6 +135,7 @@ class TestCancelAction:
         assert 'ya está cancelada' in response.data['detail']
 
     def test_cancel_within_24h_fails(self, api_client, customer, package):
+        """Cancel endpoint rejects bookings starting in less than 24 hours."""
         slot = _make_slot(hours_ahead=12)
         slot.is_blocked = True
         slot.save()
@@ -154,7 +172,10 @@ class TestCancelAction:
 
 @pytest.mark.django_db
 class TestRescheduleAction:
+    """Covers reschedule endpoint validation and success scenarios."""
+
     def test_reschedule_success(self, api_client, customer, package, trainer_profile, subscription):
+        """Reschedules booking to a new slot and creates a pending replacement booking."""
         old_slot = _make_slot(trainer_profile, hours_ahead=48)
         old_slot.is_blocked = True
         old_slot.save()
@@ -181,7 +202,30 @@ class TestRescheduleAction:
         assert new_booking is not None
         assert new_booking.status == Booking.Status.PENDING
 
+    def test_reschedule_success_without_subscription(self, api_client, customer, package, trainer_profile):
+        """Reschedule succeeds for bookings without subscription and keeps replacement subscription empty."""
+        old_slot = _make_slot(trainer_profile, hours_ahead=48)
+        old_slot.is_blocked = True
+        old_slot.save()
+        booking = _make_booking(customer, package, old_slot, trainer_profile, subscription=None)
+
+        new_slot = _make_slot(trainer_profile, hours_ahead=72)
+
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-reschedule', args=[booking.pk])
+        response = api_client.post(url, {'new_slot_id': new_slot.pk}, format='json')
+
+        assert response.status_code == status.HTTP_201_CREATED
+
+        booking.refresh_from_db()
+        assert booking.status == Booking.Status.CANCELED
+
+        replacement_booking = Booking.objects.get(slot=new_slot)
+        assert replacement_booking.status == Booking.Status.PENDING
+        assert replacement_booking.subscription is None
+
     def test_reschedule_canceled_booking_fails(self, api_client, customer, package):
+        """Reschedule endpoint rejects bookings already canceled."""
         slot = _make_slot(hours_ahead=48)
         booking = _make_booking(customer, package, slot, stat=Booking.Status.CANCELED)
         new_slot = _make_slot(hours_ahead=72)
@@ -193,6 +237,7 @@ class TestRescheduleAction:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_reschedule_within_24h_fails(self, api_client, customer, package):
+        """Reschedule endpoint rejects bookings starting within the 24-hour window."""
         slot = _make_slot(hours_ahead=12)
         slot.is_blocked = True
         slot.save()
@@ -206,6 +251,7 @@ class TestRescheduleAction:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_reschedule_missing_new_slot_id(self, api_client, customer, package):
+        """Reschedule endpoint requires new_slot_id in the payload."""
         slot = _make_slot(hours_ahead=48)
         slot.is_blocked = True
         slot.save()
@@ -219,6 +265,7 @@ class TestRescheduleAction:
         assert 'new_slot_id' in response.data['detail']
 
     def test_reschedule_nonexistent_slot(self, api_client, customer, package):
+        """Reschedule endpoint returns 404 when new_slot_id does not exist."""
         slot = _make_slot(hours_ahead=48)
         slot.is_blocked = True
         slot.save()
@@ -232,7 +279,7 @@ class TestRescheduleAction:
 
     def test_reschedule_before_last_session_fails(self, api_client, customer, package, trainer_profile, subscription):
         """Reschedule to a slot before last session ends is rejected."""
-        now = timezone.now()
+        now = FIXED_NOW
         # First booking: 72 hours ahead
         slot1 = AvailabilitySlot.objects.create(
             starts_at=now + timedelta(hours=72),
@@ -240,7 +287,7 @@ class TestRescheduleAction:
             trainer=trainer_profile,
             is_blocked=True,
         )
-        booking1 = _make_booking(customer, package, slot1, trainer_profile, subscription)
+        _make_booking(customer, package, slot1, trainer_profile, subscription)
 
         # Second booking (to reschedule): 96 hours ahead
         slot2 = AvailabilitySlot.objects.create(
@@ -267,7 +314,7 @@ class TestRescheduleAction:
 
     def test_reschedule_after_next_session_fails(self, api_client, customer, package, trainer_profile, subscription):
         """Reschedule to a slot that ends after the next session starts is rejected."""
-        now = timezone.now()
+        now = FIXED_NOW
         # Previous booking: 48 hours ahead
         slot1 = AvailabilitySlot.objects.create(
             starts_at=now + timedelta(hours=48),
@@ -311,7 +358,7 @@ class TestRescheduleAction:
 
     def test_reschedule_after_last_session_success(self, api_client, customer, package, trainer_profile, subscription):
         """Reschedule succeeds when there is no next session constraint."""
-        now = timezone.now()
+        now = FIXED_NOW
         # Previous booking: 24 hours ahead
         slot1 = AvailabilitySlot.objects.create(
             starts_at=now + timedelta(hours=24),
@@ -350,7 +397,10 @@ class TestRescheduleAction:
 
 @pytest.mark.django_db
 class TestUpcomingReminder:
+    """Covers upcoming reminder endpoint behavior with and without future bookings."""
+
     def test_returns_upcoming_booking(self, api_client, customer, package):
+        """Upcoming reminder returns the next scheduled booking when present."""
         slot = _make_slot(hours_ahead=24)
         slot.is_blocked = True
         slot.save()
@@ -364,6 +414,7 @@ class TestUpcomingReminder:
         assert response.data['id'] is not None
 
     def test_returns_204_when_no_upcoming(self, api_client, customer):
+        """Upcoming reminder returns 204 when customer has no upcoming bookings."""
         api_client.force_authenticate(user=customer)
         url = reverse('booking-upcoming-reminder')
         response = api_client.get(url)
@@ -378,7 +429,10 @@ class TestUpcomingReminder:
 
 @pytest.mark.django_db
 class TestOnlyNextSessionValidation:
+    """Validates customer can hold sequential future bookings."""
+
     def test_can_book_two_future_sessions_sequentially(self, api_client, customer, package):
+        """Allows creating two sequential future bookings for the same customer."""
         slot1 = _make_slot(hours_ahead=48)
         slot2 = _make_slot(hours_ahead=72)
 
@@ -404,7 +458,10 @@ class TestOnlyNextSessionValidation:
 
 @pytest.mark.django_db
 class TestSubscriptionFilter:
+    """Ensures booking list filtering by subscription id works as expected."""
+
     def test_filter_bookings_by_subscription(self, api_client, customer, package, subscription, trainer_profile):
+        """Returns only bookings linked to the requested subscription filter value."""
         slot1 = _make_slot(trainer_profile, hours_ahead=48)
         slot1.is_blocked = True
         slot1.save()
@@ -430,8 +487,10 @@ class TestSubscriptionFilter:
 
 @pytest.mark.django_db
 class TestBookingAdminPermissions:
+    """Ensures booking mutation endpoints remain admin-protected."""
+
     def test_update_requires_admin(self, api_client, customer, package):
-        """update action requires IsAdminRole permission (line 48)."""
+        """Update action requires IsAdminRole permission (line 48)."""
         slot = _make_slot(hours_ahead=48)
         slot.is_blocked = True
         slot.save()
@@ -466,6 +525,8 @@ class TestBookingAdminPermissions:
 
 @pytest.mark.django_db
 class TestRescheduleUnavailableSlot:
+    """Covers reschedule attempts to slots that are not currently bookable."""
+
     def test_reschedule_to_inactive_slot_fails(self, api_client, customer, package):
         """Rescheduling to an inactive/blocked/past/booked slot returns 400 (line 205)."""
         old_slot = _make_slot(hours_ahead=48)
@@ -474,7 +535,7 @@ class TestRescheduleUnavailableSlot:
         booking = _make_booking(customer, package, old_slot)
 
         # Create a new slot that is inactive
-        now = timezone.now()
+        now = FIXED_NOW
         inactive_slot = AvailabilitySlot.objects.create(
             starts_at=now + timedelta(hours=72),
             ends_at=now + timedelta(hours=73),

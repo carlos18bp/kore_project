@@ -1,10 +1,11 @@
-import { test, expect, setupDefaultApiMocks } from '../fixtures';
+import { test, expect, setupDefaultApiMocks, mockCaptchaSiteKey } from '../fixtures';
+import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
  * E2E tests for the Register page (/register).
  * Covers pre-register validation and redirect to checkout flow.
  */
-test.describe('Register Page', () => {
+test.describe('Register Page', { tag: [...FlowTags.AUTH_REGISTER, RoleTags.GUEST] }, () => {
   const authCookieUser = encodeURIComponent(JSON.stringify({
     id: 999,
     email: 'e2e@kore.com',
@@ -41,23 +42,36 @@ test.describe('Register Page', () => {
     });
   }
 
-  test.beforeEach(async ({ page }) => {
+  test('renders register page heading and primary actions', async ({ page }) => {
+    await mockCaptchaSiteKey(page);
     await page.goto('/register');
-  });
 
-  test('renders register form with all fields', async ({ page }) => {
-    await expect(page.getByRole('link', { name: 'KÓRE', exact: true })).toBeVisible();
-    await expect(page.getByLabel('Nombre')).toBeVisible();
-    await expect(page.getByLabel('Apellido')).toBeVisible();
-    await expect(page.getByLabel(/Correo electrónico/i)).toBeVisible();
-    await expect(page.getByLabel(/Teléfono/i)).toBeVisible();
-    await expect(page.getByLabel('Contraseña', { exact: true })).toBeVisible();
-    await expect(page.getByLabel('Confirmar contraseña')).toBeVisible();
+    await expect(page.getByText('Crea tu cuenta')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Continuar al pago' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Inicia sesión' })).toBeVisible();
   });
 
+  test('renders register personal info inputs', async ({ page }) => {
+    await mockCaptchaSiteKey(page);
+    await page.goto('/register');
+
+    await expect(page.getByLabel('Nombre')).toBeVisible();
+    await expect(page.getByLabel('Apellido')).toBeVisible();
+    await expect(page.getByLabel(/Correo electrónico/i)).toBeVisible();
+    await expect(page.getByLabel(/Teléfono/i)).toBeVisible();
+  });
+
+  test('renders register password inputs', async ({ page }) => {
+    await mockCaptchaSiteKey(page);
+    await page.goto('/register');
+
+    await expect(page.getByLabel('Contraseña', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Confirmar contraseña')).toBeVisible();
+  });
+
   test('password mismatch shows client-side error', async ({ page }) => {
+    await mockCaptchaSiteKey(page);
+    await page.goto('/register');
     await page.getByLabel('Nombre').fill('Test');
     await page.getByLabel('Apellido').fill('User');
     await page.getByLabel(/Correo electrónico/i).fill('test@example.com');
@@ -69,6 +83,8 @@ test.describe('Register Page', () => {
   });
 
   test('short password shows client-side error', async ({ page }) => {
+    await mockCaptchaSiteKey(page);
+    await page.goto('/register');
     await page.getByLabel('Nombre').fill('Test');
     await page.getByLabel('Apellido').fill('User');
     await page.getByLabel(/Correo electrónico/i).fill('test@example.com');
@@ -85,6 +101,7 @@ test.describe('Register Page', () => {
   });
 
   test('server-side error is displayed', async ({ page }) => {
+    await mockCaptchaSiteKey(page);
     await page.goto('/register?package=6');
 
     await page.route('**/api/auth/pre-register/**', async (route) => {
@@ -106,6 +123,7 @@ test.describe('Register Page', () => {
   });
 
   test('register without package redirects to programs', async ({ page }) => {
+    await mockCaptchaSiteKey(page);
     await page.goto('/register');
 
     await page.getByLabel('Nombre').fill('New');
@@ -115,10 +133,11 @@ test.describe('Register Page', () => {
     await page.getByLabel('Confirmar contraseña').fill('securepass123');
     await page.getByRole('button', { name: 'Continuar al pago' }).click();
 
-    await page.waitForURL('**/programs', { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/programs(?:\?.*)?$/, { timeout: 15_000 });
   });
 
   test('successful pre-register with package param redirects to checkout', async ({ page }) => {
+    await mockCaptchaSiteKey(page);
     await page.route('**/api/auth/pre-register/**', async (route) => {
       await route.fulfill({
         status: 200,
@@ -144,6 +163,7 @@ test.describe('Register Page', () => {
   });
 
   test('server-side string error (non-array) is displayed', async ({ page }) => {
+    await mockCaptchaSiteKey(page);
     await page.goto('/register?package=6');
 
     // Return a plain string value instead of an array to exercise
@@ -172,7 +192,7 @@ test.describe('Register Page', () => {
     await seedAuthenticatedCookies(page);
     await mockAuthenticatedProfile(page);
     await page.goto('/register');
-    await page.waitForURL('**/dashboard', { timeout: 10_000 });
+    await expect(page).toHaveURL(/\/dashboard(?:\?.*)?$/, { timeout: 20_000 });
   });
 
   test('already authenticated user with package param redirects to checkout', async ({ page }) => {
@@ -181,11 +201,13 @@ test.describe('Register Page', () => {
     await seedAuthenticatedCookies(page);
     await mockAuthenticatedProfile(page);
     await page.goto('/register?package=6');
-    await page.waitForURL(/\/checkout\?package=6/, { timeout: 10_000 });
+    await expect(page).toHaveURL(/\/checkout\?package=6$/, { timeout: 20_000 });
   });
 
   test('password visibility toggle works', async ({ page }) => {
     // This exercises register/page.tsx lines 211, 224, 239 (showPassword ternary branches)
+    await mockCaptchaSiteKey(page);
+    await page.goto('/register');
     const passwordInput = page.getByLabel('Contraseña', { exact: true });
     const confirmInput = page.getByLabel('Confirmar contraseña');
 

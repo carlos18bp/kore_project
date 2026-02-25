@@ -1,27 +1,40 @@
-import pytest
-from datetime import timedelta
-from unittest.mock import MagicMock
+"""Tests for BookingSerializer validation and create behavior."""
 
+from datetime import datetime, timedelta
+
+import pytest
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIRequestFactory
 
 from core_app.models import AvailabilitySlot, Booking, Package, Subscription, User
 from core_app.serializers import BookingSerializer
 
+FIXED_NOW = timezone.make_aware(datetime(2025, 1, 15, 10, 0, 0))
+
+
+@pytest.fixture(autouse=True)
+def freeze_now(monkeypatch):
+    """Freeze timezone.now to deterministic value for serializer tests."""
+    monkeypatch.setattr('django.utils.timezone.now', lambda: FIXED_NOW)
+
 
 @pytest.fixture
 def customer(db):
+    """Create a customer user used as serializer request actor."""
     return User.objects.create_user(email='book_s_cust@example.com', password='p')
 
 
 @pytest.fixture
 def package(db):
+    """Create an active package fixture consumed by booking serializer data."""
     return Package.objects.create(title='Pkg', is_active=True)
 
 
 @pytest.fixture
 def future_slot(db):
-    now = timezone.now()
+    """Create a bookable future slot for happy-path serializer scenarios."""
+    now = FIXED_NOW
     return AvailabilitySlot.objects.create(
         starts_at=now + timedelta(hours=2),
         ends_at=now + timedelta(hours=3),
@@ -37,14 +50,18 @@ def _make_request(user):
 
 @pytest.mark.django_db
 class TestBookingSerializerValidation:
+    """Covers BookingSerializer validation branches for slot and subscription rules."""
+
     def test_valid_data(self, customer, package, future_slot):
+        """Serializer validates minimal payload with valid package and slot ids."""
         request = _make_request(customer)
         data = {'package_id': package.id, 'slot_id': future_slot.id}
         serializer = BookingSerializer(data=data, context={'request': request})
         assert serializer.is_valid(), serializer.errors
 
     def test_inactive_slot_rejected(self, customer, package):
-        now = timezone.now()
+        """Serializer rejects slots marked inactive."""
+        now = FIXED_NOW
         slot = AvailabilitySlot.objects.create(
             starts_at=now + timedelta(hours=2), ends_at=now + timedelta(hours=3),
             is_active=False,
@@ -58,7 +75,8 @@ class TestBookingSerializerValidation:
         assert 'slot_id' in serializer.errors
 
     def test_blocked_slot_rejected(self, customer, package):
-        now = timezone.now()
+        """Serializer rejects slots currently blocked by another reservation."""
+        now = FIXED_NOW
         slot = AvailabilitySlot.objects.create(
             starts_at=now + timedelta(hours=2), ends_at=now + timedelta(hours=3),
             is_blocked=True,
@@ -72,7 +90,8 @@ class TestBookingSerializerValidation:
         assert 'slot_id' in serializer.errors
 
     def test_past_slot_rejected(self, customer, package):
-        past = timezone.now() - timedelta(hours=2)
+        """Serializer rejects slots that start in the past."""
+        past = FIXED_NOW - timedelta(hours=2)
         slot = AvailabilitySlot.objects.create(
             starts_at=past, ends_at=past + timedelta(hours=1),
         )
@@ -85,6 +104,7 @@ class TestBookingSerializerValidation:
         assert 'slot_id' in serializer.errors
 
     def test_already_booked_slot_rejected(self, customer, package, future_slot):
+        """Serializer rejects slots already tied to an existing booking."""
         Booking.objects.create(customer=customer, package=package, slot=future_slot)
         request = _make_request(customer)
         serializer = BookingSerializer(
@@ -96,7 +116,7 @@ class TestBookingSerializerValidation:
 
     def test_subscription_no_remaining_sessions_rejected(self, customer, package, future_slot):
         """Subscription with 0 remaining sessions is rejected (lines 114-117)."""
-        now = timezone.now()
+        now = FIXED_NOW
         sub = Subscription.objects.create(
             customer=customer, package=package,
             sessions_total=5, sessions_used=5,
@@ -117,7 +137,7 @@ class TestBookingSerializerValidation:
 
     def test_can_book_multiple_future_sessions_without_overlap(self, customer, package):
         """Customer with an existing future booking can reserve another non-overlapping slot."""
-        now = timezone.now()
+        now = FIXED_NOW
         slot1 = AvailabilitySlot.objects.create(
             starts_at=now + timedelta(hours=2),
             ends_at=now + timedelta(hours=3),
@@ -139,7 +159,7 @@ class TestBookingSerializerValidation:
 
     def test_overlapping_booking_rejected(self, customer, package):
         """Overlapping slot with active booking is rejected (lines 171-180)."""
-        now = timezone.now()
+        now = FIXED_NOW
         slot1 = AvailabilitySlot.objects.create(
             starts_at=now + timedelta(hours=2),
             ends_at=now + timedelta(hours=4),
@@ -164,7 +184,7 @@ class TestBookingSerializerValidation:
     def test_validate_no_overlap_direct(self, customer, package):
         """Direct call to _validate_no_overlap covers line 178."""
         from rest_framework.exceptions import ValidationError as DRFValidationError
-        now = timezone.now()
+        now = FIXED_NOW
         slot1 = AvailabilitySlot.objects.create(
             starts_at=now + timedelta(hours=2),
             ends_at=now + timedelta(hours=4),
@@ -177,12 +197,13 @@ class TestBookingSerializerValidation:
             starts_at=now + timedelta(hours=3),
             ends_at=now + timedelta(hours=5),
         )
-        with pytest.raises(DRFValidationError):
+        with pytest.raises(DRFValidationError) as exc_info:
             BookingSerializer._validate_no_overlap(customer, overlapping_slot)
+        assert 'slot_id' in exc_info.value.detail
 
     def test_chronological_order_slot_before_last_session_rejected(self, customer, package):
         """New slot starting before last session ends is rejected."""
-        now = timezone.now()
+        now = FIXED_NOW
         sub = Subscription.objects.create(
             customer=customer, package=package,
             sessions_total=10, sessions_used=1,
@@ -216,7 +237,7 @@ class TestBookingSerializerValidation:
 
     def test_chronological_order_slot_after_last_session_allowed(self, customer, package):
         """New slot starting after last session ends is allowed."""
-        now = timezone.now()
+        now = FIXED_NOW
         sub = Subscription.objects.create(
             customer=customer, package=package,
             sessions_total=10, sessions_used=1,
@@ -248,7 +269,7 @@ class TestBookingSerializerValidation:
 
     def test_chronological_order_ignores_canceled_bookings(self, customer, package):
         """Canceled bookings are not considered for chronological order."""
-        now = timezone.now()
+        now = FIXED_NOW
         sub = Subscription.objects.create(
             customer=customer, package=package,
             sessions_total=10, sessions_used=0,
@@ -287,7 +308,10 @@ class TestBookingSerializerValidation:
 
 @pytest.mark.django_db
 class TestBookingSerializerCreate:
+    """Covers BookingSerializer create flow side effects and edge cases."""
+
     def test_create_blocks_slot_and_assigns_customer(self, customer, package, future_slot):
+        """Create booking with authenticated user, then persist customer and block slot."""
         request = _make_request(customer)
         serializer = BookingSerializer(
             data={'package_id': package.id, 'slot_id': future_slot.id},
@@ -305,20 +329,23 @@ class TestBookingSerializerCreate:
         assert future_slot.is_blocked is True
 
     def test_create_without_auth_raises(self, package, future_slot):
-        anon = MagicMock()
-        anon.is_authenticated = False
+        """Serializer create raises ValidationError when request user is anonymous."""
+        class AnonymousUserStub:
+            is_authenticated = False
+
+        anon = AnonymousUserStub()
         request = _make_request(anon)
         serializer = BookingSerializer(
             data={'package_id': package.id, 'slot_id': future_slot.id},
             context={'request': request},
         )
         assert serializer.is_valid(), serializer.errors
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError, match='Autenticación requerida'):
             serializer.save()
 
     def test_create_with_subscription_decrements_sessions(self, customer, package, future_slot):
         """Create with subscription decrements sessions_used (lines 224-232)."""
-        now = timezone.now()
+        now = FIXED_NOW
         sub = Subscription.objects.create(
             customer=customer, package=package,
             sessions_total=10, sessions_used=2,
@@ -343,7 +370,7 @@ class TestBookingSerializerCreate:
 
     def test_create_race_condition_slot_becomes_blocked(self, customer, package):
         """Slot blocked between validate and create raises error (lines 213-219)."""
-        now = timezone.now()
+        now = FIXED_NOW
         slot = AvailabilitySlot.objects.create(
             starts_at=now + timedelta(hours=2),
             ends_at=now + timedelta(hours=3),
@@ -365,7 +392,7 @@ class TestBookingSerializerCreate:
 
     def test_create_subscription_no_remaining_sessions_in_create(self, customer, package):
         """Subscription exhausted during atomic create (lines 225-229)."""
-        now = timezone.now()
+        now = FIXED_NOW
         slot = AvailabilitySlot.objects.create(
             starts_at=now + timedelta(hours=4),
             ends_at=now + timedelta(hours=5),
@@ -396,6 +423,7 @@ class TestBookingSerializerCreate:
             serializer.save()
 
     def test_read_representation_nests_package_and_slot(self, customer, package, future_slot):
+        """Serialized output nests package and slot representations after creation."""
         request = _make_request(customer)
         serializer = BookingSerializer(
             data={'package_id': package.id, 'slot_id': future_slot.id},
@@ -412,7 +440,7 @@ class TestBookingSerializerCreate:
 
     def test_create_allows_rebooking_canceled_slot(self, customer, package):
         """Slot with canceled booking can be rebooked without deleting history."""
-        now = timezone.now()
+        now = FIXED_NOW
         slot = AvailabilitySlot.objects.create(
             starts_at=now + timedelta(hours=2),
             ends_at=now + timedelta(hours=3),

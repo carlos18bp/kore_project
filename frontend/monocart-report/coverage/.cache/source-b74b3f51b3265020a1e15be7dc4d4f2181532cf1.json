@@ -1,0 +1,1 @@
+{"id":"b74b3f51b3265020a1e15be7dc4d4f2181532cf1","url":"https://checkout.wompi.co/widget.js","source":"window.WidgetCheckout = class { constructor() {} open(cb) { cb({}); } };"}

@@ -1,5 +1,8 @@
-import pytest
+"""Tests for package serializers."""
+
 from decimal import Decimal
+
+import pytest
 
 from core_app.models import Package
 from core_app.serializers import PackageSerializer
@@ -7,7 +10,10 @@ from core_app.serializers import PackageSerializer
 
 @pytest.mark.django_db
 class TestPackageSerializer:
+    """Validate package serializer read and write behavior."""
+
     def test_serialization_fields(self):
+        """Serialize package instances with expected field set and normalized defaults."""
         pkg = Package.objects.create(
             title='Test', price=Decimal('100000.00'), sessions_count=4,
         )
@@ -25,6 +31,7 @@ class TestPackageSerializer:
         assert data['category'] == 'personalizado'
 
     def test_read_only_timestamps(self):
+        """Ignore timestamp fields provided in input payloads."""
         serializer = PackageSerializer(data={
             'title': 'New',
             'created_at': '2020-01-01T00:00:00Z',
@@ -35,6 +42,7 @@ class TestPackageSerializer:
         assert str(pkg.created_at) != '2020-01-01 00:00:00+00:00'
 
     def test_deserialization_creates_package(self):
+        """Create package instances from valid serializer payloads."""
         serializer = PackageSerializer(data={
             'title': 'Created',
             'sessions_count': 2,

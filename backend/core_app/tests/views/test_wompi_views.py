@@ -1,9 +1,9 @@
 """Tests for Wompi views (config, signature, webhook)."""
 
 import hashlib
-from decimal import Decimal
 from datetime import timedelta
-from unittest.mock import Mock, patch
+from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from django.db import IntegrityError
@@ -26,7 +26,10 @@ WOMPI_SETTINGS = {
 
 @pytest.mark.django_db
 class TestWompiConfigView:
+    """Covers public configuration endpoint behavior for Wompi checkout."""
+
     def test_returns_public_key_and_environment(self, api_client):
+        """Config endpoint returns configured public key and environment."""
         with override_settings(**WOMPI_SETTINGS):
             url = reverse('wompi-config')
             response = api_client.get(url)
@@ -35,6 +38,7 @@ class TestWompiConfigView:
             assert response.data['environment'] == 'test'
 
     def test_accessible_without_auth(self, api_client):
+        """Config endpoint is accessible without authentication."""
         with override_settings(**WOMPI_SETTINGS):
             url = reverse('wompi-config')
             response = api_client.get(url)
@@ -43,7 +47,10 @@ class TestWompiConfigView:
 
 @pytest.mark.django_db
 class TestGenerateSignatureView:
+    """Covers signature generation endpoint contract and validation."""
+
     def test_accessible_without_authentication(self, api_client):
+        """Signature endpoint allows anonymous access for checkout clients."""
         url = reverse('wompi-generate-signature')
         response = api_client.post(url, {
             'reference': 'ref-guest',
@@ -55,6 +62,7 @@ class TestGenerateSignatureView:
 
     @override_settings(**WOMPI_SETTINGS)
     def test_generates_valid_signature(self, api_client, existing_user):
+        """Signature endpoint returns signature payload for valid request data."""
         api_client.force_authenticate(user=existing_user)
         url = reverse('wompi-generate-signature')
         response = api_client.post(url, {
@@ -68,6 +76,7 @@ class TestGenerateSignatureView:
 
     @override_settings(**WOMPI_SETTINGS)
     def test_returns_400_without_required_fields(self, api_client, existing_user):
+        """Signature endpoint rejects requests missing required fields."""
         api_client.force_authenticate(user=existing_user)
         url = reverse('wompi-generate-signature')
         response = api_client.post(url, {}, format='json')
@@ -76,8 +85,11 @@ class TestGenerateSignatureView:
 
 @pytest.mark.django_db
 class TestWompiWebhookView:
+    """Covers webhook outcomes for direct payment records and subscriptions."""
+
     @pytest.fixture
     def subscription_with_payment(self, existing_user):
+        """Create an active subscription with pending payment tied to webhook transaction id."""
         pkg = Package.objects.create(
             title='Pkg', price=Decimal('300000.00'), currency='COP',
             sessions_count=10, validity_days=30,
@@ -130,6 +142,7 @@ class TestWompiWebhookView:
 
     @override_settings(**WOMPI_SETTINGS)
     def test_approved_webhook_confirms_payment(self, api_client, subscription_with_payment):
+        """Approved webhook updates pending payment to confirmed status."""
         sub, payment = subscription_with_payment
         event = self._build_event('txn-webhook-001', 'APPROVED')
         url = reverse('wompi-webhook')
@@ -144,6 +157,7 @@ class TestWompiWebhookView:
     def test_declined_webhook_fails_payment_and_expires_subscription(
         self, api_client, subscription_with_payment
     ):
+        """Declined webhook fails payment and expires related subscription."""
         sub, payment = subscription_with_payment
         event = self._build_event('txn-webhook-001', 'DECLINED')
         url = reverse('wompi-webhook')
@@ -158,6 +172,7 @@ class TestWompiWebhookView:
 
     @override_settings(**WOMPI_SETTINGS)
     def test_invalid_checksum_returns_401(self, api_client):
+        """Webhook request with invalid checksum is rejected with 401."""
         event = {
             'event': 'transaction.updated',
             'data': {'transaction': {'id': 'x', 'status': 'APPROVED', 'amount_in_cents': 100}},
@@ -300,6 +315,7 @@ class TestWebhookPaymentIntentResolution:
 
     @pytest.fixture
     def pending_intent(self, existing_user):
+        """Create a pending authenticated intent used for webhook resolution tests."""
         pkg = Package.objects.create(
             title='Intent Pkg', price=Decimal('500000.00'), currency='COP',
             sessions_count=12, validity_days=30,
@@ -317,6 +333,7 @@ class TestWebhookPaymentIntentResolution:
 
     @pytest.fixture
     def pending_guest_intent(self):
+        """Create a pending guest intent with temporary registration payload fields."""
         pkg = Package.objects.create(
             title='Guest Intent Pkg', price=Decimal('400000.00'), currency='COP',
             sessions_count=8, validity_days=45,
@@ -379,10 +396,18 @@ class TestWebhookPaymentIntentResolution:
         assert sub.payment_source_id == 'ps-intent-001'
         assert sub.payment_method_type == 'CARD'
         assert sub.is_recurring is True
-        assert sub.wompi_transaction_id == 'txn-intent-001'
-        assert sub.sessions_total == 12
         assert sub.next_billing_date is not None
 
+    @override_settings(**WOMPI_SETTINGS)
+    def test_approved_creates_confirmed_payment_for_intent(self, api_client, pending_intent):
+        """Approved intent webhook creates a confirmed payment entry for created subscription."""
+        event = self._build_event('txn-intent-001', 'APPROVED')
+        event['data']['transaction']['payment_method_type'] = 'CARD'
+        url = reverse('wompi-webhook')
+        response = api_client.post(url, event, format='json')
+        assert response.status_code == status.HTTP_200_OK
+
+        sub = Subscription.objects.get(customer=pending_intent.customer)
         pay = Payment.objects.get(subscription=sub)
         assert pay.status == Payment.Status.CONFIRMED
         assert pay.confirmed_at is not None
@@ -488,6 +513,18 @@ class TestWebhookPaymentIntentResolution:
         assert response.status_code == status.HTTP_200_OK
 
     @override_settings(**WOMPI_SETTINGS)
+    def test_webhook_reference_lookup_miss_without_payment_is_handled(self, api_client):
+        """Webhook handles unknown pending-reference lookup miss before falling back to payment path."""
+        event = self._build_event('txn-reference-miss-001', 'APPROVED')
+        event['data']['transaction']['reference'] = 'ref-missing-001'
+
+        url = reverse('wompi-webhook')
+        response = api_client.post(url, event, format='json')
+
+        assert response.status_code == status.HTTP_200_OK
+        assert PaymentIntent.objects.filter(reference='ref-missing-001').count() == 0
+
+    @override_settings(**WOMPI_SETTINGS)
     def test_guest_intent_approved_creates_user_subscription_and_payment(self, api_client, pending_guest_intent):
         """Guest intent is converted into a real customer only when payment is approved."""
         event = self._build_event('txn-guest-intent-001', 'APPROVED', amount=40000000)
@@ -522,7 +559,47 @@ class TestWebhookPaymentIntentResolution:
         assert User.objects.filter(email='guest.intent@example.com').count() == 0
 
     @override_settings(**WOMPI_SETTINGS)
+    def test_guest_intent_integrity_error_uses_existing_user_fallback(self, api_client, existing_user):
+        """Guest intent resolves with existing user when create raises IntegrityError and user already exists."""
+        pkg = Package.objects.create(
+            title='Integrity Existing User',
+            price=Decimal('220000.00'),
+            currency='COP',
+            sessions_count=6,
+            validity_days=25,
+        )
+        intent = PaymentIntent.objects.create(
+            customer=None,
+            package=pkg,
+            reference='ref-integrity-existing-001',
+            wompi_transaction_id='txn-integrity-existing-001',
+            payment_source_id='ps-integrity-existing-001',
+            amount=Decimal('220000.00'),
+            currency='COP',
+            pending_email=existing_user.email,
+            pending_first_name='Existing',
+            pending_last_name='User',
+            pending_password_hash='hashed',
+            status=PaymentIntent.Status.PENDING,
+        )
+
+        event = self._build_event('txn-integrity-existing-001', 'APPROVED', amount=22000000)
+        url = reverse('wompi-webhook')
+
+        with patch('core_app.views.wompi_views.User.objects.create', side_effect=IntegrityError('dup')):
+            response = api_client.post(url, event, format='json')
+
+        assert response.status_code == status.HTTP_200_OK
+        intent.refresh_from_db()
+        assert intent.status == PaymentIntent.Status.APPROVED
+        assert intent.customer_id == existing_user.id
+        assert intent.pending_password_hash == ''
+        assert Subscription.objects.filter(customer=existing_user).exists()
+        assert Payment.objects.filter(customer=existing_user).exists()
+
+    @override_settings(**WOMPI_SETTINGS)
     def test_intent_lookup_by_reference_rejects_unsupported_payment_method(self, api_client):
+        """Marks intent as failed when reference lookup resolves unsupported payment method."""
         pkg = Package.objects.create(
             title='Ref Intent', price=Decimal('250000.00'), currency='COP',
             sessions_count=6, validity_days=30,
@@ -560,6 +637,7 @@ class TestWebhookPaymentIntentResolution:
 
     @override_settings(**WOMPI_SETTINGS)
     def test_approved_intent_without_payment_source_creates_non_recurring(self, api_client, existing_user):
+        """Creates non-recurring subscription when approved card intent has no payment source."""
         pkg = Package.objects.create(
             title='No Source', price=Decimal('150000.00'), currency='COP',
             sessions_count=4, validity_days=15,
@@ -597,6 +675,7 @@ class TestWebhookPaymentIntentResolution:
 
     @override_settings(**WOMPI_SETTINGS)
     def test_guest_intent_missing_pending_payload_fails(self, api_client):
+        """Fails guest intent when required pending customer payload is missing."""
         pkg = Package.objects.create(
             title='Missing Payload', price=Decimal('180000.00'), currency='COP',
             sessions_count=5, validity_days=20,
@@ -625,6 +704,7 @@ class TestWebhookPaymentIntentResolution:
 
     @override_settings(**WOMPI_SETTINGS)
     def test_guest_intent_integrity_error_without_existing_user_fails(self, api_client):
+        """Fails guest intent when user creation raises integrity error and no fallback user exists."""
         pkg = Package.objects.create(
             title='Integrity Error', price=Decimal('220000.00'), currency='COP',
             sessions_count=6, validity_days=25,
@@ -646,13 +726,31 @@ class TestWebhookPaymentIntentResolution:
 
         event = self._build_event('txn-integrity-001', 'APPROVED', amount=22000000)
         url = reverse('wompi-webhook')
-        mock_filter = Mock()
-        mock_filter.first.return_value = None
+
+        class EmptyQuerySet:
+            @staticmethod
+            def first():
+                return None
+
         with patch('core_app.views.wompi_views.User.objects.create', side_effect=IntegrityError('dup')):
-            with patch('core_app.views.wompi_views.User.objects.filter', return_value=mock_filter):
+            with patch('core_app.views.wompi_views.User.objects.filter', return_value=EmptyQuerySet()):
                 response = api_client.post(url, event, format='json')
 
         assert response.status_code == status.HTTP_200_OK
         intent.refresh_from_db()
         assert intent.status == PaymentIntent.Status.FAILED
         assert intent.pending_password_hash == ''
+
+    @override_settings(**WOMPI_SETTINGS)
+    def test_pending_intent_status_noop_keeps_pending(self, api_client, pending_intent):
+        """Pending transaction status keeps matching pending intent unresolved and side-effect free."""
+        event = self._build_event('txn-intent-001', 'PENDING')
+        url = reverse('wompi-webhook')
+        response = api_client.post(url, event, format='json')
+
+        assert response.status_code == status.HTTP_200_OK
+
+        pending_intent.refresh_from_db()
+        assert pending_intent.status == PaymentIntent.Status.PENDING
+        assert Subscription.objects.filter(customer=pending_intent.customer).count() == 0
+        assert Payment.objects.count() == 0

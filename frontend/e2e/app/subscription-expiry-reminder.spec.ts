@@ -1,6 +1,7 @@
 import { test, expect, loginAsTestUser, setupDefaultApiMocks } from '../fixtures';
+import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
-test.describe('Subscription Expiry Reminder (mocked)', () => {
+test.describe('Subscription Expiry Reminder (mocked)', { tag: [...FlowTags.SUBSCRIPTION_EXPIRY_REMINDER, RoleTags.USER] }, () => {
   const reminderSubscription = {
     id: 33,
     customer_email: 'e2e@kore.com',
@@ -25,6 +26,7 @@ test.describe('Subscription Expiry Reminder (mocked)', () => {
 
   test.beforeEach(async ({ page }) => {
     await setupDefaultApiMocks(page);
+    await expect(page).toHaveURL('about:blank');
   });
 
   test('shows expiry reminder and dismisses with ack', async ({ page }) => {
@@ -96,8 +98,65 @@ test.describe('Subscription Expiry Reminder (mocked)', () => {
       });
     });
 
+    const reminderResponse = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/subscriptions/expiry-reminder/') &&
+        response.status() === 204,
+    );
     await loginAsTestUser(page);
-    await page.waitForTimeout(2_000);
+    await reminderResponse;
     await expect(page.getByText('Tu suscripción está por vencer')).not.toBeVisible();
+  });
+
+  test('fetchExpiryReminder API error sets expiryReminder to null and hides reminder', async ({ page }) => {
+    await page.route('**/api/subscriptions/expiry-reminder/**', async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Server error' }),
+      });
+    });
+
+    const reminderResponse = page.waitForResponse(
+      (response) => response.url().includes('/api/subscriptions/expiry-reminder/'),
+    );
+    await loginAsTestUser(page);
+    await reminderResponse;
+
+    await expect(page.getByText('Tu suscripción está por vencer')).not.toBeVisible();
+  });
+
+  test('acknowledgeExpiryReminder API error exercises catch branch', async ({ page }) => {
+    let ackAttempted = false;
+    await page.route('**/api/subscriptions/expiry-reminder/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(reminderSubscription),
+      });
+    });
+    await page.route(
+      `**/api/subscriptions/${reminderSubscription.id}/expiry-reminder/ack/**`,
+      async (route) => {
+        ackAttempted = true;
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Server error' }),
+        });
+      },
+    );
+
+    await loginAsTestUser(page);
+    await expect(page.getByText('Tu suscripción está por vencer')).toBeVisible({ timeout: 10_000 });
+
+    const ackResponse = page.waitForResponse(
+      (response) =>
+        response.url().includes(`/api/subscriptions/${reminderSubscription.id}/expiry-reminder/ack/`),
+    );
+    await page.getByRole('button', { name: 'Cerrar', exact: true }).click();
+    await ackResponse;
+
+    expect(ackAttempted).toBe(true);
   });
 });

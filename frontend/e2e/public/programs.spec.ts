@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures';
+import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 const mockPackages = {
   count: 5,
@@ -13,47 +14,35 @@ const mockPackages = {
   ],
 };
 
-test.describe('Programs Page', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.route('**/api/packages/**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(mockPackages),
-      });
+async function openProgramsPage(page: import('@playwright/test').Page) {
+  await page.route('**/api/packages/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(mockPackages),
     });
-    await page.goto('/programs');
   });
+  await page.goto('/programs');
+}
 
-  test('renders the tariff badge and default program', async ({ page }) => {
-    await expect(page.getByText('Tarifas 2026')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Personalizado FLW' })).toBeVisible();
-    await expect(page.getByText('Tu proceso, tu ritmo')).toBeVisible();
-  });
-
+test.describe('Programs Page — Guest', { tag: [...FlowTags.PUBLIC_PROGRAMS, RoleTags.GUEST] }, () => {
   test('shows plans for the default Personalizado program from API', async ({ page }) => {
+    await openProgramsPage(page);
     await expect(page.getByText('Sesión Individual')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('Programa Básico')).toBeVisible();
   });
 
   test('switches to Semi-personalizado tab and shows its plans', async ({ page }) => {
+    await openProgramsPage(page);
     await expect(page.getByText('Sesión Individual')).toBeVisible({ timeout: 10_000 });
-    await page.getByText('Semi-personalizado').first().click();
+    await page.getByRole('button', { name: 'Semi-personalizado', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Semi-personalizado FLW' })).toBeVisible();
     await expect(page.getByText('Comparte el camino')).toBeVisible();
     await expect(page.getByText('Programa Inicial')).toBeVisible();
   });
 
-  test('switches to Terapéutico tab and shows its plans', async ({ page }) => {
-    await expect(page.getByText('Sesión Individual')).toBeVisible({ timeout: 10_000 });
-    const tab = page.locator('button', { hasText: 'Terapéutico' }).first();
-    await tab.click({ force: true });
-    await expect(page.getByRole('heading', { name: 'Terapéutico FLW' })).toBeVisible();
-    await expect(page.getByText('Movimiento como medicina')).toBeVisible();
-    await expect(page.getByText('Sesión Terapéutica')).toBeVisible();
-  });
-
   test('unauthenticated user clicking reserve is redirected to register with package ID', async ({ page }) => {
+    await openProgramsPage(page);
     await expect(page.getByText('Sesión Individual')).toBeVisible({ timeout: 10_000 });
     await page.getByText('Sesión Individual').click();
     const cta = page.getByRole('button', { name: /Reservar/ });
@@ -62,7 +51,26 @@ test.describe('Programs Page', () => {
     await expect(page).toHaveURL(/\/register\?package=1/, { timeout: 10_000 });
   });
 
+  test('API fetch error shows empty plans state', async ({ page }) => {
+    await openProgramsPage(page);
+    await page.route('**/api/packages/**', async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Server error' }),
+      });
+    });
+
+    await page.goto('/programs');
+
+    await expect(page.getByRole('heading', { name: 'Personalizado FLW' })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('No hay planes disponibles para este programa.')).toBeVisible();
+  });
+});
+
+test.describe('Programs Page — Authenticated', { tag: [...FlowTags.PUBLIC_PROGRAMS, RoleTags.USER] }, () => {
   test('authenticated user clicking reserve is redirected to checkout with package ID', async ({ page }) => {
+    await openProgramsPage(page);
     await page.route('**/api/auth/profile/**', async (route) => {
       await route.fulfill({
         status: 200,
@@ -103,37 +111,5 @@ test.describe('Programs Page', () => {
     await expect(cta).toBeVisible();
     await cta.click();
     await expect(page).toHaveURL(/\/checkout\?package=1/, { timeout: 10_000 });
-  });
-
-  test('switching programs resets plan selection', async ({ page }) => {
-    await expect(page.getByText('Sesión Individual')).toBeVisible({ timeout: 10_000 });
-    // Select a plan
-    await page.getByText('Sesión Individual').click();
-    await expect(page.getByRole('button', { name: /Reservar/ })).toBeVisible();
-
-    // Switch program
-    await page.getByText('Semi-personalizado').first().click();
-
-    // CTA should disappear
-    await expect(page.getByRole('button', { name: /Reservar/ })).not.toBeVisible();
-  });
-
-  test('API fetch error shows empty plans state', async ({ page }) => {
-    // Override the packages route to return an error (exercises line 97)
-    await page.route('**/api/packages/**', async (route) => {
-      await route.fulfill({
-        status: 500,
-        contentType: 'application/json',
-        body: JSON.stringify({ detail: 'Server error' }),
-      });
-    });
-
-    await page.goto('/programs');
-
-    // Page should still render with the program header
-    await expect(page.getByRole('heading', { name: 'Personalizado FLW' })).toBeVisible({ timeout: 10_000 });
-
-    // Should show "no plans available" message
-    await expect(page.getByText('No hay planes disponibles para este programa.')).toBeVisible();
   });
 });

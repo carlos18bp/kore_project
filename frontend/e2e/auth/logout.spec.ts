@@ -1,6 +1,7 @@
 import { test, expect, loginAsTestUser } from '../fixtures';
+import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
-test.describe('Logout Flow', () => {
+test.describe('Logout Flow', { tag: [...FlowTags.AUTH_LOGOUT, RoleTags.USER] }, () => {
   test('logout from sidebar redirects to home', async ({ page }) => {
     await loginAsTestUser(page);
 

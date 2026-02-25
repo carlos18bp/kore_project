@@ -1,15 +1,19 @@
-import pytest
-from datetime import timedelta
-from unittest.mock import MagicMock
+"""Service tests for ICS calendar generation from booking data."""
 
+from datetime import datetime, timedelta
+
+import pytest
 from django.utils import timezone
 
 from core_app.models import AvailabilitySlot, Booking, Package, TrainerProfile, User
 from core_app.services.ics_generator import generate_ics
 
+FIXED_NOW = timezone.make_aware(datetime(2024, 1, 15, 10, 0, 0))
+
 
 @pytest.fixture
 def trainer_user(db):
+    """Create a trainer user used for calendar summary and organizer metadata."""
     return User.objects.create_user(
         email='trainer_ics@example.com', password='p',
         first_name='Germán', last_name='Franco', role=User.Role.TRAINER,
@@ -18,6 +22,7 @@ def trainer_user(db):
 
 @pytest.fixture
 def trainer_profile(trainer_user):
+    """Create a trainer profile with specialty and location metadata."""
     return TrainerProfile.objects.create(
         user=trainer_user, specialty='Functional', location='Studio X',
     )
@@ -25,6 +30,7 @@ def trainer_profile(trainer_user):
 
 @pytest.fixture
 def customer(db):
+    """Create a customer user that receives the ICS attendee invite."""
     return User.objects.create_user(
         email='cust_ics@example.com', password='p',
         first_name='Juan', last_name='Pérez',
@@ -33,12 +39,14 @@ def customer(db):
 
 @pytest.fixture
 def package(db):
+    """Create an active package used by booking fixtures."""
     return Package.objects.create(title='Pkg', is_active=True)
 
 
 @pytest.fixture
 def booking_with_trainer(customer, package, trainer_profile):
-    now = timezone.now()
+    """Create a confirmed booking linked to a trainer for ICS content assertions."""
+    now = FIXED_NOW
     slot = AvailabilitySlot.objects.create(
         starts_at=now + timedelta(hours=25),
         ends_at=now + timedelta(hours=26),
@@ -52,11 +60,15 @@ def booking_with_trainer(customer, package, trainer_profile):
 
 @pytest.mark.django_db
 class TestIcsGenerator:
+    """ICS payload structure and field coverage for booking calendar exports."""
+
     def test_returns_bytes(self, booking_with_trainer):
+        """Return generated ICS payload as bytes ready for file responses."""
         result = generate_ics(booking_with_trainer)
         assert isinstance(result, bytes)
 
     def test_contains_vcalendar_markers(self, booking_with_trainer):
+        """Include VCALENDAR/VEVENT block delimiters in generated payload."""
         ics = generate_ics(booking_with_trainer).decode('utf-8')
         assert 'BEGIN:VCALENDAR' in ics
         assert 'END:VCALENDAR' in ics
@@ -64,24 +76,29 @@ class TestIcsGenerator:
         assert 'END:VEVENT' in ics
 
     def test_contains_trainer_name_in_summary(self, booking_with_trainer):
+        """Embed trainer full name in the event summary text."""
         ics = generate_ics(booking_with_trainer).decode('utf-8')
         assert 'Germán Franco' in ics
 
     def test_contains_location(self, booking_with_trainer):
+        """Embed trainer location in generated calendar event fields."""
         ics = generate_ics(booking_with_trainer).decode('utf-8')
         assert 'Studio X' in ics
 
     def test_contains_attendee_email(self, booking_with_trainer):
+        """Embed customer email as event attendee information."""
         ics = generate_ics(booking_with_trainer).decode('utf-8')
         assert 'cust_ics@example.com' in ics
 
     def test_contains_dtstart_and_dtend(self, booking_with_trainer):
+        """Include DTSTART and DTEND fields to define event boundaries."""
         ics = generate_ics(booking_with_trainer).decode('utf-8')
         assert 'DTSTART:' in ics
         assert 'DTEND:' in ics
 
     def test_works_without_trainer(self, customer, package):
-        now = timezone.now()
+        """Generate a valid ICS payload even when booking has no trainer assigned."""
+        now = FIXED_NOW
         slot = AvailabilitySlot.objects.create(
             starts_at=now + timedelta(hours=25),
             ends_at=now + timedelta(hours=26),

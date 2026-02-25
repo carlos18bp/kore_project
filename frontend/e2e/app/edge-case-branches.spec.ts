@@ -1,4 +1,63 @@
 import { test, expect, loginAsTestUser, E2E_USER } from '../fixtures';
+import type { Page } from '@playwright/test';
+import { FlowTags, RoleTags } from '../helpers/flow-tags';
+
+function buildProgramSubscription() {
+  return {
+    id: 11,
+    customer_email: E2E_USER.email,
+    package: { id: 6, title: 'Paquete Pro', sessions_count: 4, session_duration_minutes: 60, price: '120000', currency: 'COP', validity_days: 60 },
+    sessions_total: 4,
+    sessions_used: 1,
+    sessions_remaining: 3,
+    status: 'active',
+    starts_at: new Date(Date.now() - 10 * 86400000).toISOString(),
+    expires_at: new Date(Date.now() + 50 * 86400000).toISOString(),
+  };
+}
+
+async function mockBookingCreationFlowRoutes(
+  page: Page,
+  trainer: { id: number; first_name: string; last_name: string; specialty: string; session_duration_minutes: number; location: string; email: string; bio: string; user_id: number },
+  slots: Array<{ id: number; starts_at: string; ends_at: string; is_blocked: boolean; is_active: boolean; trainer_id: number }>,
+  sub: ReturnType<typeof buildProgramSubscription>,
+) {
+  await page.route('**/api/trainers/**', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 1, next: null, previous: null, results: [trainer] }) });
+  });
+  await page.route('**/api/availability-slots/**', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 1, next: null, previous: null, results: slots }) });
+  });
+  await page.route('**/api/subscriptions/**', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 1, next: null, previous: null, results: [sub] }) });
+  });
+  await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
+  });
+  await page.route('**/api/bookings/', async (route) => {
+    if (route.request().method() === 'POST') {
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 999,
+          subscription_id_display: null,
+          status: 'confirmed',
+          slot: slots[0],
+          trainer: null,
+          package: { id: 6, title: 'Paquete Pro', sessions_count: 4, session_duration_minutes: 60, price: '120000', currency: 'COP', validity_days: 60 },
+          customer_id: 1,
+          notes: '',
+          canceled_reason: '',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+}
 
 /**
  * Targeted tests for uncovered branch paths:
@@ -6,7 +65,7 @@ import { test, expect, loginAsTestUser, E2E_USER } from '../fixtures';
  * - BookingConfirmation with subscription=null (no active subscription)
  * - authStore hydrate() catch block (malformed cookie)
  */
-test.describe('Edge-case branch coverage', () => {
+test.describe('Edge-case branch coverage', { tag: [...FlowTags.APP_EDGE_CASE_BRANCHES, RoleTags.USER] }, () => {
   test.describe.configure({ mode: 'serial' });
 
   const tomorrow = new Date();
@@ -20,6 +79,21 @@ test.describe('Edge-case branch coverage', () => {
   const mockSlots = [
     { id: 501, starts_at: `${dateStr}T10:00:00Z`, ends_at: `${dateStr}T11:00:00Z`, is_blocked: false, is_active: true, trainer_id: 1 },
   ];
+
+  function slotLabelFor(slot: { starts_at: string; ends_at: string }) {
+    const formatTime = (isoString: string) => (
+      new Date(isoString).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+    );
+    return `${formatTime(slot.starts_at)} — ${formatTime(slot.ends_at)}`;
+  }
+
+  const primarySlotLabel = slotLabelFor(mockSlots[0]);
+
+  async function selectPrimarySlot(page: import('@playwright/test').Page) {
+    const primarySlotButton = page.getByRole('button', { name: primarySlotLabel, exact: true });
+    await expect(primarySlotButton).toBeVisible({ timeout: 10_000 });
+    await primarySlotButton.click();
+  }
 
   async function forceClickCalendarDay(page: import('@playwright/test').Page, dayNum: string) {
     await page.getByText('Lun').waitFor({ state: 'visible', timeout: 10_000 });
@@ -40,44 +114,8 @@ test.describe('Edge-case branch coverage', () => {
   }
 
   test('booking success with trainer=null shows "—" fallback', async ({ page }) => {
-    // Mock APIs: trainers, slots, subscriptions
-    await page.route('**/api/trainers/**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockTrainer] }) });
-    });
-    await page.route('**/api/availability-slots/**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 1, next: null, previous: null, results: mockSlots }) });
-    });
-    const mockSub = {
-      id: 11, customer_email: E2E_USER.email,
-      package: { id: 6, title: 'Paquete Pro', sessions_count: 4, session_duration_minutes: 60, price: '120000', currency: 'COP', validity_days: 60 },
-      sessions_total: 4, sessions_used: 1, sessions_remaining: 3, status: 'active',
-      starts_at: new Date(Date.now() - 10 * 86400000).toISOString(),
-      expires_at: new Date(Date.now() + 50 * 86400000).toISOString(),
-    };
-    await page.route('**/api/subscriptions/**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockSub] }) });
-    });
-    await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
-    });
-
-    // Mock booking creation: trainer=null, subscription_id_display=null
-    await page.route('**/api/bookings/', async (route) => {
-      if (route.request().method() === 'POST') {
-        await route.fulfill({
-          status: 201, contentType: 'application/json',
-          body: JSON.stringify({
-            id: 999, subscription_id_display: null, status: 'confirmed',
-            slot: mockSlots[0], trainer: null,
-            package: { id: 6, title: 'Paquete Pro', sessions_count: 4, session_duration_minutes: 60, price: '120000', currency: 'COP', validity_days: 60 },
-            customer_id: 1, notes: '', canceled_reason: '',
-            created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-          }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
+    const mockSub = buildProgramSubscription();
+    await mockBookingCreationFlowRoutes(page, mockTrainer, mockSlots, mockSub);
 
     await loginAsTestUser(page);
     await page.goto('/book-session');
@@ -86,8 +124,7 @@ test.describe('Edge-case branch coverage', () => {
     // Force-click date, select slot
     const dayNum = tomorrow.getDate().toString();
     await forceClickCalendarDay(page, dayNum);
-    await expect(page.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ }).first()).toBeVisible({ timeout: 10_000 });
-    await page.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ }).first().click();
+    await selectPrimarySlot(page);
 
     // Confirmation screen — subscription=null means no "Programa" section
     const main = page.getByRole('main');
@@ -117,7 +154,7 @@ test.describe('Edge-case branch coverage', () => {
     await page.goto('/dashboard');
 
     // Should redirect to login since hydrate failed and cleared cookies
-    await page.waitForURL('**/login', { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/login(?:\?.*)?$/, { timeout: 15_000 });
   });
 
   test('no-token hydrate falls through without error', async ({ page }) => {
@@ -127,6 +164,6 @@ test.describe('Edge-case branch coverage', () => {
     await page.goto('/dashboard');
 
     // Should redirect to login
-    await page.waitForURL('**/login', { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/login(?:\?.*)?$/, { timeout: 15_000 });
   });
 });

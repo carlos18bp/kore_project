@@ -51,9 +51,11 @@ describe('BookingCalendar', () => {
   });
 
   it('calls onSelectDate when clicking an available day', async () => {
-    const user = userEvent.setup();
-    // Use a future date to ensure it's not disabled
-    const futureDate = new Date();
+    jest.useFakeTimers();
+    const baseDate = new Date(2026, 2, 1, 12);
+    jest.setSystemTime(baseDate);
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    const futureDate = new Date(baseDate);
     futureDate.setDate(futureDate.getDate() + 5);
     const y = futureDate.getFullYear();
     const m = String(futureDate.getMonth() + 1).padStart(2, '0');
@@ -68,12 +70,10 @@ describe('BookingCalendar', () => {
       />
     );
 
-    // Find the day button by its text content
-    const dayButtons = screen.getAllByRole('button');
-    const targetBtn = dayButtons.find((btn) => btn.textContent === String(futureDate.getDate()));
-    expect(targetBtn).toBeDefined();
-    await user.click(targetBtn!);
+    const targetBtn = screen.getByRole('button', { name: String(futureDate.getDate()) });
+    await user.click(targetBtn);
     expect(onSelectDate).toHaveBeenCalledWith(dateStr);
+    jest.useRealTimers();
   });
 
   it('navigates to previous month crossing year boundary (Jan → Dec)', async () => {

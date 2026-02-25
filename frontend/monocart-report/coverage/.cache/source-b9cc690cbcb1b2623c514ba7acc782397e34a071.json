@@ -1,0 +1,1 @@
+{"id":"b9cc690cbcb1b2623c514ba7acc782397e34a071","url":"https://checkout.wompi.co/widget.js","source":"window.WidgetCheckout = class { constructor() {} open(cb) { cb({ transaction: { id: 'txn-gap-001' } }); } };"}

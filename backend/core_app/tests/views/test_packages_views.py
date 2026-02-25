@@ -1,3 +1,5 @@
+"""Tests for package API views."""
+
 import pytest
 from django.urls import reverse
 from rest_framework import status
@@ -8,6 +10,7 @@ from core_app.tests.helpers import get_results
 
 @pytest.mark.django_db
 def test_package_list_filters_only_active_for_anonymous(api_client):
+    """List only active packages for anonymous users."""
     Package.objects.create(title='Active', is_active=True)
     Package.objects.create(title='Inactive', is_active=False)
 
@@ -21,6 +24,7 @@ def test_package_list_filters_only_active_for_anonymous(api_client):
 
 @pytest.mark.django_db
 def test_package_create_requires_admin(api_client):
+    """Reject package creation requests from non-admin users."""
     url = reverse('package-list')
     response = api_client.post(url, {'title': 'New'}, format='json')
 
@@ -29,6 +33,7 @@ def test_package_create_requires_admin(api_client):
 
 @pytest.mark.django_db
 def test_package_create_allows_admin(api_client, admin_user):
+    """Allow admins to create package records."""
     api_client.force_authenticate(user=admin_user)
 
     url = reverse('package-list')

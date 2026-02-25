@@ -1,3 +1,5 @@
+"""Model tests for user manager behavior and user model constraints."""
+
 import pytest
 from django.db import IntegrityError
 
@@ -6,7 +8,10 @@ from core_app.models import User
 
 @pytest.mark.django_db
 class TestUserManager:
+    """User manager behavior for create_user and create_superuser helpers."""
+
     def test_create_user_sets_email_and_password(self):
+        """Create regular users with expected defaults and hashed password."""
         user = User.objects.create_user(email='test@example.com', password='securepass')
         assert user.email == 'test@example.com'
         assert user.check_password('securepass')
@@ -16,42 +21,58 @@ class TestUserManager:
         assert user.is_superuser is False
 
     def test_create_user_normalizes_email(self):
+        """Normalize email domain casing when creating users."""
         user = User.objects.create_user(email='Test@EXAMPLE.com', password='securepass')
         assert user.email == 'Test@example.com'
 
     def test_create_user_without_email_raises(self):
-        with pytest.raises(ValueError, match='Email is required'):
+        """Raise validation error when email is missing during user creation."""
+        with pytest.raises(ValueError, match='Email is required') as exc_info:
             User.objects.create_user(email='', password='securepass')
+        assert str(exc_info.value) == 'Email is required'
 
     def test_create_superuser_sets_admin_flags(self):
+        """Create superusers with admin role and elevated permission flags."""
         user = User.objects.create_superuser(email='super@example.com', password='superpass')
         assert user.is_staff is True
         assert user.is_superuser is True
         assert user.role == User.Role.ADMIN
 
     def test_create_superuser_requires_is_staff(self):
-        with pytest.raises(ValueError, match='is_staff=True'):
+        """Reject superuser creation when ``is_staff`` is not explicitly true."""
+        with pytest.raises(ValueError, match='is_staff=True') as exc_info:
             User.objects.create_superuser(email='s@example.com', password='p', is_staff=False)
+        assert 'is_staff=True' in str(exc_info.value)
 
     def test_create_superuser_requires_is_superuser(self):
-        with pytest.raises(ValueError, match='is_superuser=True'):
+        """Reject superuser creation when ``is_superuser`` is not explicitly true."""
+        with pytest.raises(ValueError, match='is_superuser=True') as exc_info:
             User.objects.create_superuser(email='s@example.com', password='p', is_superuser=False)
+        assert 'is_superuser=True' in str(exc_info.value)
 
 
 @pytest.mark.django_db
 class TestUserModel:
+    """User model constraints and metadata behavior checks."""
+
     def test_str_returns_email(self):
+        """Render user string representation using the email address."""
         user = User.objects.create_user(email='u@example.com', password='p')
         assert str(user) == 'u@example.com'
 
     def test_email_is_unique(self):
+        """Enforce unique constraint on user email values."""
         User.objects.create_user(email='dup@example.com', password='p')
-        with pytest.raises(IntegrityError):
+        with pytest.raises(IntegrityError) as exc_info:
             User.objects.create_user(email='dup@example.com', password='p2')
+        assert 'unique' in str(exc_info.value).lower()
 
     def test_role_choices(self):
+        """Expose expected role enum values for customer and admin users."""
         assert User.Role.CUSTOMER == 'customer'
         assert User.Role.ADMIN == 'admin'
 
     def test_username_field_is_email(self):
+        """Use email as username field for authentication identity."""
         assert User.USERNAME_FIELD == 'email'
+        assert User.USERNAME_FIELD != 'username'

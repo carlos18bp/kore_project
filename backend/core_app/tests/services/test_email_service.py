@@ -27,9 +27,17 @@ from core_app.services.email_service import (
     send_template_email,
 )
 
+FIXED_NOW = timezone.make_aware(timezone.datetime(2025, 2, 3, 9, 0, 0), timezone.get_current_timezone())
+
+
+def _fixed_now():
+    return FIXED_NOW
+
 
 @pytest.mark.django_db
 class TestSendTemplateEmail:
+    """Validate generic template email helper behavior."""
+
     @patch('core_app.services.email_service.EmailMessage')
     @patch('core_app.services.email_service.render_to_string', return_value='<html></html>')
     def test_send_failure_returns_false(self, mock_render, mock_email_cls):
@@ -63,11 +71,13 @@ class TestSendTemplateEmail:
         )
 
         assert result is True
+        mock_instance.send.assert_called_once()
 
 
 @pytest.mark.django_db
 class TestBookingEmailNotifications:
     """Validate booking-related email notification helpers."""
+
     def test_send_booking_confirmation_creates_sent_notification(self):
         """Ensure confirmation emails record a sent notification and attachment."""
         customer = User.objects.create_user(
@@ -79,9 +89,10 @@ class TestBookingEmailNotifications:
         )
         trainer = TrainerProfile.objects.create(user=trainer_user, specialty='Strength', location='Studio 1')
         package = Package.objects.create(title='Pack', sessions_count=4, validity_days=30, price=Decimal('100.00'))
+        now = _fixed_now()
         slot = AvailabilitySlot.objects.create(
-            starts_at=timezone.now() + timedelta(days=1),
-            ends_at=timezone.now() + timedelta(days=1, hours=1),
+            starts_at=now + timedelta(days=1),
+            ends_at=now + timedelta(days=1, hours=1),
             is_active=True,
             is_blocked=False,
         )
@@ -108,9 +119,10 @@ class TestBookingEmailNotifications:
             email='booking_cancel@example.com', password='pass', first_name='Lia', last_name='Gomez',
         )
         package = Package.objects.create(title='Pack', sessions_count=2, validity_days=30, price=Decimal('80.00'))
+        now = _fixed_now()
         slot = AvailabilitySlot.objects.create(
-            starts_at=timezone.now() + timedelta(days=2),
-            ends_at=timezone.now() + timedelta(days=2, hours=1),
+            starts_at=now + timedelta(days=2),
+            ends_at=now + timedelta(days=2, hours=1),
             is_active=True,
             is_blocked=False,
         )
@@ -133,15 +145,16 @@ class TestBookingEmailNotifications:
             email='booking_reschedule@example.com', password='pass', first_name='Mia', last_name='Torres',
         )
         package = Package.objects.create(title='Pack', sessions_count=3, validity_days=30, price=Decimal('90.00'))
+        now = _fixed_now()
         old_slot = AvailabilitySlot.objects.create(
-            starts_at=timezone.now() + timedelta(days=1),
-            ends_at=timezone.now() + timedelta(days=1, hours=1),
+            starts_at=now + timedelta(days=1),
+            ends_at=now + timedelta(days=1, hours=1),
             is_active=True,
             is_blocked=False,
         )
         new_slot = AvailabilitySlot.objects.create(
-            starts_at=timezone.now() + timedelta(days=3),
-            ends_at=timezone.now() + timedelta(days=3, hours=1),
+            starts_at=now + timedelta(days=3),
+            ends_at=now + timedelta(days=3, hours=1),
             is_active=True,
             is_blocked=False,
         )
@@ -170,20 +183,22 @@ class TestBookingEmailNotifications:
 @pytest.mark.django_db
 class TestPaymentReceiptEmail:
     """Validate payment receipt email helper behaviors."""
+
     def test_send_payment_receipt_creates_notification_for_customer(self):
         """Ensure payment receipt emails store a sent notification."""
         customer = User.objects.create_user(
             email='receipt@example.com', password='pass', first_name='Leo', last_name='Diaz',
         )
         package = Package.objects.create(title='Pack', sessions_count=5, validity_days=30, price=Decimal('120.00'))
+        now = _fixed_now()
         subscription = Subscription.objects.create(
             customer=customer,
             package=package,
             sessions_total=5,
             sessions_used=1,
             status=Subscription.Status.ACTIVE,
-            starts_at=timezone.now() - timedelta(days=1),
-            expires_at=timezone.now() + timedelta(days=29),
+            starts_at=now - timedelta(days=1),
+            expires_at=now + timedelta(days=29),
         )
         payment = Payment.objects.create(
             customer=customer,
@@ -213,20 +228,22 @@ class TestPaymentReceiptEmail:
 @pytest.mark.django_db
 class TestSubscriptionExpiryReminderEmail:
     """Validate subscription expiry reminder email behaviors."""
+
     def test_send_subscription_expiry_reminder_creates_notification(self):
         """Ensure expiry reminders record a sent notification."""
         customer = User.objects.create_user(
             email='expiry@example.com', password='pass', first_name='Nora', last_name='Vega',
         )
         package = Package.objects.create(title='Pack', sessions_count=6, validity_days=30, price=Decimal('140.00'))
+        now = _fixed_now()
         subscription = Subscription.objects.create(
             customer=customer,
             package=package,
             sessions_total=6,
             sessions_used=2,
             status=Subscription.Status.ACTIVE,
-            starts_at=timezone.now() - timedelta(days=20),
-            expires_at=timezone.now() + timedelta(days=5),
+            starts_at=now - timedelta(days=20),
+            expires_at=now + timedelta(days=5),
         )
 
         with patch('core_app.services.email_service.send_template_email', return_value=True):

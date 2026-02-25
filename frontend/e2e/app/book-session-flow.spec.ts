@@ -1,9 +1,11 @@
-import { test, expect, loginAsTestUser } from '../fixtures';
+import { test, expect, mockLoginAsTestUser } from '../fixtures';
+import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
-test.describe('Book Session Flow', () => {
+test.describe('Book Session Flow', { tag: [...FlowTags.BOOKING_SESSION_FLOW, RoleTags.USER] }, () => {
   test.beforeEach(async ({ page }) => {
-    await loginAsTestUser(page);
+    await mockLoginAsTestUser(page);
     await page.goto('/book-session');
+    await expect(page).toHaveURL(/\/book-session/);
   });
 
   test('calendar renders with month navigation', async ({ page }) => {
@@ -29,6 +31,7 @@ test.describe('Book Session Flow', () => {
 
   test('clicking an available date shows time slots or empty message', async ({ page }) => {
     // Find and click an enabled day button (not disabled, not blank)
+    // quality: allow-fragile-selector (calendar day labels repeat; selecting first enabled day is acceptable here)
     const enabledDay = page.locator('button:not([disabled])').filter({ hasText: /^\d{1,2}$/ }).first();
     const dayExists = await enabledDay.isVisible().catch(() => false);
 
@@ -43,6 +46,7 @@ test.describe('Book Session Flow', () => {
 
   test('time slot picker shows 12h/24h toggle', async ({ page }) => {
     // Click an available date to trigger slot loading
+    // quality: allow-fragile-selector (calendar day labels repeat; selecting first enabled day is acceptable here)
     const enabledDay = page.locator('button:not([disabled])').filter({ hasText: /^\d{1,2}$/ }).first();
     const dayExists = await enabledDay.isVisible().catch(() => false);
 
@@ -67,6 +71,7 @@ test.describe('Book Session Flow', () => {
 
   test('selecting a slot advances to confirmation step', async ({ page }) => {
     // Click an available date
+    // quality: allow-fragile-selector (calendar day labels repeat; selecting first enabled day is acceptable here)
     const enabledDay = page.locator('button:not([disabled])').filter({ hasText: /^\d{1,2}$/ }).first();
     const dayExists = await enabledDay.isVisible().catch(() => false);
 
@@ -74,6 +79,7 @@ test.describe('Book Session Flow', () => {
       await enabledDay.click();
 
       // Wait for slots to appear
+      // quality: allow-fragile-selector (slot labels may repeat across formats; selecting first visible slot is acceptable)
       const slotButton = page.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ }).first();
       const slotsExist = await slotButton.isVisible({ timeout: 10_000 }).catch(() => false);
 
@@ -123,11 +129,13 @@ test.describe('Book Session Flow', () => {
   });
 
   test('trainer info panel renders with session details', async ({ page }) => {
+    // quality: allow-fragile-selector (calendar day labels repeat; selecting first enabled day is acceptable here)
     const enabledDay = page.locator('button:not([disabled])').filter({ hasText: /^\d{1,2}$/ }).first();
     const dayExists = await enabledDay.isVisible().catch(() => false);
 
     if (dayExists) {
       await enabledDay.click();
+      // quality: allow-fragile-selector (slot labels may repeat across formats; selecting first visible slot is acceptable)
       const slotButton = page.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ }).first();
       const slotsExist = await slotButton.isVisible({ timeout: 10_000 }).catch(() => false);
 
@@ -150,11 +158,13 @@ test.describe('Book Session Flow', () => {
     // The default mock has no subscriptions, so we should see the confirmation UI
     // without the subscription info block
 
+    // quality: allow-fragile-selector (calendar day labels repeat; selecting first enabled day is acceptable here)
     const enabledDay = page.locator('button:not([disabled])').filter({ hasText: /^\d{1,2}$/ }).first();
     const dayExists = await enabledDay.isVisible().catch(() => false);
 
     if (dayExists) {
       await enabledDay.click();
+      // quality: allow-fragile-selector (slot labels may repeat across formats; selecting first visible slot is acceptable)
       const slotButton = page.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ }).first();
       const slotsExist = await slotButton.isVisible({ timeout: 10_000 }).catch(() => false);
 
@@ -211,6 +221,7 @@ test.describe('Book Session Flow', () => {
 
     // Click the available day on the calendar
     const dayNumber = tomorrow.getDate();
+    // quality: allow-fragile-selector (calendar day labels can repeat across months; select first matching visible day)
     const dayButton = page.locator('button').filter({ hasText: new RegExp(`^${dayNumber}$`) }).first();
     await dayButton.click();
 
@@ -225,5 +236,91 @@ test.describe('Book Session Flow', () => {
 
     // Toggle back to 24h
     await page.getByRole('button', { name: '24h' }).click();
+  });
+});
+
+/**
+ * Tests for reschedule no-availability branch in book-session/page.tsx.
+ * showRescheduleNoAvailability renders when isReschedule=true, bookingToReschedule
+ * is found, and availableDates is empty (no slots for the reschedule window).
+ */
+test.describe('Book Session — Reschedule No Availability', { tag: [...FlowTags.BOOKING_SESSION_FLOW, RoleTags.USER] }, () => {
+  const rescheduleBooking = {
+    id: 800, customer_id: 1,
+    package: { id: 6, title: 'Paquete Pro', sessions_count: 4, session_duration_minutes: 60, price: '120000', currency: 'COP', validity_days: 60 },
+    slot: {
+      id: 900, trainer_id: 1,
+      starts_at: new Date(Date.now() + 48 * 3600000).toISOString(),
+      ends_at: new Date(Date.now() + 49 * 3600000).toISOString(),
+      is_active: true, is_blocked: false,
+    },
+    trainer: { id: 1, user_id: 1, first_name: 'Germán', last_name: 'Franco', email: 'g@kore.com', specialty: 'Funcional', bio: '', location: 'Bogotá', session_duration_minutes: 60 },
+    subscription_id_display: 11,
+    status: 'confirmed', notes: '', canceled_reason: '',
+    created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+  };
+  const rescheduleSubscription = {
+    id: 11, customer_email: 'e2e@kore.com',
+    package: { id: 6, title: 'Paquete Pro', sessions_count: 4, session_duration_minutes: 60, price: '120000', currency: 'COP', validity_days: 60 },
+    sessions_total: 4, sessions_used: 1, sessions_remaining: 3, status: 'active',
+    starts_at: new Date(Date.now() - 10 * 86400000).toISOString(),
+    expires_at: new Date(Date.now() + 50 * 86400000).toISOString(),
+    next_billing_date: null,
+  };
+
+  async function setupRescheduleNoAvailabilityMocks(page: import('@playwright/test').Page) {
+    const cookieUser = encodeURIComponent(JSON.stringify({
+      id: 999, email: 'e2e@kore.com', first_name: 'Usuario', last_name: 'Prueba',
+      phone: '', role: 'customer', name: 'Usuario Prueba',
+    }));
+    await page.context().addCookies([
+      { name: 'kore_token', value: 'fake-e2e-jwt-token-for-testing', domain: 'localhost', path: '/' },
+      { name: 'kore_user', value: cookieUser, domain: 'localhost', path: '/' },
+    ]);
+    await page.route('**/api/auth/profile/**', (r) => r.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ user: { id: 999, email: 'e2e@kore.com', first_name: 'Usuario', last_name: 'Prueba', phone: '', role: 'customer' } }),
+    }));
+    await page.route('**/api/google-captcha/site-key/', (r) => r.fulfill({ status: 404, body: '' }));
+    await page.route('**/api/trainers/**', (r) => r.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ count: 1, next: null, previous: null, results: [rescheduleBooking.trainer] }),
+    }));
+    await page.route('**/api/availability-slots/**', (r) => r.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }),
+    }));
+    await page.route('**/api/subscriptions/**', async (route) => {
+      const url = route.request().url();
+      if (url.includes('/payments/') || url.includes('/cancel/') || url.includes('/expiry-reminder')) {
+        return route.fallback();
+      }
+      return route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({ count: 1, next: null, previous: null, results: [rescheduleSubscription] }),
+      });
+    });
+    await page.route('**/api/bookings/**', async (route) => {
+      const url = route.request().url();
+      if (url.includes('/upcoming-reminder')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
+      }
+      return route.fulfill({
+        status: 200, contentType: 'application/json',
+        body: JSON.stringify({ count: 1, next: null, previous: null, results: [rescheduleBooking] }),
+      });
+    });
+  }
+
+  test('reschedule with no available slots shows no-availability message', async ({ page }) => {
+    // Exercise book-session/page.tsx:209-213 — showRescheduleNoAvailability=true
+    // renders the "no disponibilidad" block with the WhatsApp contact link.
+    await setupRescheduleNoAvailabilityMocks(page);
+
+    await page.goto('/book-session?reschedule=800&subscription=11');
+
+    await expect(page.getByText('Agenda tu sesión')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('Por el momento no hay disponibilidad horaria.')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('link', { name: '+57 301 4645272' })).toBeVisible();
   });
 });

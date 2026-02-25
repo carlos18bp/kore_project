@@ -1,34 +1,33 @@
-"""Celery tasks for recurring billing and subscription reminders.
+"""Huey tasks for recurring billing and subscription reminders.
 
 Provides periodic tasks that:
 - Charge recurring subscriptions due for billing.
 - Email reminders for non-recurring subscriptions that are close to expiring.
+
+Both tasks are scheduled to run daily at 08:00 (TIME_ZONE).
 """
 
 import logging
 from datetime import timedelta
 from decimal import Decimal
 
-from celery import shared_task
 from django.db import transaction as db_transaction
 from django.utils import timezone
+from huey import crontab
+from huey.contrib.djhuey import db_periodic_task
 
 from core_app.models import Notification, Payment, Subscription
 from core_app.services.email_service import (
     send_payment_receipt,
     send_subscription_expiry_reminder,
 )
-from core_app.services.wompi_service import (
-    WompiError,
-    create_transaction,
-    generate_reference,
-)
+from core_app.services.wompi_service import create_transaction, generate_reference
 
 logger = logging.getLogger(__name__)
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=300)
-def process_recurring_billing(self):
+@db_periodic_task(crontab(minute=0, hour=8))
+def process_recurring_billing():
     """Find active subscriptions due today and charge them.
 
     For each subscription whose next_billing_date <= today, is marked
@@ -151,8 +150,8 @@ def _bill_subscription(sub):
     )
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=300)
-def send_expiring_subscription_reminders(self):
+@db_periodic_task(crontab(minute=0, hour=8))
+def send_expiring_subscription_reminders():
     """Send expiry reminders for non-recurring subscriptions.
 
     Finds active, non-recurring subscriptions that expire within the next

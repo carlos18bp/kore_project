@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import urlparse
 
 from decouple import Csv, config
 
@@ -40,7 +41,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
-    'django_celery_beat',
+    'huey.contrib.djhuey',
 
     'core_app.apps.CoreAppConfig',
 ]
@@ -209,13 +210,35 @@ def _resolve_wompi_base_url(environment: str) -> str:
 WOMPI_API_BASE_URL = _resolve_wompi_base_url(WOMPI_ENVIRONMENT)
 
 
-# Celery configuration
-CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = TIME_ZONE
+def _huey_connection_from_url(redis_url: str) -> dict:
+    """Parse Redis connection details from a URL string."""
+    parsed = urlparse(redis_url)
+    if not parsed.scheme or not parsed.hostname:
+        return {}
+    db_path = parsed.path.lstrip('/')
+    connection = {
+        'host': parsed.hostname,
+        'port': parsed.port or 6379,
+        'db': int(db_path) if db_path else 0,
+    }
+    if parsed.password:
+        connection['password'] = parsed.password
+    if parsed.scheme == 'rediss':
+        connection['ssl'] = True
+    return connection
+
+
+# Huey configuration
+_HUEY_REDIS_URL = config('HUEY_REDIS_URL', default='redis://localhost:6379/0')
+HUEY = {
+    'huey_class': 'huey.RedisHuey',
+    'name': 'core_project',
+    'connection': _huey_connection_from_url(_HUEY_REDIS_URL),
+    'results': True,
+    'store_none': False,
+    'immediate': config('HUEY_IMMEDIATE', default=False, cast=bool),
+    'utc': True,
+}
 
 
 # Google reCAPTCHA configuration

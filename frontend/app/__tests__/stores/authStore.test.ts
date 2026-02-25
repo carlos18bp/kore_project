@@ -48,7 +48,7 @@ describe('authStore', () => {
   });
 
   describe('login', () => {
-    it('sets user, token and cookies on valid credentials', async () => {
+    it('returns success and stores core auth session on valid credentials', async () => {
       mockedApi.post.mockResolvedValueOnce({ data: MOCK_LOGIN_RESPONSE });
 
       const { login } = useAuthStore.getState();
@@ -64,10 +64,18 @@ describe('authStore', () => {
       expect(state.isAuthenticated).toBe(true);
       expect(state.user).not.toBeNull();
       expect(state.user!.email).toBe('customer10@kore.com');
+      expect(state.accessToken).toBe('fake-access-token');
+    });
+
+    it('stores normalized profile fields and auth cookies on successful login', async () => {
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_LOGIN_RESPONSE });
+
+      await useAuthStore.getState().login('customer10@kore.com', 'ogthsv25');
+
+      const state = useAuthStore.getState();
       expect(state.user!.name).toBe('Customer10 Kore');
       expect(state.user!.first_name).toBe('Customer10');
       expect(state.user!.last_name).toBe('Kore');
-      expect(state.accessToken).toBe('fake-access-token');
 
       expect(mockedCookies.set).toHaveBeenCalledWith('kore_token', 'fake-access-token', { expires: 7 });
       expect(mockedCookies.set).toHaveBeenCalledWith('kore_refresh', 'fake-refresh-token', { expires: 7 });
@@ -128,7 +136,6 @@ describe('authStore', () => {
 
       const { login } = useAuthStore.getState();
       await login('customer10@kore.com', 'ogthsv25');
-      expect(useAuthStore.getState().isAuthenticated).toBe(true);
 
       useAuthStore.getState().logout();
 

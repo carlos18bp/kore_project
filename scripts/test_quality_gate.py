@@ -143,11 +143,19 @@ class QualityReport:
         normalized = file_path.replace("\\", "/")
         if normalized.startswith("backend/"):
             return "backend"
-        if normalized.startswith("frontend/test/"):
+        if any(normalized.startswith(prefix) for prefix in self._frontend_unit_prefixes()):
             return "frontend_unit"
         if normalized.startswith("frontend/e2e/"):
             return "frontend_e2e"
         return None
+
+    def _frontend_unit_prefixes(self) -> tuple[str, ...]:
+        """Return accepted frontend-unit path prefixes (configured + legacy)."""
+        configured = f"frontend/{self.config.frontend_unit_dir.strip('/').replace('\\\\', '/')}/"
+        prefixes = [configured]
+        if configured != "frontend/test/":
+            prefixes.append("frontend/test/")
+        return tuple(dict.fromkeys(prefixes))
 
     def _collect_exception_markers(
         self,
@@ -545,7 +553,7 @@ class QualityReport:
         if normalized_file.startswith("frontend/e2e/"):
             self._find_or_create_file_result(e2e, normalized_file, "e2e").issues.append(issue)
             return
-        if normalized_file.startswith("frontend/test/"):
+        if any(normalized_file.startswith(prefix) for prefix in self._frontend_unit_prefixes()):
             self._find_or_create_file_result(unit, normalized_file, "unit").issues.append(issue)
             return
 
@@ -975,8 +983,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--report-path", type=Path,
                         default=Path("test-results/test-quality-report.json"),
                         help="JSON report output path")
-    parser.add_argument("--backend-app", default="gym_app",
-                        help="Django app name (default: gym_app)")
+    parser.add_argument("--backend-app", default="core_app",
+                        help="Django app name (default: core_app)")
     parser.add_argument("--suite", choices=["backend", "frontend-unit", "frontend-e2e"],
                         help="Analyze specific suite only")
     parser.add_argument("--verbose", "-v", action="store_true",
@@ -1020,7 +1028,7 @@ def parse_args() -> argparse.Namespace:
         default=[],
         help=(
             "Include only this exact file path (repeatable). "
-            "Paths should be repo-relative (e.g., backend/gym_app/tests/models/test_x.py)."
+            "Paths should be repo-relative (e.g., backend/core_app/tests/models/test_x.py)."
         ),
     )
     parser.add_argument(
@@ -1030,7 +1038,7 @@ def parse_args() -> argparse.Namespace:
         default=[],
         help=(
             "Include files matching glob pattern (repeatable). "
-            "Example: 'backend/gym_app/tests/models/test_*.py'."
+            "Example: 'backend/core_app/tests/models/test_*.py'."
         ),
     )
     

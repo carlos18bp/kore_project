@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures';
+import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 const FAKE_TOKEN = 'fake-e2e-jwt-token-for-testing';
 
@@ -12,73 +13,104 @@ const FAKE_USER_COOKIE = JSON.stringify({
   name: 'Usuario Prueba',
 });
 
-test.describe('NoSessionsModal', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.route('**/api/google-captcha/site-key/', (route) =>
-      route.fulfill({ status: 404, body: '' }),
-    );
-    await page.route('**/api/auth/profile/', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          user: {
-            id: 999,
-            email: 'e2e@kore.com',
-            first_name: 'Usuario',
-            last_name: 'Prueba',
-            phone: '',
-            role: 'customer',
-          },
-        }),
-      }),
-    );
-    await page.route('**/api/bookings/upcoming-reminder/', (route) =>
-      route.fulfill({ status: 204, body: '' }),
-    );
-    await page.route('**/api/bookings/', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }),
-      }),
-    );
-    await page.route('**/api/trainers/', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          count: 1,
-          next: null,
-          previous: null,
-          results: [
-            {
-              id: 1,
-              user_id: 100,
-              first_name: 'Germán',
-              last_name: 'Franco',
-              email: 'german@kore.com',
-              specialty: 'Funcional',
-              bio: 'Bio',
-              location: 'KÓRE Studio',
-              session_duration_minutes: 60,
-            },
-          ],
-        }),
-      }),
-    );
-    await page.route('**/api/availability-slots/**', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }),
-      }),
-    );
+const BASE_SUBSCRIPTION = {
+  id: 10,
+  id_display: 'SUB-010',
+  package_name: 'Plan Básico',
+  status: 'active',
+  sessions_total: 4,
+  start_date: '2025-01-01',
+  end_date: '2025-12-31',
+  price: '150000.00',
+};
 
-    await page.context().addCookies([
-      { name: 'kore_token', value: FAKE_TOKEN, domain: 'localhost', path: '/' },
-      { name: 'kore_user', value: encodeURIComponent(FAKE_USER_COOKIE), domain: 'localhost', path: '/' },
-    ]);
+function subscriptionsPayload(sessionsUsed: number, sessionsRemaining: number) {
+  return {
+    count: 1,
+    next: null,
+    previous: null,
+    results: [
+      {
+        ...BASE_SUBSCRIPTION,
+        sessions_used: sessionsUsed,
+        sessions_remaining: sessionsRemaining,
+      },
+    ],
+  };
+}
+
+async function setupBookSessionBaseMocks(page: import('@playwright/test').Page) {
+  await page.route('**/api/google-captcha/site-key/', (route) =>
+    route.fulfill({ status: 404, body: '' }),
+  );
+  await page.route('**/api/auth/profile/', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        user: {
+          id: 999,
+          email: 'e2e@kore.com',
+          first_name: 'Usuario',
+          last_name: 'Prueba',
+          phone: '',
+          role: 'customer',
+        },
+      }),
+    }),
+  );
+  await page.route('**/api/bookings/upcoming-reminder/', (route) =>
+    route.fulfill({ status: 204, body: '' }),
+  );
+  await page.route('**/api/bookings/', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }),
+    }),
+  );
+  await page.route('**/api/trainers/', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        count: 1,
+        next: null,
+        previous: null,
+        results: [
+          {
+            id: 1,
+            user_id: 100,
+            first_name: 'Germán',
+            last_name: 'Franco',
+            email: 'german@kore.com',
+            specialty: 'Funcional',
+            bio: 'Bio',
+            location: 'KÓRE Studio',
+            session_duration_minutes: 60,
+          },
+        ],
+      }),
+    }),
+  );
+  await page.route('**/api/availability-slots/**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }),
+    }),
+  );
+  await page.context().addCookies([
+    { name: 'kore_token', value: FAKE_TOKEN, domain: 'localhost', path: '/' },
+    { name: 'kore_user', value: encodeURIComponent(FAKE_USER_COOKIE), domain: 'localhost', path: '/' },
+  ]);
+}
+
+test.describe('NoSessionsModal', { tag: [...FlowTags.BOOKING_NO_SESSIONS, RoleTags.USER] }, () => {
+  test.beforeEach(async ({ page }) => {
+    await setupBookSessionBaseMocks(page);
+
+    await expect(page).toHaveURL('about:blank');
   });
 
   test('renders modal when subscription has no remaining sessions', async ({ page }) => {
@@ -86,25 +118,7 @@ test.describe('NoSessionsModal', () => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({
-          count: 1,
-          next: null,
-          previous: null,
-          results: [
-            {
-              id: 10,
-              id_display: 'SUB-010',
-              package_name: 'Plan Básico',
-              status: 'active',
-              sessions_total: 4,
-              sessions_used: 4,
-              sessions_remaining: 0,
-              start_date: '2025-01-01',
-              end_date: '2025-12-31',
-              price: '150000.00',
-            },
-          ],
-        }),
+        body: JSON.stringify(subscriptionsPayload(4, 0)),
       }),
     );
 
@@ -122,25 +136,7 @@ test.describe('NoSessionsModal', () => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({
-          count: 1,
-          next: null,
-          previous: null,
-          results: [
-            {
-              id: 10,
-              id_display: 'SUB-010',
-              package_name: 'Plan Básico',
-              status: 'active',
-              sessions_total: 4,
-              sessions_used: 4,
-              sessions_remaining: 0,
-              start_date: '2025-01-01',
-              end_date: '2025-12-31',
-              price: '150000.00',
-            },
-          ],
-        }),
+        body: JSON.stringify(subscriptionsPayload(4, 0)),
       }),
     );
 
@@ -156,25 +152,7 @@ test.describe('NoSessionsModal', () => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({
-          count: 1,
-          next: null,
-          previous: null,
-          results: [
-            {
-              id: 10,
-              id_display: 'SUB-010',
-              package_name: 'Plan Básico',
-              status: 'active',
-              sessions_total: 4,
-              sessions_used: 2,
-              sessions_remaining: 2,
-              start_date: '2025-01-01',
-              end_date: '2025-12-31',
-              price: '150000.00',
-            },
-          ],
-        }),
+        body: JSON.stringify(subscriptionsPayload(2, 2)),
       }),
     );
 

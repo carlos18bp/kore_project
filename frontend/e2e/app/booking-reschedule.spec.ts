@@ -1,4 +1,5 @@
-import { test, expect, loginAsTestUser } from '../fixtures';
+import { FlowTags, RoleTags } from '../helpers/flow-tags';
+import { test, expect, mockLoginAsTestUser } from '../fixtures';
 
 /**
  * E2E tests for the booking reschedule flow.
@@ -6,7 +7,7 @@ import { test, expect, loginAsTestUser } from '../fixtures';
  * Uses mocked API responses to exercise success and error paths.
  * Session detail is now a modal opened from the program detail page.
  */
-test.describe('Booking Reschedule Flow (mocked)', () => {
+test.describe('Booking Reschedule Flow (mocked)', { tag: [...FlowTags.BOOKING_RESCHEDULE, RoleTags.USER] }, () => {
   test.describe.configure({ mode: 'serial' });
 
   const futureSlotStart = new Date(Date.now() + 48 * 60 * 60 * 1000);
@@ -94,38 +95,42 @@ test.describe('Booking Reschedule Flow (mocked)', () => {
     ]);
   }
 
+  function getSessionDialog(page: import('@playwright/test').Page) {
+    return page.getByRole('dialog', { name: 'Detalle de Sesión' });
+  }
+
   async function openSessionModal(page: import('@playwright/test').Page) {
-    const bookingRow = page.getByRole('button', { name: /Confirmada/ }).first();
+    const bookingRow = page.getByRole('button', { name: /Confirmada/ });
     await bookingRow.click();
-    await expect(page.getByText('Detalle de Sesión')).toBeVisible({ timeout: 5_000 });
+    await expect(getSessionDialog(page)).toBeVisible({ timeout: 5_000 });
   }
 
   test('reschedule button navigates to book-session page', async ({ page }) => {
+    await mockLoginAsTestUser(page);
     await setupMocks(page);
-    await loginAsTestUser(page);
     await page.goto('/my-programs/program/11');
-    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 10_000 });
 
     await openSessionModal(page);
 
-    await expect(page.locator('.fixed').getByText('Confirmada')).toBeVisible();
+    await expect(getSessionDialog(page).getByText('Confirmada')).toBeVisible();
     await page.getByRole('button', { name: 'Reprogramar' }).click();
     await page.waitForURL(/\/book-session/, { timeout: 15_000 });
     await expect(page.getByText('Agenda tu sesión')).toBeVisible();
   });
 
   test('modal shows session details including trainer info', async ({ page }) => {
+    await mockLoginAsTestUser(page);
     await setupMocks(page);
-    await loginAsTestUser(page);
     await page.goto('/my-programs/program/11');
-    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 10_000 });
 
     await openSessionModal(page);
 
-    const modal = page.locator('.fixed');
-    await expect(modal.getByRole('button', { name: 'Reprogramar' })).toBeVisible();
-    await expect(modal.getByText('Germán Franco')).toBeVisible();
-    await expect(modal.getByText('Bogotá, Colombia')).toBeVisible();
+    const dialog = getSessionDialog(page);
+    await expect(dialog.getByRole('button', { name: 'Reprogramar' })).toBeVisible();
+    await expect(dialog.getByText('Germán Franco')).toBeVisible();
+    await expect(dialog.getByText('Bogotá, Colombia')).toBeVisible();
   });
 
   test('confirmed booking within 24h disables reschedule', async ({ page }) => {
@@ -136,14 +141,14 @@ test.describe('Booking Reschedule Flow (mocked)', () => {
       slot: { ...mockBooking.slot, starts_at: soonStart.toISOString(), ends_at: soonEnd.toISOString() },
     };
 
+    await mockLoginAsTestUser(page);
     await setupMocks(page, soonBooking);
-    await loginAsTestUser(page);
     await page.goto('/my-programs/program/11');
-    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 10_000 });
 
     await openSessionModal(page);
 
-    await expect(page.locator('.fixed').getByText('Confirmada')).toBeVisible();
+    await expect(getSessionDialog(page).getByText('Confirmada')).toBeVisible();
     const reprogramarBtn = page.getByRole('button', { name: 'Reprogramar' });
     await expect(reprogramarBtn).toBeDisabled({ timeout: 5_000 });
     await expect(reprogramarBtn).toHaveAttribute('title', /No se puede reprogramar a menos de 24h/);
