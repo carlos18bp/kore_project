@@ -106,7 +106,7 @@ export default function Sidebar() {
       {user && (
         <div className="px-6 pb-6 mb-2">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-kore-red/10 flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-kore-red/20 to-kore-burgundy/10 flex items-center justify-center flex-shrink-0 ring-2 ring-white shadow-sm">
               <span className="font-heading text-sm font-semibold text-kore-red">
                 {user.name.charAt(0)}
               </span>

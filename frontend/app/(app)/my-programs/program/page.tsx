@@ -12,13 +12,13 @@ import type { BookingData } from '@/lib/stores/bookingStore';
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   active: { label: 'Activo', className: 'bg-green-100 text-green-700' },
   expired: { label: 'Vencido', className: 'bg-amber-100 text-amber-700' },
-  canceled: { label: 'Cancelado', className: 'bg-red-100 text-red-700' },
+  canceled: { label: 'Cancelado', className: 'bg-kore-gray-light/60 text-kore-gray-dark/50' },
 };
 
 const BOOKING_STATUS_BADGE: Record<string, { label: string; className: string }> = {
   pending: { label: 'Pendiente', className: 'bg-amber-100 text-amber-700' },
   confirmed: { label: 'Confirmada', className: 'bg-green-100 text-green-700' },
-  canceled: { label: 'Cancelada', className: 'bg-red-100 text-red-700' },
+  canceled: { label: 'Cancelada', className: 'bg-kore-gray-light/60 text-kore-gray-dark/50' },
 };
 
 function BookingRow({ booking, onClick }: { booking: BookingData; onClick: () => void }) {
@@ -100,10 +100,16 @@ function ProgramDetailContent() {
 
   const now = new Date();
   const filteredBookings = useMemo(() => {
-    return bookings.filter((b) => {
+    const filtered = bookings.filter((b) => {
       const slotStart = new Date(b.slot.starts_at);
       if (tab === 'upcoming') return slotStart >= now && b.status !== 'canceled';
       return slotStart < now || b.status === 'canceled';
+    });
+    // Sort: upcoming = ascending (earliest first), past = descending (most recent first)
+    return filtered.sort((a, b) => {
+      const dateA = new Date(a.slot.starts_at).getTime();
+      const dateB = new Date(b.slot.starts_at).getTime();
+      return tab === 'upcoming' ? dateA - dateB : dateB - dateA;
     });
   }, [bookings, tab]);
 
@@ -134,7 +140,7 @@ function ProgramDetailContent() {
 
   return (
     <section ref={sectionRef} className="min-h-screen bg-kore-cream">
-      <div className="w-full px-6 md:px-10 lg:px-16 pt-8 pb-16">
+      <div className="w-full px-6 md:px-10 lg:px-16 pt-20 lg:pt-8 pb-16">
         {/* Breadcrumb */}
         <div data-hero="badge" className="mb-8">
           <div className="flex items-center gap-2 text-xs text-kore-gray-dark/40 mb-2">
@@ -151,7 +157,7 @@ function ProgramDetailContent() {
 
         {/* Program header card */}
         {subscription && (
-          <div data-hero="heading" className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-kore-gray-light/50 mb-8">
+          <div data-hero="heading" className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm mb-8">
             <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
               <div>
                 <h2 className="font-heading text-lg font-semibold text-kore-gray-dark">
@@ -166,12 +172,18 @@ function ProgramDetailContent() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-1">Restantes</p>
-                <p className="text-lg font-semibold text-kore-red">{subscription.sessions_remaining}</p>
+                <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-1">Completadas</p>
+                <p className="text-lg font-semibold text-kore-red">{subscription.sessions_used}</p>
               </div>
               <div>
                 <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-1">Total</p>
                 <p className="text-lg font-semibold text-kore-gray-dark">{subscription.sessions_total}</p>
+              </div>
+              <div>
+                <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-1">Avance</p>
+                <p className="text-lg font-semibold text-kore-red">
+                  {Math.round((subscription.sessions_used / subscription.sessions_total) * 100)}%
+                </p>
               </div>
               <div>
                 <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-1">Vencimiento</p>
@@ -183,14 +195,10 @@ function ProgramDetailContent() {
                   })}
                 </p>
               </div>
-              <div>
-                <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-1">Usadas</p>
-                <p className="text-lg font-semibold text-kore-gray-dark">{subscription.sessions_used}</p>
-              </div>
             </div>
             <div className="mt-4 h-2 bg-kore-gray-light/40 rounded-full overflow-hidden">
               <div
-                className="h-full bg-kore-red rounded-full transition-all duration-500"
+                className="h-full bg-gradient-to-r from-kore-red to-kore-burgundy rounded-full transition-all duration-500"
                 style={{
                   width: `${subscription.sessions_total > 0
                     ? (subscription.sessions_used / subscription.sessions_total) * 100
@@ -221,7 +229,7 @@ function ProgramDetailContent() {
         </div>
 
         {/* Sessions list */}
-        <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-kore-gray-light/50 divide-y divide-kore-gray-light/30">
+        <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm divide-y divide-kore-gray-light/30">
           {loading && (
             <div className="flex justify-center py-12">
               <div className="animate-spin h-6 w-6 border-2 border-kore-red border-t-transparent rounded-full" />
@@ -238,7 +246,7 @@ function ProgramDetailContent() {
               {tab === 'upcoming' && (
                 <Link
                   href={`/book-session?subscription=${subscriptionId}`}
-                  className="mt-4 inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-kore-red text-white text-sm font-semibold hover:bg-kore-red/90 transition-colors cursor-pointer"
+                  className="mt-4 inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-kore-red to-kore-burgundy text-white text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer"
                 >
                   Agendar sesión
                 </Link>

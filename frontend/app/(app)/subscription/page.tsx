@@ -107,10 +107,10 @@ export default function SubscriptionPage() {
         key={item.id}
         type="button"
         onClick={() => setSelectedSubscriptionId(item.id)}
-        className={`w-full text-left rounded-2xl border px-4 py-4 transition-colors cursor-pointer ${
+        className={`w-full text-left rounded-2xl border px-4 py-4 transition-all cursor-pointer ${
           isSelected
-            ? 'border-kore-red bg-kore-red/5'
-            : 'border-kore-gray-light/60 bg-white/60 hover:bg-white/80'
+            ? 'border-kore-gray-dark/30 bg-white shadow-md ring-2 ring-kore-gray-dark/10'
+            : 'border-kore-gray-light/60 bg-white/60 hover:bg-white/80 hover:shadow-sm'
         }`}
       >
         <div className="flex items-start justify-between gap-3">
@@ -119,7 +119,7 @@ export default function SubscriptionPage() {
               {item.package.title}
             </p>
             <p className="text-xs text-kore-gray-dark/50">
-              {item.sessions_used} / {item.sessions_total} usadas
+              {item.sessions_used} de {item.sessions_total} completadas
             </p>
           </div>
           <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusColor[item.status] || 'bg-gray-100 text-gray-500'}`}>
@@ -128,7 +128,7 @@ export default function SubscriptionPage() {
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-kore-gray-dark/50">
           <span>Vence: {formatDate(item.expires_at)}</span>
-          <span>Restantes: {item.sessions_remaining}</span>
+          <span>Avance: {Math.round((item.sessions_used / item.sessions_total) * 100)}%</span>
         </div>
       </button>
     );
@@ -144,7 +144,7 @@ export default function SubscriptionPage() {
 
   return (
     <section ref={sectionRef} className="min-h-screen bg-kore-cream">
-      <div className="w-full px-6 md:px-10 lg:px-16 pt-8 pb-16">
+      <div className="w-full px-6 md:px-10 lg:px-16 pt-20 lg:pt-8 pb-16">
         {/* Header */}
         <div data-hero="badge" className="mb-12">
           <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-1">Mi cuenta</p>
@@ -191,38 +191,6 @@ export default function SubscriptionPage() {
         ) : (
           <div className="space-y-10">
             <div className="space-y-6">
-              <div className="max-w-lg">
-                <label className="block text-sm font-medium text-kore-gray-dark mb-2">Selecciona tu suscripción</label>
-                <select
-                  value={selectedSubscriptionId ?? ''}
-                  onChange={(event) => {
-                    const nextValue = event.target.value ? Number(event.target.value) : null;
-                    setSelectedSubscriptionId(nextValue);
-                  }}
-                  className="w-full rounded-lg border border-kore-gray-light bg-white/80 px-4 py-3 text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/40 cursor-pointer"
-                >
-                  <option value="" disabled>Selecciona una suscripción</option>
-                  {activeSubscriptions.length > 0 && (
-                    <optgroup label="Activas">
-                      {activeSubscriptions.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.package.title} — {item.sessions_remaining} sesiones restantes
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                  {inactiveSubscriptions.length > 0 && (
-                    <optgroup label="Inactivas">
-                      {inactiveSubscriptions.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.package.title} — {statusLabel[item.status] || item.status}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                </select>
-              </div>
-
               <div className="grid gap-6 lg:grid-cols-2">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -274,13 +242,13 @@ export default function SubscriptionPage() {
                       <div className="flex justify-between text-sm">
                         <span className="text-kore-gray-dark/50">Sesiones</span>
                         <span className="font-medium text-kore-gray-dark">
-                          {detailSubscription.sessions_used} / {detailSubscription.sessions_total} usadas
+                          {detailSubscription.sessions_used} de {detailSubscription.sessions_total} completadas
                         </span>
                       </div>
                       <div className="w-full h-2 bg-kore-gray-light/40 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-kore-red rounded-full transition-all duration-500"
-                          style={{ width: `${(detailSubscription.sessions_remaining / detailSubscription.sessions_total) * 100}%` }}
+                          className="h-full bg-gradient-to-r from-kore-red to-kore-burgundy rounded-full transition-all duration-500"
+                          style={{ width: `${(detailSubscription.sessions_used / detailSubscription.sessions_total) * 100}%` }}
                         />
                       </div>
                       <div className="flex justify-between text-sm">

@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { Cinzel, Montserrat } from 'next/font/google';
 import './globals.css';
-import WhatsAppButton from '@/app/components/WhatsAppButton';
 
 const cinzel = Cinzel({
   subsets: ['latin'],
@@ -39,7 +38,6 @@ export default function RootLayout({
     >
       <body suppressHydrationWarning className="antialiased font-body">
         {children}
-        <WhatsAppButton />
       </body>
     </html>
   );

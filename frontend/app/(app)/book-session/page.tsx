@@ -248,7 +248,7 @@ function BookSessionContent() {
       {/* No Sessions Modal */}
       {hasNoSessions && <NoSessionsModal packageTitle={activeSub?.package.title} />}
 
-      <div className="w-full px-6 md:px-10 lg:px-16 pt-8 pb-16">
+      <div className="w-full px-6 md:px-10 lg:px-16 pt-20 lg:pt-8 pb-16">
         {/* Header */}
         <div data-hero="badge" className="mb-8">
           <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-1">Agendar</p>
@@ -257,42 +257,32 @@ function BookSessionContent() {
           </h1>
         </div>
 
-        {/* Subscription Selector */}
-        {selectableSubscriptions.length > 0 && (
-          <div data-hero="heading" className="mb-6">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              <label htmlFor="subscription-select" className="text-sm font-medium text-kore-gray-dark">
-                Selecciona tu programa:
-              </label>
-              <select
-                id="subscription-select"
-                value={selectedSubId ?? ''}
-                onChange={(e) => setSelectedSubId(Number(e.target.value))}
-                disabled={isReschedule}
-                className="px-4 py-2 rounded-xl border border-kore-gray-light/50 bg-white text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/30 cursor-pointer"
-              >
-                {selectableSubscriptions.map((sub) => (
-                  <option key={sub.id} value={sub.id}>
-                    {sub.package.title} — {sub.sessions_remaining} sesiones restantes
-                  </option>
-                ))}
-              </select>
-            </div>
-            {/* Session Details */}
-            {activeSub && (
-              <div className="mt-4 p-4 bg-white/60 backdrop-blur-sm rounded-xl border border-kore-gray-light/50">
-                <p className="text-sm font-medium text-kore-gray-dark">
-                  <span className="text-kore-red font-semibold">
+        {/* Session Progress Card - Mobile only */}
+        {activeSub && (
+          <div data-hero="heading" className="mb-6 lg:hidden">
+            <div className="p-5 bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-kore-red">
                     Sesión {activeSub.sessions_used + 1} de {activeSub.sessions_total}
+                  </p>
+                  <p className="text-xs text-kore-gray-dark/50 mt-1">
+                    {activeSub.package.title} · {activeSub.sessions_used} completadas
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-24 bg-kore-gray-light/40 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-kore-red to-kore-burgundy rounded-full transition-all duration-500"
+                      style={{ width: `${activeSub.sessions_total > 0 ? (activeSub.sessions_used / activeSub.sessions_total) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium text-kore-red">
+                    {Math.round((activeSub.sessions_used / activeSub.sessions_total) * 100)}%
                   </span>
-                  {' — '}
-                  {activeSub.sessions_remaining} {activeSub.sessions_remaining === 1 ? 'sesión restante' : 'sesiones restantes'}
-                </p>
-                <p className="text-xs text-kore-gray-dark/50 mt-1">
-                  Programa: {activeSub.package.title}
-                </p>
+                </div>
               </div>
-            )}
+            </div>
           </div>
         )}
 
@@ -310,7 +300,7 @@ function BookSessionContent() {
                 >
                   {s}
                 </div>
-                <span className="text-sm text-kore-gray-dark/50 hidden sm:inline">
+                <span className="text-sm text-kore-gray-dark/50">
                   {s === 1 ? 'Seleccionar horario' : 'Confirmar'}
                 </span>
                 {s < 2 && (
@@ -342,10 +332,35 @@ function BookSessionContent() {
                 </div>
               </div>
             )}
-            {/* Left — Trainer info (desktop) */}
-            <div className="lg:col-span-3 hidden lg:block">
+            {/* Left — Session progress + Trainer info (desktop) */}
+            <div className="lg:col-span-3 hidden lg:block space-y-4">
+              {/* Session Progress Card - Desktop */}
+              {activeSub && (
+                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold text-kore-red">
+                      Sesión {activeSub.sessions_used + 1} de {activeSub.sessions_total}
+                    </p>
+                    <p className="text-xs text-kore-gray-dark/50">
+                      {activeSub.package.title} · {activeSub.sessions_used} completadas
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 flex-1 bg-kore-gray-light/40 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-kore-red to-kore-burgundy rounded-full transition-all duration-500"
+                          style={{ width: `${activeSub.sessions_total > 0 ? (activeSub.sessions_used / activeSub.sessions_total) * 100 : 0}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-medium text-kore-red">
+                        {Math.round((activeSub.sessions_used / activeSub.sessions_total) * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {/* Trainer Card */}
               <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-kore-gray-light/50 sticky top-8">
-                <TrainerInfoPanel trainer={trainer} selectedSlot={selectedSlot} />
+                <TrainerInfoPanel trainer={trainer} />
               </div>
             </div>
 
