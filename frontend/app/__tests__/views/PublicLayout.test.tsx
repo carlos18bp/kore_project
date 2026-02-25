@@ -16,6 +16,7 @@ jest.mock('next/link', () => ({
 let mockPathname = '/';
 jest.mock('next/navigation', () => ({
   usePathname: () => mockPathname,
+  useSearchParams: () => ({ get: jest.fn().mockReturnValue(null) }),
 }));
 
 describe('PublicLayout', () => {

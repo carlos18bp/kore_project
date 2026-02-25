@@ -11,6 +11,7 @@ jest.mock('next/image', () => ({
 let mockPathname = '/';
 jest.mock('next/navigation', () => ({
   usePathname: () => mockPathname,
+  useSearchParams: () => ({ get: jest.fn().mockReturnValue(null) }),
 }));
 
 jest.mock('next/link', () => ({
@@ -41,7 +42,7 @@ describe('Navbar', () => {
   it('renders navigation links', () => {
     render(<Navbar />);
     expect(screen.getAllByText('Inicio').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('La Marca').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Método Kore').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Programas').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('FAQ').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Contacto').length).toBeGreaterThanOrEqual(1);
@@ -116,7 +117,7 @@ describe('Navbar', () => {
     render(<Navbar />);
 
     // The desktop nav links
-    const desktopLinks = screen.getAllByText('La Marca');
+    const desktopLinks = screen.getAllByText('Método Kore');
     const desktopLink = desktopLinks.find(el => el.closest('.hidden.md\\:flex'));
     expect(desktopLink).toHaveClass('text-kore-red');
   });

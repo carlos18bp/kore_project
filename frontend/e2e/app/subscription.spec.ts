@@ -116,7 +116,7 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
     await expect(main.getByText('Detalles')).toBeVisible();
     await expect(programRow.getByText('Paquete Pro')).toBeVisible();
     await expect(detailsCard.getByText('Activa', { exact: true })).toBeVisible();
-    await expect(detailsCard.getByText('3 / 8 usadas')).toBeVisible();
+    await expect(detailsCard.getByText('3 de 8 completadas')).toBeVisible();
   });
 
   test('active subscription does not show paused actions', async ({ page }) => {
@@ -284,9 +284,8 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
     const detailsCard = main.getByText('Detalles').locator('..').locator('..');
     await expect(detailsCard.getByText('Paquete Pro')).toBeVisible({ timeout: 5_000 });
 
-    // Change select to the second subscription — exercises onChange handler
-    const select = page.getByRole('combobox');
-    await select.selectOption({ value: String(secondSub.id) });
+    // Click the second subscription button to select it
+    await main.getByRole('button', { name: /Paquete Básico/ }).click();
 
     // Detail card should now reflect the expired second subscription
     await expect(detailsCard.getByText('Paquete Básico')).toBeVisible({ timeout: 5_000 });

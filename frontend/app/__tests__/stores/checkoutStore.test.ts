@@ -316,7 +316,7 @@ describe('checkoutStore', () => {
 
       expect(mockedApi.post).toHaveBeenCalledWith(
         '/subscriptions/purchase/',
-        { package_id: 1, card_token: 'card-token-abc' },
+        { package_id: 1, card_token: 'card-token-abc', installments: 1 },
         { headers: { Authorization: 'Bearer fake-token' } },
       );
     });
@@ -332,7 +332,7 @@ describe('checkoutStore', () => {
 
       expect(mockedApi.post).toHaveBeenCalledWith(
         '/subscriptions/purchase/',
-        { package_id: 1, card_token: 'card-token-abc' },
+        { package_id: 1, card_token: 'card-token-abc', installments: 1 },
         undefined,
       );
     });
@@ -347,7 +347,7 @@ describe('checkoutStore', () => {
 
       expect(mockedApi.post).toHaveBeenCalledWith(
         '/subscriptions/purchase/',
-        { package_id: 1, card_token: 'card-token-abc', registration_token: 'reg-token-321' },
+        { package_id: 1, card_token: 'card-token-abc', installments: 1, registration_token: 'reg-token-321' },
         { headers: { Authorization: 'Bearer fake-token' } },
       );
     });
@@ -498,6 +498,663 @@ describe('checkoutStore', () => {
       const state = useCheckoutStore.getState();
       expect(state.paymentStatus).toBe('error');
       expect(state.error).toBe('El pago está tardando más de lo esperado. Revisa tu estado en unos minutos.');
+    });
+  });
+
+  // ----------------------------------------------------------------
+  // tokenizeCard
+  // ----------------------------------------------------------------
+  describe('tokenizeCard', () => {
+    const originalFetch = global.fetch;
+
+    beforeEach(() => {
+      useCheckoutStore.setState({ wompiConfig: MOCK_WOMPI_CONFIG });
+    });
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+    });
+
+    it('returns null when wompi config is missing', async () => {
+      useCheckoutStore.setState({ wompiConfig: null });
+      const result = await useCheckoutStore.getState().tokenizeCard({
+        number: '4111111111111111',
+        cvc: '123',
+        exp_month: '12',
+        exp_year: '28',
+        card_holder: 'TEST USER',
+      });
+      expect(result).toBeNull();
+      expect(useCheckoutStore.getState().error).toBe('Configuración de pago no disponible.');
+    });
+
+    it('returns null when wompi public key is empty', async () => {
+      useCheckoutStore.setState({ wompiConfig: { public_key: '', environment: 'sandbox' } });
+      const result = await useCheckoutStore.getState().tokenizeCard({
+        number: '4111111111111111',
+        cvc: '123',
+        exp_month: '12',
+        exp_year: '28',
+        card_holder: 'TEST USER',
+      });
+      expect(result).toBeNull();
+      expect(useCheckoutStore.getState().error).toBe('Configuración de pago no disponible.');
+    });
+
+    it('uses sandbox URL when environment is not prod', async () => {
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: 'CREATED', data: { id: 'tok_sandbox_123' } }),
+      } as Response);
+
+      const result = await useCheckoutStore.getState().tokenizeCard({
+        number: '4111111111111111',
+        cvc: '123',
+        exp_month: '12',
+        exp_year: '28',
+        card_holder: 'TEST USER',
+      });
+
+      expect(result).toBe('tok_sandbox_123');
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://sandbox.wompi.co/v1/tokens/cards',
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
+
+    it('uses production URL when environment is prod', async () => {
+      useCheckoutStore.setState({ wompiConfig: { public_key: 'pub_prod_key', environment: 'prod' } });
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: 'CREATED', data: { id: 'tok_prod_456' } }),
+      } as Response);
+
+      const result = await useCheckoutStore.getState().tokenizeCard({
+        number: '4111111111111111',
+        cvc: '123',
+        exp_month: '12',
+        exp_year: '28',
+        card_holder: 'TEST USER',
+      });
+
+      expect(result).toBe('tok_prod_456');
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://production.wompi.co/v1/tokens/cards',
+        expect.objectContaining({
+          headers: expect.objectContaining({ Authorization: 'Bearer pub_prod_key' }),
+        }),
+      );
+    });
+
+    it('sets field-level error when response has messages object', async () => {
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        json: async () => ({
+          error: {
+            messages: { number: ['Invalid card number'], cvc: ['Too short'] },
+          },
+        }),
+      } as Response);
+
+      const result = await useCheckoutStore.getState().tokenizeCard({
+        number: 'bad',
+        cvc: '1',
+        exp_month: '12',
+        exp_year: '28',
+        card_holder: 'TEST USER',
+      });
+
+      expect(result).toBeNull();
+      expect(useCheckoutStore.getState().error).toContain('number:');
+      expect(useCheckoutStore.getState().error).toContain('cvc:');
+    });
+
+    it('sets error message when response has error.message but no messages object', async () => {
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({
+          error: { message: 'Card declined' },
+        }),
+      } as Response);
+
+      const result = await useCheckoutStore.getState().tokenizeCard({
+        number: '4111111111111111',
+        cvc: '123',
+        exp_month: '12',
+        exp_year: '28',
+        card_holder: 'TEST USER',
+      });
+
+      expect(result).toBeNull();
+      expect(useCheckoutStore.getState().error).toBe('Card declined');
+    });
+
+    it('uses fallback error when response JSON has no messages or message', async () => {
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({}),
+      } as Response);
+
+      const result = await useCheckoutStore.getState().tokenizeCard({
+        number: '4111111111111111',
+        cvc: '123',
+        exp_month: '12',
+        exp_year: '28',
+        card_holder: 'TEST USER',
+      });
+
+      expect(result).toBeNull();
+      expect(useCheckoutStore.getState().error).toBe('Error al procesar la tarjeta. Verifica los datos.');
+    });
+
+    it('uses fallback error when response.json() throws', async () => {
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => { throw new Error('parse error'); },
+      } as Response);
+
+      const result = await useCheckoutStore.getState().tokenizeCard({
+        number: '4111111111111111',
+        cvc: '123',
+        exp_month: '12',
+        exp_year: '28',
+        card_holder: 'TEST USER',
+      });
+
+      expect(result).toBeNull();
+      expect(useCheckoutStore.getState().error).toBe('Error al procesar la tarjeta. Verifica los datos.');
+    });
+
+    it('sets generic error on network failure', async () => {
+      global.fetch = jest.fn().mockRejectedValueOnce(new Error('Network error'));
+
+      const result = await useCheckoutStore.getState().tokenizeCard({
+        number: '4111111111111111',
+        cvc: '123',
+        exp_month: '12',
+        exp_year: '28',
+        card_holder: 'TEST USER',
+      });
+
+      expect(result).toBeNull();
+      expect(useCheckoutStore.getState().error).toBe('No se pudo procesar la tarjeta. Intenta de nuevo.');
+    });
+
+    it('uses default error when messages is truthy but produces empty allErrors and no error.message', async () => {
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        json: async () => ({
+          error: {
+            messages: {},
+          },
+        }),
+      } as Response);
+
+      const result = await useCheckoutStore.getState().tokenizeCard({
+        number: '4111111111111111',
+        cvc: '123',
+        exp_month: '12',
+        exp_year: '28',
+        card_holder: 'TEST USER',
+      });
+
+      expect(result).toBeNull();
+      expect(useCheckoutStore.getState().error).toBe('Error al procesar la tarjeta. Verifica los datos.');
+    });
+
+    it('sets error when messages object has empty arrays producing fallback to error.message', async () => {
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        json: async () => ({
+          error: {
+            messages: {},
+            message: 'General error from Wompi',
+          },
+        }),
+      } as Response);
+
+      const result = await useCheckoutStore.getState().tokenizeCard({
+        number: '4111111111111111',
+        cvc: '123',
+        exp_month: '12',
+        exp_year: '28',
+        card_holder: 'TEST USER',
+      });
+
+      expect(result).toBeNull();
+      expect(useCheckoutStore.getState().error).toBe('General error from Wompi');
+    });
+  });
+
+  // ----------------------------------------------------------------
+  // fetchPSEBanks
+  // ----------------------------------------------------------------
+  describe('fetchPSEBanks', () => {
+    const originalFetch = global.fetch;
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+    });
+
+    it('returns empty array when wompi config is missing', async () => {
+      useCheckoutStore.setState({ wompiConfig: null });
+      const result = await useCheckoutStore.getState().fetchPSEBanks();
+      expect(result).toEqual([]);
+    });
+
+    it('returns empty array when public key is empty', async () => {
+      useCheckoutStore.setState({ wompiConfig: { public_key: '', environment: 'sandbox' } });
+      const result = await useCheckoutStore.getState().fetchPSEBanks();
+      expect(result).toEqual([]);
+    });
+
+    it('fetches banks from sandbox URL', async () => {
+      useCheckoutStore.setState({ wompiConfig: MOCK_WOMPI_CONFIG });
+      const banks = [
+        { financial_institution_code: '1', financial_institution_name: 'Bank A' },
+      ];
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: banks }),
+      } as Response);
+
+      const result = await useCheckoutStore.getState().fetchPSEBanks();
+
+      expect(result).toEqual(banks);
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://sandbox.wompi.co/v1/pse/financial_institutions',
+        expect.objectContaining({
+          headers: { Authorization: `Bearer ${MOCK_WOMPI_CONFIG.public_key}` },
+        }),
+      );
+    });
+
+    it('fetches banks from production URL when environment is prod', async () => {
+      useCheckoutStore.setState({ wompiConfig: { public_key: 'pub_prod', environment: 'prod' } });
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: [] }),
+      } as Response);
+
+      await useCheckoutStore.getState().fetchPSEBanks();
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://production.wompi.co/v1/pse/financial_institutions',
+        expect.anything(),
+      );
+    });
+
+    it('returns empty array when response data.data is undefined', async () => {
+      useCheckoutStore.setState({ wompiConfig: MOCK_WOMPI_CONFIG });
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({}),
+      } as Response);
+
+      const result = await useCheckoutStore.getState().fetchPSEBanks();
+      expect(result).toEqual([]);
+    });
+
+    it('returns empty array when fetch response is not ok', async () => {
+      useCheckoutStore.setState({ wompiConfig: MOCK_WOMPI_CONFIG });
+      global.fetch = jest.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+      } as Response);
+
+      const result = await useCheckoutStore.getState().fetchPSEBanks();
+      expect(result).toEqual([]);
+    });
+
+    it('returns empty array on network error', async () => {
+      useCheckoutStore.setState({ wompiConfig: MOCK_WOMPI_CONFIG });
+      global.fetch = jest.fn().mockRejectedValueOnce(new Error('Network'));
+
+      const result = await useCheckoutStore.getState().fetchPSEBanks();
+      expect(result).toEqual([]);
+    });
+  });
+
+  // ----------------------------------------------------------------
+  // purchaseWithNequi
+  // ----------------------------------------------------------------
+  describe('purchaseWithNequi', () => {
+    it('creates intent and polls until approved', async () => {
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
+      mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
+
+      const promise = useCheckoutStore.getState().purchaseWithNequi(1, '3001234567');
+      await jest.advanceTimersByTimeAsync(0);
+      expect(useCheckoutStore.getState().paymentStatus).toBe('polling');
+
+      await jest.advanceTimersByTimeAsync(2000);
+      const result = await promise;
+
+      expect(result).toBe(true);
+      expect(useCheckoutStore.getState().paymentStatus).toBe('success');
+    });
+
+    it('sends correct payload with NEQUI payment method', async () => {
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
+      mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
+
+      const promise = useCheckoutStore.getState().purchaseWithNequi(1, '3001234567');
+      await jest.advanceTimersByTimeAsync(2000);
+      await promise;
+
+      expect(mockedApi.post).toHaveBeenCalledWith(
+        '/subscriptions/purchase-alternative/',
+        { package_id: 1, payment_method: 'NEQUI', phone_number: '3001234567' },
+        { headers: { Authorization: 'Bearer fake-token' } },
+      );
+    });
+
+    it('includes registration token when provided', async () => {
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
+      mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
+
+      const promise = useCheckoutStore.getState().purchaseWithNequi(1, '3001234567', 'reg-nequi');
+      await jest.advanceTimersByTimeAsync(2000);
+      await promise;
+
+      expect(mockedApi.post).toHaveBeenCalledWith(
+        '/subscriptions/purchase-alternative/',
+        { package_id: 1, payment_method: 'NEQUI', phone_number: '3001234567', registration_token: 'reg-nequi' },
+        { headers: { Authorization: 'Bearer fake-token' } },
+      );
+    });
+
+    it('omits auth header when token is missing', async () => {
+      mockedCookies.get.mockReturnValue(undefined);
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
+      mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
+
+      const promise = useCheckoutStore.getState().purchaseWithNequi(1, '3001234567');
+      await jest.advanceTimersByTimeAsync(2000);
+      await promise;
+
+      expect(mockedApi.post).toHaveBeenCalledWith(
+        '/subscriptions/purchase-alternative/',
+        expect.any(Object),
+        undefined,
+      );
+    });
+
+    it('sets error from API detail on failure', async () => {
+      const axiosError = new AxiosError('fail', '400', undefined, undefined, {
+        data: { detail: 'Nequi rechazado.' },
+        status: 400,
+        statusText: 'Bad Request',
+        headers: {},
+        config: { headers: new AxiosHeaders() },
+      });
+      mockedApi.post.mockRejectedValueOnce(axiosError);
+
+      const result = await useCheckoutStore.getState().purchaseWithNequi(1, '3001234567');
+
+      expect(result).toBe(false);
+      expect(useCheckoutStore.getState().paymentStatus).toBe('error');
+      expect(useCheckoutStore.getState().error).toBe('Nequi rechazado.');
+    });
+
+    it('uses generic error when no detail in response', async () => {
+      mockedApi.post.mockRejectedValueOnce(new Error('Network'));
+      const result = await useCheckoutStore.getState().purchaseWithNequi(1, '3001234567');
+
+      expect(result).toBe(false);
+      expect(useCheckoutStore.getState().error).toBe('Error al procesar el pago con Nequi.');
+    });
+  });
+
+  // ----------------------------------------------------------------
+  // purchaseWithPSE
+  // ----------------------------------------------------------------
+  describe('purchaseWithPSE', () => {
+    const pseData = {
+      financial_institution_code: '1001',
+      user_type: 0,
+      user_legal_id_type: 'CC',
+      user_legal_id: '1234567890',
+      full_name: 'Test User',
+      phone_number: '573001234567',
+    };
+
+    let originalLocation: Location;
+
+    beforeEach(() => {
+      originalLocation = window.location;
+      Object.defineProperty(window, 'location', {
+        writable: true,
+        value: { ...originalLocation, href: '' },
+      });
+    });
+
+    afterEach(() => {
+      Object.defineProperty(window, 'location', {
+        writable: true,
+        value: originalLocation,
+      });
+    });
+
+    it('redirects when response includes redirect_url', async () => {
+      const intentWithRedirect = {
+        ...MOCK_INTENT_PENDING,
+        redirect_url: 'https://pse.example.com/pay',
+      };
+      mockedApi.post.mockResolvedValueOnce({ data: intentWithRedirect });
+
+      const result = await useCheckoutStore.getState().purchaseWithPSE(1, pseData);
+
+      expect(result).toBe(true);
+      expect(window.location.href).toBe('https://pse.example.com/pay');
+      expect(useCheckoutStore.getState().redirectUrl).toBe('https://pse.example.com/pay');
+      expect(useCheckoutStore.getState().paymentStatus).toBe('polling');
+    });
+
+    it('polls when response has no redirect_url', async () => {
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
+      mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
+
+      const promise = useCheckoutStore.getState().purchaseWithPSE(1, pseData);
+      await jest.advanceTimersByTimeAsync(2000);
+      const result = await promise;
+
+      expect(result).toBe(true);
+      expect(useCheckoutStore.getState().paymentStatus).toBe('success');
+    });
+
+    it('sends correct payload with PSE payment method', async () => {
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
+      mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
+
+      const promise = useCheckoutStore.getState().purchaseWithPSE(1, pseData);
+      await jest.advanceTimersByTimeAsync(2000);
+      await promise;
+
+      expect(mockedApi.post).toHaveBeenCalledWith(
+        '/subscriptions/purchase-alternative/',
+        { package_id: 1, payment_method: 'PSE', pse_data: pseData },
+        { headers: { Authorization: 'Bearer fake-token' } },
+      );
+    });
+
+    it('includes registration token when provided', async () => {
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
+      mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
+
+      const promise = useCheckoutStore.getState().purchaseWithPSE(1, pseData, 'reg-pse');
+      await jest.advanceTimersByTimeAsync(2000);
+      await promise;
+
+      expect(mockedApi.post).toHaveBeenCalledWith(
+        '/subscriptions/purchase-alternative/',
+        { package_id: 1, payment_method: 'PSE', pse_data: pseData, registration_token: 'reg-pse' },
+        { headers: { Authorization: 'Bearer fake-token' } },
+      );
+    });
+
+    it('omits auth header when token is missing', async () => {
+      mockedCookies.get.mockReturnValue(undefined);
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
+      mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
+
+      const promise = useCheckoutStore.getState().purchaseWithPSE(1, pseData);
+      await jest.advanceTimersByTimeAsync(2000);
+      await promise;
+
+      expect(mockedApi.post).toHaveBeenCalledWith(
+        '/subscriptions/purchase-alternative/',
+        expect.any(Object),
+        undefined,
+      );
+    });
+
+    it('sets error from API detail on failure', async () => {
+      const axiosError = new AxiosError('fail', '400', undefined, undefined, {
+        data: { detail: 'PSE rechazado.' },
+        status: 400,
+        statusText: 'Bad Request',
+        headers: {},
+        config: { headers: new AxiosHeaders() },
+      });
+      mockedApi.post.mockRejectedValueOnce(axiosError);
+
+      const result = await useCheckoutStore.getState().purchaseWithPSE(1, pseData);
+
+      expect(result).toBe(false);
+      expect(useCheckoutStore.getState().error).toBe('PSE rechazado.');
+    });
+
+    it('uses generic error when no detail in response', async () => {
+      mockedApi.post.mockRejectedValueOnce(new Error('Network'));
+      const result = await useCheckoutStore.getState().purchaseWithPSE(1, pseData);
+
+      expect(result).toBe(false);
+      expect(useCheckoutStore.getState().error).toBe('Error al procesar el pago con PSE.');
+    });
+  });
+
+  // ----------------------------------------------------------------
+  // purchaseWithBancolombia
+  // ----------------------------------------------------------------
+  describe('purchaseWithBancolombia', () => {
+    let originalLocation: Location;
+
+    beforeEach(() => {
+      originalLocation = window.location;
+      Object.defineProperty(window, 'location', {
+        writable: true,
+        value: { ...originalLocation, href: '' },
+      });
+    });
+
+    afterEach(() => {
+      Object.defineProperty(window, 'location', {
+        writable: true,
+        value: originalLocation,
+      });
+    });
+
+    it('redirects when response includes redirect_url', async () => {
+      const intentWithRedirect = {
+        ...MOCK_INTENT_PENDING,
+        redirect_url: 'https://bancolombia.example.com/pay',
+      };
+      mockedApi.post.mockResolvedValueOnce({ data: intentWithRedirect });
+
+      const result = await useCheckoutStore.getState().purchaseWithBancolombia(1);
+
+      expect(result).toBe(true);
+      expect(window.location.href).toBe('https://bancolombia.example.com/pay');
+      expect(useCheckoutStore.getState().redirectUrl).toBe('https://bancolombia.example.com/pay');
+    });
+
+    it('polls when response has no redirect_url', async () => {
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
+      mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
+
+      const promise = useCheckoutStore.getState().purchaseWithBancolombia(1);
+      await jest.advanceTimersByTimeAsync(2000);
+      const result = await promise;
+
+      expect(result).toBe(true);
+      expect(useCheckoutStore.getState().paymentStatus).toBe('success');
+    });
+
+    it('sends correct payload with BANCOLOMBIA_TRANSFER method', async () => {
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
+      mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
+
+      const promise = useCheckoutStore.getState().purchaseWithBancolombia(1);
+      await jest.advanceTimersByTimeAsync(2000);
+      await promise;
+
+      expect(mockedApi.post).toHaveBeenCalledWith(
+        '/subscriptions/purchase-alternative/',
+        { package_id: 1, payment_method: 'BANCOLOMBIA_TRANSFER' },
+        { headers: { Authorization: 'Bearer fake-token' } },
+      );
+    });
+
+    it('includes registration token when provided', async () => {
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
+      mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
+
+      const promise = useCheckoutStore.getState().purchaseWithBancolombia(1, 'reg-banco');
+      await jest.advanceTimersByTimeAsync(2000);
+      await promise;
+
+      expect(mockedApi.post).toHaveBeenCalledWith(
+        '/subscriptions/purchase-alternative/',
+        { package_id: 1, payment_method: 'BANCOLOMBIA_TRANSFER', registration_token: 'reg-banco' },
+        { headers: { Authorization: 'Bearer fake-token' } },
+      );
+    });
+
+    it('omits auth header when token is missing', async () => {
+      mockedCookies.get.mockReturnValue(undefined);
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
+      mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
+
+      const promise = useCheckoutStore.getState().purchaseWithBancolombia(1);
+      await jest.advanceTimersByTimeAsync(2000);
+      await promise;
+
+      expect(mockedApi.post).toHaveBeenCalledWith(
+        '/subscriptions/purchase-alternative/',
+        expect.any(Object),
+        undefined,
+      );
+    });
+
+    it('sets error from API detail on failure', async () => {
+      const axiosError = new AxiosError('fail', '400', undefined, undefined, {
+        data: { detail: 'Bancolombia rechazado.' },
+        status: 400,
+        statusText: 'Bad Request',
+        headers: {},
+        config: { headers: new AxiosHeaders() },
+      });
+      mockedApi.post.mockRejectedValueOnce(axiosError);
+
+      const result = await useCheckoutStore.getState().purchaseWithBancolombia(1);
+
+      expect(result).toBe(false);
+      expect(useCheckoutStore.getState().error).toBe('Bancolombia rechazado.');
+    });
+
+    it('uses generic error when no detail in response', async () => {
+      mockedApi.post.mockRejectedValueOnce(new Error('Network'));
+      const result = await useCheckoutStore.getState().purchaseWithBancolombia(1);
+
+      expect(result).toBe(false);
+      expect(useCheckoutStore.getState().error).toBe('Error al procesar el pago con Bancolombia.');
     });
   });
 

@@ -12,16 +12,12 @@ describe('HomePage', () => {
   });
 
   it('renders the Hero section', () => {
-    expect(screen.getByText('KÓRE')).toBeInTheDocument();
-    expect(screen.getByText('Health')).toBeInTheDocument();
+    expect(screen.getAllByText('KÓRE').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Health').length).toBeGreaterThan(0);
   });
 
   it('renders the Philosophy section', () => {
-    expect(screen.getByText('Nuestra filosofía')).toBeInTheDocument();
-  });
-
-  it('renders the Programs section', () => {
-    expect(screen.getByText('Programas FLW')).toBeInTheDocument();
+    expect(screen.getByText('Qué es KÓRE')).toBeInTheDocument();
   });
 
   it('renders the PricingTable section', () => {

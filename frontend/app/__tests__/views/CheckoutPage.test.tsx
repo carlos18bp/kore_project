@@ -137,75 +137,46 @@ describe('CheckoutPage', () => {
     expect(screen.getByText('30 días')).toBeInTheDocument();
   });
 
-  it('renders pay button after data loads', async () => {
+  it('renders payment method selector after data loads', async () => {
     render(<CheckoutPage />);
     await waitFor(() => {
-      expect(screen.getByRole('button')).toBeInTheDocument();
+      expect(screen.getByText('Elige tu m\u00e9todo de pago')).toBeInTheDocument();
     });
   });
 
-  it('initializes widget with checkout parameters', async () => {
-    const open = jest.fn();
-    const widgetCheckoutMock = jest.fn().mockImplementation(() => ({ open }));
-    window.WidgetCheckout = widgetCheckoutMock;
-
-    const script = document.createElement('script');
-    script.id = 'wompi-widget-script';
-    document.body.appendChild(script);
-
+  it('renders payment method cards for card, nequi, pse, bancolombia', async () => {
     render(<CheckoutPage />);
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Pagar/ })).toBeEnabled();
+      expect(screen.getByText('Tarjeta')).toBeInTheDocument();
     });
-
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: /Pagar/ }));
-
-    expect(widgetCheckoutMock).toHaveBeenCalledTimes(1);
-    const config = widgetCheckoutMock.mock.calls[0][0] as Record<string, unknown>;
-    expect(config.currency).toBe('COP');
-    expect(config.amountInCents).toBe(30000000);
-    expect(config.reference).toBe('ref-checkout-001');
-    expect(config.signature).toEqual({ integrity: 'sig-checkout-001' });
-    expect(config.collectCustomerLegalId).toBeUndefined();
-    expect(config['customer-data:email']).toBeUndefined();
-    expect(config['customer-data:full-name']).toBeUndefined();
-    expect(open).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Nequi')).toBeInTheDocument();
+    expect(screen.getByText('PSE')).toBeInTheDocument();
+    expect(screen.getByText('Bancolombia')).toBeInTheDocument();
   });
 
-  it('shows error when widget callback does not return a transaction id', async () => {
-    const open = jest.fn();
-    const widgetCheckoutMock = jest.fn().mockImplementation(() => ({ open }));
-    window.WidgetCheckout = widgetCheckoutMock;
-
-    const script = document.createElement('script');
-    script.id = 'wompi-widget-script';
-    document.body.appendChild(script);
-
-    render(<CheckoutPage />);
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Pagar/ })).toBeEnabled();
-    });
-
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: /Pagar/ }));
-
-    expect(open).toHaveBeenCalledTimes(1);
-    const callback = open.mock.calls[0][0] as (result: { transaction?: { id?: string } }) => Promise<void>;
-    await callback({});
-
-    expect(useCheckoutStore.getState().paymentStatus).toBe('error');
-    expect(useCheckoutStore.getState().error).toBe('No se pudo completar el pago. Intenta de nuevo.');
-  });
-
-  it('shows processing state when payment is in progress', async () => {
+  it('shows error state when checkout store has error', async () => {
     render(<CheckoutPage />);
     await waitFor(() => {
       expect(screen.getByText('Resumen del programa')).toBeInTheDocument();
     });
+    useCheckoutStore.setState({
+      paymentStatus: 'error',
+      error: 'No se pudo completar el pago. Intenta de nuevo.',
+    });
+    await waitFor(() => {
+      expect(screen.getByText('No se pudo completar el pago. Intenta de nuevo.')).toBeInTheDocument();
+    });
+  });
+
+  it('disables payment method buttons when processing', async () => {
+    render(<CheckoutPage />);
+    await waitFor(() => {
+      expect(screen.getByText('Tarjeta')).toBeInTheDocument();
+    });
     useCheckoutStore.setState({ paymentStatus: 'processing' });
     await waitFor(() => {
-      expect(screen.getByText('Procesando pago...')).toBeInTheDocument();
+      const tarjetaButton = screen.getByText('Tarjeta').closest('button');
+      expect(tarjetaButton).toBeDisabled();
     });
   });
 
@@ -278,12 +249,10 @@ describe('CheckoutPage', () => {
     });
   });
 
-  it('shows payment methods with recurring and non-recurring distinction', async () => {
+  it('shows Auto badge on recurring payment method', async () => {
     render(<CheckoutPage />);
     await waitFor(() => {
-      expect(
-        screen.getByText('Métodos disponibles: Tarjeta (recurrente), Nequi, PSE y Bancolombia Transfer (no recurrentes).'),
-      ).toBeInTheDocument();
+      expect(screen.getByText('Auto')).toBeInTheDocument();
     });
   });
 });

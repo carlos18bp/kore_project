@@ -54,7 +54,7 @@ describe('DashboardPage', () => {
   it('renders greeting with first name when user is present', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
     render(<DashboardPage />);
-    expect(screen.getByText('Hola, Customer10')).toBeInTheDocument();
+    expect(screen.getAllByText(/Customer10/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders program info card', () => {
@@ -64,34 +64,33 @@ describe('DashboardPage', () => {
     expect(screen.getAllByText('Sin programa activo').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders sessions remaining', () => {
+  it('renders progress section', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
     render(<DashboardPage />);
-    expect(screen.getByText('Sesiones restantes')).toBeInTheDocument();
-    expect(screen.getByText(/^0$/)).toBeInTheDocument();
+    expect(screen.getAllByText('Tu progreso').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('0%')).toBeInTheDocument();
   });
 
   it('renders next session card with formatted date', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
     render(<DashboardPage />);
-    expect(screen.getByText('Próxima sesión')).toBeInTheDocument();
+    expect(screen.getByText('Tu siguiente paso')).toBeInTheDocument();
   });
 
   it('renders quick action buttons', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
     render(<DashboardPage />);
     expect(screen.getByText('Acciones rápidas')).toBeInTheDocument();
-    expect(screen.getByText('Agendar sesión')).toBeInTheDocument();
     expect(screen.getByText('Mi suscripción')).toBeInTheDocument();
     expect(screen.getByText('Mis programas')).toBeInTheDocument();
     expect(screen.getByText('Soporte')).toBeInTheDocument();
   });
 
-  it('renders recent activity', () => {
+  it('renders activity history', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
     render(<DashboardPage />);
-    expect(screen.getByText('Actividad reciente')).toBeInTheDocument();
-    expect(screen.getByText('No hay actividad reciente')).toBeInTheDocument();
+    expect(screen.getByText('Tu historial')).toBeInTheDocument();
+    expect(screen.getByText('Tu historial aparecerá aquí')).toBeInTheDocument();
   });
 
   it('renders profile card with user info', () => {
@@ -102,10 +101,11 @@ describe('DashboardPage', () => {
     expect(screen.getAllByText('customer10@kore.com').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders WhatsApp support link', () => {
+  it('renders Soporte quick action linking to WhatsApp', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
     render(<DashboardPage />);
-    expect(screen.getByText('Escribir por WhatsApp')).toBeInTheDocument();
+    const supportLink = screen.getByText('Soporte').closest('a');
+    expect(supportLink).toBeInTheDocument();
   });
 
   it('renders session progress bar', () => {

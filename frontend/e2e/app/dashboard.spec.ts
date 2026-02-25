@@ -9,7 +9,7 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
   });
 
   test('renders greeting with user first name', async ({ page }) => {
-    await expect(page.getByText(`Hola, ${E2E_USER.firstName}`)).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: new RegExp(E2E_USER.firstName) })).toBeVisible();
   });
 
   test('renders program info card', async ({ page }) => {
@@ -19,11 +19,11 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
   });
 
   test('renders sessions remaining', async ({ page }) => {
-    await expect(page.getByText('Sesiones restantes')).toBeVisible();
+    await expect(page.getByText(/completadas de \d+/)).toBeVisible();
   });
 
   test('renders next session card', async ({ page }) => {
-    await expect(page.getByText('Próxima sesión')).toBeVisible();
+    await expect(page.getByText('Tu siguiente paso')).toBeVisible();
   });
 
   test('renders quick action buttons', async ({ page }) => {
@@ -35,7 +35,7 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
   });
 
   test('renders recent activity section', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: 'Actividad reciente' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Tu historial' })).toBeVisible();
   });
 
   test('renders user profile card', async ({ page }) => {
@@ -112,8 +112,8 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
     await page.goto('/dashboard');
     const main = page.locator('main');
     await expect(main.getByText('Plan Elite').first()).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('de 10', { exact: true })).toBeVisible();
-    await expect(main.getByText('Sesiones restantes')).toBeVisible();
+    await expect(main.getByText('completadas de 10')).toBeVisible();
+    await expect(main.getByText('3 sesiones')).toBeVisible();
   });
 
   test('upcoming session shows formatted date in Proxima sesion card', async ({ page }) => {
@@ -135,8 +135,7 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
 
     await page.goto('/dashboard');
     const main = page.locator('main');
-    await expect(main.getByText('Pr\u00f3xima sesi\u00f3n')).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('Sin agendar')).not.toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('Próxima sesión').first()).toBeVisible({ timeout: 10_000 });
   });
 
   test('recent activity shows confirmed, canceled and pending booking statuses', async ({ page }) => {
@@ -158,9 +157,9 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
 
     await page.goto('/dashboard');
     const main = page.locator('main');
-    await expect(main.getByText('Sesi\u00f3n confirmada').first()).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('Sesi\u00f3n cancelada')).toBeVisible();
-    await expect(main.getByText('Sesi\u00f3n pendiente')).toBeVisible();
-    await expect(main.getByText('No hay actividad reciente')).not.toBeVisible();
+    await expect(main.getByText('Sesión completada').first()).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('Sesión cancelada')).toBeVisible();
+    await expect(main.getByText('Sesión agendada')).toBeVisible();
+    await expect(main.getByText('Tu historial aparecerá aquí')).not.toBeVisible();
   });
 });

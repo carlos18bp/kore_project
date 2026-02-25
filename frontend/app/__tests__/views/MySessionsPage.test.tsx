@@ -91,20 +91,20 @@ describe('MySessionsPage', () => {
   it('renders sessions used count', () => {
     mockedUseBookingStore.mockReturnValue({ subscriptions: [MOCK_SUB], loading: false, fetchSubscriptions: mockFetchSubscriptions });
     render(<MySessionsPage />);
-    expect(screen.getByText(/3 \/ 12/)).toBeInTheDocument();
+    expect(screen.getByText(/3 de 12/)).toBeInTheDocument();
   });
 
-  it('renders sessions remaining count', () => {
+  it('renders progress percentage', () => {
     mockedUseBookingStore.mockReturnValue({ subscriptions: [MOCK_SUB], loading: false, fetchSubscriptions: mockFetchSubscriptions });
     render(<MySessionsPage />);
-    expect(screen.getByText('9')).toBeInTheDocument();
+    expect(screen.getByText('25%')).toBeInTheDocument();
   });
 
   it('subscription card links to program detail', () => {
     mockedUseBookingStore.mockReturnValue({ subscriptions: [MOCK_SUB], loading: false, fetchSubscriptions: mockFetchSubscriptions });
     render(<MySessionsPage />);
     const link = screen.getByText('Gold').closest('a');
-    expect(link).toHaveAttribute('href', '/my-programs/program/2');
+    expect(link).toHaveAttribute('href', '/my-programs/program?id=2');
   });
 
   it('renders expired badge for expired subscription', () => {

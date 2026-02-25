@@ -105,12 +105,12 @@ describe('SubscriptionPage', () => {
     render(<SubscriptionPage />);
 
     await waitFor(() => {
-      expect(screen.getByRole('option', { name: /Semi Presencial FLW/i })).toBeInTheDocument();
+      expect(screen.getAllByText('Semi Presencial FLW').length).toBeGreaterThan(0);
     });
-    expect(screen.getAllByText('3 / 10 usadas').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/3 de 10 completadas/).length).toBeGreaterThan(0);
   });
 
-  it('allows selecting inactive subscription from dropdown', async () => {
+  it('allows selecting inactive subscription from card list', async () => {
     const inactiveSub = {
       ...MOCK_SUBSCRIPTION,
       id: 2,
@@ -133,11 +133,10 @@ describe('SubscriptionPage', () => {
     render(<SubscriptionPage />);
     const user = userEvent.setup();
 
-    const dropdown = await screen.findByRole('combobox');
     await waitFor(() => {
-      expect(screen.getByRole('option', { name: /Plan Expirado/i })).toBeInTheDocument();
+      expect(screen.getByText('Plan Expirado')).toBeInTheDocument();
     });
-    await user.selectOptions(dropdown, String(inactiveSub.id));
+    await user.click(screen.getByText('Plan Expirado'));
 
     await waitFor(() => {
       expect(

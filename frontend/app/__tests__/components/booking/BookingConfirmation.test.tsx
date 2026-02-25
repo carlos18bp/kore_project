@@ -27,6 +27,7 @@ const MOCK_SUBSCRIPTION: Subscription = {
   package: { id: 1, title: 'Gold', sessions_count: 12, session_duration_minutes: 60, price: '500000', currency: 'COP', validity_days: 30 },
   sessions_total: 12, sessions_used: 3, sessions_remaining: 9,
   status: 'active', starts_at: '2025-02-01T00:00:00Z', expires_at: '2025-03-01T00:00:00Z',
+  next_billing_date: null,
 };
 
 const mockUser = {
@@ -66,7 +67,7 @@ describe('BookingConfirmation', () => {
         loading={false} error={null} onConfirm={onConfirm} onBack={onBack} />
     );
     expect(screen.getByText(/Gold/)).toBeInTheDocument();
-    expect(screen.getByText(/9 sesiones restantes/)).toBeInTheDocument();
+    expect(screen.getByText(/Sesión 4 de 12/)).toBeInTheDocument();
   });
 
   it('renders error message when provided', () => {

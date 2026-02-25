@@ -184,7 +184,10 @@ class TestSubscriptionPurchase:
 
 @pytest.mark.django_db
 class TestSubscriptionPurchaseAlternative:
+    """Tests for the alternative payment methods endpoint (Nequi, PSE, Bancolombia)."""
+
     def test_guest_purchase_alternative_requires_registration_token(self, api_client, package):
+        """Unauthenticated requests without a registration_token are rejected with 400."""
         url = reverse('subscription-purchase-alternative')
         response = api_client.post(url, {
             'package_id': package.id,
@@ -196,9 +199,10 @@ class TestSubscriptionPurchaseAlternative:
         assert 'registration_token' in response.data['detail']
 
     @patch('core_app.views.subscription_views.create_transaction_with_payment_method')
-    def test_nequi_purchase_creates_pending_intent(
+    def test_nequi_purchase_returns_201_with_pending_status(
         self, mock_create_txn, api_client, existing_user, package
     ):
+        """Nequi purchase creates a pending intent and returns 201 with correct response fields."""
         mock_create_txn.return_value = {
             'id': 'txn-nequi-001',
             'status': 'PENDING',
@@ -217,10 +221,28 @@ class TestSubscriptionPurchaseAlternative:
         assert response.data['redirect_url'] is None
         assert response.data['wompi_transaction_id'] == 'txn-nequi-001'
 
+    @patch('core_app.views.subscription_views.create_transaction_with_payment_method')
+    def test_nequi_purchase_sets_correct_payment_method(
+        self, mock_create_txn, api_client, existing_user, package
+    ):
+        """Nequi purchase stores the intent and forwards the correct payment_method to Wompi."""
+        mock_create_txn.return_value = {
+            'id': 'txn-nequi-002',
+            'status': 'PENDING',
+        }
+
+        api_client.force_authenticate(user=existing_user)
+        url = reverse('subscription-purchase-alternative')
+        response = api_client.post(url, {
+            'package_id': package.id,
+            'payment_method': 'NEQUI',
+            'phone_number': '3107654321',
+        }, format='json')
+
+        assert response.status_code == status.HTTP_201_CREATED
         intent = PaymentIntent.objects.get(reference=response.data['reference'])
         assert intent.customer == existing_user
         assert intent.payment_source_id == ''
-
         create_txn_kwargs = mock_create_txn.call_args.kwargs
         assert create_txn_kwargs['payment_method']['type'] == 'NEQUI'
         assert create_txn_kwargs['payment_method']['phone_number'] == '3107654321'
@@ -229,6 +251,7 @@ class TestSubscriptionPurchaseAlternative:
     def test_pse_purchase_returns_redirect_url_from_transaction(
         self, mock_create_txn, api_client, existing_user, package
     ):
+        """PSE purchase extracts async_payment_url from the Wompi transaction and returns it."""
         mock_create_txn.return_value = {
             'id': 'txn-pse-001',
             'status': 'PENDING',
@@ -269,6 +292,7 @@ class TestSubscriptionPurchaseAlternative:
         existing_user,
         package,
     ):
+        """Bancolombia polls until async_payment_url is available and returns it in the response."""
         mock_create_txn.return_value = {
             'id': 'txn-bancolombia-001',
             'status': 'PENDING',
@@ -296,10 +320,82 @@ class TestSubscriptionPurchaseAlternative:
         assert response.data['redirect_url'] == 'https://payments.wompi.test/bancolombia-redirect'
         assert mock_get_transaction.call_count >= 2
 
+    def test_nequi_purchase_rejects_missing_phone_number(self, api_client, existing_user, package):
+        """Nequi purchase requires a phone_number field in the request body."""
+        api_client.force_authenticate(user=existing_user)
+        url = reverse('subscription-purchase-alternative')
+        response = api_client.post(url, {
+            'package_id': package.id,
+            'payment_method': 'NEQUI',
+        }, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'phone_number' in response.data
+
+    def test_pse_purchase_rejects_missing_pse_data(self, api_client, existing_user, package):
+        """PSE purchase requires pse_data with financial institution and document info."""
+        api_client.force_authenticate(user=existing_user)
+        url = reverse('subscription-purchase-alternative')
+        response = api_client.post(url, {
+            'package_id': package.id,
+            'payment_method': 'PSE',
+        }, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'pse_data' in response.data
+
+    def test_purchase_alternative_rejects_invalid_payment_method(self, api_client, existing_user, package):
+        """Only NEQUI, PSE, and BANCOLOMBIA_TRANSFER are accepted as payment methods."""
+        api_client.force_authenticate(user=existing_user)
+        url = reverse('subscription-purchase-alternative')
+        response = api_client.post(url, {
+            'package_id': package.id,
+            'payment_method': 'INVALID_METHOD',
+        }, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'payment_method' in response.data
+
+    @patch('core_app.views.subscription_views.create_transaction_with_payment_method')
+    def test_guest_nequi_purchase_creates_intent_with_pending_fields(
+        self, mock_create_txn, api_client, package
+    ):
+        """Guest Nequi purchase stores pending registration fields on the intent."""
+        mock_create_txn.return_value = {'id': 'txn-nequi-guest-001', 'status': 'PENDING'}
+
+        registration_token = signing.dumps(
+            {
+                'email': 'guest_nequi@example.com',
+                'first_name': 'Guest',
+                'last_name': 'Nequi',
+                'phone': '3001112233',
+                'password_hash': make_password('guest-nequi-pass'),
+            },
+            salt=REGISTRATION_TOKEN_SALT,
+        )
+
+        url = reverse('subscription-purchase-alternative')
+        response = api_client.post(url, {
+            'package_id': package.id,
+            'payment_method': 'NEQUI',
+            'phone_number': '3107654321',
+            'registration_token': registration_token,
+        }, format='json')
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data['checkout_access_token']
+
+        intent = PaymentIntent.objects.get(reference=response.data['reference'])
+        assert intent.customer is None
+        assert intent.pending_email == 'guest_nequi@example.com'
+        assert intent.pending_first_name == 'Guest'
+        assert intent.public_access_token == response.data['checkout_access_token']
+
     @patch('core_app.views.subscription_views.create_transaction_with_payment_method')
     def test_purchase_alternative_returns_502_on_wompi_error(
         self, mock_create_txn, api_client, existing_user, package
     ):
+        """A WompiError raised during the transaction returns HTTP 502 to the caller."""
         from core_app.services.wompi_service import WompiError
 
         mock_create_txn.side_effect = WompiError('alt fail')
@@ -317,6 +413,7 @@ class TestSubscriptionPurchaseAlternative:
 
 @pytest.mark.django_db
 class TestSubscriptionPurchaseValidation:
+    """Validation edge cases for the subscription purchase endpoint."""
 
     def test_purchase_rejects_expired_registration_token(self, api_client, package):
         """Expired registration tokens are rejected before purchase intent creation."""
@@ -386,6 +483,7 @@ class TestSubscriptionPurchaseValidation:
         assert 'Ya existe una cuenta' in response.data['detail']
 
     def test_purchase_rejects_installments_different_than_one(self, api_client, existing_user, package):
+        """Installments != 1 are rejected by serializer validation before reaching the service."""
         api_client.force_authenticate(user=existing_user)
         url = reverse('subscription-purchase')
         response = api_client.post(url, {

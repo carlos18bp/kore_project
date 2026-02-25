@@ -1,7 +1,7 @@
 # User Flow Map
 
-Version: 1.0
-Last Updated: 2026-02-23
+Version: 1.1
+Last Updated: 2026-02-25
 Description: End-to-end user flows for the Kore frontend, grouped by role with branches for form variants and alternate outcomes.
 Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, frontend/e2e specs, frontend/app routes.
 
@@ -36,16 +36,23 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Priority: P1
 - Route: /checkout?package=ID
 - Roles: guest, user
-- Description: Purchase a subscription via the Wompi checkout widget.
+- Description: Purchase a subscription via inline payment forms (Card, Nequi, PSE, Bancolombia) processed through Wompi.
 - E2E Coverage: Covered (frontend/e2e/public/checkout.spec.ts)
 
 **Steps**
 1. Open /checkout with a package id.
-2. Package summary and payment configuration load.
-3. Click Pay to open the Wompi widget.
-4. Widget returns a transaction id and the purchase intent is created.
-5. The app polls intent status until approved or failed.
-6. Success or failure screen is shown.
+2. Package summary loads and payment method selector renders.
+3. Select a payment method (Card, Nequi, PSE, or Bancolombia).
+4. Fill in the method-specific form and submit payment.
+5. Backend creates a PaymentIntent and initiates the Wompi transaction.
+6. The app polls intent status until approved or failed.
+7. Success or failure screen is shown.
+
+**Payment Methods**
+- Card: Inline form (number, expiry, CVV, card holder) → Wompi tokenization API → POST /subscriptions/purchase/ → poll. Supports auto-renewal.
+- Nequi: Phone number form → POST /subscriptions/purchase-alternative/ (NEQUI) → poll.
+- PSE: Bank selector + document type/number + name + phone → POST /subscriptions/purchase-alternative/ (PSE) → redirect to external bank URL → poll.
+- Bancolombia: Confirmation checkbox → POST /subscriptions/purchase-alternative/ (BANCOLOMBIA_TRANSFER) → redirect to Bancolombia URL → poll.
 
 **Branches / Variations**
 - Guest with a registration token in sessionStorage can access checkout.
@@ -53,11 +60,18 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Missing package id or not found package shows a not found state.
 - Package fetch error shows a load error message.
 - Wompi config missing public_key shows a payment config error.
-- Widget script already loaded path keeps the Pay button enabled.
-- Widget callback without transaction id shows a payment error and returns to idle.
-- Approved intent shows success and may apply auto-login cookies for guests.
+- Card validation errors (invalid number, expired card, short CVV, short holder name) prevent submission.
+- Card tokenization failure shows an error and re-enables the form.
+- Nequi phone validation requires 10 digits starting with 3.
+- PSE bank list loading shows a spinner; fetch failure shows reload message.
+- PSE form validates bank selection, document, name, and phone.
+- PSE and Bancolombia payments may redirect to an external URL for completion.
+- Bancolombia requires a confirmation checkbox before submission.
+- Payment method selector shows "Auto" badge on Card (recurring) and "manual renewal" note on others.
+- Approved intent shows success screen with program details and link to /dashboard; may apply auto-login cookies for guests.
 - Failed intent shows a rejection message.
-- Polling state shows a verifying payment message before final status.
+- Polling state shows a processing indicator before final status.
+- Wompi Widget checkout path is retained as fallback code but currently inactive.
 
 ### checkout-coverage-gaps: Checkout Edge Cases
 - Module: checkout
@@ -78,6 +92,12 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Polling failure shows verifying payment then rejection message.
 - Authenticated user with stale registration token still has access.
 - Guest with valid registration token has access.
+- Card tokenization API returns validation errors (field-level messages).
+- Nequi purchase-alternative API failure shows Nequi-specific error.
+- PSE bank list fetch failure shows reload page message.
+- PSE purchase-alternative API failure shows PSE-specific error.
+- Bancolombia purchase-alternative API failure shows Bancolombia-specific error.
+- purchase-alternative 502 (Wompi gateway failure) shows generic payment error.
 
 ### booking-session-page: Book Session Page Access
 - Module: booking
@@ -158,21 +178,27 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Priority: P1
 - Route: /register
 - Roles: guest
-- Description: Register a new account and handle registration errors.
+- Description: Pre-register a new account via reCAPTCHA-protected form; the actual user account is created only after payment approval.
 - E2E Coverage: Covered (frontend/e2e/public/register.spec.ts)
 
 **Steps**
 1. Open /register (optionally with ?package=ID).
-2. Fill out required profile and password fields.
-3. Submit the registration form.
-4. Redirect to checkout on success.
+2. Fill out required profile fields (name, email, phone, password, confirm password).
+3. Complete reCAPTCHA verification (when site key is available).
+4. Submit the form to POST /auth/pre-register/.
+5. On success, store registration token + package in sessionStorage.
+6. Redirect to /checkout?package=ID.
 
 **Branches / Variations**
-- Client-side validation highlights missing or invalid fields.
+- Client-side validation: passwords must match, minimum 8 characters.
+- reCAPTCHA required when site key is loaded; missing captcha shows error.
+- No package query param shows error and redirects to /programs.
 - Server pre-register errors surface form error messages.
-- Password visibility toggle updates input masking.
-- Authenticated users are redirected to /dashboard.
+- Duplicate email shows "Ya existe una cuenta" message and auto-redirects to /login after 1 second.
+- Password visibility toggle updates input masking for both password fields.
+- Authenticated users are redirected to /dashboard (or /checkout?package=ID if package param present).
 - Package query string is preserved on redirect to /checkout.
+- reCAPTCHA resets after a failed submission attempt.
 
 ### public-home: Public Home
 - Module: public
@@ -195,7 +221,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Priority: P3
 - Route: /
 - Roles: guest
-- Description: Navigate public pages from the top navigation.
+- Description: Navigate public pages from the top navigation; navbar hides on checkout funnel pages.
 - E2E Coverage: Covered (frontend/e2e/public/navbar.spec.ts)
 
 **Steps**
@@ -204,6 +230,8 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 
 **Branches / Variations**
 - Navigation works across desktop and mobile breakpoints.
+- Navbar is hidden on /register and /checkout when a ?package= query param is present (checkout funnel).
+- CTA button shows "Iniciar sesión" for guests and "Mi sesión" for authenticated users.
 
 ### public-brand: Brand Experience
 - Module: public
@@ -273,22 +301,42 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - API failure shows an error message.
 - Retry button appears after failures.
 
+### public-terms: Terms & Conditions
+- Module: public
+- Priority: P3
+- Route: /terms
+- Roles: guest
+- Description: Static legal page displaying the service terms and conditions; linked from the Footer and checkout context.
+- E2E Coverage: Covered (frontend/e2e/public/terms.spec.ts)
+
+**Steps**
+1. Open /terms (via Footer link or direct navigation).
+2. Review the contract clauses (object, definitions, duration, payment, obligations, etc.).
+3. Use the back link to return to /programs.
+
+**Branches / Variations**
+- Footer link navigates to /terms from any public page.
+- Footer note text ("Al reservar cualquier programa, aceptas nuestros Términos y Condiciones") links to /terms.
+- Back link ("Volver a Programas") navigates to /programs.
+
 ### checkout-guest-redirect: Checkout Guest Redirect
 - Module: checkout
 - Priority: P2
 - Route: /checkout?package=ID
 - Roles: guest
-- Description: Redirect guest checkout when registration is required.
+- Description: Redirect guest checkout when registration is required; validation happens in CheckoutClient after auth hydration.
 - E2E Coverage: Covered (frontend/e2e/public/checkout-widget-errors.spec.ts)
 
 **Steps**
 1. Guest opens /checkout with a package id.
-2. App validates that a registration token exists.
-3. Redirect to /register when the token is missing.
+2. Auth store hydrates; app checks isAuthenticated and sessionStorage for registration token.
+3. If no valid token exists, redirect to /register?package=ID.
 
 **Branches / Variations**
-- Package query string is preserved in the redirect URL.
-- Guests with a valid registration token continue to checkout.
+- Package query string is preserved in the redirect URL (/register?package=ID).
+- Guests with a valid registration token (matching the current package) continue to checkout.
+- Authenticated users skip the token check entirely.
+- Registration token is cleared from sessionStorage after payment success or failure.
 
 ## User Flows
 
@@ -628,6 +676,14 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 ## Admin Flows
 - No admin-specific frontend flows mapped in the current codebase or E2E suite.
 
+## Global UX Elements
+
+These elements are present across multiple routes and affect the user experience globally.
+
+- **WhatsApp Floating Button**: A fixed green button in the bottom-right corner of all public pages. Opens an external WhatsApp conversation link. Present on all (public) layout pages.
+- **ConditionalFooter**: The public Footer is hidden on /login, /register, and /checkout routes. On all other public pages, the Footer renders with navigation links (including /terms) and social links.
+- **Navbar Checkout Funnel**: The public Navbar is hidden when the user is on /register or /checkout with a ?package= query parameter, providing a distraction-free checkout experience.
+
 ## Legend / Conventions
 
 - Priority: P1 (critical), P2 (important), P3 (nice-to-have).
@@ -675,3 +731,4 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 | public-contact | guest | P3 | Covered | frontend/e2e/public/contact.spec.ts |
 | public-faq | guest | P3 | Covered | frontend/e2e/public/faq.spec.ts |
 | public-faq-errors | guest | P3 | Covered | frontend/e2e/public/faq-error-states.spec.ts |
+| public-terms | guest | P3 | Covered | frontend/e2e/public/terms.spec.ts |

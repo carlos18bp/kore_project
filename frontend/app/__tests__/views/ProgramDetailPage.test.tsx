@@ -1,10 +1,11 @@
 import { render, screen } from '@testing-library/react';
-import ProgramDetailPage from '@/app/(app)/my-programs/program/[subscriptionId]/page';
+import ProgramDetailPage from '@/app/(app)/my-programs/program/page';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useBookingStore } from '@/lib/stores/bookingStore';
 
 jest.mock('next/navigation', () => ({
   useParams: () => ({ subscriptionId: '123' }),
+  useSearchParams: () => ({ get: (key: string) => (key === 'id' ? '123' : null) }),
 }));
 
 jest.mock('next/link', () => ({

@@ -31,7 +31,7 @@ describe('BookingSuccess', () => {
 
   it('renders as a modal overlay with backdrop', () => {
     render(<BookingSuccess booking={MOCK_BOOKING} onReset={onReset} />);
-    const backdrop = screen.getByText('Esta reunión está programada').closest('[class*="fixed inset-0"]');
+    const backdrop = screen.getByText('Tu entrenamiento está agendado').closest('[class*="fixed inset-0"]');
     expect(backdrop).toBeInTheDocument();
   });
 
@@ -58,13 +58,13 @@ describe('BookingSuccess', () => {
   it('does not call onReset when modal card clicked', async () => {
     const user = userEvent.setup();
     render(<BookingSuccess booking={MOCK_BOOKING} onReset={onReset} />);
-    await user.click(screen.getByText('Esta reunión está programada'));
+    await user.click(screen.getByText('Tu entrenamiento está agendado'));
     expect(onReset).not.toHaveBeenCalled();
   });
 
   it('renders success heading', () => {
     render(<BookingSuccess booking={MOCK_BOOKING} onReset={onReset} />);
-    expect(screen.getByText('Esta reunión está programada')).toBeInTheDocument();
+    expect(screen.getByText('Tu entrenamiento está agendado')).toBeInTheDocument();
   });
 
   it('renders email notification text', () => {
@@ -79,19 +79,19 @@ describe('BookingSuccess', () => {
 
   it('renders "Entrenamiento Kóre" in summary', () => {
     render(<BookingSuccess booking={MOCK_BOOKING} onReset={onReset} />);
-    expect(screen.getByText('Entrenamiento Kóre')).toBeInTheDocument();
+    expect(screen.getByText('Entrenamiento presencial')).toBeInTheDocument();
   });
 
-  it('renders trainer location when available', () => {
+  it('renders trainer name when available', () => {
     render(<BookingSuccess booking={MOCK_BOOKING} onReset={onReset} />);
-    expect(screen.getByText('Studio A')).toBeInTheDocument();
+    expect(screen.getByText('Germán Franco')).toBeInTheDocument();
   });
 
   it('renders program link for changes', () => {
     render(<BookingSuccess booking={MOCK_BOOKING} onReset={onReset} />);
     const link = screen.getByText('tu programa');
     expect(link).toBeInTheDocument();
-    expect(link.closest('a')).toHaveAttribute('href', '/my-programs/program/2');
+    expect(link.closest('a')).toHaveAttribute('href', '/my-programs/program?id=2');
   });
 
   it('calls onReset when "Agendar otra sesión" clicked', async () => {
@@ -105,7 +105,7 @@ describe('BookingSuccess', () => {
     const bookingNoSub = { ...MOCK_BOOKING, subscription_id_display: null };
     render(<BookingSuccess booking={bookingNoSub} onReset={onReset} />);
     const link = screen.getByText('tu programa');
-    expect(link.closest('a')).toHaveAttribute('href', '/my-programs/program/');
+    expect(link.closest('a')).toHaveAttribute('href', '/my-programs/program?id=');
   });
 
   it('does not render location row when trainer has no location', () => {

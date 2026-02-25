@@ -12,27 +12,22 @@ describe('Hero', () => {
   });
 
   it('renders the main heading with KÓRE', () => {
-    expect(screen.getByText('KÓRE')).toBeInTheDocument();
-    expect(screen.getByText('Health')).toBeInTheDocument();
+    expect(screen.getByText('KÓRE Health')).toBeInTheDocument();
+    expect(screen.getByText('Vuelve')).toBeInTheDocument();
+    expect(screen.getByText('al centro')).toBeInTheDocument();
   });
 
   it('renders the subtitle', () => {
-    expect(screen.getByText('Del origen, al núcleo, al movimiento consciente')).toBeInTheDocument();
+    expect(screen.getByText(/Un proceso de movimiento consciente/)).toBeInTheDocument();
   });
 
   it('renders the body text', () => {
-    expect(screen.getByText(/Acompañamos personas completas/)).toBeInTheDocument();
+    expect(screen.getByText(/Tu proceso no empieza con una rutina/)).toBeInTheDocument();
   });
 
   it('renders CTA links', () => {
+    expect(screen.getByText('Agenda tu valoración gratis')).toBeInTheDocument();
     expect(screen.getByText('Ver programas')).toBeInTheDocument();
-    expect(screen.getByText('Iniciar sesión')).toBeInTheDocument();
-  });
-
-  it('renders the three stats', () => {
-    expect(screen.getByText('100%')).toBeInTheDocument();
-    expect(screen.getByText('1 a 1')).toBeInTheDocument();
-    expect(screen.getByText('360°')).toBeInTheDocument();
   });
 
   it('renders the hero image with correct alt text', () => {

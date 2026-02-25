@@ -35,7 +35,7 @@ test.describe('FAQ Page', { tag: [...FlowTags.PUBLIC_FAQ, RoleTags.GUEST] }, () 
   });
 
   test('guest navigates to contact from FAQ CTA', async ({ page }) => {
-    const contactLink = page.getByRole('link', { name: 'Contactar' });
+    const contactLink = page.getByRole('link', { name: 'Contacto' }).first();
     await expect(contactLink).toBeVisible();
 
     await contactLink.click();

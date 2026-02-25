@@ -108,7 +108,7 @@ test.describe('Session Detail Modal (mocked)', { tag: [...FlowTags.BOOKING_SESSI
   test('renders confirmed booking modal with status badge and details', async ({ page }) => {
     await mockLoginAsTestUser(page);
     await setupMocks(page, mockBookingConfirmed);
-    await page.goto('/my-programs/program/11');
+    await page.goto('/my-programs/program?id=11');
     await expect(page.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 10_000 });
 
     await openSessionModal(page);
@@ -124,7 +124,7 @@ test.describe('Session Detail Modal (mocked)', { tag: [...FlowTags.BOOKING_SESSI
   test('cancel flow: opens confirmation, fills reason, confirms', async ({ page }) => {
     await mockLoginAsTestUser(page);
     await setupMocks(page, mockBookingConfirmed);
-    await page.goto('/my-programs/program/11');
+    await page.goto('/my-programs/program?id=11');
     await expect(page.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 10_000 });
 
     await openSessionModal(page);
@@ -147,7 +147,7 @@ test.describe('Session Detail Modal (mocked)', { tag: [...FlowTags.BOOKING_SESSI
   test('cancel "Volver" goes back to action buttons', async ({ page }) => {
     await mockLoginAsTestUser(page);
     await setupMocks(page, mockBookingConfirmed);
-    await page.goto('/my-programs/program/11');
+    await page.goto('/my-programs/program?id=11');
     await expect(page.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 10_000 });
 
     await openSessionModal(page);
@@ -167,7 +167,7 @@ test.describe('Session Detail Modal (mocked)', { tag: [...FlowTags.BOOKING_SESSI
   test('reschedule button navigates to /book-session', async ({ page }) => {
     await mockLoginAsTestUser(page);
     await setupMocks(page, mockBookingConfirmed);
-    await page.goto('/my-programs/program/11');
+    await page.goto('/my-programs/program?id=11');
     await expect(page.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 10_000 });
 
     await openSessionModal(page);
@@ -184,7 +184,7 @@ test.describe('Session Detail Modal (mocked)', { tag: [...FlowTags.BOOKING_SESSI
     };
     await mockLoginAsTestUser(page);
     await setupMocks(page, canceledBooking);
-    await page.goto('/my-programs/program/11');
+    await page.goto('/my-programs/program?id=11');
     await expect(page.getByRole('button', { name: 'Pasadas' })).toBeVisible({ timeout: 10_000 });
 
     // Canceled bookings show in "Pasadas" tab
@@ -206,7 +206,7 @@ test.describe('Session Detail Modal (mocked)', { tag: [...FlowTags.BOOKING_SESSI
     const pendingBooking = { ...mockBookingConfirmed, status: 'pending' };
     await mockLoginAsTestUser(page);
     await setupMocks(page, pendingBooking);
-    await page.goto('/my-programs/program/11');
+    await page.goto('/my-programs/program?id=11');
     await expect(page.getByRole('button', { name: /Pendiente/ })).toBeVisible({ timeout: 10_000 });
 
     await openSessionModal(page);
@@ -223,7 +223,7 @@ test.describe('Session Detail Modal (mocked)', { tag: [...FlowTags.BOOKING_SESSI
     };
     await mockLoginAsTestUser(page);
     await setupMocks(page, soonBooking);
-    await page.goto('/my-programs/program/11');
+    await page.goto('/my-programs/program?id=11');
     await expect(page.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 10_000 });
 
     await openSessionModal(page);
@@ -241,7 +241,7 @@ test.describe('Session Detail Modal (mocked)', { tag: [...FlowTags.BOOKING_SESSI
   test('close button dismisses the modal', async ({ page }) => {
     await mockLoginAsTestUser(page);
     await setupMocks(page, mockBookingConfirmed);
-    await page.goto('/my-programs/program/11');
+    await page.goto('/my-programs/program?id=11');
     await expect(page.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 10_000 });
 
     await openSessionModal(page);

@@ -106,7 +106,7 @@ describe('UpcomingSessionReminder', () => {
     mockedUseBookingStore.mockReturnValue({ upcomingReminder: buildReminder(12), fetchUpcomingReminder });
     render(<UpcomingSessionReminder />);
     const link = screen.getByText('Ver detalle');
-    expect(link.closest('a')).toHaveAttribute('href', '/my-programs/program/2');
+    expect(link.closest('a')).toHaveAttribute('href', '/my-programs/program?id=2');
   });
 
   it('clears justLoggedIn when detail link is clicked', async () => {

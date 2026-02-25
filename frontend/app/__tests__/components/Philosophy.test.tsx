@@ -12,25 +12,25 @@ describe('Philosophy', () => {
   });
 
   it('renders the section header', () => {
-    expect(screen.getByText('Nuestra filosofía')).toBeInTheDocument();
-    expect(screen.getByText('Salud que se construye desde el centro')).toBeInTheDocument();
+    expect(screen.getByText('Qué es KÓRE')).toBeInTheDocument();
+    expect(screen.getByText(/KÓRE representa el origen/)).toBeInTheDocument();
   });
 
   it('renders all three pillars with titles', () => {
-    expect(screen.getByText('Desde el origen')).toBeInTheDocument();
-    expect(screen.getByText('Acompañamiento real')).toBeInTheDocument();
-    expect(screen.getByText('Conocimiento profundo')).toBeInTheDocument();
+    expect(screen.getAllByText('KÓRE').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Health').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Nuestro enfoque').length).toBeGreaterThan(0);
   });
 
   it('renders pillar descriptions', () => {
-    expect(screen.getByText(/Entrenamos desde el centro del movimiento/)).toBeInTheDocument();
-    expect(screen.getByText(/No entrenamos cuerpos aislados/)).toBeInTheDocument();
-    expect(screen.getByText(/Anatomía funcional, biomecánica aplicada/)).toBeInTheDocument();
+    expect(screen.getAllByText(/El centro desde donde nace el movimiento/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Bienestar real/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Acompañamos personas completas/).length).toBeGreaterThan(0);
   });
 
   it('renders pillar images with correct alt text', () => {
-    expect(screen.getByAltText('Espiral - origen del movimiento')).toBeInTheDocument();
-    expect(screen.getByAltText('Manos abiertas - acompañamiento')).toBeInTheDocument();
-    expect(screen.getByAltText('Estudio anatómico - conocimiento del cuerpo')).toBeInTheDocument();
+    expect(screen.getAllByAltText('Espiral - origen del movimiento').length).toBeGreaterThan(0);
+    expect(screen.getAllByAltText('Manos abiertas - acompañamiento').length).toBeGreaterThan(0);
+    expect(screen.getAllByAltText('Estudio anatómico - conocimiento del cuerpo').length).toBeGreaterThan(0);
   });
 });

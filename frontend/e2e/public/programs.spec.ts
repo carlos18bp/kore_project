@@ -37,7 +37,7 @@ test.describe('Programs Page — Guest', { tag: [...FlowTags.PUBLIC_PROGRAMS, Ro
     await expect(page.getByText('Sesión Individual')).toBeVisible({ timeout: 10_000 });
     await page.getByRole('button', { name: 'Semi-personalizado', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Semi-personalizado FLW' })).toBeVisible();
-    await expect(page.getByText('Comparte el camino')).toBeVisible();
+    await expect(page.getByText('Evolucionar en compañía').first()).toBeVisible();
     await expect(page.getByText('Programa Inicial')).toBeVisible();
   });
 

@@ -232,6 +232,13 @@
       "priority": "P3",
       "roles": ["guest"],
       "description": "Handle FAQ loading, empty, and error states."
+    },
+    "public-terms": {
+      "name": "Terms & Conditions",
+      "module": "public",
+      "priority": "P3",
+      "roles": ["guest"],
+      "description": "View the terms and conditions page and navigate back to programs."
     }
   }
 }

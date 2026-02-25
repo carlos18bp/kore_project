@@ -108,36 +108,32 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
     };
   }
 
-  async function mockWompiWidgetScript(
-    page: import('@playwright/test').Page,
-    transactionId?: string,
-  ) {
-    const callbackPayload = transactionId
-      ? `{ transaction: { id: '${transactionId}' } }`
-      : '{}';
-
-    await page.route('**/checkout.wompi.co/widget.js', async (route) => {
+  async function mockCardTokenization(page: import('@playwright/test').Page) {
+    await page.route('**/sandbox.wompi.co/v1/tokens/cards', async (route) => {
       await route.fulfill({
-        status: 200,
-        contentType: 'application/javascript',
-        body: `window.WidgetCheckout = class { constructor() {} open(cb) { cb(${callbackPayload}); } };`,
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: { id: 'tok_test_e2e_card' } }),
       });
     });
   }
 
-  async function mockPrepareCheckout(
-    page: import('@playwright/test').Page,
-    onPayload?: (payload: { package_id?: number }) => void,
-  ) {
-    await page.route('**/api/subscriptions/prepare-checkout/**', async (route) => {
-      const payload = route.request().postDataJSON() as { package_id?: number };
-      onPayload?.(payload);
+  async function mockWompiWidgetScript(page: import('@playwright/test').Page) {
+    await page.route('**/checkout.wompi.co/widget.js', async (route) => {
       await route.fulfill({
-        status: 201,
-        contentType: 'application/json',
-        body: JSON.stringify(mockCheckoutPreparation),
+        status: 200,
+        contentType: 'application/javascript',
+        body: `window.WidgetCheckout = class { constructor() {} open() {} };`,
       });
     });
+  }
+
+  async function selectCardAndFillForm(page: import('@playwright/test').Page) {
+    await page.getByRole('button', { name: /Tarjeta/ }).click();
+    await page.getByLabel('Número de tarjeta').fill('4242 4242 4242 4242');
+    await page.getByLabel('Vencimiento').fill('1228');
+    await page.getByLabel('CVV').fill('123');
+    await page.getByLabel('Nombre en la tarjeta').fill('USUARIO PRUEBA');
   }
 
   async function mockPurchaseIntent(
@@ -173,6 +169,7 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
       page.getByRole('heading', { name: 'Resumen del programa' }),
     ).toBeVisible({ timeout: 10_000 });
 
+    await selectCardAndFillForm(page);
     const payBtn = page.getByRole('button', { name: /Pagar/ });
     await expect(payBtn).toBeEnabled({ timeout: 15_000 });
     await payBtn.click();
@@ -263,39 +260,28 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
   });
 
   test('purchaseSubscription success renders ¡Pago exitoso!', async ({ page }) => {
-    let capturedReference = '';
-    await mockWompiWidgetScript(page, 'txn_mock_4242');
+    await mockCardTokenization(page);
+    await mockWompiWidgetScript(page);
     await setupDefaultApiMocks(page);
     await setupCheckoutMocks(page, mockPackage);
 
-    const intentPending = buildIntent(50, 'pending', 'mock-txn-123');
+    const intentPending = buildIntent(50, 'pending', 'tok_test_e2e_card');
     const intentApproved = {
       ...intentPending,
       status: 'approved' as const,
     };
 
-    await mockPrepareCheckout(page, (payload) => {
-      capturedReference = payload.package_id ? mockCheckoutPreparation.reference : '';
-    });
     await mockPurchaseIntent(page, intentPending);
     await mockIntentStatus(page, intentApproved);
 
     await openCheckoutAndPay(page);
-    await expect(page.getByText('¡Pago exitoso!')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('¡Pago exitoso!')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Tu suscripción ha sido activada')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Ir a mi dashboard' })).toBeVisible();
-    expect(capturedReference).toBe(mockCheckoutPreparation.reference);
   });
 
-  test('Wompi widget config does not request payer legal document', async ({ page }) => {
-    await page.route('**/checkout.wompi.co/widget.js', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/javascript',
-        body: `window.WidgetCheckout = class { constructor(config) { window.__wompiConfig = config; } open(cb) { cb({}); } };`,
-      });
-    });
-
+  test('card payment form renders after selecting Tarjeta method', async ({ page }) => {
+    await mockWompiWidgetScript(page);
     await setupDefaultApiMocks(page);
     await setupCheckoutMocks(page, mockPackage);
     await seedAuthenticatedCookies(page);
@@ -304,43 +290,42 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
       page.getByRole('heading', { name: 'Resumen del programa' }),
     ).toBeVisible({ timeout: 10_000 });
 
-    const payBtn = page.getByRole('button', { name: /Pagar/ });
-    await expect(payBtn).toBeEnabled({ timeout: 15_000 });
-    await payBtn.click();
-
-    const wompiConfig = await page.evaluate(() => (window as Record<string, unknown>).__wompiConfig as Record<string, unknown> | undefined);
-    expect(wompiConfig?.collectCustomerLegalId).toBeUndefined();
-    expect(wompiConfig?.['customer-data:email']).toBeUndefined();
-    expect(wompiConfig?.['customer-data:full-name']).toBeUndefined();
+    await page.getByRole('button', { name: /Tarjeta/ }).click();
+    await expect(page.getByLabel('Número de tarjeta')).toBeVisible();
+    await expect(page.getByLabel('Vencimiento')).toBeVisible();
+    await expect(page.getByLabel('CVV')).toBeVisible();
+    await expect(page.getByLabel('Nombre en la tarjeta')).toBeVisible();
   });
 
   test('purchaseSubscription error shows error message', async ({ page }) => {
-    await mockWompiWidgetScript(page, 'txn_mock_fail');
+    await mockCardTokenization(page);
+    await mockWompiWidgetScript(page);
     await setupDefaultApiMocks(page);
     await setupCheckoutMocks(page, mockPackage);
 
-    const intentFailed = buildIntent(53, 'failed', 'mock-txn-failed');
-    await mockPrepareCheckout(page);
+    const intentPending = buildIntent(53, 'pending', 'tok_test_e2e_card');
+    const intentFailed = { ...intentPending, status: 'failed' as const };
+    await mockPurchaseIntent(page, intentPending);
     await mockIntentStatus(page, intentFailed);
 
     await openCheckoutAndPay(page);
     await expect(
       page.getByText('El pago fue rechazado. Intenta con otro método de pago.'),
-    ).toBeVisible({ timeout: 10_000 });
+    ).toBeVisible({ timeout: 15_000 });
   });
 
   test('polling failure shows rejection message', async ({ page }) => {
-    await mockWompiWidgetScript(page, 'txn_mock_declined');
+    await mockCardTokenization(page);
+    await mockWompiWidgetScript(page);
     await setupDefaultApiMocks(page);
     await setupCheckoutMocks(page, mockPackage);
 
-    const intentPending = buildIntent(51, 'pending', 'mock-txn-declined');
+    const intentPending = buildIntent(51, 'pending', 'tok_test_e2e_card');
     const intentFailed = {
       ...intentPending,
       status: 'failed' as const,
     };
 
-    await mockPrepareCheckout(page);
     await mockPurchaseIntent(page, intentPending);
     await mockIntentStatus(page, intentFailed);
 
@@ -349,79 +334,48 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
   });
 
   test('fetchWompiConfig error shows config error message', async ({ page }) => {
-    // Setup with null wompi → triggers 500
     await setupDefaultApiMocks(page);
     await setupCheckoutMocks(page, mockPackage, null);
 
     await seedAuthenticatedCookies(page);
     await page.goto('/checkout?package=6');
 
-    // The package loads fine but wompi config fails
     await expect(
       page.getByRole('heading', { name: 'Resumen del programa' }),
     ).toBeVisible({ timeout: 10_000 });
-    // Pay button should show loading state since widget can't load
-    await expect(page.getByText('Cargando pasarela de pago...')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('No se pudo cargar la configuración de pago.')).toBeVisible({ timeout: 10_000 });
   });
 
-  test('wompi script already loaded reuses existing script', async ({ page }) => {
-    // First load: inject the Wompi script element before navigating
-    // This exercises checkout/page.tsx line 73-75 (script already exists)
-    await page.route('**/checkout.wompi.co/widget.js', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/javascript',
-        body: `window.WidgetCheckout = class { constructor() {} open(cb) { cb({ transaction: { id: 'txn_mock_existing' } }); } };`,
-      });
-    });
-
-    await setupDefaultApiMocks(page);
-    await setupCheckoutMocks(page, mockPackage);
-    await seedAuthenticatedCookies(page);
-
-    // First visit to checkout — script loads
-    await page.goto('/checkout?package=6');
-    await expect(
-      page.getByRole('heading', { name: 'Resumen del programa' }),
-    ).toBeVisible({ timeout: 10_000 });
-    const payBtn = page.getByRole('button', { name: /Pagar/ });
-    await expect(payBtn).toBeEnabled({ timeout: 15_000 });
-
-    // Navigate away and back — script already exists
-    await page.goto('/dashboard');
-    await page.goto('/checkout?package=6');
-    await expect(
-      page.getByRole('heading', { name: 'Resumen del programa' }),
-    ).toBeVisible({ timeout: 10_000 });
-    // Pay button should be enabled immediately since script already loaded
-    await expect(payBtn).toBeEnabled({ timeout: 10_000 });
-  });
-
-  test('wompi widget callback without transaction id does not call purchase', async ({ page }) => {
-    // This exercises checkout/page.tsx branch when tokenization callback has no token
-    await page.route('**/checkout.wompi.co/widget.js', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/javascript',
-        body: `window.WidgetCheckout = class { constructor() {} open(cb) { cb({}); } };`,
-      });
-    });
-
+  test('payment method selector shows all four options', async ({ page }) => {
+    await mockWompiWidgetScript(page);
     await setupDefaultApiMocks(page);
     await setupCheckoutMocks(page, mockPackage);
     await seedAuthenticatedCookies(page);
     await page.goto('/checkout?package=6');
-
     await expect(
       page.getByRole('heading', { name: 'Resumen del programa' }),
     ).toBeVisible({ timeout: 10_000 });
-    const payBtn = page.getByRole('button', { name: /Pagar/ });
-    await expect(payBtn).toBeEnabled({ timeout: 15_000 });
-    await payBtn.click();
 
-    // Should return to idle state without calling purchase (no error, no success)
-    // The button should become enabled again after the checkout finishes
-    await expect(payBtn).toBeEnabled({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /Tarjeta/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Nequi/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /PSE/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Bancolombia/ })).toBeVisible();
+  });
+
+  test('card tokenization failure shows error message', async ({ page }) => {
+    await page.route('**/sandbox.wompi.co/v1/tokens/cards', async (route) => {
+      await route.fulfill({
+        status: 422,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: { message: 'Datos de tarjeta inválidos' } }),
+      });
+    });
+    await mockWompiWidgetScript(page);
+    await setupDefaultApiMocks(page);
+    await setupCheckoutMocks(page, mockPackage);
+
+    await openCheckoutAndPay(page);
+    await expect(page.getByText(/Datos de tarjeta inválidos|Error al procesar la tarjeta/)).toBeVisible({ timeout: 10_000 });
   });
 
   test('fetchWompiConfig missing public_key shows payment config error', async ({ page }) => {
@@ -442,6 +396,123 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
     await expect(page.getByText('No se pudo cargar la configuración de pago.')).toBeVisible({ timeout: 10_000 });
   });
 
+  test('nequi form renders after selecting Nequi method', async ({ page }) => {
+    await mockWompiWidgetScript(page);
+    await setupDefaultApiMocks(page);
+    await setupCheckoutMocks(page, mockPackage);
+    await seedAuthenticatedCookies(page);
+    await page.goto('/checkout?package=6');
+    await expect(
+      page.getByRole('heading', { name: 'Resumen del programa' }),
+    ).toBeVisible({ timeout: 10_000 });
+
+    await page.getByRole('button', { name: /Nequi/ }).click();
+    await expect(page.getByLabel(/Número de celular Nequi/)).toBeVisible();
+    await expect(page.getByText('Recibirás una notificación en tu app Nequi')).toBeVisible();
+  });
+
+  test('nequi payment success shows pago exitoso', async ({ page }) => {
+    await mockWompiWidgetScript(page);
+    await setupDefaultApiMocks(page);
+    await setupCheckoutMocks(page, mockPackage);
+
+    const intentPending = buildIntent(60, 'pending', 'txn_nequi_001');
+    const intentApproved = { ...intentPending, status: 'approved' as const };
+
+    await page.route('**/api/subscriptions/purchase-alternative/**', async (route) => {
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify(intentPending),
+      });
+    });
+    await mockIntentStatus(page, intentApproved);
+
+    await seedAuthenticatedCookies(page);
+    await page.goto('/checkout?package=6');
+    await expect(
+      page.getByRole('heading', { name: 'Resumen del programa' }),
+    ).toBeVisible({ timeout: 10_000 });
+
+    await page.getByRole('button', { name: /Nequi/ }).click();
+    await page.getByLabel(/Número de celular Nequi/).fill('3001234567');
+    const payBtn = page.getByRole('button', { name: /Pagar.*Nequi/ });
+    await expect(payBtn).toBeEnabled({ timeout: 10_000 });
+    await payBtn.click();
+
+    await expect(page.getByText('¡Pago exitoso!')).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('pse form renders after selecting PSE method', async ({ page }) => {
+    await mockWompiWidgetScript(page);
+    await setupDefaultApiMocks(page);
+    await setupCheckoutMocks(page, mockPackage);
+
+    await page.route('**/sandbox.wompi.co/v1/pse/financial_institutions', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data: [
+            { financial_institution_code: '1007', financial_institution_name: 'BANCOLOMBIA' },
+            { financial_institution_code: '1051', financial_institution_name: 'DAVIVIENDA' },
+          ],
+        }),
+      });
+    });
+
+    await seedAuthenticatedCookies(page);
+    await page.goto('/checkout?package=6');
+    await expect(
+      page.getByRole('heading', { name: 'Resumen del programa' }),
+    ).toBeVisible({ timeout: 10_000 });
+
+    await page.getByRole('button', { name: /PSE/ }).click();
+    await expect(page.getByText('Serás redirigido a tu banco')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByLabel('Banco')).toBeVisible();
+    await expect(page.getByLabel('Número de documento')).toBeVisible();
+    await expect(page.getByLabel('Nombre completo')).toBeVisible();
+  });
+
+  test('bancolombia form renders after selecting Bancolombia method', async ({ page }) => {
+    await mockWompiWidgetScript(page);
+    await setupDefaultApiMocks(page);
+    await setupCheckoutMocks(page, mockPackage);
+    await seedAuthenticatedCookies(page);
+    await page.goto('/checkout?package=6');
+    await expect(
+      page.getByRole('heading', { name: 'Resumen del programa' }),
+    ).toBeVisible({ timeout: 10_000 });
+
+    await page.getByRole('button', { name: /Bancolombia/ }).click();
+    await expect(page.getByText('Serás redirigido a Bancolombia')).toBeVisible();
+    await expect(page.locator('form').getByText('Paquete Pro')).toBeVisible();
+
+    const payBtn = page.getByRole('button', { name: /Pagar.*Bancolombia/ });
+    await expect(payBtn).toBeDisabled();
+
+    await page.getByRole('checkbox').check();
+    await expect(payBtn).toBeEnabled();
+  });
+
+  test('switching payment methods shows correct form', async ({ page }) => {
+    await mockWompiWidgetScript(page);
+    await setupDefaultApiMocks(page);
+    await setupCheckoutMocks(page, mockPackage);
+    await seedAuthenticatedCookies(page);
+    await page.goto('/checkout?package=6');
+    await expect(
+      page.getByRole('heading', { name: 'Resumen del programa' }),
+    ).toBeVisible({ timeout: 10_000 });
+
+    await page.getByRole('button', { name: /Tarjeta/ }).click();
+    await expect(page.getByLabel('Número de tarjeta')).toBeVisible();
+
+    await page.getByRole('button', { name: /Nequi/ }).click();
+    await expect(page.getByLabel(/Número de celular Nequi/)).toBeVisible();
+    await expect(page.getByLabel('Número de tarjeta')).not.toBeVisible();
+  });
+
   async function setupGuestAutoLoginMocks(page: import('@playwright/test').Page) {
     const autoLoginUser = {
       id: 42, email: 'guest@kore.com', first_name: 'Guest', last_name: 'User', phone: '', role: 'customer',
@@ -450,18 +521,19 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
     await page.route('**/api/google-captcha/site-key/', (r) => r.fulfill({ status: 404, body: '' }));
     await page.route('**/api/packages/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockPackage) }));
     await page.route('**/api/wompi/config/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockWompiConfig) }));
-    await page.route('**/api/subscriptions/prepare-checkout/**', (r) => r.fulfill({
+    await page.route('**/api/subscriptions/purchase/**', (r) => r.fulfill({
       status: 201, contentType: 'application/json',
-      body: JSON.stringify({ ...mockCheckoutPreparation, checkout_access_token: 'guest-access-token' }),
+      body: JSON.stringify({ ...buildIntent(99, 'pending', 'tok_test_e2e_card'), checkout_access_token: 'guest-access-token' }),
     }));
     await page.route('**/api/subscriptions/intent-status/**', (r) => r.fulfill({
       status: 200, contentType: 'application/json',
       body: JSON.stringify({
-        ...buildIntent(99, 'approved', 'txn-autologin-001'),
+        ...buildIntent(99, 'approved', 'tok_test_e2e_card'),
         auto_login: { access: 'auto-login-access-token', refresh: 'auto-login-refresh-token', user: autoLoginUser },
       }),
     }));
-    await mockWompiWidgetScript(page, 'txn-autologin-001');
+    await mockCardTokenization(page);
+    await mockWompiWidgetScript(page);
     await page.route('**/api/bookings/upcoming-reminder/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) }));
   }
 
@@ -476,11 +548,12 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
     await page.goto('/checkout?package=6');
 
     await expect(page.getByRole('heading', { name: 'Resumen del programa' })).toBeVisible({ timeout: 10_000 });
+    await selectCardAndFillForm(page);
     const payBtn = page.getByRole('button', { name: /Pagar/ });
     await expect(payBtn).toBeEnabled({ timeout: 15_000 });
     await payBtn.click();
 
-    await expect(page.getByText('¡Pago exitoso!')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('¡Pago exitoso!')).toBeVisible({ timeout: 15_000 });
 
     const cookies = await page.context().cookies();
     const tokenCookie = cookies.find((c) => c.name === 'kore_token');

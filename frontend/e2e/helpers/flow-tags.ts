@@ -39,6 +39,7 @@ export const FlowTags = {
   PUBLIC_CONTACT: ['@flow:public-contact', '@module:public', '@priority:P3'],
   PUBLIC_FAQ: ['@flow:public-faq', '@module:public', '@priority:P3'],
   PUBLIC_FAQ_ERRORS: ['@flow:public-faq-errors', '@module:public', '@priority:P3'],
+  PUBLIC_TERMS: ['@flow:public-terms', '@module:public', '@priority:P3'],
 };
 
 export const RoleTags = {

@@ -26,17 +26,17 @@ describe('KoreBrandPage', () => {
   });
 
   it('renders the three differentiator cards', () => {
-    expect(screen.getByText('Desde el origen')).toBeInTheDocument();
-    expect(screen.getByText('Salud antes que exigencia')).toBeInTheDocument();
-    expect(screen.getByText('Procesos, no atajos')).toBeInTheDocument();
+    expect(screen.getAllByText('Desde el origen').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Salud antes que exigencia').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Procesos, no atajos').length).toBeGreaterThan(0);
   });
 
   it('renders the interactive flower section with pillar labels', () => {
-    expect(screen.getByText('Equilibrio')).toBeInTheDocument();
-    expect(screen.getByText('Consciencia')).toBeInTheDocument();
-    expect(screen.getByText('Bienestar')).toBeInTheDocument();
-    expect(screen.getByText('Origen')).toBeInTheDocument();
-    expect(screen.getByText('Movimiento')).toBeInTheDocument();
+    expect(screen.getAllByText('Equilibrio').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Consciencia').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Bienestar').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Origen').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Movimiento').length).toBeGreaterThan(0);
   });
 
   it('renders the diagnostic process section', () => {
@@ -58,7 +58,7 @@ describe('KoreBrandPage', () => {
   });
 
   it('renders CTA buttons in the hero', () => {
-    expect(screen.getByText('Nuestros programas')).toBeInTheDocument();
-    expect(screen.getByText('Nuestra esencia')).toBeInTheDocument();
+    expect(screen.getAllByText('Nuestros programas').length).toBeGreaterThan(0);
+    expect(screen.getByText('Nuestra Esencia')).toBeInTheDocument();
   });
 });

@@ -134,7 +134,7 @@ test.describe('Booking Store Error Paths', { tag: [...FlowTags.BOOKING_ERROR_PAT
       await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'Server error' }) });
     });
 
-    await page.goto('/my-programs/program/11');
+    await page.goto('/my-programs/program?id=11');
 
     // Should show empty state since bookings couldn't load
     await expect(page.getByRole('heading', { name: 'Programa', exact: true })).toBeVisible({ timeout: 10_000 });
@@ -149,7 +149,7 @@ test.describe('Booking Store Error Paths', { tag: [...FlowTags.BOOKING_ERROR_PAT
     await page.goto('/dashboard');
 
     // Dashboard should still render
-    await expect(page.getByText('Hola,')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { level: 1, name: /Usuario/ })).toBeVisible({ timeout: 10_000 });
   });
 
   test('cancelBooking error keeps modal open and shows error', async ({ page }) => {
@@ -157,7 +157,7 @@ test.describe('Booking Store Error Paths', { tag: [...FlowTags.BOOKING_ERROR_PAT
     const fixtures = buildCancelableBookingFixtures();
     await mockCancelBookingFailureRoutes(page, fixtures);
 
-    await page.goto('/my-programs/program/11');
+    await page.goto('/my-programs/program?id=11');
     await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
 
     // Open session detail modal

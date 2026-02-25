@@ -8,6 +8,7 @@ const mockPush = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
+  useSearchParams: () => ({ get: () => null }),
 }));
 
 jest.mock('next/image', () => ({
@@ -51,7 +52,7 @@ describe('ProgramsPage', () => {
   it('shows Personalizado program by default', async () => {
     render(<ProgramsPage />);
     expect(screen.getByText('Personalizado FLW')).toBeInTheDocument();
-    expect(screen.getByText('Tu proceso, tu ritmo')).toBeInTheDocument();
+    expect(screen.getAllByText('Tu proceso. Tu ritmo.').length).toBeGreaterThan(0);
   });
 
   it('fetches packages from API on mount', async () => {
@@ -81,7 +82,7 @@ describe('ProgramsPage', () => {
     await user.click(semiButton.closest('button')!);
 
     expect(screen.getByText('Semi-personalizado FLW')).toBeInTheDocument();
-    expect(screen.getByText('Comparte el camino')).toBeInTheDocument();
+    expect(screen.getAllByText('Evolucionar en compañía, progresar con método.').length).toBeGreaterThan(0);
     await waitFor(() => {
       expect(screen.getByText('Programa Inicial')).toBeInTheDocument();
     });
@@ -98,7 +99,7 @@ describe('ProgramsPage', () => {
     await user.click(terapeuticoButton.closest('button')!);
 
     expect(screen.getByText('Terapéutico FLW')).toBeInTheDocument();
-    expect(screen.getByText('Movimiento como medicina')).toBeInTheDocument();
+    expect(screen.getAllByText('Recuperar el movimiento. Restaurar el equilibrio.').length).toBeGreaterThan(0);
   });
 
   it('navigates to register with numeric package ID when unauthenticated', async () => {
@@ -170,7 +171,7 @@ describe('ProgramsPage', () => {
   it('formats prices correctly', async () => {
     render(<ProgramsPage />);
     await waitFor(() => {
-      expect(screen.getByText('$85,000')).toBeInTheDocument();
+      expect(screen.getByText('$85.000')).toBeInTheDocument();
     });
   });
 

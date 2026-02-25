@@ -17,26 +17,26 @@ describe('Process', () => {
   });
 
   it('renders all six steps with their numbers', () => {
-    expect(screen.getByText('01')).toBeInTheDocument();
-    expect(screen.getByText('02')).toBeInTheDocument();
-    expect(screen.getByText('03')).toBeInTheDocument();
-    expect(screen.getByText('04')).toBeInTheDocument();
-    expect(screen.getByText('05')).toBeInTheDocument();
-    expect(screen.getByText('06')).toBeInTheDocument();
+    expect(screen.getAllByText('01').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('02').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('03').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('04').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('05').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('06').length).toBeGreaterThan(0);
   });
 
   it('renders step titles', () => {
-    expect(screen.getByText('Primer contacto')).toBeInTheDocument();
-    expect(screen.getByText('Diagnóstico inicial')).toBeInTheDocument();
-    expect(screen.getByText('Evaluación completa')).toBeInTheDocument();
-    expect(screen.getByText('Tu programa')).toBeInTheDocument();
-    expect(screen.getByText('Sesiones guiadas')).toBeInTheDocument();
-    expect(screen.getByText('Seguimiento continuo')).toBeInTheDocument();
+    expect(screen.getAllByText('Primer contacto').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Diagnóstico inicial').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Evaluación completa').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Tu programa').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Sesiones guiadas').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Seguimiento continuo').length).toBeGreaterThan(0);
   });
 
   it('renders step descriptions', () => {
-    expect(screen.getByText(/Nos escribes por la web o WhatsApp/)).toBeInTheDocument();
-    expect(screen.getByText(/Anamnesis completa/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Nos escribes por la web o WhatsApp/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Anamnesis completa/).length).toBeGreaterThan(0);
   });
 
   it('renders the process image', () => {

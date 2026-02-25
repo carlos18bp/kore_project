@@ -20,13 +20,13 @@ describe('Gallery', () => {
     expect(screen.getByText(/Las ilustraciones anatómicas son un elemento distintivo/)).toBeInTheDocument();
   });
 
-  it('renders all 10 gallery images with alt text', () => {
+  it('renders gallery images with alt text', () => {
     const images = screen.getAllByRole('img');
-    expect(images.length).toBe(10);
+    expect(images.length).toBe(16);
 
-    expect(screen.getByAltText('Estudio anatómico - espalda')).toBeInTheDocument();
-    expect(screen.getByAltText('Flor de Kóre - armonía y vitalidad')).toBeInTheDocument();
-    expect(screen.getByAltText('Silueta en movimiento')).toBeInTheDocument();
-    expect(screen.getByAltText('Espiral - origen del movimiento')).toBeInTheDocument();
+    expect(screen.getAllByAltText('Estudio anatómico - espalda').length).toBeGreaterThan(0);
+    expect(screen.getAllByAltText('Flor de Kóre - armonía y vitalidad').length).toBeGreaterThan(0);
+    expect(screen.getAllByAltText('Silueta en movimiento').length).toBeGreaterThan(0);
+    expect(screen.getAllByAltText('Espiral - origen del movimiento').length).toBeGreaterThan(0);
   });
 });

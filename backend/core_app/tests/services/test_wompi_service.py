@@ -187,6 +187,7 @@ class TestCreateTransaction:
     @override_settings(**WOMPI_SETTINGS)
     @patch('core_app.services.wompi_service.requests.post')
     def test_normalizes_installments_to_one(self, mock_post):
+        """Installments <= 0 are normalized to 1 before sending to Wompi."""
         mock_resp = MagicMock()
         mock_resp.raise_for_status.return_value = None
         mock_resp.json.return_value = {
@@ -204,16 +205,20 @@ class TestCreateTransaction:
             installments=0,
         )
 
+        mock_post.assert_called_once()
         call_kwargs = mock_post.call_args
         payload = call_kwargs.kwargs.get('json') or call_kwargs[1].get('json')
         assert payload['payment_method']['installments'] == 1
 
 
 class TestCreateTransactionWithPaymentMethod:
+    """Tests for create_transaction_with_payment_method (PSE, Nequi, Bancolombia)."""
+
     @override_settings(**WOMPI_SETTINGS)
     @patch('core_app.services.wompi_service.get_acceptance_token', return_value='accept_test_123')
     @patch('core_app.services.wompi_service.requests.post')
     def test_returns_transaction_data(self, mock_post, mock_acceptance):
+        """A valid payment_method dict produces a transaction with the expected payload."""
         mock_resp = MagicMock()
         mock_resp.raise_for_status.return_value = None
         mock_resp.json.return_value = {
@@ -239,6 +244,7 @@ class TestCreateTransactionWithPaymentMethod:
             },
         )
 
+        mock_acceptance.assert_called_once()
         assert txn['id'] == 'txn-alt-001'
         call_kwargs = mock_post.call_args
         payload = call_kwargs.kwargs.get('json') or call_kwargs[1].get('json')
@@ -248,7 +254,8 @@ class TestCreateTransactionWithPaymentMethod:
 
     @override_settings(**WOMPI_SETTINGS)
     def test_requires_payment_method_dict(self):
-        with pytest.raises(WompiError, match='payment_method must be a non-empty object'):
+        """Passing None as payment_method raises WompiError before any HTTP call."""
+        with pytest.raises(WompiError, match='payment_method must be a non-empty object') as exc_info:
             create_transaction_with_payment_method(
                 amount_in_cents=2500000,
                 currency='COP',
@@ -256,6 +263,7 @@ class TestCreateTransactionWithPaymentMethod:
                 reference='kore-alt-ref-002',
                 payment_method=None,
             )
+        assert 'payment_method must be a non-empty object' in str(exc_info.value)
 
 
 class TestVerifyEventChecksum:

@@ -6,11 +6,11 @@ test.describe('Home Page', { tag: [...FlowTags.PUBLIC_HOME, RoleTags.GUEST] }, (
     await page.goto('/');
     await expect(page).toHaveURL('/');
 
-    await expect(page.getByRole('heading', { name: 'KÓRE Health' })).toBeVisible();
-    const cta = page.getByRole('link', { name: 'Ver programas' });
+    await expect(page.getByRole('heading', { level: 1, name: 'Vuelve al centro' })).toBeVisible();
+    const cta = page.getByRole('link', { name: 'Ver programas' }).first();
     await expect(cta).toBeVisible();
 
     await cta.click();
-    await expect(page).toHaveURL('/#programs');
+    await expect(page).toHaveURL('/programs');
   });
 });

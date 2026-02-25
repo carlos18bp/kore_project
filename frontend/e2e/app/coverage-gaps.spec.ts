@@ -148,8 +148,8 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
     // Verify SubscriptionCard renders with active subscription details
     await expect(page.getByText('Paquete Pro')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('Activo')).toBeVisible();
-    await expect(page.getByText('3 / 8')).toBeVisible();
-    await expect(page.getByText('5').first()).toBeVisible(); // sessions_remaining
+    await expect(page.getByText('3 de 8 completadas')).toBeVisible();
+    await expect(page.getByText('38%')).toBeVisible(); // progress percentage
   });
 
   test('my-programs shows SubscriptionCard with expired subscription', async ({ page }) => {

@@ -186,20 +186,18 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
     await expect(main.getByText(E2E_USER.fullName)).toBeVisible();
     await expect(main.getByText(E2E_USER.email)).toBeVisible();
 
-    const confirmPanel = main.locator('label:has-text("Programa") + p');
-    await expect(confirmPanel.getByText(/Paquete Pro/)).toBeVisible();
-    await expect(confirmPanel.getByText(/sesiones restantes/)).toBeVisible();
+    await expect(main.getByText(/Paquete Pro .+ Sesión \d+ de \d+/)).toBeVisible({ timeout: 10_000 });
     await expect(main.getByText('60 min')).toBeVisible();
     await expect(main.getByText('En persona')).toBeVisible();
   }
 
   async function expectSuccessModal(main: import('@playwright/test').Locator) {
     const modal = main.locator('.fixed.inset-0.z-50');
-    await expect(modal.getByText('Esta reunión está programada')).toBeVisible({ timeout: 10_000 });
+    await expect(modal.getByText('Tu entrenamiento está agendado')).toBeVisible({ timeout: 10_000 });
     await expect(modal.getByText('Hemos enviado un correo electrónico')).toBeVisible();
-    await expect(modal.getByText('Entrenamiento Kóre')).toBeVisible();
+    await expect(modal.getByText('Entrenamiento presencial')).toBeVisible();
     await expect(modal.getByText('Germán Franco')).toBeVisible();
-    await expect(modal.getByText('Reprogramar o Cancelar')).toBeVisible();
+    await expect(modal.getByText('reprogramar o cancelar')).toBeVisible();
     await expect(modal.getByText('Agendar otra sesión')).toBeVisible();
   }
 
@@ -248,7 +246,7 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
     await selectPrimarySlot(page);
     await expect(page.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
     await page.getByRole('button', { name: 'Confirmar' }).click();
-    await expect(page.getByText('Esta reunión está programada')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('Tu entrenamiento está agendado')).toBeVisible({ timeout: 10_000 });
 
     // Click "Agendar otra sesión"
     await page.getByText('Agendar otra sesión').click();

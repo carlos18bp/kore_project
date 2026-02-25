@@ -54,6 +54,52 @@ describe('useScrollAnimations', () => {
       expect(revertMock).toHaveBeenCalled();
     });
 
+    it('exercises mobile animation path with opacity-only fade', () => {
+      const originalInnerWidth = window.innerWidth;
+      Object.defineProperty(window, 'innerWidth', { writable: true, value: 500 });
+
+      const ref = { current: buildTextRevealContainer() };
+
+      let contextCallback: (() => void) | null = null;
+      (gsap.context as jest.Mock).mockImplementationOnce((cb: () => void) => {
+        contextCallback = cb;
+        return { revert: jest.fn() };
+      });
+
+      renderHook(() => useTextReveal(ref));
+
+      expect(contextCallback).not.toBeNull();
+      contextCallback!();
+
+      expect(gsap.set).toHaveBeenCalled();
+      expect(gsap.to).toHaveBeenCalled();
+
+      Object.defineProperty(window, 'innerWidth', { writable: true, value: originalInnerWidth });
+    });
+
+    it('skips elements inside .swiper containers', () => {
+      const container = document.createElement('div');
+      const swiper = document.createElement('div');
+      swiper.classList.add('swiper');
+      const swiperChild = document.createElement('div');
+      swiperChild.setAttribute('data-animate', 'fade-up');
+      swiper.appendChild(swiperChild);
+      container.appendChild(swiper);
+
+      const ref = { current: container };
+
+      let contextCallback: (() => void) | null = null;
+      (gsap.context as jest.Mock).mockImplementationOnce((cb: () => void) => {
+        contextCallback = cb;
+        return { revert: jest.fn() };
+      });
+
+      renderHook(() => useTextReveal(ref));
+      contextCallback!();
+
+      expect(gsap.set).not.toHaveBeenCalled();
+    });
+
     it('exercises animation branches including fade-up-slow via gsap.context callback', () => {
       const ref = { current: buildTextRevealContainer() };
 
@@ -148,6 +194,50 @@ describe('useScrollAnimations', () => {
         image,
       ]));
       expect(timeline.from).toHaveBeenCalledTimes(7);
+    });
+
+    it('animates hero elements with mobile-specific opacity-only animations', () => {
+      const originalInnerWidth = window.innerWidth;
+      Object.defineProperty(window, 'innerWidth', { writable: true, value: 500 });
+
+      const container = document.createElement('div');
+      const badge = document.createElement('div');
+      badge.setAttribute('data-hero', 'badge');
+      const heading = document.createElement('div');
+      heading.setAttribute('data-hero', 'heading');
+      const subtitle = document.createElement('div');
+      subtitle.setAttribute('data-hero', 'subtitle');
+      const body = document.createElement('div');
+      body.setAttribute('data-hero', 'body');
+      const cta = document.createElement('div');
+      cta.setAttribute('data-hero', 'cta');
+      const stats = document.createElement('div');
+      stats.setAttribute('data-hero', 'stats');
+      const image = document.createElement('div');
+      image.setAttribute('data-hero', 'image');
+
+      container.appendChild(badge);
+      container.appendChild(heading);
+      container.appendChild(subtitle);
+      container.appendChild(body);
+      container.appendChild(cta);
+      container.appendChild(stats);
+      container.appendChild(image);
+
+      const ref = { current: container };
+
+      renderHook(() => useHeroAnimation(ref));
+
+      expect(gsap.timeline).toHaveBeenCalledWith({ defaults: { ease: 'power3.out' } });
+      const timeline = (gsap.timeline as jest.Mock).mock.results[0].value;
+      expect(timeline.from).toHaveBeenCalledTimes(7);
+
+      const badgeCall = timeline.from.mock.calls[0];
+      expect(badgeCall[0]).toBe(badge);
+      expect(badgeCall[1]).toEqual(expect.objectContaining({ opacity: 0, duration: 0.4 }));
+      expect(badgeCall[1]).not.toHaveProperty('y');
+
+      Object.defineProperty(window, 'innerWidth', { writable: true, value: originalInnerWidth });
     });
 
     it('omits position offset when heading renders without badge', () => {

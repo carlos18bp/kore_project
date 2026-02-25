@@ -50,14 +50,14 @@ test.describe('My Programs Flow — Program Detail & Session Detail (mocked)', {
     await expect(page.getByText('Paquete Navegación')).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole('link', { name: /Paquete Navegación/ }).click();
-    await page.waitForURL(`**/my-programs/program/${navSubId}`);
+    await page.waitForURL(`**/my-programs/program?id=${navSubId}`);
 
     const main = page.getByRole('main');
     await expect(main.getByRole('link', { name: 'Mis Programas' })).toBeVisible();
-    await expect(main.getByText('Restantes')).toBeVisible();
+    await expect(main.getByText('Completadas')).toBeVisible();
     await expect(main.getByText('Total')).toBeVisible();
     await expect(main.getByText('Vencimiento')).toBeVisible();
-    await expect(main.getByText('Usadas')).toBeVisible();
+    await expect(main.getByText('Avance')).toBeVisible();
   });
 
   test('program detail page renders upcoming/past tabs', async ({ page }) => {
@@ -65,7 +65,7 @@ test.describe('My Programs Flow — Program Detail & Session Detail (mocked)', {
     const pastSlotEnd = new Date(Date.now() - 3 * 86400000 + 3600000).toISOString();
     const pastBk = { id: 310, status: 'confirmed', slot: { id: 410, starts_at: pastSlotStart, ends_at: pastSlotEnd }, trainer: null, package: { title: 'Paquete Navegación' } };
     await setupListAndDetailMocks(page, [pastBk]);
-    await page.goto(`/my-programs/program/${navSubId}`);
+    await page.goto(`/my-programs/program?id=${navSubId}`);
 
     const main = page.getByRole('main');
     await expect(main.getByRole('button', { name: 'Próximas' })).toBeVisible({ timeout: 10_000 });
@@ -80,7 +80,7 @@ test.describe('My Programs Flow — Program Detail & Session Detail (mocked)', {
 
   test('program detail shows empty state for upcoming when no bookings', async ({ page }) => {
     await setupListAndDetailMocks(page, []);
-    await page.goto(`/my-programs/program/${navSubId}`);
+    await page.goto(`/my-programs/program?id=${navSubId}`);
 
     const main = page.getByRole('main');
     await expect(main.getByText('No tienes sesiones próximas.')).toBeVisible({ timeout: 10_000 });
@@ -93,7 +93,7 @@ test.describe('My Programs Flow — Program Detail & Session Detail (mocked)', {
 
   test('breadcrumb navigates back to my-programs', async ({ page }) => {
     await setupListAndDetailMocks(page, []);
-    await page.goto(`/my-programs/program/${navSubId}`);
+    await page.goto(`/my-programs/program?id=${navSubId}`);
 
     const main = page.getByRole('main');
     await expect(main.getByText('Paquete Navegación').first()).toBeVisible({ timeout: 10_000 });
@@ -175,17 +175,17 @@ test.describe('Program Detail Page — mocked data branches', { tag: [...FlowTag
 
   test('program detail renders header card with subscription data', async ({ page }) => {
     await setupProgramDetailMocks(page, [upcomingBooking]);
-    await page.goto(`/my-programs/program/${subId}`);
+    await page.goto(`/my-programs/program?id=${subId}`);
     const main = page.getByRole('main');
     await expect(main.getByText('Paquete Elite').first()).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('Restantes')).toBeVisible();
-    await expect(main.getByText('Usadas')).toBeVisible();
+    await expect(main.getByText('Completadas')).toBeVisible();
+    await expect(main.getByText('Avance')).toBeVisible();
     await expect(main.getByText('Activo')).toBeVisible();
   });
 
   test('upcoming tab shows future confirmed bookings with trainer name', async ({ page }) => {
     await setupProgramDetailMocks(page, [upcomingBooking]);
-    await page.goto(`/my-programs/program/${subId}`);
+    await page.goto(`/my-programs/program?id=${subId}`);
     const main = page.getByRole('main');
     await expect(main.getByRole('button', { name: 'Pr\u00f3ximas' })).toBeVisible({ timeout: 10_000 });
     await expect(main.getByText('Confirmada')).toBeVisible();
@@ -194,7 +194,7 @@ test.describe('Program Detail Page — mocked data branches', { tag: [...FlowTag
 
   test('past tab shows past bookings and empty upcoming state', async ({ page }) => {
     await setupProgramDetailMocks(page, [pastBooking]);
-    await page.goto(`/my-programs/program/${subId}`);
+    await page.goto(`/my-programs/program?id=${subId}`);
     const main = page.getByRole('main');
     await expect(main.getByRole('button', { name: 'Pr\u00f3ximas' })).toBeVisible({ timeout: 10_000 });
     await expect(main.getByText('No tienes sesiones pr\u00f3ximas.')).toBeVisible();
@@ -204,7 +204,7 @@ test.describe('Program Detail Page — mocked data branches', { tag: [...FlowTag
 
   test('canceled booking appears in past tab even with future slot', async ({ page }) => {
     await setupProgramDetailMocks(page, [canceledBooking]);
-    await page.goto(`/my-programs/program/${subId}`);
+    await page.goto(`/my-programs/program?id=${subId}`);
     const main = page.getByRole('main');
     await expect(main.getByRole('button', { name: 'Pasadas' })).toBeVisible({ timeout: 10_000 });
     await main.getByRole('button', { name: 'Pasadas' }).click();
@@ -213,7 +213,7 @@ test.describe('Program Detail Page — mocked data branches', { tag: [...FlowTag
 
   test('pagination controls render when totalPages greater than 1', async ({ page }) => {
     await setupProgramDetailMocks(page, [upcomingBooking], 25);
-    await page.goto(`/my-programs/program/${subId}`);
+    await page.goto(`/my-programs/program?id=${subId}`);
     const main = page.getByRole('main');
     await expect(main.getByRole('button', { name: 'Siguiente' })).toBeVisible({ timeout: 10_000 });
     await expect(main.getByText(/P\u00e1gina 1 de/)).toBeVisible();

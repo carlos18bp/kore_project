@@ -33,15 +33,19 @@ htmlcov/
 test-results/
 test-reports/
 /frontend/coverage/
+/frontend/coverage-e2e/
 /frontend/e2e-results/
 /frontend/test-results/
 /frontend/playwright-report/
 /frontend/blob-report/
+/frontend/monocart-report/
 /frontend/.nyc_output/
 /backend/.pytest_cache/
 /backend/htmlcov/
 /backend/.coverage
 /backend/coverage.xml
+/backend/coverage.json
+/.pytest_cache/
 
 # IDE & tooling
 .windsurf/plans/

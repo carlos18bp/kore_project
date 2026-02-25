@@ -23,11 +23,11 @@ test.describe('Auth Persistence & Cookies', { tag: [...FlowTags.AUTH_SESSION_PER
   test('page reload preserves authentication via hydrate', async ({ page }) => {
     await setupDefaultApiMocks(page);
     await loginAsTestUser(page);
-    await expect(page.getByText(`Hola, ${E2E_USER.firstName}`)).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: new RegExp(E2E_USER.firstName) })).toBeVisible();
 
     // Reload the page — hydrate should restore session from cookies
     await page.reload();
-    await expect(page.getByText(`Hola, ${E2E_USER.firstName}`)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { level: 1, name: new RegExp(E2E_USER.firstName) })).toBeVisible({ timeout: 10_000 });
   });
 
   test('logout clears kore_token and kore_user cookies', async ({ page }) => {
@@ -97,7 +97,7 @@ test.describe('Auth Persistence & Cookies', { tag: [...FlowTags.AUTH_SESSION_PER
 
     // Should redirect to dashboard eventually
     await page.waitForURL('**/dashboard');
-    await expect(page.getByText(`Hola, ${E2E_USER.firstName}`)).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: new RegExp(E2E_USER.firstName) })).toBeVisible();
   });
 
   test('hydrate catches profile API failure and clears auth state', async ({ page }) => {

@@ -46,3 +46,4 @@ jest.mock('gsap/ScrollTrigger', () => ({
   __esModule: true,
   ScrollTrigger: { defaults: jest.fn(), create: jest.fn() },
 }));
+

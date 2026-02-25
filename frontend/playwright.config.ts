@@ -24,7 +24,7 @@ export default defineConfig({
     timeout: 5_000,
   },
   fullyParallel: true,
-  workers: 1, // Reduced to 1 for environments with limited resources
+  workers: 3, // Reduced to 1 for environments with limited resources
   reporter: reporters,
   webServer: {
     command: 'npm run dev -- --port 3000',

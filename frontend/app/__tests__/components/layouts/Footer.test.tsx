@@ -15,7 +15,7 @@ describe('Footer', () => {
 
   it('renders navigation links', () => {
     expect(screen.getByText('Inicio')).toBeInTheDocument();
-    expect(screen.getByText('La Marca')).toBeInTheDocument();
+    expect(screen.getByText('Método Kore')).toBeInTheDocument();
     expect(screen.getByText('Programas')).toBeInTheDocument();
     expect(screen.getByText('FAQ')).toBeInTheDocument();
     expect(screen.getByText('Contacto')).toBeInTheDocument();
@@ -23,9 +23,8 @@ describe('Footer', () => {
 
   it('renders social links', () => {
     expect(screen.getByText('Instagram')).toBeInTheDocument();
-    expect(screen.getByText('Facebook')).toBeInTheDocument();
     expect(screen.getByText('WhatsApp')).toBeInTheDocument();
-    expect(screen.getByText('contacto@kore.co')).toBeInTheDocument();
+    expect(screen.getByText('info@korehealths.com')).toBeInTheDocument();
   });
 
   it('social links open in new tab', () => {

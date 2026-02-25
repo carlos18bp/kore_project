@@ -11,6 +11,12 @@ const customJestConfig = {
   testMatch: ['<rootDir>/**/__tests__/**/*.test.(ts|tsx)'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
+    '^framer-motion$': '<rootDir>/__mocks__/framerMotionMock.js',
+    '^swiper/react$': '<rootDir>/__mocks__/swiperReactMock.js',
+    '^swiper/modules$': '<rootDir>/__mocks__/swiperModulesMock.js',
+    '^swiper/css$': '<rootDir>/__mocks__/styleMock.js',
+    '^swiper/css/(.*)$': '<rootDir>/__mocks__/styleMock.js',
+    '\\.css$': '<rootDir>/__mocks__/styleMock.js',
   },
   collectCoverageFrom: [
     'lib/stores/**/*.{ts,tsx}',

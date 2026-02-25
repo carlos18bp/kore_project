@@ -126,7 +126,7 @@ test.describe('Dashboard — Upcoming Session Reminder', { tag: [...FlowTags.DAS
 
     // Click "Ver detalle"
     await page.getByRole('link', { name: 'Ver detalle' }).click();
-    await page.waitForURL(/\/my-programs\/program\/\d+/, { timeout: 15_000 });
+    await page.waitForURL(/\/my-programs\/program\?id=\d+/, { timeout: 15_000 });
   });
 
   test('reminder does NOT show when session is more than 48h away', async ({ page }) => {

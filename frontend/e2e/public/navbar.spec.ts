@@ -11,6 +11,7 @@ test.describe('Navbar — Desktop & Mobile', { tag: [...FlowTags.PUBLIC_NAVBAR, 
     await expect(programsLink).toBeVisible();
 
     await programsLink.click();
+    await page.waitForURL(/\/programs$/);
     await expect(page).toHaveURL(/\/programs$/);
   });
 });

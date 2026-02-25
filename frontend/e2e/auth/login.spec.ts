@@ -43,7 +43,7 @@ test.describe('Login Page', { tag: [...FlowTags.AUTH_LOGIN, RoleTags.GUEST] }, (
     await page.getByRole('button', { name: 'Iniciar sesión' }).click();
 
     await page.waitForURL('**/dashboard');
-    await expect(page.getByText(`Hola, ${E2E_USER.firstName}`)).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: new RegExp(E2E_USER.firstName) })).toBeVisible();
   });
 
   test('toggle password visibility works', async ({ page }) => {
@@ -68,7 +68,7 @@ test.describe('Login Page', { tag: [...FlowTags.AUTH_LOGIN, RoleTags.GUEST] }, (
 
     // Should be redirected back to dashboard
     await page.waitForURL('**/dashboard', { timeout: 15_000 });
-    await expect(page.getByText(`Hola, ${E2E_USER.firstName}`)).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: new RegExp(E2E_USER.firstName) })).toBeVisible();
   });
 
   test('shows error with detail field instead of non_field_errors', async ({ page }) => {

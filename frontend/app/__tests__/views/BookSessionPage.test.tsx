@@ -150,7 +150,7 @@ describe('BookSessionPage', () => {
     };
     setupStore({ step: 3, bookingResult: booking });
     render(<BookSessionPage />);
-    expect(screen.getByText('Esta reunión está programada')).toBeInTheDocument();
+    expect(screen.getByText('Tu entrenamiento está agendado')).toBeInTheDocument();
   });
 
   it('resets stale success state on mount when not rescheduling', async () => {
@@ -201,7 +201,7 @@ describe('BookSessionPage', () => {
     expect(screen.queryByText('Seleccionar horario')).not.toBeInTheDocument();
   });
 
-  it('renders subscription selector when active subscriptions exist', () => {
+  it('renders session progress when active subscriptions exist', () => {
     const subscriptions = [
       {
         id: 1, customer_email: 'cust@kore.com',
@@ -213,7 +213,7 @@ describe('BookSessionPage', () => {
     ];
     setupStore({ subscriptions });
     render(<BookSessionPage />);
-    expect(screen.getByText('Selecciona tu programa:')).toBeInTheDocument();
+    expect(screen.getAllByText(/Sesión 4 de 4/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders session details with correct session number', () => {
@@ -228,8 +228,8 @@ describe('BookSessionPage', () => {
     ];
     setupStore({ subscriptions });
     render(<BookSessionPage />);
-    expect(screen.getByText(/Sesión 4 de 4/)).toBeInTheDocument();
-    expect(screen.getByText(/1 sesión restante/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Sesión 4 de 4/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/3 completadas/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders NoSessionsModal when selected subscription has no remaining sessions', () => {
@@ -262,7 +262,6 @@ describe('BookSessionPage', () => {
     setupStore({ subscriptions });
     render(<BookSessionPage />);
     expect(screen.queryByText('Sin sesiones disponibles')).not.toBeInTheDocument();
-    expect(screen.getByRole('combobox')).toBeDisabled();
   });
 
   it('shows reschedule no-availability message when no slots fit the window', () => {
@@ -322,11 +321,11 @@ describe('BookSessionPage', () => {
     ];
     setupStore({ subscriptions });
     render(<BookSessionPage />);
-    expect(screen.queryByText(/Gold — 0 sesiones restantes/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Silver — 7 sesiones restantes/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Silver/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Sesión 2 de 8/).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders multiple subscriptions in selector dropdown', () => {
+  it('renders session info for the first selectable subscription', () => {
     const subscriptions = [
       {
         id: 1, customer_email: 'cust@kore.com',
@@ -345,10 +344,8 @@ describe('BookSessionPage', () => {
     ];
     setupStore({ subscriptions });
     render(<BookSessionPage />);
-    const select = screen.getByRole('combobox');
-    expect(select).toBeInTheDocument();
-    expect(screen.getByText(/Gold — 2 sesiones restantes/)).toBeInTheDocument();
-    expect(screen.getByText(/Silver — 7 sesiones restantes/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Sesión 3 de 4/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Gold/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('fetches bookings when subscription is selected', () => {
