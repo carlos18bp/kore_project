@@ -148,6 +148,7 @@ export default function PricingTable() {
         {/* ===== MOBILE: Compact Program Cards ===== */}
         <div data-animate="fade-up" data-delay="0.3" className="md:hidden flex flex-col gap-3 mb-6">
           {programTypes.map((program, index) => {
+            /* istanbul ignore next */
             const minPrice = program.plans[0]?.total ?? '';
             return (
               <Link

@@ -393,6 +393,113 @@ def _format_pct(value: object) -> str:
     return str(value)
 
 
+def erase_backend_coverage_data(backend_root: Path) -> None:
+    try:
+        import coverage as coverage_module
+    except ImportError:
+        return
+
+    try:
+        cov = coverage_module.Coverage(data_file=str(backend_root / ".coverage"))
+        cov.erase()
+    except Exception:
+        return
+
+
+def read_backend_coverage_summary(backend_root: Path) -> list[str]:
+    coverage_path = backend_root / ".coverage"
+    if not coverage_path.exists():
+        return []
+    try:
+        import coverage as coverage_module
+    except ImportError:
+        return []
+    try:
+        cov = coverage_module.Coverage(data_file=str(coverage_path))
+        cov.load()
+    except Exception:
+        return []
+
+    try:
+        measured = cov.get_data().measured_files()
+    except Exception:
+        return []
+
+    total_statements = 0
+    total_missing = 0
+    total_branches = 0
+    total_missing_branches = 0
+    total_functions = 0
+    total_missing_functions = 0
+    total_lines = 0
+    total_missing_lines = 0
+
+    for filepath in measured:
+        norm = filepath.replace("\\", "/")
+        if "core_app" not in norm or "/tests/" in norm:
+            continue
+        try:
+            analysis = cov._analyze(filepath)
+            file_reporter = cov._get_file_reporter(filepath)
+        except Exception:
+            continue
+        numbers = analysis.numbers
+        if numbers.n_statements == 0:
+            continue
+
+        total_statements += numbers.n_statements
+        total_missing += numbers.n_missing
+        total_branches += numbers.n_branches
+        total_missing_branches += numbers.n_missing_branches
+        total_lines += numbers.n_statements
+        total_missing_lines += numbers.n_missing
+
+        try:
+            regions = [
+                region
+                for region in file_reporter.code_regions()
+                if region.kind == "function" and region.lines
+            ]
+        except Exception:
+            regions = []
+
+        if regions:
+            executed_lines = analysis.executed
+            functions_hit = sum(
+                1
+                for region in regions
+                if set(region.lines) & executed_lines
+            )
+            total_functions += len(regions)
+            total_missing_functions += len(regions) - functions_hit
+
+    if total_statements == 0:
+        return []
+
+    statements_covered = total_statements - total_missing
+    branches_covered = total_branches - total_missing_branches
+    functions_covered = total_functions - total_missing_functions
+    lines_covered = total_lines - total_missing_lines
+
+    def _pct(covered: int, total: int) -> float:
+        return (covered / total * 100) if total > 0 else 100.0
+
+    total_covered = statements_covered + branches_covered
+    total_possible = total_statements + total_branches
+
+    return [
+        f"Statements: {_format_pct(_pct(statements_covered, total_statements))}% "
+        f"({statements_covered}/{total_statements})",
+        f"Branches: {_format_pct(_pct(branches_covered, total_branches))}% "
+        f"({branches_covered}/{total_branches})",
+        f"Functions: {_format_pct(_pct(functions_covered, total_functions))}% "
+        f"({functions_covered}/{total_functions})",
+        f"Lines: {_format_pct(_pct(lines_covered, total_lines))}% "
+        f"({lines_covered}/{total_lines})",
+        f"Total: {_format_pct(_pct(total_covered, total_possible))}%",
+    ]
+
+
 def read_jest_coverage_summary(frontend_root: Path) -> list[str]:
     summary_path = frontend_root / "coverage" / "coverage-summary.json"
     if not summary_path.exists():
@@ -583,13 +690,15 @@ def run_backend(
         f"--cov={backend_root / 'core_app'}",
     ]
     if show_coverage:
+        erase_backend_coverage_data(backend_root)
+        backend_cmd.append("--cov-branch")
         backend_cmd.append("--cov-report=term-missing")
     backend_cmd.append("-q")
     if markers:
         backend_cmd.extend(["-m", markers])
     backend_cmd.extend(extra_args)
 
-    return run_command(
+    result = run_command(
         name="backend",
         command=backend_cmd,
         cwd=backend_root,
@@ -600,6 +709,9 @@ def run_backend(
         run_id=run_id,
         line_transform=colorize_backend_line if show_coverage else None,
     )
+    if show_coverage and result.status == "ok":
+        result.coverage = read_backend_coverage_summary(backend_root)
+    return result
 
 
 def run_frontend_unit(

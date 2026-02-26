@@ -3916,3 +3916,124 @@ Quality Gate
   □ Exceptions reviewed and not accumulated without reason
 ───────────────────────────────────────────────────────────────
 ```
+
+---
+
+## 9. Production Requirements
+
+All Django projects in production MUST include the following configurations.
+
+### 9.1 Settings Structure
+
+Settings must be split into separate files:
+
+```
+backend/core_project/
+├── settings.py          # Base/shared settings (auto-imports env-specific)
+├── settings_dev.py      # Development overrides (DEBUG=True)
+└── settings_prod.py     # Production overrides (DEBUG=False enforced)
+```
+
+**Required in `settings_prod.py`:**
+- `DEBUG = False` (hardcoded, never from environment)
+- `SECRET_KEY` must be set (raise error if missing)
+- `ALLOWED_HOSTS` must be set (raise error if missing)
+- Security headers enabled (HSTS, secure cookies, SSL redirect, X-Frame-Options)
+
+The active environment is controlled by the `DJANGO_ENV` environment variable (`development` or `production`). Base `settings.py` auto-imports the corresponding file at the end.
+
+### 9.2 Environment Variables
+
+All secrets must be loaded from environment variables using `python-decouple`:
+- `DJANGO_SECRET_KEY`
+- `DB_USER`, `DB_PASSWORD`
+- `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`
+- API keys (project-specific: Wompi, reCAPTCHA, etc.)
+
+A `.env.example` file must be provided with placeholder values grouped by category. Never include real secrets.
+
+### 9.3 Automated Backups (django-dbbackup)
+
+**Configuration in `settings.py`:**
+
+```python
+INSTALLED_APPS = [
+    # ...
+    'dbbackup',
+]
+
+DBBACKUP_STORAGE = 'django.core.files.storage.FileSystemStorage'
+DBBACKUP_STORAGE_OPTIONS = {
+    'location': config('BACKUP_STORAGE_PATH', default='/var/backups/[project_name]'),
+}
+DBBACKUP_COMPRESS = True
+DBBACKUP_CLEANUP_KEEP = 5  # ~90 days at 20-day intervals
+```
+
+**Automation:** Huey periodic task runs on days 1 and 21 of each month at 3:00 AM UTC.
+
+**Storage:** Outside the project directory (e.g., `/var/backups/[project_name]/`).
+
+**Retention:** 90 days (~5 backups).
+
+### 9.4 Query Monitoring (django-silk)
+
+Silk is **conditionally enabled** via `ENABLE_SILK=true` environment variable. It should not be active in tests or by default in development.
+
+**Configuration in `settings.py`:**
+
+```python
+ENABLE_SILK = config('ENABLE_SILK', default=False, cast=bool)
+
+if ENABLE_SILK:
+    INSTALLED_APPS += ['silk']
+    MIDDLEWARE.insert(0, 'silk.middleware.SilkyMiddleware')
+
+    SILKY_AUTHENTICATION = True
+    SILKY_AUTHORISATION = True
+
+    def silk_permissions(user):
+        return user.is_staff
+
+    SILKY_PERMISSIONS = silk_permissions
+    SILKY_MAX_RECORDED_REQUESTS = 10_000
+
+    SLOW_QUERY_THRESHOLD_MS = 500
+    N_PLUS_ONE_THRESHOLD = 10
+```
+
+**URL:** Conditional — `path('silk/', include('silk.urls', namespace='silk'))` only when `ENABLE_SILK`.
+
+**Garbage Collection:** Daily cleanup of data older than 7 days via management command (`core_app/management/commands/silk_garbage_collect.py`).
+
+**Alerts:** Weekly report generated via Huey periodic task (Mondays 8:00 AM UTC).
+
+### 9.5 Task Queue (Huey)
+
+**Configuration in `settings.py`:**
+
+```python
+HUEY = {
+    'huey_class': 'huey.RedisHuey',
+    'name': '[project_name]',
+    'connection': {...},  # Parsed from HUEY_REDIS_URL
+    'results': True,
+    'store_none': False,
+    'immediate': config('HUEY_IMMEDIATE', default=False, cast=bool),
+    'utc': True,
+}
+```
+
+**Task file separation:**
+- `core_app/tasks.py` — business-domain tasks (billing, reminders)
+- `core_project/tasks.py` — operational/infrastructure tasks (backups, monitoring)
+
+**Scheduled Tasks:**
+
+| Task | Schedule | Description |
+|------|----------|-------------|
+| `scheduled_backup` | Days 1 & 21, 3:00 AM | DB and media backup |
+| `silk_garbage_collection` | Daily, 4:00 AM | Clean old profiling data |
+| `weekly_slow_queries_report` | Mondays, 8:00 AM | Performance report |
+
+**Service:** Huey must run as a systemd service in production (`python manage.py run_huey`).

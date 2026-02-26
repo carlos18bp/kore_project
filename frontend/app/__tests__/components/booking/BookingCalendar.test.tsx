@@ -142,8 +142,10 @@ describe('BookingCalendar', () => {
   });
 
   it('applies selected styling (bg-kore-red) when selectedDate matches a day', () => {
-    const futureDate = new Date();
-    futureDate.setDate(futureDate.getDate() + 3);
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(2026, 2, 1, 12));
+
+    const futureDate = new Date(2026, 2, 4);
     const y = futureDate.getFullYear();
     const m = String(futureDate.getMonth() + 1).padStart(2, '0');
     const d = String(futureDate.getDate()).padStart(2, '0');
@@ -153,10 +155,10 @@ describe('BookingCalendar', () => {
       <BookingCalendar availableDates={new Set([dateStr])} selectedDate={dateStr} onSelectDate={onSelectDate} />
     );
 
-    const dayButtons = screen.getAllByRole('button');
-    const selectedBtn = dayButtons.find((btn) => btn.textContent === String(futureDate.getDate()));
-    expect(selectedBtn).toBeDefined();
-    expect(selectedBtn!.className).toContain('bg-kore-red');
+    const selectedBtn = screen.getByRole('button', { name: String(futureDate.getDate()) });
+    expect(selectedBtn.className).toContain('bg-kore-red');
+
+    jest.useRealTimers();
   });
 
   it('disables days without available slots', () => {

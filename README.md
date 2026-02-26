@@ -411,6 +411,9 @@ Sample resume format:
 | `python manage.py runserver` | Start the backend server |
 | `python manage.py migrate` | Run database migrations |
 | `python manage.py expire_subscriptions` | Run the daily subscription expiration task |
+| `python manage.py silk_garbage_collect` | Delete Silk profiling data older than 7 days (default) |
+| `python manage.py silk_garbage_collect --days=14` | Delete Silk data older than 14 days |
+| `python manage.py silk_garbage_collect --dry-run` | Preview what would be deleted without deleting |
 | `python manage.py create_fake_data` | Create a full set of test data |
 | `python manage.py delete_fake_data --confirm` | Delete test data |
 | `npm run dev` | Start the frontend server |
@@ -432,6 +435,167 @@ Sample resume format:
 
 ---
 
+## Environment Configuration
+
+This project uses environment variables for configuration. Settings are split into:
+
+- `settings.py` — shared base settings
+- `settings_dev.py` — development overrides (`DEBUG=True`)
+- `settings_prod.py` — production hardening (`DEBUG=False`, security headers)
+
+The active environment is controlled by `DJANGO_ENV` (`development` or `production`).
+
+```bash
+cp backend/.env.example backend/.env
+# Edit .env with your values
+```
+
+See `backend/.env.example` for all available options.
+
+---
+
+## Backups
+
+Automated backups run every 20 days via Huey task queue (days 1 and 21 of each month at 3:00 AM UTC). Backups are stored in the path configured by `BACKUP_STORAGE_PATH` with 90-day retention (~5 backups).
+
+Manual backup:
+
+```bash
+cd backend
+source venv/bin/activate
+python manage.py dbbackup --compress
+python manage.py mediabackup --compress
+```
+
+---
+
+## Performance Monitoring
+
+SQL query profiling is available via [django-silk](https://github.com/jazzband/django-silk). It is disabled by default and can be enabled by setting `ENABLE_SILK=true` in your `.env`.
+
+Silk is configured for **production use only** — it records HTTP requests and SQL queries to the database for monitoring. The browser UI (`/silk/`) is intentionally not registered; all analysis is done through the automated cron jobs below.
+
+When enabled:
+- SQL queries are recorded per request (N+1 detection, slow query tracking)
+- CPU profiling is **off** (`SILKY_PYTHON_PROFILER=False`) — no request overhead
+- Request/response bodies are **not stored** (`SILKY_MAX_REQUEST_BODY_SIZE=0`) — saves DB space
+- Weekly slow-query reports are generated automatically (Mondays 8:00 AM UTC)
+- Silk profiling data is garbage-collected daily (older than 7 days)
+- Operational logs are written to `backend/logs/silk-monitor.log`
+
+### Garbage collection — `silk_garbage_collect`
+
+Deletes `silk.models.Request` records (and their cascaded SQL queries) older than a configurable retention window.
+
+```bash
+cd backend
+source venv/bin/activate
+
+# Default run — delete records older than 7 days
+python manage.py silk_garbage_collect
+
+# Custom retention period
+python manage.py silk_garbage_collect --days=14
+
+# Preview without deleting (dry-run)
+python manage.py silk_garbage_collect --dry-run
+
+# Combine: preview with custom window
+python manage.py silk_garbage_collect --days=30 --dry-run
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--days N` | int | `7` | Retention period; records older than N days are targeted |
+| `--dry-run` | flag | off | Show what would be deleted without deleting anything |
+
+**Example output — normal run:**
+```
+Silk records older than 2026-02-19 04:00:00+00:00:
+  - Requests to delete: 312
+Deleted 312 records
+```
+
+**Example output — dry-run:**
+```
+Silk records older than 2026-02-19 04:00:00+00:00:
+  - Requests to delete: 312
+DRY RUN: Nothing was deleted
+```
+
+**Example output — silk not enabled:**
+```
+django-silk is not installed or not enabled. Ensure ENABLE_SILK=true and run: pip install django-silk
+```
+
+> The command exits cleanly (writes to stderr) when `ENABLE_SILK=false` or `django-silk` is not installed.
+
+> To analyze data directly, query `silk_request` and `silk_sqlquery` tables in the database, or review `backend/logs/silk-monitor.log` and `backend/logs/silk-weekly-report.log`.
+
+### Cron job — `silk_garbage_collection` (Huey)
+
+Defined in `core_project/tasks.py`. Runs as a Huey `db_periodic_task` on the following schedule:
+
+| Property | Value |
+|----------|-------|
+| Schedule | Every day at **04:00 UTC** |
+| Retention | 7 days (calls `silk_garbage_collect --days=7`) |
+| Guard | Skips silently when `ENABLE_SILK=false` |
+| Logger | `silk_monitor` → `backend/logs/silk-monitor.log` + console |
+
+### Weekly slow-query report — `weekly_slow_queries_report` (Huey)
+
+Also defined in `core_project/tasks.py`. Runs every **Monday at 08:00 UTC**.
+
+- Queries the last 7 days of Silk data.
+- Reports slow SQL queries above `SLOW_QUERY_THRESHOLD_MS` (default: `500` ms), up to 50 entries ordered by duration.
+- Reports potential N+1 suspects: requests with ≥ `N_PLUS_ONE_THRESHOLD` queries (default: `10`), up to 20 entries.
+- Appends the report to `backend/logs/silk-weekly-report.log`.
+- Skips silently when `ENABLE_SILK=false`.
+
+**Example report structure:**
+```
+============================================================
+WEEKLY QUERY REPORT - 2026-02-24
+============================================================
+
+## SLOW QUERIES (>500ms)
+----------------------------------------
+[1243ms] /api/bookings/ - SELECT "core_app_booking"."id", ...
+[876ms] /api/subscriptions/ - SELECT "core_app_subscription"."id", ...
+
+## POTENTIAL N+1 (>10 queries/request)
+----------------------------------------
+[18 queries] /api/dashboard/
+[12 queries] /api/programs/
+
+============================================================
+```
+
+---
+
+## Task Queue (Huey)
+
+This project uses Huey with Redis for background tasks. Scheduled tasks:
+
+| Task | Schedule | Description |
+|------|----------|-------------|
+| `process_recurring_billing` | Daily 8:00 AM | Charge recurring subscriptions |
+| `send_expiring_subscription_reminders` | Daily 8:00 AM | Expiry email reminders |
+| `scheduled_backup` | Days 1 & 21, 3:00 AM | DB and media backup |
+| `silk_garbage_collection` | Daily 4:00 AM | Clean old Silk profiling data |
+| `weekly_slow_queries_report` | Mondays 8:00 AM | Performance report |
+
+In production, ensure the Huey worker service is running:
+
+```bash
+cd backend
+source venv/bin/activate
+python manage.py run_huey
+```
+
+---
+
 ## Automation
 
 To expire subscriptions automatically, schedule the daily command via cron:
@@ -440,18 +604,43 @@ To expire subscriptions automatically, schedule the daily command via cron:
 0 0 * * * cd /path/to/kore_project/backend && source venv/bin/activate && python manage.py expire_subscriptions
 ```
 
+---
+
 ## Environment Variables
 
 ### Backend (`backend/.env`)
 
 | Variable | Description | Default |
 |---|---|---|
+| `DJANGO_ENV` | Environment (`development` / `production`) | `development` |
 | `DJANGO_SECRET_KEY` | Django secret key | — |
-| `DJANGO_DEBUG` | Debug mode | `true` |
-| `DJANGO_ALLOWED_HOSTS` | Allowed hosts | `localhost,127.0.0.1` |
+| `DJANGO_ALLOWED_HOSTS` | Allowed hosts (comma-separated) | `localhost,127.0.0.1` |
+| `DJANGO_LOG_LEVEL` | Log level | `INFO` |
+| `DB_ENGINE` | Database engine | `django.db.backends.sqlite3` |
+| `DB_NAME` | Database name | `db.sqlite3` |
+| `DB_USER` | Database user | — |
+| `DB_PASSWORD` | Database password | — |
+| `DB_HOST` | Database host | `localhost` |
+| `DB_PORT` | Database port | `3306` |
 | `CORS_ALLOWED_ORIGINS` | Allowed CORS origins | `http://localhost:3000` |
 | `JWT_ACCESS_TOKEN_LIFETIME_DAYS` | Access token lifetime | `1` |
 | `JWT_REFRESH_TOKEN_LIFETIME_DAYS` | Refresh token lifetime | `7` |
+| `SITE_BASE_URL` | Frontend base URL | `http://localhost:3000` |
+| `API_BASE_URL` | Backend API base URL | `http://localhost:8000` |
+| `EMAIL_HOST_USER` | SMTP username (Gmail) | — |
+| `EMAIL_HOST_PASSWORD` | SMTP app password | — |
+| `DEFAULT_FROM_EMAIL` | Sender address for emails | `KORE <noreply@example.com>` |
+| `WOMPI_ENVIRONMENT` | Wompi gateway mode | `test` |
+| `WOMPI_PUBLIC_KEY` | Wompi public API key | — |
+| `WOMPI_PRIVATE_KEY` | Wompi private API key | — |
+| `WOMPI_INTEGRITY_KEY` | Wompi integrity signature key | — |
+| `WOMPI_EVENTS_KEY` | Wompi webhook events key | — |
+| `RECAPTCHA_SITE_KEY` | Google reCAPTCHA site key | — |
+| `RECAPTCHA_SECRET_KEY` | Google reCAPTCHA secret key | — |
+| `HUEY_REDIS_URL` | Redis URL for Huey | `redis://localhost:6379/0` |
+| `HUEY_IMMEDIATE` | Run Huey tasks synchronously | `false` |
+| `BACKUP_STORAGE_PATH` | Backup storage directory | `/var/backups/kore_project` |
+| `ENABLE_SILK` | Enable Silk profiling | `false` |
 
 ### Frontend (`frontend/.env.local`)
 

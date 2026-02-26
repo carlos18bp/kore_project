@@ -2,6 +2,7 @@ import '@testing-library/jest-dom';
 
 /* ─── Suppress known React DOM warnings from next/image boolean attrs ─── */
 const _origError = console.error.bind(console);
+const _origLog = console.log.bind(console);
 beforeAll(() => {
   jest.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
     const msg = args.map(String).join(' ');
@@ -9,11 +10,20 @@ beforeAll(() => {
       (msg.includes('non-boolean attribute') &&
         (msg.includes('fill') || msg.includes('priority'))) ||
       msg.includes('was not wrapped in act(') ||
-      msg.includes('Not implemented: navigation')
+      msg.includes('Not implemented: navigation') ||
+      msg.includes('[Wompi tokenization error]')
     ) {
       return;
     }
     _origError(...args);
+  });
+
+  jest.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+    const msg = args.map(String).join(' ');
+    if (msg.includes('Captcha site key loaded:')) {
+      return;
+    }
+    _origLog(...args);
   });
 });
 afterAll(() => {

@@ -6,6 +6,11 @@ import { useAuthStore } from '@/lib/stores/authStore';
 
 const mockPush = jest.fn();
 
+jest.mock('@/app/composables/useScrollAnimations', () => ({
+  useHeroAnimation: jest.fn(),
+  useTextReveal: jest.fn(),
+}));
+
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
   useSearchParams: () => ({ get: () => null }),
@@ -30,12 +35,13 @@ const MOCK_PACKAGES = {
     { id: 10, title: 'Programa Inicial', category: 'semi_personalizado', sessions_count: 4, session_duration_minutes: 60, price: '240000.00', currency: 'COP', validity_days: 30 },
     { id: 20, title: 'Sesión Terapéutica', category: 'terapeutico', sessions_count: 1, session_duration_minutes: 60, price: '95000.00', currency: 'COP', validity_days: 30 },
   ],
+  next: null,
 };
 
 describe('ProgramsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockedApi.get.mockResolvedValue({ data: MOCK_PACKAGES });
+    mockedApi.get.mockResolvedValue({ data: { ...MOCK_PACKAGES, next: null } });
     useAuthStore.setState({
       user: null,
       accessToken: null,
@@ -184,7 +190,7 @@ describe('ProgramsPage', () => {
   });
 
   it('shows empty state when API returns no packages for a category', async () => {
-    mockedApi.get.mockResolvedValue({ data: { results: [] } });
+    mockedApi.get.mockResolvedValue({ data: { results: [], next: null } });
     render(<ProgramsPage />);
     await waitFor(() => {
       expect(screen.getByText('No hay planes disponibles para este programa.')).toBeInTheDocument();

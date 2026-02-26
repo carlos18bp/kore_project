@@ -20,11 +20,22 @@ __pycache__/
 # Env files
 .env
 /backend/.env
+*.env
+!*.env.example
 .env.local
 /frontend/.env.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Operational logs
+*.log
+backend/logs/
+!backend/logs/.gitkeep
+
+# Backups (should not be in repo)
+backend/backups/
+backups/
 
 # Test & Coverage artifacts
 .coverage

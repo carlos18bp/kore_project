@@ -6,6 +6,7 @@ import importlib.util
 import sys
 from functools import partial
 from pathlib import Path
+from types import SimpleNamespace
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 SCRIPT_PATH = REPO_ROOT / "scripts" / "run-tests-all-suites.py"
@@ -176,3 +177,142 @@ def test_record_suite_result_persists_run_id(tmp_path):
     assert state["run_id"] == "run-abc"
     saved = run_tests_all_suites.load_resume_state(resume_path)
     assert saved["run_id"] == "run-abc"
+
+
+def test_read_backend_summary_returns_empty_without_data_file(tmp_path):
+    """Returns empty summary when no data file is present."""
+    summary = run_tests_all_suites.read_backend_coverage_summary(tmp_path)
+
+    assert summary == []
+
+
+def test_read_backend_summary_aggregates_statement_total(tmp_path, monkeypatch):
+    """Aggregates statement totals from core app data only."""
+    (tmp_path / ".coverage").write_text("data", encoding="utf-8")
+    valid_path = str(tmp_path / "core_app" / "services" / "payments.py")
+    ignored_test_path = str(tmp_path / "core_app" / "tests" / "test_payments.py")
+    ignored_other_path = str(tmp_path / "other" / "module.py")
+
+    class FakeCoverageData:
+        def measured_files(self):
+            return [valid_path, ignored_test_path, ignored_other_path]
+
+    class FakeRegion:
+        def __init__(self, kind, lines):
+            self.kind = kind
+            self.lines = lines
+
+    class FakeCoverage:
+        def __init__(self, data_file):
+            self._data = FakeCoverageData()
+
+        def load(self):
+            return None
+
+        def get_data(self):
+            return self._data
+
+        def _analyze(self, filepath):
+            if filepath != valid_path:
+                raise AssertionError("Unexpected analysis request")
+            return SimpleNamespace(
+                executed={1},
+                numbers=SimpleNamespace(
+                    n_statements=4,
+                    n_missing=1,
+                    n_branches=2,
+                    n_missing_branches=1,
+                ),
+            )
+
+        def _get_file_reporter(self, filepath):
+            if filepath != valid_path:
+                raise AssertionError("Unexpected reporter request")
+            return SimpleNamespace(
+                code_regions=lambda: [
+                    FakeRegion("function", {1, 2}),
+                    FakeRegion("function", {3, 4}),
+                ]
+            )
+
+    monkeypatch.setitem(sys.modules, "coverage", SimpleNamespace(Coverage=FakeCoverage))
+
+    summary = run_tests_all_suites.read_backend_coverage_summary(tmp_path)
+
+    assert summary == [
+        "Statements: 75.00% (3/4)",
+        "Branches: 50.00% (1/2)",
+        "Functions: 50.00% (1/2)",
+        "Lines: 75.00% (3/4)",
+        "Total: 66.67%",
+    ]
+
+
+def test_run_backend_erases_data_when_flag_set(tmp_path, monkeypatch):
+    """Erases existing data when the flag is enabled."""
+    erased = []
+    captured = {}
+
+    def fake_erase(root):
+        erased.append(root)
+
+    def fake_run_command(**kwargs):
+        captured.update(kwargs)
+        return run_tests_all_suites.StepResult(
+            name="backend",
+            command=kwargs.get("command", []),
+            returncode=0,
+            duration=0.0,
+            status="ok",
+        )
+
+    monkeypatch.setattr(run_tests_all_suites, "erase_backend_coverage_data", fake_erase)
+    monkeypatch.setattr(run_tests_all_suites, "run_command", fake_run_command)
+
+    run_tests_all_suites.run_backend(
+        backend_root=tmp_path,
+        report_dir=tmp_path,
+        markers="",
+        extra_args=[],
+        quiet=True,
+        append_log=False,
+        run_id=None,
+        show_coverage=True,
+    )
+
+    assert erased == [tmp_path]
+    assert "--cov-branch" in captured["command"]
+    assert "--cov-report=term-missing" in captured["command"]
+
+
+def test_run_backend_skips_erase_without_flag(tmp_path, monkeypatch):
+    """Skips erasing data when the flag is disabled."""
+    erased = []
+
+    def fake_erase(root):
+        erased.append(root)
+
+    def fake_run_command(**kwargs):
+        return run_tests_all_suites.StepResult(
+            name="backend",
+            command=kwargs.get("command", []),
+            returncode=0,
+            duration=0.0,
+            status="ok",
+        )
+
+    monkeypatch.setattr(run_tests_all_suites, "erase_backend_coverage_data", fake_erase)
+    monkeypatch.setattr(run_tests_all_suites, "run_command", fake_run_command)
+
+    run_tests_all_suites.run_backend(
+        backend_root=tmp_path,
+        report_dir=tmp_path,
+        markers="",
+        extra_args=[],
+        quiet=True,
+        append_log=False,
+        run_id=None,
+        show_coverage=False,
+    )
+
+    assert erased == []

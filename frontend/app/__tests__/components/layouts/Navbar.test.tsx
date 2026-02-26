@@ -9,9 +9,10 @@ jest.mock('next/image', () => ({
 }));
 
 let mockPathname = '/';
+let mockPackageParam: string | null = null;
 jest.mock('next/navigation', () => ({
   usePathname: () => mockPathname,
-  useSearchParams: () => ({ get: jest.fn().mockReturnValue(null) }),
+  useSearchParams: () => ({ get: (key: string) => key === 'package' ? mockPackageParam : null }),
 }));
 
 jest.mock('next/link', () => ({
@@ -24,6 +25,7 @@ jest.mock('next/link', () => ({
 describe('Navbar', () => {
   beforeEach(() => {
     mockPathname = '/';
+    mockPackageParam = null;
     useAuthStore.setState({
       user: null,
       accessToken: null,
@@ -110,6 +112,20 @@ describe('Navbar', () => {
     expect(loginLink).toBeDefined();
     await user.click(loginLink!);
     expect(mobileMenu).toHaveClass('max-h-0');
+  });
+
+  it('renders nothing when pathname is /register with package param (checkout flow)', () => {
+    mockPathname = '/register';
+    mockPackageParam = '1';
+    const { container } = render(<Navbar />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('renders nothing when pathname is /checkout with package param (checkout flow)', () => {
+    mockPathname = '/checkout';
+    mockPackageParam = '2';
+    const { container } = render(<Navbar />);
+    expect(container).toBeEmptyDOMElement();
   });
 
   it('highlights the active link based on pathname', () => {
