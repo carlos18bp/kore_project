@@ -1,3 +1,4 @@
+from django import forms
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 
@@ -17,6 +18,22 @@ from core_app.models import (
     TrainerProfile,
     User,
 )
+
+
+class SubscriptionAdminForm(forms.ModelForm):
+    class Meta:
+        model = Subscription
+        fields = '__all__'
+
+    def clean(self):
+        cleaned_data = super().clean()
+        package = cleaned_data.get('package')
+
+        if package:
+            cleaned_data['sessions_total'] = package.sessions_count
+            self.instance.sessions_total = package.sessions_count
+
+        return cleaned_data
 
 
 @admin.register(User)
@@ -65,9 +82,9 @@ class UserAdmin(DjangoUserAdmin):
 
 @admin.register(Package)
 class PackageAdmin(admin.ModelAdmin):
-    list_display = ('title', 'sessions_count', 'price', 'currency', 'validity_days', 'is_active', 'order')
-    list_filter = ('is_active', 'currency')
-    search_fields = ('title',)
+    list_display = ('title', 'category', 'sessions_count', 'price', 'currency', 'validity_days', 'is_active', 'order')
+    list_filter = ('is_active', 'currency', 'category')
+    search_fields = ('title', 'category')
     ordering = ('order', 'id')
 
 
@@ -145,11 +162,21 @@ class TrainerProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
-    list_display = ('id', 'customer', 'package', 'status', 'sessions_total', 'sessions_used', 'starts_at', 'expires_at', 'next_billing_date')
+    form = SubscriptionAdminForm
+    list_display = ('id', 'customer', 'package', 'package_program', 'status', 'sessions_total', 'sessions_used', 'starts_at', 'expires_at', 'next_billing_date')
     list_filter = ('status',)
     search_fields = ('customer__email', 'package__title')
     autocomplete_fields = ('customer', 'package')
-    readonly_fields = ('payment_source_id', 'wompi_transaction_id')
+    readonly_fields = ('sessions_total', 'payment_source_id', 'wompi_transaction_id')
+
+    @admin.display(description='Program')
+    def package_program(self, obj):
+        return obj.package.get_category_display()
+
+    def save_model(self, request, obj, form, change):
+        if obj.package_id:
+            obj.sessions_total = obj.package.sessions_count
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(AnalyticsEvent)

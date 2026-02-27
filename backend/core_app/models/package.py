@@ -38,4 +38,4 @@ class Package(TimestampedModel):
         ordering = ('order', 'id')
 
     def __str__(self):
-        return self.title
+        return f'{self.title} ({self.get_category_display()})'

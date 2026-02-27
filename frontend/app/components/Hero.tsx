@@ -48,7 +48,7 @@ export default function Hero() {
           </p>
 
           {/* CTA Buttons */}
-          <div data-hero="cta" className="flex flex-col sm:flex-row justify-center lg:justify-start gap-3 mb-8 md:mb-14">
+          <div data-hero="cta" className="flex flex-col sm:flex-row justify-center lg:justify-start gap-3 mb-4 md:mb-14">
             <a
               href={WHATSAPP_URL}
               target="_blank"

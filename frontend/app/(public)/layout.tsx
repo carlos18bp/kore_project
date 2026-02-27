@@ -1,5 +1,6 @@
 import Navbar from '@/app/components/layouts/Navbar';
 import ConditionalFooter from '@/app/components/layouts/ConditionalFooter';
+import ConditionalWhatsApp from '@/app/components/layouts/ConditionalWhatsApp';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,7 @@ export default function PublicLayout({
       <Navbar />
       {children}
       <ConditionalFooter />
+      <ConditionalWhatsApp />
     </div>
   );
 }

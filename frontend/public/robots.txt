@@ -1,0 +1,15 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://korehealths.com/sitemap.xml
+
+# Disallow private routes
+Disallow: /dashboard
+Disallow: /book-session
+Disallow: /my-programs
+Disallow: /subscription
+Disallow: /calendar
+Disallow: /checkout
+Disallow: /register

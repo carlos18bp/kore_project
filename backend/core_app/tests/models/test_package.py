@@ -28,9 +28,9 @@ class TestPackageModel:
         assert pkg.category == Package.Category.PERSONALIZADO
 
     def test_str_returns_title(self):
-        """String conversion returns the package title."""
+        """String conversion returns title plus human-readable category."""
         pkg = Package.objects.create(title='My Package')
-        assert str(pkg) == 'My Package'
+        assert str(pkg) == 'My Package (Personalizado)'
 
     def test_ordering_by_order_then_id(self):
         """Default ordering sorts by order field and then primary key."""

@@ -215,15 +215,14 @@ function ProgramsPage() {
     return () => { cancelled = true; };
   }, []);
 
-  // Prevent background scroll when mobile modal is open
+  // Prevent background scroll and hide WhatsApp when mobile modal is open
   useEffect(() => {
-    if (selectedProgramIndex !== null) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
+    const isOpen = selectedProgramIndex !== null;
+    document.body.style.overflow = isOpen ? 'hidden' : 'unset';
+    window.dispatchEvent(new CustomEvent('whatsapp-visibility', { detail: { hidden: isOpen } }));
     return () => {
       document.body.style.overflow = 'unset';
+      window.dispatchEvent(new CustomEvent('whatsapp-visibility', { detail: { hidden: false } }));
     };
   }, [selectedProgramIndex]);
 
