@@ -1,0 +1,15 @@
+[Unit]
+Description=Huey task queue worker for kore_project
+After=network.target redis-server.service
+
+[Service]
+User=ryzepeck
+Group=www-data
+WorkingDirectory=/home/ryzepeck/webapps/kore_project/backend
+ExecStart=/home/ryzepeck/webapps/kore_project/backend/venv/bin/python \
+          manage.py run_huey
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

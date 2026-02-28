@@ -4,6 +4,7 @@ Infrastructure tasks scheduled via Huey:
 - Automated database and media backups (every 20 days).
 - Silk profiling data garbage collection (daily).
 - Weekly slow-query and N+1 detection report.
+- Monthly cleanup of old Silk report files (>6 months).
 
 Business-domain tasks live in ``core_app.tasks``.
 """
@@ -90,7 +91,7 @@ def silk_garbage_collection():
 def weekly_slow_queries_report():
     """Weekly report of slow queries and potential N+1 patterns.
 
-    Output is written to ``backend/logs/silk-weekly-report.log``.
+    Output is written to ``backend/logs/silk-reports/silk-report-YYYY-MM-DD.log``.
     Only runs when Silk is enabled (``ENABLE_SILK=true``).
     """
     if not getattr(settings, 'ENABLE_SILK', False):
@@ -159,11 +160,13 @@ def weekly_slow_queries_report():
     report_lines.extend(['', '=' * 60])
     report = '\n'.join(report_lines)
 
-    log_path = Path(settings.BASE_DIR) / 'logs' / 'silk-weekly-report.log'
-    log_path.parent.mkdir(exist_ok=True)
+    reports_dir = Path(settings.BASE_DIR) / 'logs' / 'silk-reports'
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    report_date = timezone.now().strftime('%Y-%m-%d')
+    log_path = reports_dir / f'silk-report-{report_date}.log'
 
-    with open(log_path, 'a') as f:
-        f.write(report + '\n\n')
+    with open(log_path, 'w') as f:
+        f.write(report + '\n')
 
     logger_silk.info(
         'Weekly report generated. Slow queries: %d, N+1 suspects: %d',
@@ -172,3 +175,43 @@ def weekly_slow_queries_report():
     )
 
     return report
+
+
+# ---------------------------------------------------------------------------
+# Monthly Silk report cleanup — 1st of each month at 05:00 UTC
+# ---------------------------------------------------------------------------
+@db_periodic_task(crontab(day='1', hour='5', minute='0'))
+def silk_reports_cleanup():
+    """Monthly cleanup of Silk report files older than 6 months.
+
+    Deletes ``silk-report-*.log`` files from ``backend/logs/silk-reports/``
+    when they are older than 180 days.
+    Only runs when Silk is enabled (``ENABLE_SILK=true``).
+    """
+    if not getattr(settings, 'ENABLE_SILK', False):
+        return
+
+    from datetime import datetime
+
+    logger_silk = logging.getLogger('silk_monitor')
+    reports_dir = Path(settings.BASE_DIR) / 'logs' / 'silk-reports'
+
+    if not reports_dir.exists():
+        return
+
+    cutoff = timezone.now().date() - timedelta(days=180)
+    deleted = 0
+
+    for report_file in reports_dir.glob('silk-report-*.log'):
+        # Extract date from filename: silk-report-YYYY-MM-DD.log
+        try:
+            date_str = report_file.stem.replace('silk-report-', '')
+            file_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            continue
+
+        if file_date < cutoff:
+            report_file.unlink()
+            deleted += 1
+
+    logger_silk.info('Silk reports cleanup: deleted %d file(s) older than %s.', deleted, cutoff)

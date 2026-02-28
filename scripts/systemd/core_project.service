@@ -1,0 +1,17 @@
+[Unit]
+Description=Gunicorn daemon for kore_project
+Requires=core_project.socket
+After=network.target
+
+[Service]
+User=ryzepeck
+Group=www-data
+WorkingDirectory=/home/ryzepeck/webapps/kore_project/backend
+ExecStart=/home/ryzepeck/webapps/kore_project/backend/venv/bin/gunicorn \
+          --config /home/ryzepeck/webapps/kore_project/backend/gunicorn.conf.py \
+          core_project.wsgi:application
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

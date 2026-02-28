@@ -35,3 +35,8 @@ X_FRAME_OPTIONS = 'DENY'
 # Production email (SMTP — configured via env vars in base settings)
 # ---------------------------------------------------------------------------
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
+# ---------------------------------------------------------------------------
+# Reverse proxy (Nginx terminates SSL, forwards HTTP to Gunicorn)
+# ---------------------------------------------------------------------------
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

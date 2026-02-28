@@ -1,0 +1,11 @@
+[Unit]
+Description=Gunicorn socket for kore_project
+
+[Socket]
+ListenStream=/run/core_project.sock
+SocketUser=ryzepeck
+SocketGroup=www-data
+SocketMode=0660
+
+[Install]
+WantedBy=sockets.target

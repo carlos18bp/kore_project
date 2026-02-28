@@ -1,32 +1,39 @@
-"""
-URL configuration for core_project project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/4.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
+from django.views.static import serve as static_serve
+
+from core_project.views import serve_nextjs_page
+
+TEMPLATES_DIR = settings.BASE_DIR / 'templates'
 
 urlpatterns = [
+    # Django admin & API
     path('admin/', admin.site.urls),
     path('api/', include('core_app.urls.api_urls')),
     path('api/auth/', include('core_app.urls.auth_urls')),
     path('api/wompi/', include('core_app.urls.wompi_urls')),
     path('api/google-captcha/', include('core_app.urls.captcha_urls')),
+
+    # Next.js static assets (JS/CSS chunks, images, icons, favicon)
+    re_path(r'^_next/(?P<path>.*)$', static_serve, {'document_root': TEMPLATES_DIR / '_next'}),
+    re_path(r'^images/(?P<path>.*)$', static_serve, {'document_root': TEMPLATES_DIR / 'images'}),
+    re_path(r'^icons/(?P<path>.*)$', static_serve, {'document_root': TEMPLATES_DIR / 'icons'}),
+    re_path(r'^favicon\.ico$', static_serve, {'document_root': str(TEMPLATES_DIR), 'path': 'favicon.ico'}),
+    re_path(r'^apple-icon\.png$', static_serve, {'document_root': str(TEMPLATES_DIR), 'path': 'apple-icon.png'}),
+
+    # Django static files (admin CSS/JS) — needed in production
+    re_path(r'^static/(?P<path>.*)$', static_serve, {'document_root': settings.STATIC_ROOT}),
 ]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
+# Next.js pages (catch-all must be last)
+urlpatterns += [
+    path('', serve_nextjs_page, name='home'),
+    re_path(r'^(?!admin(?:/|$))(?!static/)(?!api/)(?P<page>.+?)/?$', serve_nextjs_page, name='nextjs-page'),
+]
+
+handler404 = 'core_project.views.custom_404'
