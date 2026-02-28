@@ -3,7 +3,7 @@
 Imported automatically by ``settings.py`` when ``DJANGO_ENV == 'production'``.
 """
 
-import os
+from decouple import config as _config
 
 # ---------------------------------------------------------------------------
 # DEBUG — hardcoded to False, never from environment
@@ -13,9 +13,9 @@ DEBUG = False
 # ---------------------------------------------------------------------------
 # Required settings — fail fast if missing
 # ---------------------------------------------------------------------------
-if not os.getenv('DJANGO_SECRET_KEY'):
+if not _config('DJANGO_SECRET_KEY', default=''):
     raise ValueError('DJANGO_SECRET_KEY is required in production')
-if not os.getenv('DJANGO_ALLOWED_HOSTS'):
+if not _config('DJANGO_ALLOWED_HOSTS', default=''):
     raise ValueError('DJANGO_ALLOWED_HOSTS is required in production')
 
 # ---------------------------------------------------------------------------

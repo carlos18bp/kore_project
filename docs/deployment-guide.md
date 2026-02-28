@@ -46,12 +46,12 @@ python manage.py collectstatic --noinput
 cp ../scripts/systemd/gunicorn.conf.py ./gunicorn.conf.py
 
 # 8. Instalar servicios systemd
-sudo cp ../scripts/systemd/core_project.service /etc/systemd/system/core_project.service
-sudo cp ../scripts/systemd/core_project.socket /etc/systemd/system/core_project.socket
+sudo cp ../scripts/systemd/kore_project.service /etc/systemd/system/kore_project.service
+sudo cp ../scripts/systemd/kore_project.socket /etc/systemd/system/kore_project.socket
 sudo cp ../scripts/systemd/huey.service /etc/systemd/system/kore-huey.service
 sudo systemctl daemon-reload
-sudo systemctl enable --now core_project.socket
-sudo systemctl enable --now core_project.service
+sudo systemctl enable --now kore_project.socket
+sudo systemctl enable --now kore_project.service
 sudo systemctl enable --now kore-huey
 
 # 9. Configurar Nginx
@@ -61,7 +61,7 @@ sudo nginx -t && sudo systemctl reload nginx
 
 # 10. Verificar
 curl -I https://korehealths.com
-sudo systemctl status core_project
+sudo systemctl status kore_project
 sudo systemctl status kore-huey
 ```
 
@@ -88,7 +88,7 @@ npm run build
 cd ../backend
 source venv/bin/activate
 python manage.py collectstatic --noinput
-sudo systemctl restart core_project
+sudo systemctl restart kore_project
 sudo systemctl restart kore-huey
 ```
 
@@ -151,7 +151,7 @@ Nginx (SSL termination, port 443)
   ├── /static/     → backend/staticfiles/    (admin assets)
   ├── /media/      → backend/media/          (user uploads)
   ├── /_next/static/ → backend/templates/_next/static/  (Next.js chunks, cached 1y)
-  └── /* (todo lo demás) → unix:/run/core_project.sock
+  └── /* (todo lo demás) → unix:/run/kore_project.sock
                               │
                               ▼
                      Gunicorn (2 workers)

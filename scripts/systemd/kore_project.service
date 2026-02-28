@@ -1,6 +1,6 @@
 [Unit]
 Description=Gunicorn daemon for kore_project
-Requires=core_project.socket
+Requires=kore_project.socket
 After=network.target
 
 [Service]
