@@ -1,3 +1,5 @@
+import re
+
 from django.conf import settings
 from django.http import HttpResponse, HttpResponseNotFound
 
@@ -18,6 +20,33 @@ def serve_nextjs_page(request, page='index'):
             return HttpResponse(f.read(), content_type='text/html')
 
     return custom_404(request)
+
+
+def serve_nextjs_rsc(request, path):
+    """Serve Next.js RSC payload files (.txt) from the static export.
+
+    Next.js 16 generates files like ``__next._tree.txt`` (with underscore
+    prefix) but the client-side router requests ``__next.tree.txt`` (without).
+    This view tries the exact path first, then falls back to the
+    underscore-prefixed variant.
+    """
+    file_path = (TEMPLATES_DIR / path).resolve()
+
+    # Security: ensure resolved path stays inside TEMPLATES_DIR
+    if not str(file_path).startswith(str(TEMPLATES_DIR.resolve())):
+        return HttpResponseNotFound('')
+
+    if file_path.is_file():
+        return HttpResponse(file_path.read_bytes(), content_type='text/plain')
+
+    # Fallback: __next.tree.txt → __next._tree.txt
+    m = re.match(r'^(__next\.)(.+\.txt)$', file_path.name)
+    if m:
+        alt_path = file_path.parent / f'{m.group(1)}_{m.group(2)}'
+        if alt_path.is_file():
+            return HttpResponse(alt_path.read_bytes(), content_type='text/plain')
+
+    return HttpResponseNotFound('')
 
 
 def custom_404(request, exception=None):

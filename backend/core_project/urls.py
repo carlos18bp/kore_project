@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.urls import include, path, re_path
 from django.views.static import serve as static_serve
 
-from core_project.views import serve_nextjs_page
+from core_project.views import serve_nextjs_page, serve_nextjs_rsc
 
 TEMPLATES_DIR = settings.BASE_DIR / 'templates'
 
@@ -29,6 +29,11 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# Next.js RSC payload files (.txt) — must be before catch-all
+urlpatterns += [
+    re_path(r'^(?P<path>(?:.+/)?__next\..+\.txt)$', serve_nextjs_rsc, name='nextjs-rsc'),
+]
 
 # Next.js pages (catch-all must be last)
 urlpatterns += [
