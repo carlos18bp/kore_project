@@ -9,8 +9,8 @@ from core_app.models import AvailabilitySlot, TrainerProfile
 
 class Command(BaseCommand):
     help = "Create weekday availability slots for a specific trainer email.\n\n" \
-           "Generates slots Monday to Friday in two windows: 05:0013:00 and 16:0020:00,\n" \
-           "using the trainer's default session duration."
+           "Generates slots Monday to Friday in two windows: 05:00\x1313:00 and 16:00\x1320:00,\n" \
+           "using 60-minute sessions with 15-minute start increments by default."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -33,14 +33,32 @@ class Command(BaseCommand):
                 "Defaults to Django's current timezone."
             ),
         )
+        parser.add_argument(
+            "--slot-minutes",
+            type=int,
+            default=60,
+            help="Session duration in minutes (default: 60).",
+        )
+        parser.add_argument(
+            "--slot-step-minutes",
+            type=int,
+            default=15,
+            help="Start-time increment in minutes between slots (default: 15).",
+        )
 
     def handle(self, *args, **options):
         email = options["email"].strip().lower()
         days = int(options["days"])
         tz_name = options.get("timezone")
+        slot_minutes = int(options["slot_minutes"])
+        slot_step_minutes = int(options["slot_step_minutes"])
 
         if days <= 0:
             raise CommandError("--days must be > 0")
+        if slot_minutes <= 0:
+            raise CommandError("--slot-minutes must be > 0")
+        if slot_step_minutes <= 0:
+            raise CommandError("--slot-step-minutes must be > 0")
 
         if tz_name:
             try:
@@ -58,7 +76,8 @@ class Command(BaseCommand):
         except TrainerProfile.DoesNotExist:
             raise CommandError(f"No TrainerProfile found for email '{email}'")
 
-        slot_minutes = trainer.session_duration_minutes or 60
+        slot_duration = timedelta(minutes=slot_minutes)
+        slot_step = timedelta(minutes=slot_step_minutes)
 
         now = timezone.now().astimezone(tz)
         start_date = now.date()
@@ -91,14 +110,14 @@ class Command(BaseCommand):
                 current_start = day_start
                 while current_start < day_end:
                     starts_at = current_start
-                    ends_at = current_start + timedelta(minutes=slot_minutes)
+                    ends_at = current_start + slot_duration
 
                     if ends_at > day_end:
                         break
 
                     # Skip slots that would end in the past relative to "now"
                     if ends_at <= now:
-                        current_start = ends_at
+                        current_start = current_start + slot_step
                         continue
 
                     # UniqueConstraint is on (starts_at, ends_at), so we match
@@ -117,7 +136,7 @@ class Command(BaseCommand):
                     if was_created:
                         created += 1
 
-                    current_start = ends_at
+                    current_start = current_start + slot_step
 
         total_for_trainer = AvailabilitySlot.objects.filter(trainer=trainer).count()
 

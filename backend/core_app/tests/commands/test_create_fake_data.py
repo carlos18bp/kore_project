@@ -134,3 +134,28 @@ class TestCreateFakeData:
             and call.kwargs.get('ensure_inactive') is True
             for call in mock_call.call_args_list
         )
+
+    def test_slot_step_minutes_is_forwarded_to_slot_subcommand(self):
+        """Propagate ``slot_step_minutes`` option to ``create_fake_slots``."""
+        out = StringIO()
+        with patch('core_app.management.commands.create_fake_data.call_command') as mock_call:
+            call_command(
+                'create_fake_data',
+                skip_users=True,
+                skip_content=True,
+                skip_trainers=True,
+                skip_packages=True,
+                skip_subscriptions=True,
+                skip_bookings=True,
+                skip_payments=True,
+                skip_notifications=True,
+                skip_analytics_events=True,
+                slot_step_minutes=20,
+                stdout=out,
+            )
+
+        assert any(
+            call.args and call.args[0] == 'create_fake_slots'
+            and call.kwargs.get('slot_step_minutes') == 20
+            for call in mock_call.call_args_list
+        )

@@ -31,6 +31,7 @@ function BookSessionContent() {
     subscription,
     bookingResult,
     monthSlots,
+    monthSlotsLoading,
     loading,
     error,
     fetchTrainers,
@@ -209,8 +210,10 @@ function BookSessionContent() {
   const showRescheduleNoAvailability =
     isReschedule &&
     bookingToReschedule &&
-    !loading &&
+    !monthSlotsLoading &&
     availableDates.size === 0;
+
+  const isCalendarLoading = monthSlotsLoading && availableDates.size === 0;
 
   const handleConfirm = useCallback(async () => {
     if (!selectedSlot) return;
@@ -367,15 +370,22 @@ function BookSessionContent() {
             {/* Center — Calendar */}
             <div className="lg:col-span-5">
               <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-kore-gray-light/50">
-                <BookingCalendar
-                  availableDates={availableDates}
-                  selectedDate={selectedDate}
-                  onSelectDate={(date) => {
-                    if (!hasNoSessions) {
-                      setSelectedDate(date);
-                    }
-                  }}
-                />
+                {isCalendarLoading ? (
+                  <div className="min-h-[360px] flex flex-col items-center justify-center gap-3">
+                    <div className="animate-spin h-7 w-7 border-2 border-kore-red border-t-transparent rounded-full" />
+                    <p className="text-sm text-kore-gray-dark/50">Cargando disponibilidad...</p>
+                  </div>
+                ) : (
+                  <BookingCalendar
+                    availableDates={availableDates}
+                    selectedDate={selectedDate}
+                    onSelectDate={(date) => {
+                      if (!hasNoSessions) {
+                        setSelectedDate(date);
+                      }
+                    }}
+                  />
+                )}
               </div>
             </div>
 

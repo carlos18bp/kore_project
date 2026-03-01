@@ -973,6 +973,13 @@ class TestCreateFakeSlots:
         assert exc_info.value.code != 0
         assert AvailabilitySlot.objects.count() == 0
 
+    def test_slot_step_minutes_zero_error(self):
+        """--slot-step-minutes <= 0 exits with error."""
+        with pytest.raises(SystemExit) as exc_info:
+            call_command('create_fake_slots', slot_step_minutes=0)
+        assert exc_info.value.code != 0
+        assert AvailabilitySlot.objects.count() == 0
+
     def test_idempotent_slots(self):
         """Re-running does not duplicate existing slots (line 71-72 branch)."""
         user = User.objects.create_user(
@@ -1007,7 +1014,7 @@ class TestCreateFakeSlots:
             assert slot.starts_at.astimezone(tz).date() >= late_now.date() + timedelta(days=1)
 
     def test_slot_exceeds_end_boundary_breaks(self):
-        """Slot that would exceed end boundary breaks loop (line 55)."""
+        """Loop stops when next start would exceed end boundary."""
         user = User.objects.create_user(
             email='slot_break@example.com', password='p', role=User.Role.TRAINER,
         )
@@ -1019,8 +1026,8 @@ class TestCreateFakeSlots:
             'create_fake_slots', days=1, start_hour=9, end_hour=10,
             slot_minutes=45, stdout=out,
         )
-        # Should create exactly 1 slot per day
-        assert AvailabilitySlot.objects.count() == 1
+        # With default 15-min starts, 09:00-09:45 and 09:15-10:00 both fit.
+        assert AvailabilitySlot.objects.count() == 2
 
     def test_past_slots_skipped(self):
         """Slots in the past are skipped (lines 58-59)."""
@@ -1039,10 +1046,55 @@ class TestCreateFakeSlots:
                 'create_fake_slots', days=1, start_hour=9, end_hour=18,
                 slot_minutes=60, timezone='America/Bogota', stdout=out,
             )
-        # Only slots from 14:00 onwards should be created (4 slots: 14, 15, 16, 17)
-        assert AvailabilitySlot.objects.count() == 4
+        # With 15-min starts and 60-min duration, first valid start is 13:15.
+        assert AvailabilitySlot.objects.count() == 16
         for slot in AvailabilitySlot.objects.all():
             assert slot.ends_at > mid_day
+
+
+# ----------------------------------------------------------------
+# create_trainer_weekday_slots
+# ----------------------------------------------------------------
+
+@pytest.mark.django_db
+class TestCreateTrainerWeekdaySlots:
+    """Behavior checks for trainer weekday slot generation command."""
+
+    def test_generates_60_min_slots_every_15_minutes(self):
+        """Default command behavior creates 60-min slots with 15-min starts."""
+        user = User.objects.create_user(
+            email='weekday_trainer@example.com', password='p', role=User.Role.TRAINER,
+        )
+        trainer = TrainerProfile.objects.create(user=user, specialty='Strength')
+
+        out = StringIO()
+        call_command(
+            'create_trainer_weekday_slots',
+            email=user.email,
+            days=1,
+            timezone='America/Bogota',
+            stdout=out,
+        )
+
+        slots = list(AvailabilitySlot.objects.filter(trainer=trainer).order_by('starts_at'))
+        assert slots
+        assert all((slot.ends_at - slot.starts_at) == timedelta(minutes=60) for slot in slots)
+        assert all(slot.starts_at.minute in {0, 15, 30, 45} for slot in slots)
+
+    def test_slot_step_minutes_zero_error(self):
+        """--slot-step-minutes <= 0 raises CommandError in weekday generator."""
+        user = User.objects.create_user(
+            email='weekday_step_error@example.com', password='p', role=User.Role.TRAINER,
+        )
+        TrainerProfile.objects.create(user=user, specialty='Mobility')
+
+        with pytest.raises(Exception) as exc_info:
+            call_command(
+                'create_trainer_weekday_slots',
+                email=user.email,
+                slot_step_minutes=0,
+            )
+        assert '--slot-step-minutes must be > 0' in str(exc_info.value)
 
 
 # ----------------------------------------------------------------

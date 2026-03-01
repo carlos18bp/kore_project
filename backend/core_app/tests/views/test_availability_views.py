@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 
-from core_app.models import AvailabilitySlot, TrainerProfile, User
+from core_app.models import AvailabilitySlot, Booking, Package, TrainerProfile, User
 from core_app.tests.helpers import get_results
 
 FIXED_NOW = timezone.make_aware(datetime(2100, 2, 3, 10, 0, 0), timezone.get_current_timezone())
@@ -140,3 +140,54 @@ def test_availability_slot_list_filters_by_trainer(api_client):
 
     assert response.status_code == status.HTTP_200_OK
     assert len(get_results(response.data)) == 1
+
+
+@pytest.mark.django_db
+def test_availability_excludes_slots_inside_trainer_travel_buffer(api_client):
+    """Hide slots that violate 45-minute buffer around active trainer bookings."""
+    trainer_user = User.objects.create_user(
+        email='trainer_buffer@example.com', password='p', role=User.Role.TRAINER,
+    )
+    trainer = TrainerProfile.objects.create(user=trainer_user, specialty='Strength', location='Studio')
+
+    customer_a = User.objects.create_user(email='buffer_customer_a@example.com', password='p')
+    package = Package.objects.create(title='Buffer Pack', sessions_count=4, validity_days=30)
+
+    now = _fixed_now()
+    booked_slot = AvailabilitySlot.objects.create(
+        starts_at=now + timedelta(hours=2),
+        ends_at=now + timedelta(hours=3),
+        trainer=trainer,
+        is_active=True,
+        is_blocked=True,
+    )
+    Booking.objects.create(
+        customer=customer_a,
+        package=package,
+        slot=booked_slot,
+        trainer=trainer,
+        status=Booking.Status.CONFIRMED,
+    )
+
+    within_buffer_slot = AvailabilitySlot.objects.create(
+        starts_at=now + timedelta(hours=3, minutes=30),
+        ends_at=now + timedelta(hours=4, minutes=30),
+        trainer=trainer,
+        is_active=True,
+        is_blocked=False,
+    )
+    boundary_slot = AvailabilitySlot.objects.create(
+        starts_at=now + timedelta(hours=3, minutes=45),
+        ends_at=now + timedelta(hours=4, minutes=45),
+        trainer=trainer,
+        is_active=True,
+        is_blocked=False,
+    )
+
+    url = reverse('availability-slot-list')
+    response = api_client.get(url, {'trainer': trainer.pk})
+
+    assert response.status_code == status.HTTP_200_OK
+    slot_ids = {item['id'] for item in get_results(response.data)}
+    assert within_buffer_slot.id not in slot_ids
+    assert boundary_slot.id in slot_ids

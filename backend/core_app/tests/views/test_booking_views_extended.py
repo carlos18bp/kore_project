@@ -277,6 +277,37 @@ class TestRescheduleAction:
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
+    def test_reschedule_rejects_trainer_buffer_conflict(self, api_client, customer, package, trainer_profile):
+        """Reschedule rejects slots that violate 45-minute trainer travel buffer."""
+        old_slot = _make_slot(trainer_profile, hours_ahead=48)
+        old_slot.is_blocked = True
+        old_slot.save()
+        booking = _make_booking(customer, package, old_slot, trainer_profile)
+
+        other_customer = User.objects.create_user(
+            email='buffer_other@example.com', password='p', role=User.Role.CUSTOMER,
+        )
+        existing_slot = AvailabilitySlot.objects.create(
+            starts_at=FIXED_NOW + timedelta(hours=72),
+            ends_at=FIXED_NOW + timedelta(hours=73),
+            trainer=trainer_profile,
+            is_blocked=True,
+        )
+        _make_booking(other_customer, package, existing_slot, trainer_profile, stat=Booking.Status.CONFIRMED)
+
+        conflicting_slot = AvailabilitySlot.objects.create(
+            starts_at=FIXED_NOW + timedelta(hours=73, minutes=30),
+            ends_at=FIXED_NOW + timedelta(hours=74, minutes=30),
+            trainer=trainer_profile,
+        )
+
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-reschedule', args=[booking.pk])
+        response = api_client.post(url, {'new_slot_id': conflicting_slot.pk}, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert '45 minutos' in response.data['detail']
+
     def test_reschedule_before_last_session_fails(self, api_client, customer, package, trainer_profile, subscription):
         """Reschedule to a slot before last session ends is rejected."""
         now = FIXED_NOW

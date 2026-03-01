@@ -33,6 +33,7 @@ class Command(BaseCommand):
         parser.add_argument('--start-hour', type=int, default=9)
         parser.add_argument('--end-hour', type=int, default=18)
         parser.add_argument('--slot-minutes', type=int, default=60)
+        parser.add_argument('--slot-step-minutes', type=int, default=15)
         parser.add_argument('--timezone', type=str, default=None)
         parser.add_argument('--skip-slots', action='store_true', default=False)
 
@@ -109,6 +110,7 @@ class Command(BaseCommand):
                 start_hour=options['start_hour'],
                 end_hour=options['end_hour'],
                 slot_minutes=options['slot_minutes'],
+                slot_step_minutes=options['slot_step_minutes'],
                 timezone=options['timezone'],
                 stdout=self.stdout,
             )

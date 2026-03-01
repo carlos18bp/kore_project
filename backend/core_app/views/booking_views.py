@@ -10,6 +10,10 @@ from rest_framework.response import Response
 from core_app.models import AvailabilitySlot, Booking, Subscription
 from core_app.permissions import IsAdminRole, is_admin_user
 from core_app.serializers.booking_serializers import BookingSerializer
+from core_app.services.booking_rules import (
+    TRAVEL_BUFFER_MINUTES,
+    has_trainer_travel_buffer_conflict,
+)
 from core_app.services.email_service import (
     send_booking_cancellation,
     send_booking_confirmation,
@@ -233,6 +237,17 @@ class BookingViewSet(viewsets.ModelViewSet):
                         {'detail': 'La sesión debe finalizar antes del inicio de la siguiente sesión del programa.'},
                         status=status.HTTP_400_BAD_REQUEST,
                     )
+
+            if has_trainer_travel_buffer_conflict(new_slot, trainer=booking.trainer):
+                return Response(
+                    {
+                        'detail': (
+                            f'Debe existir una ventana libre de {TRAVEL_BUFFER_MINUTES} minutos '
+                            'antes y después de cada sesión del mismo entrenador.'
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             new_slot.is_blocked = True
             new_slot.save(update_fields=['is_blocked', 'updated_at'])

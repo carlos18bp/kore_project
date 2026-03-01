@@ -6,6 +6,7 @@ from core_app.models import AvailabilitySlot, Booking, Package, Subscription, Tr
 from core_app.serializers.availability_serializers import AvailabilitySlotSerializer
 from core_app.serializers.package_serializers import PackageSerializer
 from core_app.serializers.trainer_profile_serializers import TrainerProfileSerializer
+from core_app.services.booking_rules import has_trainer_travel_buffer_conflict
 
 
 class BookingSerializer(serializers.ModelSerializer):
@@ -19,6 +20,7 @@ class BookingSerializer(serializers.ModelSerializer):
     - Slot must be active, unblocked, and in the future.
     - Slot must not already be booked.
     - No time-overlap with the customer's other active bookings.
+    - Slot must respect a 45-minute travel buffer for the same trainer.
     - If a subscription is provided, it must have remaining sessions.
     - New session must start after the end of the last session in the same subscription.
     """
@@ -89,7 +91,9 @@ class BookingSerializer(serializers.ModelSerializer):
         1. Slot is active, unblocked, future, and not already booked.
         2. Anti-overlap — requested slot does not overlap another active booking
            of the same customer.
-        3. Subscription (if provided) has remaining sessions.
+        3. Travel buffer — requested slot leaves 45 minutes around bookings
+           for the same trainer.
+        4. Subscription (if provided) has remaining sessions.
 
         Returns:
             dict: Validated attributes.
@@ -98,11 +102,13 @@ class BookingSerializer(serializers.ModelSerializer):
             serializers.ValidationError: If any check fails.
         """
         slot = attrs.get('slot')
+        trainer = attrs.get('trainer')
         request = self.context.get('request')
         customer = getattr(request, 'user', None) if request else None
 
         if slot:
             self._validate_slot_available(slot)
+            self._validate_trainer_travel_buffer(slot, trainer)
 
         if customer and customer.is_authenticated and slot:
             self._validate_no_overlap(customer, slot)
@@ -160,6 +166,27 @@ class BookingSerializer(serializers.ModelSerializer):
             )
 
     @staticmethod
+    def _validate_trainer_travel_buffer(slot, trainer=None):
+        """Ensure 45-minute trainer travel buffer around active sessions.
+
+        Args:
+            slot: AvailabilitySlot to validate.
+            trainer: Optional TrainerProfile fallback if slot has no trainer.
+
+        Raises:
+            serializers.ValidationError: If the trainer buffer would be violated.
+        """
+        if has_trainer_travel_buffer_conflict(slot, trainer=trainer):
+            raise serializers.ValidationError(
+                {
+                    'slot_id': (
+                        'Debe existir una ventana libre de 45 minutos antes y después '
+                        'de cada sesión del mismo entrenador.'
+                    )
+                }
+            )
+
+    @staticmethod
     def _validate_chronological_order(subscription, slot):
         """Ensure the new session starts after the end of the last session in the same subscription.
 
@@ -207,6 +234,7 @@ class BookingSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Autenticación requerida.')
 
         slot = validated_data['slot']
+        trainer = validated_data.get('trainer')
         subscription = validated_data.get('subscription')
 
         with transaction.atomic():
@@ -218,6 +246,8 @@ class BookingSerializer(serializers.ModelSerializer):
                 or Booking.objects.filter(slot=slot).exclude(status=Booking.Status.CANCELED).exists()
             ):
                 raise serializers.ValidationError({'slot_id': 'El horario no está disponible.'})
+
+            self._validate_trainer_travel_buffer(slot, trainer)
 
             slot.is_blocked = True
             slot.save(update_fields=['is_blocked'])

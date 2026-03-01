@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta
 
 import pytest
+from django.test import override_settings
 from django.utils import timezone
 
 from core_app.models import AvailabilitySlot, Booking, Package, TrainerProfile, User
@@ -85,10 +86,28 @@ class TestIcsGenerator:
         ics = generate_ics(booking_with_trainer).decode('utf-8')
         assert 'Studio X' in ics
 
+    def test_contains_customer_and_trainer_attendees(self, booking_with_trainer):
+        """Include both customer and trainer as attendees when trainer exists."""
+        ics = generate_ics(booking_with_trainer).decode('utf-8')
+        assert 'ATTENDEE;CN=Juan Pérez:mailto:cust_ics@example.com' in ics
+        assert 'ATTENDEE;CN=Germán Franco:mailto:trainer_ics@example.com' in ics
+
     def test_contains_attendee_email(self, booking_with_trainer):
         """Embed customer email as event attendee information."""
         ics = generate_ics(booking_with_trainer).decode('utf-8')
         assert 'cust_ics@example.com' in ics
+
+    @override_settings(DEFAULT_FROM_EMAIL='Agenda KÓRE <agenda@korehealths.com>')
+    def test_organizer_uses_default_from_email_setting(self, booking_with_trainer):
+        """Use DEFAULT_FROM_EMAIL as organizer metadata in generated ICS."""
+        ics = generate_ics(booking_with_trainer).decode('utf-8')
+        assert 'ORGANIZER;CN=Agenda KÓRE:mailto:agenda@korehealths.com' in ics
+
+    @override_settings(DEFAULT_FROM_EMAIL='invalid-from-email')
+    def test_organizer_falls_back_when_default_from_email_invalid(self, booking_with_trainer):
+        """Fallback organizer email when DEFAULT_FROM_EMAIL cannot be parsed."""
+        ics = generate_ics(booking_with_trainer).decode('utf-8')
+        assert 'ORGANIZER;CN=KÓRE:mailto:noreply@korehealths.com' in ics
 
     def test_contains_dtstart_and_dtend(self, booking_with_trainer):
         """Include DTSTART and DTEND fields to define event boundaries."""

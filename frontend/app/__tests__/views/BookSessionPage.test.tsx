@@ -55,6 +55,7 @@ function setupStore(overrides = {}) {
     subscription: null,
     bookingResult: null,
     monthSlots: [],
+    monthSlotsLoading: false,
     loading: false,
     error: null,
     fetchTrainers: mockFetchTrainers,
@@ -131,6 +132,12 @@ describe('BookSessionPage', () => {
   it('renders placeholder text when no date selected', () => {
     render(<BookSessionPage />);
     expect(screen.getByText(/Selecciona una fecha en el calendario/)).toBeInTheDocument();
+  });
+
+  it('shows calendar loader while month availability is loading', () => {
+    setupStore({ monthSlotsLoading: true, monthSlots: [] });
+    render(<BookSessionPage />);
+    expect(screen.getByText('Cargando disponibilidad...')).toBeInTheDocument();
   });
 
   it('renders BookingConfirmation at step 2', () => {

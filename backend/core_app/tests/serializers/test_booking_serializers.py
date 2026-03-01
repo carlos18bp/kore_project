@@ -7,7 +7,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIRequestFactory
 
-from core_app.models import AvailabilitySlot, Booking, Package, Subscription, User
+from core_app.models import AvailabilitySlot, Booking, Package, Subscription, TrainerProfile, User
 from core_app.serializers import BookingSerializer
 
 FIXED_NOW = timezone.make_aware(datetime(2025, 1, 15, 10, 0, 0))
@@ -180,6 +180,80 @@ class TestBookingSerializerValidation:
         )
         assert not serializer.is_valid()
         assert 'slot_id' in serializer.errors
+
+    def test_trainer_buffer_rejects_slot_within_45_minutes(self, package):
+        """Reject slot when same trainer lacks the required 45-minute buffer."""
+        customer_a = User.objects.create_user(email='buffer_a@example.com', password='p')
+        customer_b = User.objects.create_user(email='buffer_b@example.com', password='p')
+        trainer_user = User.objects.create_user(
+            email='buffer_trainer@example.com', password='p', role=User.Role.TRAINER,
+        )
+        trainer = TrainerProfile.objects.create(user=trainer_user, specialty='Mobility')
+
+        now = FIXED_NOW
+        existing_slot = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=2),
+            ends_at=now + timedelta(hours=3),
+            trainer=trainer,
+        )
+        Booking.objects.create(
+            customer=customer_a,
+            package=package,
+            slot=existing_slot,
+            trainer=trainer,
+            status=Booking.Status.CONFIRMED,
+        )
+
+        candidate_slot = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=3, minutes=30),
+            ends_at=now + timedelta(hours=4, minutes=30),
+            trainer=trainer,
+        )
+        request = _make_request(customer_b)
+        serializer = BookingSerializer(
+            data={'package_id': package.id, 'slot_id': candidate_slot.id},
+            context={'request': request},
+        )
+
+        assert not serializer.is_valid()
+        assert 'slot_id' in serializer.errors
+        assert '45 minutos' in str(serializer.errors['slot_id'])
+
+    def test_trainer_buffer_allows_slot_exactly_at_45_minutes(self, package):
+        """Allow slot when start is exactly 45 minutes after prior booking end."""
+        customer_a = User.objects.create_user(email='buffer_allow_a@example.com', password='p')
+        customer_b = User.objects.create_user(email='buffer_allow_b@example.com', password='p')
+        trainer_user = User.objects.create_user(
+            email='buffer_allow_trainer@example.com', password='p', role=User.Role.TRAINER,
+        )
+        trainer = TrainerProfile.objects.create(user=trainer_user, specialty='Mobility')
+
+        now = FIXED_NOW
+        existing_slot = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=2),
+            ends_at=now + timedelta(hours=3),
+            trainer=trainer,
+        )
+        Booking.objects.create(
+            customer=customer_a,
+            package=package,
+            slot=existing_slot,
+            trainer=trainer,
+            status=Booking.Status.CONFIRMED,
+        )
+
+        candidate_slot = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=3, minutes=45),
+            ends_at=now + timedelta(hours=4, minutes=45),
+            trainer=trainer,
+        )
+        request = _make_request(customer_b)
+        serializer = BookingSerializer(
+            data={'package_id': package.id, 'slot_id': candidate_slot.id},
+            context={'request': request},
+        )
+
+        assert serializer.is_valid(), serializer.errors
 
     def test_validate_no_overlap_direct(self, customer, package):
         """Direct call to _validate_no_overlap covers line 178."""

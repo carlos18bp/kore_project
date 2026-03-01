@@ -90,11 +90,12 @@ def send_booking_confirmation(booking):
     """
     ics_bytes = generate_ics(booking)
     context = _build_booking_context(booking)
+    recipient_emails = _build_booking_confirmation_recipients(booking)
 
     success = send_template_email(
         template_name='booking_confirmation',
         subject='Tu sesión ha sido agendada — KÓRE',
-        to_emails=[booking.customer.email],
+        to_emails=recipient_emails,
         context=context,
         attachments=[('session.ics', ics_bytes, 'text/calendar')],
     )
@@ -292,6 +293,36 @@ def _build_booking_context(booking):
         'slot_end': booking.slot.ends_at,
         'booking_id': booking.pk,
     }
+
+
+def _build_booking_confirmation_recipients(booking):
+    """Return deduplicated recipient emails for booking confirmation.
+
+    Includes the customer and, when available, the trainer user email.
+
+    Args:
+        booking: Booking instance.
+
+    Returns:
+        list[str]: Recipient emails preserving first-seen order.
+    """
+    recipients = [booking.customer.email]
+
+    trainer = booking.trainer
+    trainer_email = trainer.user.email if trainer and trainer.user else ''
+    if trainer_email:
+        recipients.append(trainer_email)
+
+    deduplicated = []
+    seen = set()
+    for email in recipients:
+        normalized = email.strip().lower()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        deduplicated.append(email)
+
+    return deduplicated
 
 
 def _create_notification(booking, notification_type, success):

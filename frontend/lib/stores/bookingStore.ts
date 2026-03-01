@@ -90,6 +90,7 @@ type BookingState = {
   trainers: Trainer[];
   slots: Slot[];
   monthSlots: Slot[];
+  monthSlotsLoading: boolean;
   subscriptions: Subscription[];
   bookings: BookingData[];
   bookingDetail: BookingData | null;
@@ -167,6 +168,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   trainers: [],
   slots: [],
   monthSlots: [],
+  monthSlotsLoading: false,
   subscriptions: [],
   bookings: [],
   bookingDetail: null,
@@ -247,6 +249,9 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   },
 
   fetchMonthSlots: async (trainerId) => {
+    const requestId = Date.now() + Math.random();
+    set({ monthSlotsLoading: true });
+    (useBookingStore as unknown as { _latestMonthSlotsRequestId?: number })._latestMonthSlotsRequestId = requestId;
     try {
       const params: Record<string, string> = {};
       if (trainerId) params.trainer = String(trainerId);
@@ -274,9 +279,19 @@ export const useBookingStore = create<BookingState>((set, get) => ({
         isFirstRequest = false;
       }
 
+      if ((useBookingStore as unknown as { _latestMonthSlotsRequestId?: number })._latestMonthSlotsRequestId !== requestId) {
+        return;
+      }
       set({ monthSlots: aggregated });
     } catch {
+      if ((useBookingStore as unknown as { _latestMonthSlotsRequestId?: number })._latestMonthSlotsRequestId !== requestId) {
+        return;
+      }
       set({ monthSlots: [] });
+    } finally {
+      if ((useBookingStore as unknown as { _latestMonthSlotsRequestId?: number })._latestMonthSlotsRequestId === requestId) {
+        set({ monthSlotsLoading: false });
+      }
     }
   },
 

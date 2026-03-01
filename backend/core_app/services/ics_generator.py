@@ -5,8 +5,11 @@ attached to confirmation and reschedule emails so the recipient's
 calendar app can import the session automatically.
 """
 
+from email.utils import parseaddr
 from datetime import datetime, timezone as dt_tz
 from uuid import uuid4
+
+from django.conf import settings
 
 
 def generate_ics(booking):
@@ -28,22 +31,34 @@ def generate_ics(booking):
     trainer = booking.trainer
     customer = booking.customer
 
+    customer_name = f'{customer.first_name} {customer.last_name}'.strip() or customer.email
     summary = 'Entrenamiento KÓRE'
-    description = f'Sesión de entrenamiento con KÓRE para {customer.first_name} {customer.last_name}.'
+    description = f'Sesión de entrenamiento con KÓRE para {customer_name}.'
     location = ''
-    organizer_name = 'KÓRE'
-    organizer_email = 'noreply@korehealths.com'
+    organizer_name, organizer_email = _resolve_default_organizer()
 
     if trainer:
-        trainer_name = f'{trainer.user.first_name} {trainer.user.last_name}'
+        trainer_name = f'{trainer.user.first_name} {trainer.user.last_name}'.strip() or trainer.user.email
         summary = f'Entrenamiento KÓRE — {trainer_name}'
         description = (
             f'Sesión de entrenamiento con {trainer_name} '
-            f'para {customer.first_name} {customer.last_name}.'
+            f'para {customer_name}.'
         )
         location = trainer.location or ''
-        organizer_name = trainer_name
-        organizer_email = trainer.user.email
+
+    attendees = [(customer_name, customer.email)]
+    if trainer and trainer.user.email:
+        trainer_name = f'{trainer.user.first_name} {trainer.user.last_name}'.strip() or trainer.user.email
+        attendees.append((trainer_name, trainer.user.email))
+
+    attendee_lines = []
+    seen_attendees = set()
+    for attendee_name, attendee_email in attendees:
+        normalized_email = attendee_email.strip().lower()
+        if normalized_email in seen_attendees:
+            continue
+        seen_attendees.add(normalized_email)
+        attendee_lines.append(f'ATTENDEE;CN={attendee_name}:mailto:{attendee_email}')
 
     dtstart = _format_dt(slot.starts_at)
     dtend = _format_dt(slot.ends_at)
@@ -65,7 +80,7 @@ def generate_ics(booking):
         f'DESCRIPTION:{description}',
         f'LOCATION:{location}',
         f'ORGANIZER;CN={organizer_name}:mailto:{organizer_email}',
-        f'ATTENDEE;CN={customer.first_name} {customer.last_name}:mailto:{customer.email}',
+        *attendee_lines,
         'STATUS:CONFIRMED',
         'END:VEVENT',
         'END:VCALENDAR',
@@ -84,3 +99,16 @@ def _format_dt(dt):
         str: Formatted datetime string.
     """
     return dt.strftime('%Y%m%dT%H%M%SZ')
+
+
+def _resolve_default_organizer():
+    """Resolve organizer name/email from configured DEFAULT_FROM_EMAIL.
+
+    Returns:
+        tuple[str, str]: Organizer display name and organizer email.
+    """
+    parsed_name, parsed_email = parseaddr(getattr(settings, 'DEFAULT_FROM_EMAIL', ''))
+    normalized_email = parsed_email.strip()
+    organizer_name = parsed_name.strip() or 'KÓRE'
+    organizer_email = normalized_email if '@' in normalized_email else 'noreply@korehealths.com'
+    return organizer_name, organizer_email

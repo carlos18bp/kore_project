@@ -112,6 +112,32 @@ class TestBookingEmailNotifications:
         assert notification.sent_to == customer.email
         assert notification.booking == booking
         assert mock_send.call_args.kwargs['attachments']
+        assert mock_send.call_args.kwargs['to_emails'] == [customer.email, trainer_user.email]
+
+    def test_send_booking_confirmation_without_trainer_sends_only_to_customer(self):
+        """Ensure confirmations without trainer keep customer-only recipients."""
+        customer = User.objects.create_user(
+            email='booking_confirm_solo@example.com', password='pass', first_name='Ana', last_name='Perez',
+        )
+        package = Package.objects.create(title='Pack', sessions_count=4, validity_days=30, price=Decimal('100.00'))
+        now = _fixed_now()
+        slot = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(days=1),
+            ends_at=now + timedelta(days=1, hours=1),
+            is_active=True,
+            is_blocked=False,
+        )
+        booking = Booking.objects.create(
+            customer=customer,
+            package=package,
+            slot=slot,
+            status=Booking.Status.CONFIRMED,
+        )
+
+        with patch('core_app.services.email_service.send_template_email', return_value=True) as mock_send:
+            send_booking_confirmation(booking)
+
+        assert mock_send.call_args.kwargs['to_emails'] == [customer.email]
 
     def test_send_booking_cancellation_records_failed_notification(self):
         """Ensure cancellations record failed notifications when email fails."""

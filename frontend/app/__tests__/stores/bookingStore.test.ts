@@ -15,7 +15,6 @@ jest.mock('@/lib/services/http', () => ({
   },
 }));
 
-const mockedCookies = Cookies as jest.Mocked<typeof Cookies>;
 const mockedApi = api as jest.Mocked<typeof api>;
 
 function resetStore() {
@@ -29,6 +28,7 @@ function resetStore() {
     trainers: [],
     slots: [],
     monthSlots: [],
+    monthSlotsLoading: false,
     subscriptions: [],
     bookings: [],
     bookingDetail: null,
@@ -90,7 +90,7 @@ describe('bookingStore', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     resetStore();
-    mockedCookies.get.mockReturnValue('fake-token');
+    (Cookies.get as jest.Mock).mockReturnValue('fake-token');
   });
 
   // ----------------------------------------------------------------
@@ -164,7 +164,7 @@ describe('bookingStore', () => {
     });
 
     it('sends empty auth headers when no token cookie', async () => {
-      mockedCookies.get.mockReturnValue(undefined);
+      (Cookies.get as jest.Mock).mockReturnValue(undefined);
       mockedApi.get.mockResolvedValueOnce({ data: { results: [MOCK_TRAINER] } });
       await useBookingStore.getState().fetchTrainers();
       expect(mockedApi.get).toHaveBeenCalledWith('/trainers/', { headers: {} });
