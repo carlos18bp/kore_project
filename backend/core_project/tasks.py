@@ -1,10 +1,10 @@
 """Operational periodic tasks for core_project.
 
 Infrastructure tasks scheduled via Huey:
-- Automated database and media backups (every 20 days).
-- Silk profiling data garbage collection (daily).
-- Weekly slow-query and N+1 detection report.
-- Monthly cleanup of old Silk report files (>6 months).
+- scheduled_backup: DB + media backup weekly (Sunday at 02:30 AM UTC)
+- silk_garbage_collection: Daily cleanup of Silk data older than 7 days (03:15 AM)
+- weekly_slow_queries_report: Monday 07:30 AM performance report
+- silk_reports_cleanup: Monthly cleanup of Silk report files older than 6 months
 
 Business-domain tasks live in ``core_app.tasks``.
 """
@@ -23,36 +23,29 @@ logger = logging.getLogger('backups')
 
 
 # ---------------------------------------------------------------------------
-# Backup task — runs on days 1 and 21 of each month at 03:00 UTC
+# Backup — weekly, Sunday at 02:30 UTC
 # ---------------------------------------------------------------------------
-@db_periodic_task(crontab(day='1,21', hour='3', minute='0'))
+@db_periodic_task(crontab(day_of_week='0', hour='2', minute='30'))
 def scheduled_backup():
-    """Automated backup of database and media files.
+    """Automated weekly backup of database and media files (Sunday 02:30 UTC).
 
     Storage: configured via ``BACKUP_STORAGE_PATH`` env var.
-    Retention: ~90 days (5 backups at 20-day intervals).
+    Retention: 4 weeks (~1 month).
     """
     from django.core.management import call_command
 
     timestamp = timezone.now().strftime('%Y-%m-%d_%H%M%S')
-
     logger.info('=== Starting scheduled backup %s ===', timestamp)
 
     try:
         output = StringIO()
         logger.info('Running database backup...')
-        call_command('dbbackup', stdout=output)
+        call_command('dbbackup', '--compress', '--clean', stdout=output)
         logger.info(output.getvalue())
 
         output = StringIO()
         logger.info('Running media backup...')
-        call_command('mediabackup', stdout=output)
-        logger.info(output.getvalue())
-
-        output = StringIO()
-        logger.info('Cleaning old backups...')
-        call_command('dbbackup', '--clean', stdout=output)
-        call_command('mediabackup', '--clean', stdout=output)
+        call_command('mediabackup', '--compress', '--clean', stdout=output)
         logger.info(output.getvalue())
 
         logger.info('=== Backup completed successfully ===')
@@ -64,9 +57,9 @@ def scheduled_backup():
 
 
 # ---------------------------------------------------------------------------
-# Silk garbage collection — daily at 04:00 UTC
+# Silk garbage collection — daily at 03:15 UTC
 # ---------------------------------------------------------------------------
-@db_periodic_task(crontab(hour='4', minute='0'))
+@db_periodic_task(crontab(hour='3', minute='15'))
 def silk_garbage_collection():
     """Daily cleanup of Silk profiling data older than 7 days.
 
@@ -87,7 +80,7 @@ def silk_garbage_collection():
 # ---------------------------------------------------------------------------
 # Weekly slow-query report — Mondays at 08:00 UTC
 # ---------------------------------------------------------------------------
-@db_periodic_task(crontab(day_of_week='1', hour='8', minute='0'))
+@db_periodic_task(crontab(day_of_week='1', hour='7', minute='30'))
 def weekly_slow_queries_report():
     """Weekly report of slow queries and potential N+1 patterns.
 
