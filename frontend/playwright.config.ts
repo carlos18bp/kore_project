@@ -27,7 +27,7 @@ export default defineConfig({
   workers: 3, // Reduced to 1 for environments with limited resources
   reporter: reporters,
   webServer: {
-    command: 'npm run dev -- --port 3000',
+    command: 'NODE_OPTIONS=--no-deprecation npm run dev -- --port 3000',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

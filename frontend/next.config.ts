@@ -1,14 +1,14 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  output: 'export',
   images: {
     unoptimized: true,
   },
 };
 
-// Rewrites only work in dev mode (next dev), not with static export
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV === 'production') {
+  nextConfig.output = 'export';
+} else {
   nextConfig.images = {
     ...nextConfig.images,
     remotePatterns: [

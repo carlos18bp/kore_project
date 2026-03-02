@@ -184,8 +184,30 @@ export async function setupDefaultApiMocks(page: Page) {
 }
 
 /**
- * Base Playwright fixture export for E2E specs.
+ * Catch-all fallback for any /api/** request not intercepted by a specific mock.
+ * Prevents requests from reaching the Next.js proxy (which would fail with
+ * ECONNREFUSED when no backend is running).
+ * Registered first so that specific mocks (LIFO order) take priority.
  */
-export const test = base;
+async function installApiFallback(page: Page) {
+  await page.route('**/api/**', async (route) => {
+    await route.fulfill({
+      status: 404,
+      contentType: 'application/json',
+      body: JSON.stringify({ detail: 'Not found (E2E fallback)' }),
+    });
+  });
+}
+
+/**
+ * Base Playwright fixture export for E2E specs.
+ * Extends the default page fixture to install a catch-all API fallback.
+ */
+export const test = base.extend({
+  page: async ({ page }, use) => {
+    await installApiFallback(page);
+    await use(page);
+  },
+});
 
 export { expect };

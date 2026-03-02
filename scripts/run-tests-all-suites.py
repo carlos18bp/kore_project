@@ -226,9 +226,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     output_group = parser.add_mutually_exclusive_group()
     output_group.add_argument("--verbose", action="store_true",
-                              help="Force verbose output even when running in parallel")
+                              help="Show full per-test output (default: only summary tables)")
     output_group.add_argument("--quiet", action="store_true",
-                              help="Force quiet output even when running sequentially")
+                              help="(default) Suppress per-test output, show only summary tables")
     parser.add_argument("--backend-markers", default="",
                         help="pytest marker expression (-m)")
     parser.add_argument("--backend-args", default="",
@@ -567,6 +567,125 @@ def read_flow_coverage_summary(frontend_root: Path) -> list[str]:
     return lines
 
 
+def extract_backend_coverage_table(log_path: Path) -> list[str]:
+    """Extract the pytest COVERAGE REPORT table from the backend log."""
+    if not log_path or not log_path.exists():
+        return []
+    try:
+        lines = log_path.read_text(encoding='utf-8', errors='replace').splitlines()
+    except OSError:
+        return []
+    result: list[str] = []
+    in_section = False
+    for line in lines:
+        if not in_section:
+            if 'COVERAGE REPORT' in line:
+                in_section = True
+                result.append(line)
+        else:
+            stripped = line.strip()
+            if stripped.startswith('=') and ('passed' in stripped or 'failed' in stripped or 'error' in stripped):
+                break
+            result.append(line)
+    return result
+
+
+def extract_jest_coverage_table(log_path: Path) -> list[str]:
+    """Extract the Jest file coverage table and Coverage summary from the frontend-unit log."""
+    if not log_path or not log_path.exists():
+        return []
+    try:
+        lines = log_path.read_text(encoding='utf-8', errors='replace').splitlines()
+    except OSError:
+        return []
+    result: list[str] = []
+    in_section = False
+    seen_summary = False
+    for line in lines:
+        stripped = line.strip()
+        if not in_section:
+            if re.search(r'^-{5,}\|', stripped):
+                in_section = True
+                result.append(line)
+        else:
+            result.append(line)
+            if 'Coverage summary' in line:
+                seen_summary = True
+            if seen_summary and stripped.startswith('=') and 'Coverage summary' not in stripped:
+                break
+    return result
+
+
+def extract_flow_coverage_report(log_path: Path) -> list[str]:
+    """Extract the full FLOW COVERAGE REPORT section from the frontend-e2e log."""
+    if not log_path or not log_path.exists():
+        return []
+    try:
+        lines = log_path.read_text(encoding='utf-8', errors='replace').splitlines()
+    except OSError:
+        return []
+    result: list[str] = []
+    in_section = False
+    prev_line = ''
+    for line in lines:
+        if not in_section:
+            if 'FLOW COVERAGE REPORT' in line:
+                in_section = True
+                if prev_line.strip():
+                    result.append(prev_line)
+                result.append(line)
+        else:
+            result.append(line)
+            if 'Flow coverage report written to' in line:
+                break
+        prev_line = line
+    return result
+
+
+def print_suite_coverage_table(result: StepResult) -> None:
+    """Print the full coverage table extracted from a suite's log file."""
+    if not result.log_path:
+        return
+    if result.name == 'backend':
+        table_lines = extract_backend_coverage_table(result.log_path)
+        color_fn: Callable[[str], str] | None = colorize_backend_line
+    elif result.name == 'frontend-unit':
+        table_lines = extract_jest_coverage_table(result.log_path)
+        color_fn = colorize_jest_line
+    elif result.name == 'frontend-e2e':
+        table_lines = extract_flow_coverage_report(result.log_path)
+        color_fn = None
+    else:
+        return
+    if not table_lines:
+        return
+    print()
+    for line in table_lines:
+        if color_fn is not None and _COLOR:
+            print(color_fn(line))
+        else:
+            print(line)
+
+
+_PYTEST_FILE_RE = re.compile(r'^\s*(\S+\.py)\s+[.FEsxX]')
+
+
+def _make_backend_progress() -> Callable[[str], str | None]:
+    """Returns a stateful filter: prints the test file name once per file in quiet mode."""
+    last: list[str] = ['']
+
+    def _fn(line: str) -> str | None:
+        m = _PYTEST_FILE_RE.match(line)
+        if m:
+            file_path = m.group(1)
+            if file_path != last[0]:
+                last[0] = file_path
+                return f"    {_dim('→')} {file_path}"
+        return None
+
+    return _fn
+
+
 def run_command(
     name: str,
     command: Sequence[str],
@@ -578,6 +697,7 @@ def run_command(
     quiet: bool = False,
     run_id: str | None = None,
     line_transform: Callable[[str], str] | None = None,
+    quiet_progress: Callable[[str], str | None] | None = None,
 ) -> StepResult:
     cmd_list = [str(item) for item in command]
     if not quiet:
@@ -641,6 +761,10 @@ def run_command(
                 print(line_transform(line.rstrip('\n')), end='\n')
             else:
                 print(line, end="")
+        elif quiet_progress is not None:
+            msg = quiet_progress(line.rstrip('\n'))
+            if msg is not None:
+                print(msg, flush=True)
         if log_file:
             log_file.write(line)
         stripped = line.rstrip("\n")
@@ -688,12 +812,12 @@ def run_backend(
     backend_cmd: list[str] = [
         sys.executable, "-m", "pytest",
         f"--cov={backend_root / 'core_app'}",
+        "--cov-branch",
+        "--override-ini=addopts=",
     ]
     if show_coverage:
         erase_backend_coverage_data(backend_root)
-        backend_cmd.append("--cov-branch")
         backend_cmd.append("--cov-report=term-missing")
-    backend_cmd.append("-q")
     if markers:
         backend_cmd.extend(["-m", markers])
     backend_cmd.extend(extra_args)
@@ -708,6 +832,7 @@ def run_backend(
         quiet=quiet,
         run_id=run_id,
         line_transform=colorize_backend_line if show_coverage else None,
+        quiet_progress=_make_backend_progress() if quiet else None,
     )
     if show_coverage and result.status == "ok":
         result.coverage = read_backend_coverage_summary(backend_root)
@@ -827,12 +952,10 @@ def main() -> int:
     resume_path = report_dir / RESUME_FILENAME
 
     parallel = args.parallel
-    if args.quiet:
-        quiet = True
-    elif args.verbose:
+    if args.verbose:
         quiet = False
     else:
-        quiet = parallel
+        quiet = True
     append_log = args.resume
     show_coverage = args.coverage
     run_id = create_run_id()
@@ -959,9 +1082,20 @@ def main() -> int:
 
         if progress:
             progress.stop()
+        if quiet and show_coverage:
+            suite_order = {name: i for i, (name, _) in enumerate(suite_runners)}
+            for r in sorted(results, key=lambda r: suite_order.get(r.name, 999)):
+                print_suite_coverage_table(r)
     else:
         for _name, runner in suite_runners:
+            if quiet:
+                print(f"  {_cyan('⏳')} {_bold(_name)} running...")
             result = runner()
+            if quiet:
+                tag = _green('OK') if result.status == 'ok' else _red('FAILED')
+                print(f"  {_cyan('✓') if result.status == 'ok' else _red('✗')} {_bold(_name)} {tag} ({result.duration:.1f}s)")
+                if show_coverage:
+                    print_suite_coverage_table(result)
             results.append(result)
             resume_state = record_suite_result(
                 resume_path,
