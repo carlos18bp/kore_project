@@ -83,7 +83,7 @@ export default function MySessionsPage() {
 
   return (
     <section ref={sectionRef} className="min-h-screen bg-kore-cream">
-      <div className="w-full px-6 md:px-10 lg:px-16 pt-20 lg:pt-8 pb-16">
+      <div className="w-full px-6 md:px-10 lg:px-16 pt-20 xl:pt-8 pb-16">
         {/* Header */}
         <div data-hero="badge" className="mb-8">
           <h1 className="font-heading text-2xl md:text-3xl font-semibold text-kore-gray-dark">

@@ -144,7 +144,7 @@ export default function SubscriptionPage() {
 
   return (
     <section ref={sectionRef} className="min-h-screen bg-kore-cream">
-      <div className="w-full px-6 md:px-10 lg:px-16 pt-20 lg:pt-8 pb-16">
+      <div className="w-full px-6 md:px-10 lg:px-16 pt-20 xl:pt-8 pb-16">
         {/* Header */}
         <div data-hero="badge" className="mb-12">
           <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-1">Mi cuenta</p>

@@ -65,7 +65,7 @@ export default function Sidebar() {
       {/* Mobile hamburger button */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed top-4 left-4 z-50 lg:hidden p-2 rounded-xl bg-white/80 backdrop-blur-sm border border-kore-gray-light/40 text-kore-gray-dark/60 hover:text-kore-gray-dark transition-colors"
+        className="fixed top-4 left-4 z-50 xl:hidden p-2 rounded-xl bg-white/80 backdrop-blur-sm border border-kore-gray-light/40 text-kore-gray-dark/60 hover:text-kore-gray-dark transition-colors"
         aria-label="Abrir menú"
       >
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -76,14 +76,14 @@ export default function Sidebar() {
       {/* Backdrop overlay for mobile */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 lg:hidden cursor-pointer"
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 xl:hidden cursor-pointer"
           onClick={() => setIsOpen(false)}
         />
       )}
 
       <aside className={`fixed left-0 top-0 h-dvh w-64 bg-white border-r border-kore-gray-light/40 flex flex-col z-50 transition-transform duration-300 ease-in-out ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
-      } lg:translate-x-0`}>
+      } xl:translate-x-0`}>
       {/* Logo */}
       <div className="px-6 pt-8 pb-6 flex items-center justify-between">
         <Link href="/dashboard">
@@ -93,7 +93,7 @@ export default function Sidebar() {
         </Link>
         <button
           onClick={() => setIsOpen(false)}
-          className="lg:hidden p-1 rounded-lg text-kore-gray-dark/40 hover:text-kore-gray-dark transition-colors"
+          className="xl:hidden p-1 rounded-lg text-kore-gray-dark/40 hover:text-kore-gray-dark transition-colors"
           aria-label="Cerrar menú"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">

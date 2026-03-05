@@ -139,9 +139,9 @@ export default function DashboardPage() {
       <UpcomingSessionReminder />
       <SubscriptionExpiryReminder />
 
-      <div className="w-full px-6 md:px-10 lg:px-16 pt-20 lg:pt-8 pb-16 relative z-10">
+      <div className="w-full px-6 md:px-10 lg:px-16 pt-20 xl:pt-8 pb-16 relative z-10">
         {/* Top bar with greeting */}
-        <div data-hero="badge" className="mb-8 lg:mb-12">
+        <div data-hero="badge" className="mb-8 xl:mb-12">
           <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-1">Tu espacio</p>
           <h1 className="font-heading text-2xl md:text-3xl font-semibold text-kore-gray-dark">
             {getGreeting()}, {user.name.split(' ')[0]}
@@ -149,7 +149,7 @@ export default function DashboardPage() {
         </div>
 
         {/* MOBILE: Prominent CTA - Agendar sesión */}
-        <div className="lg:hidden mb-6">
+        <div className="xl:hidden mb-6">
           <Link
             href="/book-session"
             className="group flex items-center justify-between w-full bg-gradient-to-r from-kore-red to-kore-burgundy text-white p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
@@ -170,7 +170,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Progress Message Card - Mobile only */}
-        <div data-hero="heading" className="mb-6 lg:hidden">
+        <div data-hero="heading" className="mb-6 xl:hidden">
           <div className="relative bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm rounded-3xl p-6 border border-white/60 shadow-sm overflow-hidden">
             {/* Subtle organic accent */}
             <div className="absolute -right-8 -bottom-8 w-32 h-32 opacity-5">
@@ -193,7 +193,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Progress Stats - Mobile optimized cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 mb-6 lg:mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 xl:gap-6 mb-6 xl:mb-8">
           {/* Program Progress Card */}
           <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
             <div className="flex items-center justify-between mb-4">
@@ -253,7 +253,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Next Session Card - DESKTOP prominent CTA */}
-          <div className="hidden lg:block">
+          <div className="hidden xl:block">
             {formattedDate ? (
               <div className="bg-gradient-to-br from-kore-red to-kore-burgundy rounded-2xl p-6 text-white h-full">
                 <p className="text-xs text-white/60 uppercase tracking-widest font-medium mb-4">Próxima sesión</p>
@@ -281,7 +281,7 @@ export default function DashboardPage() {
 
         {/* MOBILE: Next Session if exists */}
         {formattedDate && (
-          <div className="lg:hidden mb-6">
+          <div className="xl:hidden mb-6">
             <div className="bg-gradient-to-br from-kore-red/90 to-kore-burgundy rounded-2xl p-5 text-white">
               <div className="flex items-center justify-between">
                 <div>
@@ -298,9 +298,9 @@ export default function DashboardPage() {
         )}
 
         {/* Main Content Grid */}
-        <div data-hero="body" className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div data-hero="body" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {/* Left - Quick Actions & Activity */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="md:col-span-2 xl:col-span-2 space-y-6">
             {/* Quick Actions - Brand icons, no emojis */}
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
               <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-5">Acciones rápidas</h2>
@@ -407,7 +407,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Progress Message Card - Desktop only */}
-            <div className="hidden lg:block relative bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm overflow-hidden">
+            <div className="hidden xl:block relative bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm overflow-hidden">
               {/* Subtle organic accent */}
               <div className="absolute -right-6 -bottom-6 w-24 h-24 opacity-5">
                 <Image src="/images/flower.webp" alt="" fill className="object-contain" />

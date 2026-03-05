@@ -15,7 +15,7 @@ import NoSessionsModal from '@/app/components/booking/NoSessionsModal';
 
 const FIXED_WINDOWS = [
   { startHour: 5, endHour: 12 },
-  { startHour: 16, endHour: 20 },
+  { startHour: 16, endHour: 21 },
 ] as const;
 const SLOT_STEP_MINUTES = 15;
 const TRAVEL_BUFFER_MINUTES = 45;
@@ -396,7 +396,7 @@ function BookSessionContent() {
       {/* No Sessions Modal */}
       {hasNoSessions && <NoSessionsModal packageTitle={activeSub?.package.title} />}
 
-      <div className="w-full px-6 md:px-10 lg:px-16 pt-20 lg:pt-8 pb-16">
+      <div className="w-full px-6 md:px-10 lg:px-16 pt-20 xl:pt-8 pb-16">
         {/* Header */}
         <div data-hero="badge" className="mb-8">
           <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-1">Agendar</p>
@@ -461,9 +461,9 @@ function BookSessionContent() {
 
         {/* Step 1 — Calendar + Slots (also visible behind success modal at step 3) */}
         {(step === 1 || step === 3) && (
-          <div data-hero="body" className={`grid grid-cols-1 lg:grid-cols-12 gap-6 ${hasNoSessions ? 'opacity-50 pointer-events-none' : ''}`}>
+          <div data-hero="body" className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-6 ${hasNoSessions ? 'opacity-50 pointer-events-none' : ''}`}>
             {showRescheduleNoAvailability && (
-              <div className="lg:col-span-12">
+              <div className="md:col-span-2 xl:col-span-12">
                 <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-5 border border-kore-gray-light/50">
                   <p className="text-sm text-kore-gray-dark/70">
                     Por el momento no hay disponibilidad horaria. Por favor contacta a tu entrenador vía WhatsApp al{' '}
@@ -480,8 +480,8 @@ function BookSessionContent() {
                 </div>
               </div>
             )}
-            {/* Left — Session progress + Trainer info (desktop) */}
-            <div className="lg:col-span-3 hidden lg:block space-y-4">
+            {/* Left — Session progress + Trainer info (tablet/desktop) */}
+            <div className="hidden lg:block lg:col-span-1 xl:col-span-3 space-y-4">
               {/* Session Progress Card - Desktop */}
               {activeSub && (
                 <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
@@ -513,7 +513,7 @@ function BookSessionContent() {
             </div>
 
             {/* Center — Calendar */}
-            <div className="lg:col-span-5">
+            <div className="md:col-span-1 lg:col-span-1 xl:col-span-5">
               <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-kore-gray-light/50">
                 <BookingCalendar
                   availableDates={availableDates}
@@ -528,7 +528,7 @@ function BookSessionContent() {
             </div>
 
             {/* Right — Time slots */}
-            <div className="lg:col-span-4">
+            <div className="md:col-span-2 lg:col-span-2 xl:col-span-4">
               <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-kore-gray-light/50">
                 <h3 className="font-heading text-base font-semibold text-kore-gray-dark mb-4">
                   {selectedDate
