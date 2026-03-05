@@ -3,7 +3,7 @@
 import { Suspense, useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/authStore';
-import { useBookingStore } from '@/lib/stores/bookingStore';
+import { useBookingStore, type Slot } from '@/lib/stores/bookingStore';
 import { WHATSAPP_URL } from '@/lib/constants';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 import TrainerInfoPanel from '@/app/components/booking/TrainerInfoPanel';
@@ -12,6 +12,38 @@ import TimeSlotPicker from '@/app/components/booking/TimeSlotPicker';
 import BookingConfirmation from '@/app/components/booking/BookingConfirmation';
 import BookingSuccess from '@/app/components/booking/BookingSuccess';
 import NoSessionsModal from '@/app/components/booking/NoSessionsModal';
+
+const FIXED_WINDOWS = [
+  { startHour: 5, endHour: 12 },
+  { startHour: 16, endHour: 20 },
+] as const;
+const SLOT_STEP_MINUTES = 15;
+const TRAVEL_BUFFER_MINUTES = 45;
+const DEFAULT_SESSION_DURATION_MINUTES = 60;
+const AVAILABILITY_HORIZON_DAYS = 180;
+
+function toDateKey(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function hasTravelBufferConflict(
+  slotStart: Date,
+  slotEnd: Date,
+  dayBookedSlots: Array<{ starts_at: string; ends_at: string }>,
+) {
+  const bufferMs = TRAVEL_BUFFER_MINUTES * 60 * 1000;
+  const slotStartMs = slotStart.getTime();
+  const slotEndMs = slotEnd.getTime();
+
+  return dayBookedSlots.some((booked) => {
+    const bookedStartMs = new Date(booked.starts_at).getTime();
+    const bookedEndMs = new Date(booked.ends_at).getTime();
+    return slotStartMs < bookedEndMs + bufferMs && slotEndMs > bookedStartMs - bufferMs;
+  });
+}
 
 function BookSessionContent() {
   const { user } = useAuthStore();
@@ -28,14 +60,14 @@ function BookSessionContent() {
     selectedSlot,
     setSelectedSlot,
     trainer,
-    subscription,
     bookingResult,
-    monthSlots,
-    monthSlotsLoading,
+    dayBookedSlots,
+    dayAvailabilityLoading,
     loading,
     error,
     fetchTrainers,
-    fetchMonthSlots,
+    fetchSlots,
+    fetchTrainerDayBookings,
     fetchSubscriptions,
     fetchBookings,
     bookings,
@@ -59,6 +91,7 @@ function BookSessionContent() {
   }, [subscriptionParam]);
   const isReschedule = rescheduleBookingId !== null;
   const rescheduleSubscriptionId = isReschedule ? subscriptionIdParam : null;
+  const [slotResolutionError, setSlotResolutionError] = useState<string | null>(null);
 
   // Load trainers and subscriptions on mount
   useEffect(() => {
@@ -178,57 +211,169 @@ function BookSessionContent() {
     return rescheduleNeighbors.next ? new Date(rescheduleNeighbors.next.slot.starts_at) : null;
   }, [bookingToReschedule, isReschedule, rescheduleNeighbors.next]);
 
-  // Fetch all future slots (no date filter) so the calendar can show available days
+  // Fetch occupied sessions only for the selected day and trainer.
   useEffect(() => {
-    fetchMonthSlots(trainer?.id);
-  }, [trainer?.id, fetchMonthSlots]);
+    fetchTrainerDayBookings(selectedDate ?? undefined, trainer?.id);
+  }, [selectedDate, trainer?.id, fetchTrainerDayBookings]);
 
-  // Build set of available dates from all future slots (filtered by chronological order)
+  useEffect(() => {
+    setSlotResolutionError(null);
+  }, [selectedDate, selectedSlot?.id]);
+
+  // Build set of selectable dates using the fixed weekly schedule pattern.
   const availableDates = useMemo(() => {
     const dates = new Set<string>();
-    monthSlots.forEach((s) => {
-      // Filter out slots that start before the last session ends
-      if (minSlotStartTime && new Date(s.starts_at) < minSlotStartTime) return;
-      if (maxSlotEndTime && new Date(s.ends_at) > maxSlotEndTime) return;
-      const d = new Date(s.starts_at).toISOString().slice(0, 10);
-      dates.add(d);
-    });
-    return dates;
-  }, [monthSlots, minSlotStartTime, maxSlotEndTime]);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-  // Filter slots for selected date (filtered by chronological order)
+    for (let offset = 0; offset < AVAILABILITY_HORIZON_DAYS; offset += 1) {
+      const day = new Date(today);
+      day.setDate(today.getDate() + offset);
+
+      const weekDay = day.getDay();
+      if (weekDay === 0 || weekDay === 6) continue;
+
+      if (minSlotStartTime) {
+        const dayEnd = new Date(day);
+        dayEnd.setHours(23, 59, 59, 999);
+        if (dayEnd < minSlotStartTime) continue;
+      }
+
+      if (maxSlotEndTime) {
+        const dayStart = new Date(day);
+        dayStart.setHours(0, 0, 0, 0);
+        if (dayStart > maxSlotEndTime) continue;
+      }
+
+      dates.add(toDateKey(day));
+    }
+
+    return dates;
+  }, [minSlotStartTime, maxSlotEndTime]);
+
+  // Build virtual slots for the selected date from fixed windows and booked-day conflicts.
   const slotsForDate = useMemo(() => {
     if (!selectedDate) return [];
-    return monthSlots.filter((s) => {
-      // Filter out slots that start before the last session ends
-      if (minSlotStartTime && new Date(s.starts_at) < minSlotStartTime) return false;
-      if (maxSlotEndTime && new Date(s.ends_at) > maxSlotEndTime) return false;
-      return new Date(s.starts_at).toISOString().slice(0, 10) === selectedDate;
+    if (!trainer?.id) return [];
+
+    const selectedDay = new Date(`${selectedDate}T00:00:00`).getDay();
+    if (selectedDay === 0 || selectedDay === 6) return [];
+
+    const slotDurationMinutes = trainer?.session_duration_minutes ?? DEFAULT_SESSION_DURATION_MINUTES;
+    const slotStepMs = SLOT_STEP_MINUTES * 60 * 1000;
+    const slotDurationMs = slotDurationMinutes * 60 * 1000;
+    const nowMs = Date.now();
+
+    const generated: Slot[] = [];
+    let virtualId = -1;
+
+    FIXED_WINDOWS.forEach(({ startHour, endHour }) => {
+      const startHourStr = String(startHour).padStart(2, '0');
+      const endHourStr = String(endHour).padStart(2, '0');
+      const windowStart = new Date(`${selectedDate}T${startHourStr}:00:00`);
+      const windowEnd = new Date(`${selectedDate}T${endHourStr}:00:00`);
+
+      for (
+        let cursorMs = windowStart.getTime();
+        cursorMs < windowEnd.getTime();
+        cursorMs += slotStepMs
+      ) {
+        const slotStart = new Date(cursorMs);
+        const slotEnd = new Date(cursorMs + slotDurationMs);
+
+        if (slotEnd.getTime() > windowEnd.getTime()) break;
+        if (slotEnd.getTime() <= nowMs) continue;
+        if (minSlotStartTime && slotStart < minSlotStartTime) continue;
+        if (maxSlotEndTime && slotEnd > maxSlotEndTime) continue;
+        if (hasTravelBufferConflict(slotStart, slotEnd, dayBookedSlots)) continue;
+
+        generated.push({
+          id: virtualId,
+          trainer_id: trainer?.id ?? null,
+          starts_at: slotStart.toISOString(),
+          ends_at: slotEnd.toISOString(),
+          is_active: true,
+          is_blocked: false,
+        });
+        virtualId -= 1;
+      }
     });
-  }, [monthSlots, selectedDate, minSlotStartTime, maxSlotEndTime]);
+
+    return generated;
+  }, [
+    dayBookedSlots,
+    maxSlotEndTime,
+    minSlotStartTime,
+    selectedDate,
+    trainer?.id,
+    trainer?.session_duration_minutes,
+  ]);
 
   const showRescheduleNoAvailability =
     isReschedule &&
     bookingToReschedule &&
-    !monthSlotsLoading &&
-    availableDates.size === 0;
-
-  const isCalendarLoading = monthSlotsLoading && availableDates.size === 0;
+    selectedDate &&
+    !dayAvailabilityLoading &&
+    slotsForDate.length === 0;
 
   const handleConfirm = useCallback(async () => {
     if (!selectedSlot) return;
+    setSlotResolutionError(null);
+
+    let resolvedSlotId = selectedSlot.id;
+    if (selectedSlot.id < 0 && selectedDate) {
+      if (!trainer?.id) {
+        setSlotResolutionError('No se pudo identificar el entrenador para validar el horario.');
+        return;
+      }
+
+      await fetchSlots(selectedDate, trainer.id);
+      const { slots: realDaySlots, error: slotFetchError } = useBookingStore.getState();
+
+      if (slotFetchError) {
+        setSlotResolutionError(slotFetchError);
+        return;
+      }
+
+      const selectedStartMs = new Date(selectedSlot.starts_at).getTime();
+      const selectedEndMs = new Date(selectedSlot.ends_at).getTime();
+      const matched = realDaySlots.find(
+        (slot) => (
+          new Date(slot.starts_at).getTime() === selectedStartMs
+          && new Date(slot.ends_at).getTime() === selectedEndMs
+        ),
+      );
+
+      if (!matched) {
+        setSlotResolutionError('El horario ya no está disponible. Intenta con otro.');
+        return;
+      }
+
+      resolvedSlotId = matched.id;
+    }
+
     if (isReschedule && rescheduleBookingId) {
-      await rescheduleBooking(rescheduleBookingId, selectedSlot.id);
+      await rescheduleBooking(rescheduleBookingId, resolvedSlotId);
       return;
     }
     if (!activeSub) return;
     await createBooking({
       package_id: activeSub.package.id,
-      slot_id: selectedSlot.id,
+      slot_id: resolvedSlotId,
       trainer_id: trainer?.id,
       subscription_id: activeSub.id,
     });
-  }, [selectedSlot, activeSub, trainer, createBooking, isReschedule, rescheduleBookingId, rescheduleBooking]);
+  }, [
+    activeSub,
+    createBooking,
+    fetchSlots,
+    isReschedule,
+    rescheduleBooking,
+    rescheduleBookingId,
+    selectedDate,
+    selectedSlot,
+    trainer?.id,
+  ]);
 
   const handleReset = useCallback(() => {
     reset();
@@ -370,22 +515,15 @@ function BookSessionContent() {
             {/* Center — Calendar */}
             <div className="lg:col-span-5">
               <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-kore-gray-light/50">
-                {isCalendarLoading ? (
-                  <div className="min-h-[360px] flex flex-col items-center justify-center gap-3">
-                    <div className="animate-spin h-7 w-7 border-2 border-kore-red border-t-transparent rounded-full" />
-                    <p className="text-sm text-kore-gray-dark/50">Cargando disponibilidad...</p>
-                  </div>
-                ) : (
-                  <BookingCalendar
-                    availableDates={availableDates}
-                    selectedDate={selectedDate}
-                    onSelectDate={(date) => {
-                      if (!hasNoSessions) {
-                        setSelectedDate(date);
-                      }
-                    }}
-                  />
-                )}
+                <BookingCalendar
+                  availableDates={availableDates}
+                  selectedDate={selectedDate}
+                  onSelectDate={(date) => {
+                    if (!hasNoSessions) {
+                      setSelectedDate(date);
+                    }
+                  }}
+                />
               </div>
             </div>
 
@@ -413,7 +551,7 @@ function BookSessionContent() {
                         }
                       }}
                     />
-                    {loading && (
+                    {dayAvailabilityLoading && (
                       <div className="flex justify-center py-4">
                         <div className="animate-spin h-5 w-5 border-2 border-kore-red border-t-transparent rounded-full" />
                       </div>
@@ -437,9 +575,12 @@ function BookSessionContent() {
               slot={selectedSlot}
               subscription={activeSub}
               loading={loading}
-              error={error}
+              error={slotResolutionError ?? error}
               onConfirm={handleConfirm}
-              onBack={() => setStep(1)}
+              onBack={() => {
+                setSlotResolutionError(null);
+                setStep(1);
+              }}
             />
           </div>
         )}

@@ -484,6 +484,126 @@ class TestOnlyNextSessionValidation:
 
 
 # ----------------------------------------------------------------
+# Occupied-day endpoint
+# ----------------------------------------------------------------
+
+@pytest.mark.django_db
+class TestOccupiedDayEndpoint:
+    """Validates daily booked-session payload used for frontend availability."""
+
+    def test_requires_authentication(self, api_client):
+        """occupied-day endpoint requires authentication."""
+        url = reverse('booking-occupied-day')
+        response = api_client.get(url, {'trainer': 1, 'date': '2026-01-17'})
+
+        assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
+
+    def test_returns_only_active_bookings_for_trainer_and_day(self, api_client, customer, package, trainer_profile):
+        """Includes pending/confirmed bookings for the selected trainer/day only."""
+        other_trainer_user = User.objects.create_user(
+            email='occupied_other_trainer@example.com', password='p', role=User.Role.TRAINER,
+        )
+        other_trainer = TrainerProfile.objects.create(
+            user=other_trainer_user, specialty='Other', location='Remote',
+        )
+
+        target_day = (FIXED_NOW + timedelta(days=2)).date()
+        target_start = datetime(
+            target_day.year,
+            target_day.month,
+            target_day.day,
+            7,
+            0,
+            tzinfo=dt_timezone.utc,
+        )
+
+        included_slot = AvailabilitySlot.objects.create(
+            starts_at=target_start,
+            ends_at=target_start + timedelta(hours=1),
+            trainer=trainer_profile,
+            is_blocked=True,
+        )
+        included_booking = Booking.objects.create(
+            customer=customer,
+            package=package,
+            slot=included_slot,
+            trainer=trainer_profile,
+            status=Booking.Status.CONFIRMED,
+        )
+
+        canceled_slot = AvailabilitySlot.objects.create(
+            starts_at=target_start + timedelta(hours=2),
+            ends_at=target_start + timedelta(hours=3),
+            trainer=trainer_profile,
+            is_blocked=False,
+        )
+        Booking.objects.create(
+            customer=customer,
+            package=package,
+            slot=canceled_slot,
+            trainer=trainer_profile,
+            status=Booking.Status.CANCELED,
+        )
+
+        other_day_slot = AvailabilitySlot.objects.create(
+            starts_at=target_start + timedelta(days=1),
+            ends_at=target_start + timedelta(days=1, hours=1),
+            trainer=trainer_profile,
+            is_blocked=True,
+        )
+        Booking.objects.create(
+            customer=customer,
+            package=package,
+            slot=other_day_slot,
+            trainer=trainer_profile,
+            status=Booking.Status.PENDING,
+        )
+
+        other_trainer_slot = AvailabilitySlot.objects.create(
+            starts_at=target_start + timedelta(hours=4),
+            ends_at=target_start + timedelta(hours=5),
+            trainer=other_trainer,
+            is_blocked=True,
+        )
+        Booking.objects.create(
+            customer=customer,
+            package=package,
+            slot=other_trainer_slot,
+            trainer=other_trainer,
+            status=Booking.Status.CONFIRMED,
+        )
+
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-occupied-day')
+        response = api_client.get(
+            url,
+            {'trainer': trainer_profile.pk, 'date': target_day.strftime('%Y-%m-%d')},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) == 1
+        assert response.data[0]['slot_id'] == included_booking.slot_id
+        assert response.data[0]['trainer_id'] == trainer_profile.pk
+
+    def test_validates_required_query_params(self, api_client, customer):
+        """Returns 400 when required trainer/date params are missing or invalid."""
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-occupied-day')
+
+        missing_trainer = api_client.get(url, {'date': '2026-01-17'})
+        assert missing_trainer.status_code == status.HTTP_400_BAD_REQUEST
+
+        missing_date = api_client.get(url, {'trainer': 1})
+        assert missing_date.status_code == status.HTTP_400_BAD_REQUEST
+
+        invalid_trainer = api_client.get(url, {'trainer': 'abc', 'date': '2026-01-17'})
+        assert invalid_trainer.status_code == status.HTTP_400_BAD_REQUEST
+
+        invalid_date = api_client.get(url, {'trainer': 1, 'date': '17-01-2026'})
+        assert invalid_date.status_code == status.HTTP_400_BAD_REQUEST
+
+
+# ----------------------------------------------------------------
 # Subscription filter
 # ----------------------------------------------------------------
 

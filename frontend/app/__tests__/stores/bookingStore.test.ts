@@ -27,8 +27,8 @@ function resetStore() {
     bookingResult: null,
     trainers: [],
     slots: [],
-    monthSlots: [],
-    monthSlotsLoading: false,
+    dayBookedSlots: [],
+    dayAvailabilityLoading: false,
     subscriptions: [],
     bookings: [],
     bookingDetail: null,
@@ -58,6 +58,13 @@ const MOCK_SLOT = {
   ends_at: '2025-03-01T11:00:00Z',
   is_active: true,
   is_blocked: false,
+};
+
+const MOCK_OCCUPIED_DAY_SLOT = {
+  slot_id: 5,
+  trainer_id: 1,
+  starts_at: '2025-03-01T10:00:00Z',
+  ends_at: '2025-03-01T11:00:00Z',
 };
 
 const MOCK_SUBSCRIPTION = {
@@ -210,61 +217,32 @@ describe('bookingStore', () => {
   });
 
   // ----------------------------------------------------------------
-  // fetchMonthSlots
+  // fetchTrainerDayBookings
   // ----------------------------------------------------------------
-  describe('fetchMonthSlots', () => {
-    it('aggregates paginated month slots', async () => {
-      const secondSlot = {
-        ...MOCK_SLOT,
-        id: 6,
-        starts_at: '2025-03-02T10:00:00Z',
-        ends_at: '2025-03-02T11:00:00Z',
-      };
-      mockedApi.get
-        .mockResolvedValueOnce({
-          data: { results: [MOCK_SLOT], count: 2, next: '/availability-slots/?page=2', previous: null },
-        })
-        .mockResolvedValueOnce({
-          data: { results: [secondSlot], count: 2, next: null, previous: '/availability-slots/?page=1' },
-        });
-      await useBookingStore.getState().fetchMonthSlots(1);
-      expect(mockedApi.get).toHaveBeenNthCalledWith(1, '/availability-slots/', expect.objectContaining({
-        params: { trainer: '1' },
+  describe('fetchTrainerDayBookings', () => {
+    it('populates dayBookedSlots and passes date/trainer params', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: [MOCK_OCCUPIED_DAY_SLOT] });
+      await useBookingStore.getState().fetchTrainerDayBookings('2025-03-01', 1);
+      expect(mockedApi.get).toHaveBeenCalledWith('/bookings/occupied-day/', expect.objectContaining({
+        params: { date: '2025-03-01', trainer: '1' },
       }));
-      expect(mockedApi.get).toHaveBeenNthCalledWith(2, '/availability-slots/?page=2', expect.objectContaining({
-        headers: { Authorization: 'Bearer fake-token' },
-      }));
-      expect(useBookingStore.getState().monthSlots).toEqual([MOCK_SLOT, secondSlot]);
+      expect(useBookingStore.getState().dayBookedSlots).toEqual([MOCK_OCCUPIED_DAY_SLOT]);
     });
 
-    it('populates monthSlots from flat array response', async () => {
-      mockedApi.get.mockResolvedValueOnce({ data: [MOCK_SLOT] });
-      await useBookingStore.getState().fetchMonthSlots(1);
-      expect(mockedApi.get).toHaveBeenCalledWith('/availability-slots/', expect.objectContaining({
-        params: { trainer: '1' },
-      }));
-      expect(useBookingStore.getState().monthSlots).toHaveLength(1);
+    it('clears dayBookedSlots when date or trainer is missing', async () => {
+      useBookingStore.setState({ dayBookedSlots: [MOCK_OCCUPIED_DAY_SLOT] });
+      await useBookingStore.getState().fetchTrainerDayBookings(undefined, 1);
+      expect(useBookingStore.getState().dayBookedSlots).toEqual([]);
+      expect(mockedApi.get).not.toHaveBeenCalled();
     });
 
-    it('fetches without trainer param when trainerId is undefined', async () => {
-      mockedApi.get.mockResolvedValueOnce({ data: { results: [MOCK_SLOT] } });
-      await useBookingStore.getState().fetchMonthSlots();
-      expect(mockedApi.get).toHaveBeenCalledWith('/availability-slots/', expect.objectContaining({
-        params: {},
-      }));
-      expect(useBookingStore.getState().monthSlots).toHaveLength(1);
-    });
-
-    it('sets monthSlots to empty array on error', async () => {
-      mockedApi.get.mockRejectedValueOnce(new Error('Network'));
-      await useBookingStore.getState().fetchMonthSlots();
-      expect(useBookingStore.getState().monthSlots).toEqual([]);
-    });
-
-    it('sets monthSlots to empty array for non-array response', async () => {
-      mockedApi.get.mockResolvedValueOnce({ data: {} });
-      await useBookingStore.getState().fetchMonthSlots();
-      expect(useBookingStore.getState().monthSlots).toEqual([]);
+    it('sets error on failure and clears dayBookedSlots', async () => {
+      useBookingStore.setState({ dayBookedSlots: [MOCK_OCCUPIED_DAY_SLOT] });
+      mockedApi.get.mockRejectedValueOnce(new Error('err'));
+      await useBookingStore.getState().fetchTrainerDayBookings('2025-03-01', 1);
+      expect(useBookingStore.getState().dayBookedSlots).toEqual([]);
+      expect(useBookingStore.getState().error).toBe('No se pudieron cargar las sesiones agendadas del día.');
+      expect(useBookingStore.getState().dayAvailabilityLoading).toBe(false);
     });
   });
 

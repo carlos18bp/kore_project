@@ -23,7 +23,8 @@ jest.mock('@/app/composables/useScrollAnimations', () => ({
 }));
 
 const mockFetchTrainers = jest.fn();
-const mockFetchMonthSlots = jest.fn();
+const mockFetchSlots = jest.fn();
+const mockFetchTrainerDayBookings = jest.fn();
 const mockFetchSubscriptions = jest.fn();
 const mockFetchBookings = jest.fn();
 const mockCreateBooking = jest.fn();
@@ -54,12 +55,13 @@ function setupStore(overrides = {}) {
     trainer: null,
     subscription: null,
     bookingResult: null,
-    monthSlots: [],
-    monthSlotsLoading: false,
+    dayBookedSlots: [],
+    dayAvailabilityLoading: false,
     loading: false,
     error: null,
     fetchTrainers: mockFetchTrainers,
-    fetchMonthSlots: mockFetchMonthSlots,
+    fetchSlots: mockFetchSlots,
+    fetchTrainerDayBookings: mockFetchTrainerDayBookings,
     fetchSubscriptions: mockFetchSubscriptions,
     fetchBookings: mockFetchBookings,
     bookings: [],
@@ -134,10 +136,9 @@ describe('BookSessionPage', () => {
     expect(screen.getByText(/Selecciona una fecha en el calendario/)).toBeInTheDocument();
   });
 
-  it('shows calendar loader while month availability is loading', () => {
-    setupStore({ monthSlotsLoading: true, monthSlots: [] });
+  it('renders calendar without month preloading state', () => {
     render(<BookSessionPage />);
-    expect(screen.getByText('Cargando disponibilidad...')).toBeInTheDocument();
+    expect(screen.queryByText('Cargando disponibilidad...')).not.toBeInTheDocument();
   });
 
   it('renders BookingConfirmation at step 2', () => {
@@ -297,7 +298,13 @@ describe('BookSessionPage', () => {
         updated_at: '',
       },
     ];
-    setupStore({ subscriptions, bookings, monthSlots: [] });
+    setupStore({
+      subscriptions,
+      bookings,
+      selectedDate: '2000-01-03',
+      dayBookedSlots: [],
+      dayAvailabilityLoading: false,
+    });
     render(<BookSessionPage />);
     expect(screen.getByText(/Por el momento no hay disponibilidad horaria/)).toBeInTheDocument();
     expect(screen.getByText('+57 301 4645272')).toBeInTheDocument();

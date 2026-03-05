@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from django.db import models as db_models, transaction
 from django.utils import timezone
@@ -293,3 +293,69 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(next_booking)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='occupied-day')
+    def occupied_day(self, request):
+        """Return booked trainer sessions for a specific day.
+
+        Query parameters:
+            - ``trainer`` (int, required): Trainer profile id.
+            - ``date`` (YYYY-MM-DD, required): Day to inspect.
+
+        Returns:
+            Response: List of minimal booked-slot payloads used by frontend
+            day-level availability calculations.
+        """
+        trainer_param = request.query_params.get('trainer')
+        date_param = request.query_params.get('date')
+
+        if not trainer_param:
+            return Response(
+                {'detail': 'El parámetro trainer es obligatorio.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not date_param:
+            return Response(
+                {'detail': 'El parámetro date es obligatorio.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            trainer_id = int(trainer_param)
+        except (TypeError, ValueError):
+            return Response(
+                {'detail': 'El parámetro trainer debe ser un entero válido.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            day = datetime.strptime(date_param, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {'detail': 'El parámetro date debe tener formato YYYY-MM-DD.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        bookings = (
+            Booking.objects.filter(
+                status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
+                slot__starts_at__date=day,
+            )
+            .filter(
+                db_models.Q(slot__trainer_id=trainer_id) | db_models.Q(trainer_id=trainer_id),
+            )
+            .select_related('slot')
+            .order_by('slot__starts_at')
+        )
+
+        payload = [
+            {
+                'slot_id': booking.slot_id,
+                'trainer_id': booking.slot.trainer_id or booking.trainer_id,
+                'starts_at': booking.slot.starts_at,
+                'ends_at': booking.slot.ends_at,
+            }
+            for booking in bookings
+        ]
+        return Response(payload)

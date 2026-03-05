@@ -27,6 +27,13 @@ export type Slot = {
   is_blocked: boolean;
 };
 
+export type OccupiedDaySlot = {
+  slot_id: number;
+  trainer_id: number | null;
+  starts_at: string;
+  ends_at: string;
+};
+
 export type PackageInfo = {
   id: number;
   title: string;
@@ -89,8 +96,8 @@ type BookingState = {
   // Data lists
   trainers: Trainer[];
   slots: Slot[];
-  monthSlots: Slot[];
-  monthSlotsLoading: boolean;
+  dayBookedSlots: OccupiedDaySlot[];
+  dayAvailabilityLoading: boolean;
   subscriptions: Subscription[];
   bookings: BookingData[];
   bookingDetail: BookingData | null;
@@ -110,7 +117,7 @@ type BookingState = {
   // Actions — API
   fetchTrainers: () => Promise<void>;
   fetchSlots: (date?: string, trainerId?: number) => Promise<void>;
-  fetchMonthSlots: (trainerId?: number) => Promise<void>;
+  fetchTrainerDayBookings: (date?: string, trainerId?: number) => Promise<void>;
   fetchSubscriptions: () => Promise<void>;
   fetchBookings: (subscriptionId?: number, page?: number) => Promise<void>;
   fetchBookingById: (bookingId: number) => Promise<BookingData | null>;
@@ -167,8 +174,8 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   bookingResult: null,
   trainers: [],
   slots: [],
-  monthSlots: [],
-  monthSlotsLoading: false,
+  dayBookedSlots: [],
+  dayAvailabilityLoading: false,
   subscriptions: [],
   bookings: [],
   bookingDetail: null,
@@ -248,50 +255,29 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     }
   },
 
-  fetchMonthSlots: async (trainerId) => {
-    const requestId = Date.now() + Math.random();
-    set({ monthSlotsLoading: true });
-    (useBookingStore as unknown as { _latestMonthSlotsRequestId?: number })._latestMonthSlotsRequestId = requestId;
+  fetchTrainerDayBookings: async (date, trainerId) => {
+    if (!date || !trainerId) {
+      set({ dayBookedSlots: [], dayAvailabilityLoading: false });
+      return;
+    }
+
+    set({ dayAvailabilityLoading: true, error: null });
     try {
-      const params: Record<string, string> = {};
-      if (trainerId) params.trainer = String(trainerId);
-      const aggregated: Slot[] = [];
-      let nextUrl: string | null = '/availability-slots/';
-      let isFirstRequest = true;
-
-      while (nextUrl) {
-        const response: { data: PaginatedResponse<Slot> | Slot[] } = await api.get<
-          PaginatedResponse<Slot> | Slot[]
-        >(nextUrl, {
-          headers: authHeaders(),
-          ...(isFirstRequest ? { params } : {}),
-        });
-        const data: PaginatedResponse<Slot> | Slot[] = response.data;
-
-        if (Array.isArray(data)) {
-          aggregated.push(...data);
-          break;
-        }
-
-        const results = Array.isArray(data.results) ? data.results : [];
-        aggregated.push(...results);
-        nextUrl = data.next ?? null;
-        isFirstRequest = false;
-      }
-
-      if ((useBookingStore as unknown as { _latestMonthSlotsRequestId?: number })._latestMonthSlotsRequestId !== requestId) {
-        return;
-      }
-      set({ monthSlots: aggregated });
+      const { data } = await api.get<OccupiedDaySlot[]>('/bookings/occupied-day/', {
+        headers: authHeaders(),
+        params: {
+          date,
+          trainer: String(trainerId),
+        },
+      });
+      set({ dayBookedSlots: Array.isArray(data) ? data : [] });
     } catch {
-      if ((useBookingStore as unknown as { _latestMonthSlotsRequestId?: number })._latestMonthSlotsRequestId !== requestId) {
-        return;
-      }
-      set({ monthSlots: [] });
+      set({
+        dayBookedSlots: [],
+        error: 'No se pudieron cargar las sesiones agendadas del día.',
+      });
     } finally {
-      if ((useBookingStore as unknown as { _latestMonthSlotsRequestId?: number })._latestMonthSlotsRequestId === requestId) {
-        set({ monthSlotsLoading: false });
-      }
+      set({ dayAvailabilityLoading: false });
     }
   },
 
