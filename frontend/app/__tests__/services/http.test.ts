@@ -16,6 +16,13 @@ describe('http service', () => {
     expect(api.defaults.baseURL).toBe('/api');
   });
 
+  it('uses direct backend API fallback in development', async () => {
+    delete process.env.NEXT_PUBLIC_API_BASE_URL;
+    process.env = { ...process.env, NODE_ENV: 'development' };
+    const { api } = await import('@/lib/services/http');
+    expect(api.defaults.baseURL).toBe('http://localhost:8000/api');
+  });
+
   it('uses NEXT_PUBLIC_API_BASE_URL env variable when set', async () => {
     process.env.NEXT_PUBLIC_API_BASE_URL = 'https://api.kore.co';
     const { api } = await import('@/lib/services/http');
