@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 from django.db import models as db_models, transaction
 from django.utils import timezone
@@ -21,6 +22,13 @@ from core_app.services.email_service import (
 )
 
 CANCEL_RESCHEDULE_HOURS = 24
+BUSINESS_TIMEZONE = ZoneInfo('America/Bogota')
+
+
+def _local_day_bounds(day):
+    day_start = datetime.combine(day, time.min, tzinfo=BUSINESS_TIMEZONE)
+    day_end = day_start + timedelta(days=1)
+    return day_start, day_end
 
 
 class BookingViewSet(viewsets.ModelViewSet):
@@ -337,10 +345,13 @@ class BookingViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        day_start, day_end = _local_day_bounds(day)
+
         bookings = (
             Booking.objects.filter(
                 status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
-                slot__starts_at__date=day,
+                slot__starts_at__gte=day_start,
+                slot__starts_at__lt=day_end,
             )
             .filter(
                 db_models.Q(slot__trainer_id=trainer_id) | db_models.Q(trainer_id=trainer_id),

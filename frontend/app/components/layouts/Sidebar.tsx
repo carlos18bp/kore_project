@@ -86,7 +86,7 @@ export default function Sidebar() {
       } xl:translate-x-0`}>
       {/* Logo */}
       <div className="px-6 pt-8 pb-6 flex items-center justify-between">
-        <Link href="/dashboard">
+        <Link href="/dashboard" prefetch={false}>
           <span className="font-heading text-2xl font-semibold text-kore-gray-dark tracking-tight">
             KÓRE
           </span>
@@ -128,6 +128,7 @@ export default function Sidebar() {
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  prefetch={false}
                   onClick={() => setIsOpen(false)}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                     isActive

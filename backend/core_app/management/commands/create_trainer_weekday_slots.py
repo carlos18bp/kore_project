@@ -9,7 +9,7 @@ from core_app.models import AvailabilitySlot, TrainerProfile
 
 class Command(BaseCommand):
     help = "Create weekday availability slots for a specific trainer email.\n\n" \
-           "Generates slots Monday to Friday in two windows: 05:00\x1313:00 and 16:00\x1320:00,\n" \
+           "Generates slots Monday to Friday in two windows: 05:00-13:00 and 16:00-21:00,\n" \
            "using 60-minute sessions with 15-minute start increments by default."
 
     def add_arguments(self, parser):
@@ -84,8 +84,8 @@ class Command(BaseCommand):
 
         created = 0
         windows = [
-            (5, 13),   # 05:0001:00
-            (16, 20),  # 16:0020:00
+            (5, 13),   # 05:00-13:00
+            (16, 21),  # 16:00-21:00
         ]
 
         for day_offset in range(days):

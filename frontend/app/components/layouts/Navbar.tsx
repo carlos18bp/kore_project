@@ -48,7 +48,7 @@ function NavbarInner() {
     <nav className="fixed top-0 left-0 right-0 z-50 bg-kore-cream/90 backdrop-blur-md border-b border-kore-gray-light/50">
       <div className="w-full px-6 md:px-10 lg:px-16 flex items-center justify-between h-20">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-3 shrink-0">
+        <Link href="/" prefetch={false} className="flex items-center gap-3 shrink-0">
           <Image
             src="/icons/kore-logo.webp"
             alt="KÓRE"
@@ -67,6 +67,7 @@ function NavbarInner() {
             <li key={link.href} className="relative">
               <Link
                 href={link.href}
+                prefetch={false}
                 className={`block py-2 font-medium text-sm tracking-wide uppercase transition-colors duration-200 ${
                   isActive(link.href)
                     ? 'text-kore-red'
@@ -89,6 +90,7 @@ function NavbarInner() {
         <div className="hidden md:block shrink-0">
           <Link
             href={desktopCtaHref}
+            prefetch={false}
             className="inline-flex items-center justify-center border-2 border-kore-red text-kore-red hover:bg-kore-red hover:text-white font-medium text-sm px-6 py-2.5 rounded-lg transition-colors duration-200"
           >
             {desktopCtaLabel}
@@ -131,6 +133,7 @@ function NavbarInner() {
             <li key={link.href}>
               <Link
                 href={link.href}
+                prefetch={false}
                 onClick={() => setMobileOpen(false)}
                 className={`block font-medium text-base tracking-wide transition-colors duration-200 ${
                   isActive(link.href)
@@ -145,6 +148,7 @@ function NavbarInner() {
           <li className="pt-2">
             <Link
               href={desktopCtaHref}
+              prefetch={false}
               onClick={() => setMobileOpen(false)}
               className="inline-flex items-center justify-center border-2 border-kore-red text-kore-red hover:bg-kore-red hover:text-white font-medium text-sm px-6 py-2.5 rounded-lg transition-colors duration-200"
             >

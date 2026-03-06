@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta
 from io import StringIO
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 import pytest
 from django.core.management import call_command
@@ -1080,6 +1081,14 @@ class TestCreateTrainerWeekdaySlots:
         assert slots
         assert all((slot.ends_at - slot.starts_at) == timedelta(minutes=60) for slot in slots)
         assert all(slot.starts_at.minute in {0, 15, 30, 45} for slot in slots)
+
+        bogota_tz = ZoneInfo('America/Bogota')
+        local_starts = [slot.starts_at.astimezone(bogota_tz) for slot in slots]
+        assert any(local_start.hour == 20 and local_start.minute == 0 for local_start in local_starts)
+        assert all(
+            not (local_start.hour == 20 and local_start.minute == 15)
+            for local_start in local_starts
+        )
 
     def test_slot_step_minutes_zero_error(self):
         """--slot-step-minutes <= 0 raises CommandError in weekday generator."""

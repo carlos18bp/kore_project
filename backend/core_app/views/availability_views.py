@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 from django.db.models import Q
 from django.utils import timezone
@@ -11,6 +12,14 @@ from core_app.services.booking_rules import (
     ACTIVE_BOOKING_STATUSES,
     build_trainer_buffer_slot_conflict_q,
 )
+
+BUSINESS_TIMEZONE = ZoneInfo('America/Bogota')
+
+
+def _local_day_bounds(day):
+    day_start = datetime.combine(day, time.min, tzinfo=BUSINESS_TIMEZONE)
+    day_end = day_start + timedelta(days=1)
+    return day_start, day_end
 
 
 class AvailabilitySlotViewSet(viewsets.ModelViewSet):
@@ -64,7 +73,8 @@ class AvailabilitySlotViewSet(viewsets.ModelViewSet):
         if date_param:
             try:
                 day = datetime.strptime(date_param, '%Y-%m-%d').date()
-                qs = qs.filter(starts_at__date=day)
+                day_start, day_end = _local_day_bounds(day)
+                qs = qs.filter(starts_at__gte=day_start, starts_at__lt=day_end)
             except ValueError:
                 pass  # Ignore malformed date param
 

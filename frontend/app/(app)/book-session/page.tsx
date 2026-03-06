@@ -92,6 +92,7 @@ function BookSessionContent() {
   const isReschedule = rescheduleBookingId !== null;
   const rescheduleSubscriptionId = isReschedule ? subscriptionIdParam : null;
   const [slotResolutionError, setSlotResolutionError] = useState<string | null>(null);
+  const [confirmInFlight, setConfirmInFlight] = useState(false);
 
   // Load trainers and subscriptions on mount
   useEffect(() => {
@@ -317,57 +318,65 @@ function BookSessionContent() {
     slotsForDate.length === 0;
 
   const handleConfirm = useCallback(async () => {
-    if (!selectedSlot) return;
+    if (!selectedSlot || confirmInFlight || loading) return;
+
+    setConfirmInFlight(true);
     setSlotResolutionError(null);
 
-    let resolvedSlotId = selectedSlot.id;
-    if (selectedSlot.id < 0 && selectedDate) {
-      if (!trainer?.id) {
-        setSlotResolutionError('No se pudo identificar el entrenador para validar el horario.');
-        return;
+    try {
+      let resolvedSlotId = selectedSlot.id;
+      if (selectedSlot.id < 0 && selectedDate) {
+        if (!trainer?.id) {
+          setSlotResolutionError('No se pudo identificar el entrenador para validar el horario.');
+          return;
+        }
+
+        await fetchSlots(selectedDate, trainer.id);
+        const { slots: realDaySlots, error: slotFetchError } = useBookingStore.getState();
+
+        if (slotFetchError) {
+          setSlotResolutionError(slotFetchError);
+          return;
+        }
+
+        const selectedStartMs = new Date(selectedSlot.starts_at).getTime();
+        const selectedEndMs = new Date(selectedSlot.ends_at).getTime();
+        const matched = realDaySlots.find(
+          (slot) => (
+            new Date(slot.starts_at).getTime() === selectedStartMs
+            && new Date(slot.ends_at).getTime() === selectedEndMs
+          ),
+        );
+
+        if (!matched) {
+          setSlotResolutionError('El horario ya no está disponible. Intenta con otro.');
+          return;
+        }
+
+        resolvedSlotId = matched.id;
       }
 
-      await fetchSlots(selectedDate, trainer.id);
-      const { slots: realDaySlots, error: slotFetchError } = useBookingStore.getState();
-
-      if (slotFetchError) {
-        setSlotResolutionError(slotFetchError);
+      if (isReschedule && rescheduleBookingId) {
+        await rescheduleBooking(rescheduleBookingId, resolvedSlotId);
         return;
       }
-
-      const selectedStartMs = new Date(selectedSlot.starts_at).getTime();
-      const selectedEndMs = new Date(selectedSlot.ends_at).getTime();
-      const matched = realDaySlots.find(
-        (slot) => (
-          new Date(slot.starts_at).getTime() === selectedStartMs
-          && new Date(slot.ends_at).getTime() === selectedEndMs
-        ),
-      );
-
-      if (!matched) {
-        setSlotResolutionError('El horario ya no está disponible. Intenta con otro.');
-        return;
-      }
-
-      resolvedSlotId = matched.id;
+      if (!activeSub) return;
+      await createBooking({
+        package_id: activeSub.package.id,
+        slot_id: resolvedSlotId,
+        trainer_id: trainer?.id,
+        subscription_id: activeSub.id,
+      });
+    } finally {
+      setConfirmInFlight(false);
     }
-
-    if (isReschedule && rescheduleBookingId) {
-      await rescheduleBooking(rescheduleBookingId, resolvedSlotId);
-      return;
-    }
-    if (!activeSub) return;
-    await createBooking({
-      package_id: activeSub.package.id,
-      slot_id: resolvedSlotId,
-      trainer_id: trainer?.id,
-      subscription_id: activeSub.id,
-    });
   }, [
     activeSub,
+    confirmInFlight,
     createBooking,
     fetchSlots,
     isReschedule,
+    loading,
     rescheduleBooking,
     rescheduleBookingId,
     selectedDate,
@@ -574,7 +583,7 @@ function BookSessionContent() {
               trainer={trainer}
               slot={selectedSlot}
               subscription={activeSub}
-              loading={loading}
+              loading={loading || confirmInFlight}
               error={slotResolutionError ?? error}
               onConfirm={handleConfirm}
               onBack={() => {

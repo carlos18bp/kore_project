@@ -602,6 +602,53 @@ class TestOccupiedDayEndpoint:
         invalid_date = api_client.get(url, {'trainer': 1, 'date': '17-01-2026'})
         assert invalid_date.status_code == status.HTTP_400_BAD_REQUEST
 
+    def test_filters_occupied_slots_by_bogota_local_day(self, api_client, customer, package, trainer_profile):
+        """occupied-day date filter follows local day boundaries in America/Bogota."""
+        # 2026-01-17 00:30 UTC == 2026-01-16 19:30 America/Bogota
+        slot_prev_local_day = AvailabilitySlot.objects.create(
+            starts_at=datetime(2026, 1, 17, 0, 30, tzinfo=dt_timezone.utc),
+            ends_at=datetime(2026, 1, 17, 1, 30, tzinfo=dt_timezone.utc),
+            trainer=trainer_profile,
+            is_blocked=True,
+        )
+        booking_prev_local_day = Booking.objects.create(
+            customer=customer,
+            package=package,
+            slot=slot_prev_local_day,
+            trainer=trainer_profile,
+            status=Booking.Status.CONFIRMED,
+        )
+
+        # 2026-01-17 05:30 UTC == 2026-01-17 00:30 America/Bogota
+        slot_same_local_day = AvailabilitySlot.objects.create(
+            starts_at=datetime(2026, 1, 17, 5, 30, tzinfo=dt_timezone.utc),
+            ends_at=datetime(2026, 1, 17, 6, 30, tzinfo=dt_timezone.utc),
+            trainer=trainer_profile,
+            is_blocked=True,
+        )
+        booking_same_local_day = Booking.objects.create(
+            customer=customer,
+            package=package,
+            slot=slot_same_local_day,
+            trainer=trainer_profile,
+            status=Booking.Status.PENDING,
+        )
+
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-occupied-day')
+
+        response_prev_day = api_client.get(url, {'trainer': trainer_profile.pk, 'date': '2026-01-16'})
+        assert response_prev_day.status_code == status.HTTP_200_OK
+        prev_day_slot_ids = {item['slot_id'] for item in response_prev_day.data}
+        assert booking_prev_local_day.slot_id in prev_day_slot_ids
+        assert booking_same_local_day.slot_id not in prev_day_slot_ids
+
+        response_same_day = api_client.get(url, {'trainer': trainer_profile.pk, 'date': '2026-01-17'})
+        assert response_same_day.status_code == status.HTTP_200_OK
+        same_day_slot_ids = {item['slot_id'] for item in response_same_day.data}
+        assert booking_prev_local_day.slot_id not in same_day_slot_ids
+        assert booking_same_local_day.slot_id in same_day_slot_ids
+
 
 # ----------------------------------------------------------------
 # Subscription filter
