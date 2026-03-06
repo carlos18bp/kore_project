@@ -44,6 +44,12 @@ class AvailabilitySlotViewSet(viewsets.ModelViewSet):
     serializer_class = AvailabilitySlotSerializer
     permission_classes = [IsAdminOrReadOnly]
 
+    @property
+    def paginator(self):
+        if self.request.query_params.get('date'):
+            return None
+        return super().paginator
+
     def get_queryset(self):
         """Return availability slots with optional filtering.
 

@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import BookSessionPage from '@/app/(app)/book-session/page';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useBookingStore } from '@/lib/stores/bookingStore';
@@ -376,5 +377,56 @@ describe('BookSessionPage', () => {
     render(<BookSessionPage />);
     // fetchBookings is called with selected subscription ID
     expect(mockFetchBookings).toHaveBeenCalled();
+  });
+
+  it('allows confirmation request even when global loading is true', async () => {
+    const slot = {
+      id: 5,
+      trainer_id: 1,
+      starts_at: '2025-03-01T10:00:00Z',
+      ends_at: '2025-03-01T11:00:00Z',
+      is_active: true,
+      is_blocked: false,
+    };
+    const subscriptions = [
+      {
+        id: 1,
+        customer_email: 'cust@kore.com',
+        package: {
+          id: 1,
+          title: 'Gold',
+          sessions_count: 4,
+          session_duration_minutes: 60,
+          price: '500000',
+          currency: 'COP',
+          validity_days: 30,
+        },
+        sessions_total: 4,
+        sessions_used: 1,
+        sessions_remaining: 3,
+        status: 'active',
+        starts_at: '2025-02-01T00:00:00Z',
+        expires_at: '2025-03-01T00:00:00Z',
+        next_billing_date: null,
+      },
+    ];
+
+    setupStore({
+      step: 2,
+      selectedSlot: slot,
+      subscriptions,
+      loading: true,
+    });
+
+    render(<BookSessionPage />);
+
+    const confirmButton = screen.getByRole('button', { name: 'Confirmar' });
+    expect(confirmButton).toBeEnabled();
+
+    await userEvent.click(confirmButton);
+
+    await waitFor(() => {
+      expect(mockCreateBooking).toHaveBeenCalledTimes(1);
+    });
   });
 });

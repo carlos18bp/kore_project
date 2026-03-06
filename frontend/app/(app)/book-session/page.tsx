@@ -318,7 +318,7 @@ function BookSessionContent() {
     slotsForDate.length === 0;
 
   const handleConfirm = useCallback(async () => {
-    if (!selectedSlot || confirmInFlight || loading) return;
+    if (!selectedSlot || confirmInFlight) return;
 
     setConfirmInFlight(true);
     setSlotResolutionError(null);
@@ -376,7 +376,6 @@ function BookSessionContent() {
     createBooking,
     fetchSlots,
     isReschedule,
-    loading,
     rescheduleBooking,
     rescheduleBookingId,
     selectedDate,
@@ -583,7 +582,7 @@ function BookSessionContent() {
               trainer={trainer}
               slot={selectedSlot}
               subscription={activeSub}
-              loading={loading || confirmInFlight}
+              loading={confirmInFlight}
               error={slotResolutionError ?? error}
               onConfirm={handleConfirm}
               onBack={() => {
