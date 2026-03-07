@@ -21,6 +21,7 @@ from core_app.services.email_service import (
     send_payment_receipt,
     send_subscription_expiry_reminder,
 )
+from core_app.services.slot_schedule import MAX_ROLLOVER_SESSIONS
 from core_app.services.wompi_service import create_transaction, generate_reference
 
 logger = logging.getLogger(__name__)
@@ -112,11 +113,13 @@ def _bill_subscription(sub):
         )
 
         if txn_status == 'APPROVED':
+            leftover = max(sub.sessions_total - sub.sessions_used, 0)
+            rollover = min(leftover, MAX_ROLLOVER_SESSIONS)
             sub.next_billing_date = sub.next_billing_date + timedelta(
                 days=package.validity_days
             )
+            sub.sessions_total = package.sessions_count + rollover
             sub.sessions_used = 0
-            sub.sessions_total = package.sessions_count
             sub.expires_at = timezone.now() + timedelta(days=package.validity_days)
             sub.save(
                 update_fields=[
@@ -185,3 +188,18 @@ def send_expiring_subscription_reminders():
     summary = {'processed': processed, 'sent': sent}
     logger.info('Expiry reminders completed: %s', summary)
     return summary
+
+
+@db_periodic_task(crontab(minute=30, hour=2))
+def maintain_availability_slots():
+    """Daily slot maintenance: prune free past slots, fill future window.
+
+    Delegates to the ``maintain_slots`` management command so the logic
+    is shared with the ad-hoc CLI invocation.
+
+    Returns:
+        None
+    """
+    from django.core.management import call_command
+    call_command('maintain_slots', timezone='America/Bogota')
+    logger.info('maintain_availability_slots task completed')

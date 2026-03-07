@@ -387,6 +387,26 @@ class TestRescheduleAction:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert 'siguiente sesión' in response.data['detail']
 
+    def test_reschedule_beyond_30_day_horizon_rejected(self, api_client, customer, package, trainer_profile):
+        """Reschedule rejects new slots beyond the 30-day booking horizon."""
+        old_slot = _make_slot(trainer_profile, hours_ahead=48)
+        old_slot.is_blocked = True
+        old_slot.save()
+        booking = _make_booking(customer, package, old_slot, trainer_profile)
+
+        far_slot = AvailabilitySlot.objects.create(
+            starts_at=FIXED_NOW + timedelta(days=31),
+            ends_at=FIXED_NOW + timedelta(days=31, hours=1),
+            trainer=trainer_profile,
+        )
+
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-reschedule', args=[booking.pk])
+        response = api_client.post(url, {'new_slot_id': far_slot.pk}, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert '30 días' in response.data['detail']
+
     def test_reschedule_after_last_session_success(self, api_client, customer, package, trainer_profile, subscription):
         """Reschedule succeeds when there is no next session constraint."""
         now = FIXED_NOW

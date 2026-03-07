@@ -14,6 +14,12 @@ from core_app.tests.helpers import get_results
 FIXED_NOW = timezone.make_aware(datetime(2100, 2, 3, 10, 0, 0), timezone.get_current_timezone())
 
 
+@pytest.fixture(autouse=True)
+def freeze_now(monkeypatch):
+    """Freeze timezone.now so horizon filtering uses a deterministic reference."""
+    monkeypatch.setattr('django.utils.timezone.now', lambda: FIXED_NOW)
+
+
 def _fixed_now() -> datetime:
     return FIXED_NOW
 

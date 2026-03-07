@@ -13,14 +13,19 @@ import BookingConfirmation from '@/app/components/booking/BookingConfirmation';
 import BookingSuccess from '@/app/components/booking/BookingSuccess';
 import NoSessionsModal from '@/app/components/booking/NoSessionsModal';
 
-const FIXED_WINDOWS = [
-  { startHour: 5, endHour: 12 },
-  { startHour: 16, endHour: 21 },
-] as const;
+const WEEKDAY_WINDOWS: Record<number, { startHour: number; endHour: number }[]> = {
+  1: [{ startHour: 5, endHour: 13 }, { startHour: 16, endHour: 21 }], // Mon
+  2: [{ startHour: 5, endHour: 13 }, { startHour: 16, endHour: 21 }], // Tue
+  3: [{ startHour: 5, endHour: 13 }, { startHour: 16, endHour: 21 }], // Wed
+  4: [{ startHour: 5, endHour: 13 }, { startHour: 16, endHour: 21 }], // Thu
+  5: [{ startHour: 5, endHour: 13 }, { startHour: 16, endHour: 21 }], // Fri
+  6: [{ startHour: 6, endHour: 13 }],                                  // Sat
+  // 0: Sunday — closed
+};
 const SLOT_STEP_MINUTES = 15;
 const TRAVEL_BUFFER_MINUTES = 45;
 const DEFAULT_SESSION_DURATION_MINUTES = 60;
-const AVAILABILITY_HORIZON_DAYS = 180;
+const AVAILABILITY_HORIZON_DAYS = 30;
 
 function toDateKey(date: Date) {
   const y = date.getFullYear();
@@ -232,7 +237,7 @@ function BookSessionContent() {
       day.setDate(today.getDate() + offset);
 
       const weekDay = day.getDay();
-      if (weekDay === 0 || weekDay === 6) continue;
+      if (!WEEKDAY_WINDOWS[weekDay]) continue;
 
       if (minSlotStartTime) {
         const dayEnd = new Date(day);
@@ -258,7 +263,8 @@ function BookSessionContent() {
     if (!trainer?.id) return [];
 
     const selectedDay = new Date(`${selectedDate}T00:00:00`).getDay();
-    if (selectedDay === 0 || selectedDay === 6) return [];
+    const dayWindows = WEEKDAY_WINDOWS[selectedDay];
+    if (!dayWindows) return [];
 
     const slotDurationMinutes = trainer?.session_duration_minutes ?? DEFAULT_SESSION_DURATION_MINUTES;
     const slotStepMs = SLOT_STEP_MINUTES * 60 * 1000;
@@ -268,7 +274,7 @@ function BookSessionContent() {
     const generated: Slot[] = [];
     let virtualId = -1;
 
-    FIXED_WINDOWS.forEach(({ startHour, endHour }) => {
+    dayWindows.forEach(({ startHour, endHour }) => {
       const startHourStr = String(startHour).padStart(2, '0');
       const endHourStr = String(endHour).padStart(2, '0');
       const windowStart = new Date(`${selectedDate}T${startHourStr}:00:00`);

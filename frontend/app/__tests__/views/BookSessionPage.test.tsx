@@ -81,6 +81,10 @@ describe('BookSessionPage', () => {
     setupStore();
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('renders loading spinner when user is null', () => {
     useAuthStore.setState({ user: null, isAuthenticated: false, accessToken: null });
     const { container } = render(<BookSessionPage />);
@@ -377,6 +381,106 @@ describe('BookSessionPage', () => {
     render(<BookSessionPage />);
     // fetchBookings is called with selected subscription ID
     expect(mockFetchBookings).toHaveBeenCalled();
+  });
+
+  it('includes Saturday dates in available calendar days', () => {
+    jest.useFakeTimers();
+    // Monday March 2, 2026
+    jest.setSystemTime(new Date(2026, 2, 2, 12, 0, 0));
+
+    const trainerData = {
+      id: 1, user_id: 10, first_name: 'G', last_name: 'F',
+      email: 'g@k.com', specialty: '', bio: '', location: '',
+      session_duration_minutes: 60,
+    };
+    setupStore({ trainer: trainerData });
+    render(<BookSessionPage />);
+
+    // Saturday March 7 should be enabled (day 7)
+    const satBtn = screen.getByRole('button', { name: '7' });
+    expect(satBtn).not.toBeDisabled();
+
+    jest.useRealTimers();
+  });
+
+  it('excludes Sunday dates from available calendar days', () => {
+    jest.useFakeTimers();
+    // Monday March 2, 2026
+    jest.setSystemTime(new Date(2026, 2, 2, 12, 0, 0));
+
+    const trainerData = {
+      id: 1, user_id: 10, first_name: 'G', last_name: 'F',
+      email: 'g@k.com', specialty: '', bio: '', location: '',
+      session_duration_minutes: 60,
+    };
+    setupStore({ trainer: trainerData });
+    render(<BookSessionPage />);
+
+    // Sunday March 8 should be disabled (day 8)
+    const sunBtn = screen.getByRole('button', { name: '8' });
+    expect(sunBtn).toBeDisabled();
+
+    jest.useRealTimers();
+  });
+
+  it('limits available dates to 30-day horizon', () => {
+    jest.useFakeTimers();
+    // Wednesday March 4, 2026
+    jest.setSystemTime(new Date(2026, 2, 4, 12, 0, 0));
+
+    const trainerData = {
+      id: 1, user_id: 10, first_name: 'G', last_name: 'F',
+      email: 'g@k.com', specialty: '', bio: '', location: '',
+      session_duration_minutes: 60,
+    };
+    setupStore({ trainer: trainerData });
+    render(<BookSessionPage />);
+
+    // March 4 + 29 days = April 2, so last included day is April 2 (Thursday).
+    // March 31 (offset=27, Tuesday) should be enabled.
+    const day31Btn = screen.getByRole('button', { name: '31' });
+    expect(day31Btn).not.toBeDisabled();
+
+    // March 5 (offset=1, Thursday) should be enabled.
+    const day5Btn = screen.getByRole('button', { name: '5' });
+    expect(day5Btn).not.toBeDisabled();
+
+    // March 1 is before today (March 4) so it should be disabled.
+    const day1Btn = screen.getByRole('button', { name: '1' });
+    expect(day1Btn).toBeDisabled();
+
+    jest.useRealTimers();
+  });
+
+  it('generates Saturday slots with 06:00-13:00 window when Saturday selected', () => {
+    jest.useFakeTimers();
+    // Set time to very early Saturday March 7, 2026
+    jest.setSystemTime(new Date(2026, 2, 7, 0, 0, 0));
+
+    const trainerData = {
+      id: 1, user_id: 10, first_name: 'G', last_name: 'F',
+      email: 'g@k.com', specialty: '', bio: '', location: '',
+      session_duration_minutes: 60,
+    };
+    setupStore({
+      trainer: trainerData,
+      selectedDate: '2026-03-07',
+      dayBookedSlots: [],
+      dayAvailabilityLoading: false,
+    });
+    render(<BookSessionPage />);
+
+    // TimeSlotPicker defaults to 24h format
+    // Should show 06:00 slot (first Saturday slot)
+    expect(screen.getByText(/^06:00/)).toBeInTheDocument();
+    // Should show 12:00 (last full slot: 12:00-13:00)
+    expect(screen.getByText(/^12:00/)).toBeInTheDocument();
+    // Should NOT show 05:00 (Saturday starts at 06:00, not 05:00)
+    expect(screen.queryByText(/^05:00/)).not.toBeInTheDocument();
+    // Should NOT show 16:00 (Saturday has no evening window)
+    expect(screen.queryByText(/^16:00/)).not.toBeInTheDocument();
+
+    jest.useRealTimers();
   });
 
   it('allows confirmation request even when global loading is true', async () => {

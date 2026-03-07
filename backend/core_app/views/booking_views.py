@@ -15,6 +15,7 @@ from core_app.services.booking_rules import (
     TRAVEL_BUFFER_MINUTES,
     has_trainer_travel_buffer_conflict,
 )
+from core_app.services.slot_schedule import BOOKING_HORIZON_DAYS
 from core_app.services.email_service import (
     send_booking_cancellation,
     send_booking_confirmation,
@@ -194,6 +195,13 @@ class BookingViewSet(viewsets.ModelViewSet):
             return Response(
                 {'detail': 'No se encontró el nuevo horario.'},
                 status=status.HTTP_404_NOT_FOUND,
+            )
+
+        horizon = timezone.now() + timedelta(days=BOOKING_HORIZON_DAYS)
+        if new_slot.starts_at >= horizon:
+            return Response(
+                {'detail': 'No se puede agendar con más de 30 días de anticipación.'},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         with transaction.atomic():

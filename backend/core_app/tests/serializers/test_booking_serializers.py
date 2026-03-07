@@ -371,6 +371,36 @@ class TestBookingSerializerValidation:
         )
         assert serializer.is_valid(), serializer.errors
 
+    def test_slot_beyond_30_day_horizon_rejected(self, customer, package):
+        """Serializer rejects slots starting more than 30 days in the future."""
+        now = FIXED_NOW
+        slot = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(days=31),
+            ends_at=now + timedelta(days=31, hours=1),
+        )
+        request = _make_request(customer)
+        serializer = BookingSerializer(
+            data={'package_id': package.id, 'slot_id': slot.id},
+            context={'request': request},
+        )
+        assert not serializer.is_valid()
+        assert 'slot_id' in serializer.errors
+        assert '30 días' in str(serializer.errors['slot_id'])
+
+    def test_slot_within_30_day_horizon_accepted(self, customer, package):
+        """Serializer accepts slots within the 30-day horizon."""
+        now = FIXED_NOW
+        slot = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(days=29),
+            ends_at=now + timedelta(days=29, hours=1),
+        )
+        request = _make_request(customer)
+        serializer = BookingSerializer(
+            data={'package_id': package.id, 'slot_id': slot.id},
+            context={'request': request},
+        )
+        assert serializer.is_valid(), serializer.errors
+
     def test_validate_without_slot_in_attrs(self, customer, package):
         """Validate with no slot in attrs skips slot checks (branch 106→109)."""
         request = _make_request(customer)

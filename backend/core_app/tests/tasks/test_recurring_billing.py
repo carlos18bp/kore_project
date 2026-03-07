@@ -104,7 +104,8 @@ class TestProcessRecurringBilling:
 
         due_subscription.refresh_from_db()
         assert due_subscription.sessions_used == 0
-        assert due_subscription.sessions_total == 10
+        # leftover = 10 - 5 = 5, rollover = min(5, 2) = 2
+        assert due_subscription.sessions_total == 12
         assert due_subscription.next_billing_date > previous_billing_date
 
     @patch('core_app.tasks.create_transaction')
@@ -204,6 +205,116 @@ class TestProcessRecurringBilling:
         due_subscription.refresh_from_db()
         # next_billing_date should NOT advance for pending transactions
         assert due_subscription.sessions_used == 5
+
+
+@pytest.mark.django_db
+class TestRollover:
+    """Rollover cap behavior during recurring billing."""
+
+    @patch('core_app.tasks.create_transaction')
+    @patch('core_app.tasks.generate_reference')
+    def test_rollover_zero_leftover(self, mock_ref, mock_txn, customer, package):
+        """No rollover when all sessions are consumed."""
+        sub = Subscription.objects.create(
+            customer=customer, package=package,
+            sessions_total=10, sessions_used=10,
+            status=Subscription.Status.ACTIVE,
+            starts_at=DUE_REFERENCE - timedelta(days=30),
+            expires_at=DUE_REFERENCE,
+            payment_source_id='111',
+            next_billing_date=DUE_REFERENCE.date(),
+        )
+        mock_ref.return_value = 'ref-r0'
+        mock_txn.return_value = {'id': 'txn-r0', 'status': 'APPROVED'}
+
+        _bill_subscription(sub)
+        sub.refresh_from_db()
+        assert sub.sessions_total == 10  # package.sessions_count, no rollover
+        assert sub.sessions_used == 0
+
+    @patch('core_app.tasks.create_transaction')
+    @patch('core_app.tasks.generate_reference')
+    def test_rollover_one_leftover(self, mock_ref, mock_txn, customer, package):
+        """Rollover of 1 session when exactly 1 remains."""
+        sub = Subscription.objects.create(
+            customer=customer, package=package,
+            sessions_total=10, sessions_used=9,
+            status=Subscription.Status.ACTIVE,
+            starts_at=DUE_REFERENCE - timedelta(days=30),
+            expires_at=DUE_REFERENCE,
+            payment_source_id='222',
+            next_billing_date=DUE_REFERENCE.date(),
+        )
+        mock_ref.return_value = 'ref-r1'
+        mock_txn.return_value = {'id': 'txn-r1', 'status': 'APPROVED'}
+
+        _bill_subscription(sub)
+        sub.refresh_from_db()
+        assert sub.sessions_total == 11  # 10 + 1
+        assert sub.sessions_used == 0
+
+    @patch('core_app.tasks.create_transaction')
+    @patch('core_app.tasks.generate_reference')
+    def test_rollover_two_leftover(self, mock_ref, mock_txn, customer, package):
+        """Rollover of 2 sessions when exactly 2 remain."""
+        sub = Subscription.objects.create(
+            customer=customer, package=package,
+            sessions_total=10, sessions_used=8,
+            status=Subscription.Status.ACTIVE,
+            starts_at=DUE_REFERENCE - timedelta(days=30),
+            expires_at=DUE_REFERENCE,
+            payment_source_id='333',
+            next_billing_date=DUE_REFERENCE.date(),
+        )
+        mock_ref.return_value = 'ref-r2'
+        mock_txn.return_value = {'id': 'txn-r2', 'status': 'APPROVED'}
+
+        _bill_subscription(sub)
+        sub.refresh_from_db()
+        assert sub.sessions_total == 12  # 10 + 2
+        assert sub.sessions_used == 0
+
+    @patch('core_app.tasks.create_transaction')
+    @patch('core_app.tasks.generate_reference')
+    def test_rollover_capped_at_two(self, mock_ref, mock_txn, customer, package):
+        """Rollover capped at 2 even when many sessions remain."""
+        sub = Subscription.objects.create(
+            customer=customer, package=package,
+            sessions_total=10, sessions_used=3,
+            status=Subscription.Status.ACTIVE,
+            starts_at=DUE_REFERENCE - timedelta(days=30),
+            expires_at=DUE_REFERENCE,
+            payment_source_id='444',
+            next_billing_date=DUE_REFERENCE.date(),
+        )
+        mock_ref.return_value = 'ref-rcap'
+        mock_txn.return_value = {'id': 'txn-rcap', 'status': 'APPROVED'}
+
+        _bill_subscription(sub)
+        sub.refresh_from_db()
+        assert sub.sessions_total == 12  # 10 + min(7, 2)
+        assert sub.sessions_used == 0
+
+    @patch('core_app.tasks.create_transaction')
+    @patch('core_app.tasks.generate_reference')
+    def test_no_rollover_on_pending_transaction(self, mock_ref, mock_txn, customer, package):
+        """Pending transactions don't trigger rollover or session reset."""
+        sub = Subscription.objects.create(
+            customer=customer, package=package,
+            sessions_total=10, sessions_used=7,
+            status=Subscription.Status.ACTIVE,
+            starts_at=DUE_REFERENCE - timedelta(days=30),
+            expires_at=DUE_REFERENCE,
+            payment_source_id='555',
+            next_billing_date=DUE_REFERENCE.date(),
+        )
+        mock_ref.return_value = 'ref-pend'
+        mock_txn.return_value = {'id': 'txn-pend', 'status': 'PENDING'}
+
+        _bill_subscription(sub)
+        sub.refresh_from_db()
+        assert sub.sessions_total == 10  # unchanged
+        assert sub.sessions_used == 7    # unchanged
 
 
 @pytest.mark.django_db

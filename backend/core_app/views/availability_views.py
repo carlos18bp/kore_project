@@ -12,6 +12,7 @@ from core_app.services.booking_rules import (
     ACTIVE_BOOKING_STATUSES,
     build_trainer_buffer_slot_conflict_q,
 )
+from core_app.services.slot_schedule import BOOKING_HORIZON_DAYS
 
 BUSINESS_TIMEZONE = ZoneInfo('America/Bogota')
 
@@ -68,10 +69,13 @@ class AvailabilitySlotViewSet(viewsets.ModelViewSet):
                 status__in=ACTIVE_BOOKING_STATUSES,
             ).values_list('slot_id', flat=True)
 
+            now = timezone.now()
+            horizon = now + timedelta(days=BOOKING_HORIZON_DAYS)
             qs = qs.filter(
                 is_active=True,
                 is_blocked=False,
-                ends_at__gt=timezone.now(),
+                ends_at__gt=now,
+                starts_at__lt=horizon,
             ).exclude(id__in=booked_slot_ids)
 
         # Filter by specific date (YYYY-MM-DD)
