@@ -70,13 +70,15 @@ export default function ProfilePage() {
     clearMessages();
   };
 
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const payload: Record<string, string | number | null> = { ...formData };
-    if (formData.height_cm) payload.height_cm = parseFloat(formData.height_cm);
-    else payload.height_cm = null;
-    if (formData.current_weight_kg) payload.current_weight_kg = parseFloat(formData.current_weight_kg);
-    else payload.current_weight_kg = null;
+  const handleFieldSave = async (field: string, value: string) => {
+    clearMessages();
+    const numericFields = ['height_cm', 'current_weight_kg'];
+    const payload: Record<string, string | number | null> = {};
+    if (numericFields.includes(field)) {
+      payload[field] = value ? parseFloat(value) : null;
+    } else {
+      payload[field] = value;
+    }
     await updateProfile(payload);
   };
 
@@ -151,13 +153,14 @@ export default function ProfilePage() {
             <div data-hero="heading" className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 md:p-8 border border-white/60 shadow-sm">
               <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-6">Mi información</h2>
 
-              <form onSubmit={handleSaveProfile} className="space-y-5">
+              <div className="space-y-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs text-kore-gray-dark/60 uppercase tracking-wider mb-1.5">Nombre</label>
                     <input
                       type="text" value={formData.first_name}
                       onChange={(e) => handleFieldChange('first_name', e.target.value)}
+                      onBlur={() => handleFieldSave('first_name', formData.first_name)}
                       className="w-full px-4 py-2.5 rounded-xl border border-kore-gray-light/50 bg-white/50 text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/30 focus:border-kore-red/30 transition"
                     />
                   </div>
@@ -166,6 +169,7 @@ export default function ProfilePage() {
                     <input
                       type="text" value={formData.last_name}
                       onChange={(e) => handleFieldChange('last_name', e.target.value)}
+                      onBlur={() => handleFieldSave('last_name', formData.last_name)}
                       className="w-full px-4 py-2.5 rounded-xl border border-kore-gray-light/50 bg-white/50 text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/30 focus:border-kore-red/30 transition"
                     />
                   </div>
@@ -177,6 +181,7 @@ export default function ProfilePage() {
                     <input
                       type="tel" value={formData.phone}
                       onChange={(e) => handleFieldChange('phone', e.target.value)}
+                      onBlur={() => handleFieldSave('phone', formData.phone)}
                       className="w-full px-4 py-2.5 rounded-xl border border-kore-gray-light/50 bg-white/50 text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/30 focus:border-kore-red/30 transition"
                     />
                   </div>
@@ -184,7 +189,7 @@ export default function ProfilePage() {
                     <label className="block text-xs text-kore-gray-dark/60 uppercase tracking-wider mb-1.5">Sexo</label>
                     <select
                       value={formData.sex}
-                      onChange={(e) => handleFieldChange('sex', e.target.value)}
+                      onChange={(e) => { handleFieldChange('sex', e.target.value); handleFieldSave('sex', e.target.value); }}
                       className="w-full px-4 py-2.5 rounded-xl border border-kore-gray-light/50 bg-white/50 text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/30 focus:border-kore-red/30 transition"
                     >
                       <option value="">Seleccionar</option>
@@ -201,6 +206,7 @@ export default function ProfilePage() {
                     <input
                       type="number" step="0.1" value={formData.height_cm}
                       onChange={(e) => handleFieldChange('height_cm', e.target.value)}
+                      onBlur={() => handleFieldSave('height_cm', formData.height_cm)}
                       placeholder="170"
                       className="w-full px-4 py-2.5 rounded-xl border border-kore-gray-light/50 bg-white/50 text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/30 focus:border-kore-red/30 transition"
                     />
@@ -210,6 +216,7 @@ export default function ProfilePage() {
                     <input
                       type="number" step="0.1" value={formData.current_weight_kg}
                       onChange={(e) => handleFieldChange('current_weight_kg', e.target.value)}
+                      onBlur={() => handleFieldSave('current_weight_kg', formData.current_weight_kg)}
                       placeholder="70"
                       className="w-full px-4 py-2.5 rounded-xl border border-kore-gray-light/50 bg-white/50 text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/30 focus:border-kore-red/30 transition"
                     />
@@ -219,6 +226,7 @@ export default function ProfilePage() {
                     <input
                       type="text" value={formData.city}
                       onChange={(e) => handleFieldChange('city', e.target.value)}
+                      onBlur={() => handleFieldSave('city', formData.city)}
                       placeholder="Bogotá"
                       className="w-full px-4 py-2.5 rounded-xl border border-kore-gray-light/50 bg-white/50 text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/30 focus:border-kore-red/30 transition"
                     />
@@ -232,15 +240,7 @@ export default function ProfilePage() {
                 {successMessage && (
                   <p className="text-sm text-green-700 bg-green-50 rounded-lg px-4 py-2">{successMessage}</p>
                 )}
-
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-kore-red to-kore-burgundy text-white font-heading font-semibold text-sm rounded-xl hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {saving ? 'Guardando...' : 'Guardar cambios'}
-                </button>
-              </form>
+              </div>
             </div>
 
             {/* ─── Card: Goal Selector ─── */}
