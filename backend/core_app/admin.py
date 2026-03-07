@@ -8,8 +8,10 @@ from core_app.models import (
     AvailabilitySlot,
     Booking,
     ContactMessage,
+    CustomerProfile,
     FAQCategory,
     FAQItem,
+    MoodEntry,
     Notification,
     Package,
     Payment,
@@ -17,6 +19,7 @@ from core_app.models import (
     Subscription,
     TrainerProfile,
     User,
+    WeightEntry,
 )
 
 
@@ -177,6 +180,31 @@ class SubscriptionAdmin(admin.ModelAdmin):
         if obj.package_id:
             obj.sessions_total = obj.package.sessions_count
         super().save_model(request, obj, form, change)
+
+
+@admin.register(CustomerProfile)
+class CustomerProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'sex', 'city', 'primary_goal', 'profile_completed')
+    list_filter = ('sex', 'primary_goal', 'profile_completed')
+    search_fields = ('user__email', 'user__first_name', 'user__last_name', 'city')
+    autocomplete_fields = ('user',)
+    readonly_fields = ('profile_completed', 'kore_start_date')
+
+
+@admin.register(MoodEntry)
+class MoodEntryAdmin(admin.ModelAdmin):
+    list_display = ('user', 'mood', 'date', 'created_at')
+    list_filter = ('mood', 'date')
+    search_fields = ('user__email',)
+    autocomplete_fields = ('user',)
+
+
+@admin.register(WeightEntry)
+class WeightEntryAdmin(admin.ModelAdmin):
+    list_display = ('user', 'weight_kg', 'date', 'created_at')
+    list_filter = ('date',)
+    search_fields = ('user__email',)
+    autocomplete_fields = ('user',)
 
 
 @admin.register(AnalyticsEvent)

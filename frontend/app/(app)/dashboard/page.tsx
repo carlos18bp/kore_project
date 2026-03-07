@@ -6,10 +6,15 @@ import Image from 'next/image';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
 import { useBookingStore } from '@/lib/stores/bookingStore';
+import { useProfileStore } from '@/lib/stores/profileStore';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 import UpcomingSessionReminder from '@/app/components/booking/UpcomingSessionReminder';
 import SubscriptionExpiryReminder from '@/app/components/subscription/SubscriptionExpiryReminder';
 import { WHATSAPP_URL } from '@/lib/constants';
+import {
+  getGoalLabel, getGoalIcon, getMoodLabel, getMoodIcon,
+  MOOD_COLORS, MOOD_MESSAGES,
+} from '@/app/components/profile/ProfileIcons';
 
 // Brand icons as SVG components
 const CalendarIcon = () => (
@@ -46,7 +51,9 @@ export default function DashboardPage() {
   const { user } = useAuthStore();
   const { activeSubscription: sub, fetchSubscriptions } = useSubscriptionStore();
   const { upcomingReminder, bookings, fetchUpcomingReminder, fetchBookings } = useBookingStore();
+  const { profile, todayMood, fetchProfile } = useProfileStore();
   const sectionRef = useRef<HTMLElement>(null);
+  const profileFetchedRef = useRef(false);
   useHeroAnimation(sectionRef);
 
   useEffect(() => {
@@ -54,6 +61,12 @@ export default function DashboardPage() {
     fetchUpcomingReminder();
     fetchBookings();
   }, [fetchSubscriptions, fetchUpcomingReminder, fetchBookings]);
+
+  useEffect(() => {
+    if (profileFetchedRef.current) return;
+    profileFetchedRef.current = true;
+    fetchProfile();
+  }, [fetchProfile]);
 
   // Dynamic greeting based on time of day
   const getGreeting = () => {
@@ -380,10 +393,14 @@ export default function DashboardPage() {
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
               <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-5">Tu perfil</h2>
               <div className="flex items-center gap-4 mb-5">
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-kore-red/20 to-kore-burgundy/10 flex items-center justify-center ring-2 ring-white shadow-sm">
-                  <span className="font-heading text-xl font-semibold text-kore-red">
-                    {user.name.charAt(0)}
-                  </span>
+                <div className="relative w-14 h-14 rounded-full bg-gradient-to-br from-kore-red/20 to-kore-burgundy/10 flex items-center justify-center ring-2 ring-white shadow-sm overflow-hidden">
+                  {user.avatar_url ? (
+                    <Image src={user.avatar_url} alt="Avatar" fill className="object-cover" />
+                  ) : (
+                    <span className="font-heading text-xl font-semibold text-kore-red">
+                      {user.name.charAt(0)}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <p className="font-medium text-kore-gray-dark">{user.name}</p>
@@ -405,6 +422,46 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
+
+            {/* Goal + Mood Card */}
+            {(() => {
+              const goalValue = profile?.customer_profile?.primary_goal;
+              const GoalIcon = goalValue ? getGoalIcon(goalValue) : null;
+              const moodValue = todayMood?.mood;
+              const MoodIcon = moodValue ? getMoodIcon(moodValue) : null;
+              const moodColors = moodValue ? MOOD_COLORS[moodValue] : null;
+
+              return (goalValue || moodValue) ? (
+                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm space-y-4">
+                  {goalValue && GoalIcon && (
+                    <div>
+                      <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-3">Mi objetivo</p>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-kore-red/10 flex items-center justify-center flex-shrink-0">
+                          <GoalIcon className="w-5 h-5 text-kore-red" />
+                        </div>
+                        <span className="text-sm font-medium text-kore-gray-dark">{getGoalLabel(goalValue)}</span>
+                      </div>
+                    </div>
+                  )}
+                  {goalValue && moodValue && <div className="border-t border-kore-gray-light/30" />}
+                  {moodValue && MoodIcon && moodColors && (
+                    <div>
+                      <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-3">Estado de hoy</p>
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-full ${moodColors.activeBg} flex items-center justify-center flex-shrink-0`}>
+                          <MoodIcon className={`w-5 h-5 ${moodColors.text}`} />
+                        </div>
+                        <div>
+                          <span className={`text-sm font-medium ${moodColors.text}`}>{getMoodLabel(moodValue)}</span>
+                          <p className="text-xs text-kore-gray-dark/40 mt-0.5">{MOOD_MESSAGES[moodValue]}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : null;
+            })()}
 
             {/* Progress Message Card - Desktop only */}
             <div className="hidden xl:block relative bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm overflow-hidden">

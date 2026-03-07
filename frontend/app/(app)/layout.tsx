@@ -4,6 +4,8 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/authStore';
 import Sidebar from '@/app/components/layouts/Sidebar';
+import ProfileCompletionCTA from '@/app/components/profile/ProfileCompletionCTA';
+import MoodCheckIn from '@/app/components/profile/MoodCheckIn';
 
 export default function AppLayout({
   children,
@@ -29,6 +31,8 @@ export default function AppLayout({
       <main className="xl:ml-64">
         {children}
       </main>
+      <ProfileCompletionCTA />
+      <MoodCheckIn />
     </div>
   );
 }

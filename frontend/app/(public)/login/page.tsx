@@ -163,14 +163,12 @@ export default function LoginPage() {
 
             {/* Forgot password */}
             <div className="flex justify-end">
-              <a
-                href={WHATSAPP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                href="/forgot-password"
                 className="text-xs text-kore-gray-dark/40 hover:text-kore-red transition-colors"
               >
-                ¿Olvidaste tu contraseña? Contáctanos
-              </a>
+                ¿Olvidaste tu contraseña?
+              </Link>
             </div>
 
             {/* reCAPTCHA */}

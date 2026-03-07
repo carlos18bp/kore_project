@@ -134,6 +134,8 @@ function applyAutoLoginSession(autoLogin: NonNullable<PaymentIntentResult['auto_
     phone: autoLogin.user.phone || '',
     role: autoLogin.user.role,
     name: [first, last].filter(Boolean).join(' ') || autoLogin.user.email,
+    profile_completed: false,
+    avatar_url: null,
   };
 
   Cookies.set('kore_token', autoLogin.access, { expires: 7 });

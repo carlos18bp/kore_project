@@ -9,6 +9,10 @@ from .notification import Notification
 from .content import ContactMessage, FAQCategory, FAQItem, SiteSettings
 from .analytics import AnalyticsEvent
 from .payment_intent import PaymentIntent
+from .customer_profile import CustomerProfile
+from .mood_entry import MoodEntry
+from .weight_entry import WeightEntry
+from .password_reset_code import PasswordResetCode
 
 __all__ = [
     'User',
@@ -25,4 +29,8 @@ __all__ = [
     'FAQItem',
     'ContactMessage',
     'AnalyticsEvent',
+    'CustomerProfile',
+    'MoodEntry',
+    'WeightEntry',
+    'PasswordResetCode',
 ]

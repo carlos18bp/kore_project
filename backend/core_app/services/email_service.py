@@ -264,6 +264,33 @@ def send_subscription_expiry_reminder(subscription):
 
 
 # ------------------------------------------------------------------
+# Password reset code sender
+# ------------------------------------------------------------------
+
+def send_password_reset_code(user, code):
+    """Send a 6-digit verification code for password reset.
+
+    Args:
+        user: User instance requesting the reset.
+        code: The 6-digit verification code string.
+
+    Returns:
+        bool: True if the email was sent successfully.
+    """
+    customer_name = f'{user.first_name} {user.last_name}'.strip() or user.email
+
+    return send_template_email(
+        template_name='password_reset_code',
+        subject='Código de verificación — KÓRE',
+        to_emails=[user.email],
+        context={
+            'customer_name': customer_name,
+            'code': code,
+        },
+    )
+
+
+# ------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------
 
