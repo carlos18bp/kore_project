@@ -112,8 +112,8 @@ class TestIcsGenerator:
     def test_contains_dtstart_and_dtend(self, booking_with_trainer):
         """Include DTSTART and DTEND fields to define event boundaries."""
         ics = generate_ics(booking_with_trainer).decode('utf-8')
-        assert 'DTSTART:' in ics
-        assert 'DTEND:' in ics
+        assert 'DTSTART;TZID=America/Bogota:' in ics
+        assert 'DTEND;TZID=America/Bogota:' in ics
 
     def test_works_without_trainer(self, customer, package):
         """Generate a valid ICS payload even when booking has no trainer assigned."""

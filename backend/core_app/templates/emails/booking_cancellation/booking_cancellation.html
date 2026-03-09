@@ -1,3 +1,5 @@
+{% load tz %}
+{% timezone "America/Bogota" %}
 <h2 style="color:#c8102e; margin-top:0;">Tu sesión ha sido cancelada</h2>
 
 <p>Hola <strong>{{ customer_name }}</strong>,</p>
@@ -28,3 +30,4 @@
 <p>Si deseas agendar una nueva sesión, puedes hacerlo desde tu panel en KÓRE.</p>
 
 <p>¡Te esperamos!</p>
+{% endtimezone %}

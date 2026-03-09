@@ -1,3 +1,5 @@
+{% load tz %}
+{% timezone "America/Bogota" %}
 <h2 style="color:#c8102e; margin-top:0;">¡Tu sesión ha sido agendada!</h2>
 
 <p>Hola <strong>{{ customer_name }}</strong>,</p>
@@ -36,3 +38,4 @@
 </p>
 
 <p>¡Nos vemos pronto!</p>
+{% endtimezone %}
