@@ -55,6 +55,8 @@ export type Subscription = {
   starts_at: string;
   expires_at: string;
   next_billing_date: string | null;
+  is_recurring: boolean;
+  billing_failed_at: string | null;
 };
 
 export type BookingData = {

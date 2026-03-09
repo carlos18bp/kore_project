@@ -106,6 +106,8 @@ type CheckoutState = {
   intentResult: PaymentIntentResult | null;
   redirectUrl: string | null;
   error: string;
+  termsAccepted: boolean;
+  termsLoading: boolean;
   fetchPackage: (id: string) => Promise<void>;
   fetchWompiConfig: () => Promise<void>;
   generateSignature: (amountInCents: number, currency: string) => Promise<SignatureData | null>;
@@ -117,6 +119,8 @@ type CheckoutState = {
   purchaseWithPSE: (packageId: number, pseData: PSEPaymentData, registrationToken?: string) => Promise<boolean>;
   purchaseWithBancolombia: (packageId: number, registrationToken?: string) => Promise<boolean>;
   pollIntentStatus: (reference: string, checkoutAccessToken?: string, transactionId?: string) => Promise<boolean>;
+  fetchTermsStatus: () => Promise<void>;
+  acceptTerms: () => Promise<boolean>;
   reset: () => void;
 };
 
@@ -159,6 +163,39 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
   intentResult: null,
   redirectUrl: null,
   error: '',
+  termsAccepted: false,
+  termsLoading: false,
+
+  fetchTermsStatus: async () => {
+    const token = Cookies.get('kore_token');
+    if (!token) {
+      set({ termsAccepted: false });
+      return;
+    }
+    set({ termsLoading: true });
+    try {
+      const { data } = await api.get('/terms-acceptance/status/', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      set({ termsAccepted: data.accepted === true, termsLoading: false });
+    } catch {
+      set({ termsAccepted: false, termsLoading: false });
+    }
+  },
+
+  acceptTerms: async () => {
+    const token = Cookies.get('kore_token');
+    if (!token) return false;
+    try {
+      await api.post('/terms-acceptance/accept/', {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      set({ termsAccepted: true });
+      return true;
+    } catch {
+      return false;
+    }
+  },
 
   fetchPackage: async (id: string) => {
     set({ loading: true, error: '' });
@@ -519,6 +556,8 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
       intentResult: null,
       redirectUrl: null,
       error: '',
+      termsAccepted: false,
+      termsLoading: false,
     });
   },
 }));

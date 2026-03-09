@@ -17,6 +17,7 @@ from core_app.models import (
     Payment,
     SiteSettings,
     Subscription,
+    TermsAcceptance,
     TrainerProfile,
     User,
     WeightEntry,
@@ -212,3 +213,11 @@ class AnalyticsEventAdmin(admin.ModelAdmin):
     list_display = ('event_type', 'user', 'path', 'created_at')
     list_filter = ('event_type',)
     search_fields = ('user__email', 'path', 'referrer', 'session_id')
+
+
+@admin.register(TermsAcceptance)
+class TermsAcceptanceAdmin(admin.ModelAdmin):
+    list_display = ('user', 'terms_version', 'ip_address', 'accepted_at', 'created_at')
+    list_filter = ('terms_version',)
+    search_fields = ('user__email', 'ip_address')
+    readonly_fields = ('user', 'terms_version', 'ip_address', 'user_agent', 'accepted_at', 'created_at')

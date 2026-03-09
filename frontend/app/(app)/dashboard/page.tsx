@@ -10,6 +10,7 @@ import { useProfileStore } from '@/lib/stores/profileStore';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 import UpcomingSessionReminder from '@/app/components/booking/UpcomingSessionReminder';
 import SubscriptionExpiryReminder from '@/app/components/subscription/SubscriptionExpiryReminder';
+import SubscriptionDashboardToast from '@/app/components/subscription/SubscriptionDashboardToast';
 import { WHATSAPP_URL } from '@/lib/constants';
 import {
   getGoalLabel, getGoalIcon, getMoodLabel, getMoodIcon,
@@ -151,6 +152,7 @@ export default function DashboardPage() {
 
       <UpcomingSessionReminder />
       <SubscriptionExpiryReminder />
+      <SubscriptionDashboardToast />
 
       <div className="w-full px-6 md:px-10 lg:px-16 pt-20 xl:pt-8 pb-16 relative z-10">
         {/* Top bar with greeting */}

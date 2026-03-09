@@ -14,6 +14,7 @@ from core_app.views.notification_views import NotificationViewSet
 from core_app.views.package_views import PackageViewSet
 from core_app.views.payment_views import PaymentViewSet
 from core_app.views.subscription_views import SubscriptionViewSet
+from core_app.views.terms_views import TermsAcceptanceCreateView, TermsAcceptanceStatusView
 from core_app.views.trainer_profile_views import TrainerProfileViewSet
 
 router = DefaultRouter()
@@ -32,4 +33,6 @@ router.register('analytics-events', AnalyticsEventViewSet, basename='analytics-e
 urlpatterns = [
     path('', include(router.urls)),
     path('site-settings/', SiteSettingsView.as_view(), name='site-settings'),
+    path('terms-acceptance/status/', TermsAcceptanceStatusView.as_view(), name='terms-acceptance-status'),
+    path('terms-acceptance/accept/', TermsAcceptanceCreateView.as_view(), name='terms-acceptance-accept'),
 ]

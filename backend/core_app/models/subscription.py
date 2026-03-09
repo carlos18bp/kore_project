@@ -89,6 +89,11 @@ class Subscription(TimestampedModel):
         blank=True,
         help_text='Timestamp when the expiry UI reminder was shown.',
     )
+    billing_failed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Timestamp when the last automatic billing attempt failed.',
+    )
 
     class Meta:
         ordering = ('-created_at',)

@@ -48,6 +48,8 @@ const MOCK_SUBSCRIPTION = {
   starts_at: '2025-01-01T00:00:00Z',
   expires_at: '2025-01-31T00:00:00Z',
   next_billing_date: '2025-01-31',
+  is_recurring: true,
+  billing_failed_at: null,
 };
 
 const MOCK_PAYMENTS = [
@@ -66,7 +68,7 @@ describe('SubscriptionPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     useAuthStore.setState({
-      user: { id: '1', email: 'test@kore.com', first_name: 'Test', last_name: 'User', phone: '', role: 'customer', name: 'Test User' },
+      user: { id: '1', email: 'test@kore.com', first_name: 'Test', last_name: 'User', phone: '', role: 'customer', name: 'Test User', profile_completed: true, avatar_url: null },
       accessToken: 'fake-token',
       isAuthenticated: true,
     });
@@ -139,9 +141,7 @@ describe('SubscriptionPage', () => {
     await user.click(screen.getByText('Plan Expirado'));
 
     await waitFor(() => {
-      expect(
-        screen.getByText('Esta suscripción está inactiva, por lo que no requiere acciones.')
-      ).toBeInTheDocument();
+      expect(screen.getByText('Renovar este programa')).toBeInTheDocument();
     });
     expect(mockedApi.get).toHaveBeenCalledWith(
       `/subscriptions/${inactiveSub.id}/payments/`,
@@ -149,7 +149,7 @@ describe('SubscriptionPage', () => {
     );
   });
 
-  it('shows cancel action as disabled for active subscription', async () => {
+  it('shows cancel action as enabled for active subscription', async () => {
     mockedApi.get.mockImplementation((url: string) => {
       if (url.includes('/payments/')) return Promise.resolve({ data: MOCK_PAYMENTS });
       return Promise.resolve({ data: { results: [MOCK_SUBSCRIPTION] } });
@@ -161,13 +161,13 @@ describe('SubscriptionPage', () => {
     });
 
     const cancelButton = screen.getByRole('button', { name: 'Cancelar suscripción' });
-    expect(cancelButton).toBeDisabled();
+    expect(cancelButton).toBeEnabled();
     expect(screen.queryByText('¿Seguro que deseas cancelar?')).not.toBeInTheDocument();
     expect(screen.queryByText('Sí, cancelar')).not.toBeInTheDocument();
     expect(screen.queryByText('No, volver')).not.toBeInTheDocument();
   });
 
-  it('keeps confirmation actions hidden when cancel action is disabled', async () => {
+  it('shows confirmation dialog when cancel button is clicked', async () => {
     mockedApi.get.mockImplementation((url: string) => {
       if (url.includes('/payments/')) return Promise.resolve({ data: MOCK_PAYMENTS });
       return Promise.resolve({ data: { results: [MOCK_SUBSCRIPTION] } });
@@ -178,9 +178,12 @@ describe('SubscriptionPage', () => {
       expect(screen.getByText('Cancelar suscripción')).toBeInTheDocument();
     });
 
-    expect(screen.getByRole('button', { name: 'Cancelar suscripción' })).toBeDisabled();
-    expect(screen.queryByText('¿Seguro que deseas cancelar?')).not.toBeInTheDocument();
-    expect(screen.queryByText('No, volver')).not.toBeInTheDocument();
+    const cancelButton = screen.getByRole('button', { name: 'Cancelar suscripción' });
+    await userEvent.click(cancelButton);
+
+    expect(screen.getByText('¿Seguro que deseas cancelar?')).toBeInTheDocument();
+    expect(screen.getByText('Sí, cancelar')).toBeInTheDocument();
+    expect(screen.getByText('No, volver')).toBeInTheDocument();
   });
 
   it('renders payment history', async () => {

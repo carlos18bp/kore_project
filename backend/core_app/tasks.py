@@ -60,8 +60,13 @@ def process_recurring_billing():
         try:
             _bill_subscription(sub)
             succeeded += 1
+            if sub.billing_failed_at:
+                sub.billing_failed_at = None
+                sub.save(update_fields=['billing_failed_at', 'updated_at'])
         except Exception:
             failed += 1
+            sub.billing_failed_at = timezone.now()
+            sub.save(update_fields=['billing_failed_at', 'updated_at'])
             logger.exception(
                 'Failed to bill subscription %s for customer %s',
                 sub.id,

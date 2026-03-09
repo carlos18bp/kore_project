@@ -188,6 +188,39 @@ class TestProcessRecurringBilling:
 
     @patch('core_app.tasks.create_transaction')
     @patch('core_app.tasks.generate_reference')
+    def test_sets_billing_failed_at_on_error(
+        self, mock_ref, mock_txn, due_subscription
+    ):
+        """Set billing_failed_at when charging fails."""
+        mock_ref.return_value = 'kore-ref-fail'
+        mock_txn.side_effect = WompiError('payment failed')
+        assert due_subscription.billing_failed_at is None
+
+        process_recurring_billing.call_local()
+
+        due_subscription.refresh_from_db()
+        assert due_subscription.billing_failed_at is not None
+
+    @patch('core_app.tasks.create_transaction')
+    @patch('core_app.tasks.generate_reference')
+    def test_clears_billing_failed_at_on_success(
+        self, mock_ref, mock_txn, due_subscription
+    ):
+        """Clear billing_failed_at when charging succeeds after previous failure."""
+        from django.utils import timezone
+        due_subscription.billing_failed_at = timezone.now()
+        due_subscription.save()
+
+        mock_ref.return_value = 'kore-ref-success'
+        mock_txn.return_value = {'id': 'txn-success', 'status': 'APPROVED'}
+
+        process_recurring_billing.call_local()
+
+        due_subscription.refresh_from_db()
+        assert due_subscription.billing_failed_at is None
+
+    @patch('core_app.tasks.create_transaction')
+    @patch('core_app.tasks.generate_reference')
     def test_pending_transaction_creates_pending_payment(
         self, mock_ref, mock_txn, due_subscription
     ):

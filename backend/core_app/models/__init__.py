@@ -13,6 +13,7 @@ from .customer_profile import CustomerProfile
 from .mood_entry import MoodEntry
 from .weight_entry import WeightEntry
 from .password_reset_code import PasswordResetCode
+from .terms_acceptance import TermsAcceptance
 
 __all__ = [
     'User',
@@ -33,4 +34,5 @@ __all__ = [
     'MoodEntry',
     'WeightEntry',
     'PasswordResetCode',
+    'TermsAcceptance',
 ]
