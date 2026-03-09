@@ -1,10 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/authStore';
+import { useProfileStore } from '@/lib/stores/profileStore';
 import { WHATSAPP_URL } from '@/lib/constants';
+import { GOAL_OPTIONS } from '@/app/components/profile/ProfileIcons';
 
 const navItems = [
   {
@@ -58,6 +61,9 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  const { profile } = useProfileStore();
+  const userGoal = profile?.customer_profile?.primary_goal;
+  const goalLabel = GOAL_OPTIONS.find((g) => g.value === userGoal)?.label;
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -115,14 +121,22 @@ export default function Sidebar() {
       {user && (
         <div className="px-6 pb-6 mb-2">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-kore-red/20 to-kore-burgundy/10 flex items-center justify-center flex-shrink-0 ring-2 ring-white shadow-sm">
-              <span className="font-heading text-sm font-semibold text-kore-red">
-                {user.name.charAt(0)}
-              </span>
+            <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-kore-red/20 to-kore-burgundy/10 flex items-center justify-center flex-shrink-0 ring-2 ring-white shadow-sm overflow-hidden">
+              {user.avatar_url ? (
+                <Image src={user.avatar_url} alt="Avatar" fill className="object-cover" />
+              ) : (
+                <span className="font-heading text-sm font-semibold text-kore-red">
+                  {user.name.charAt(0)}
+                </span>
+              )}
             </div>
             <div className="min-w-0">
               <p className="text-sm font-medium text-kore-gray-dark truncate">{user.name}</p>
-              <p className="text-xs text-kore-gray-dark/40 truncate">{user.email}</p>
+              {goalLabel ? (
+                <p className="text-xs text-kore-red/70 truncate font-medium">{goalLabel}</p>
+              ) : (
+                <p className="text-xs text-kore-gray-dark/40 truncate">{user.email}</p>
+              )}
             </div>
           </div>
         </div>

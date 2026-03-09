@@ -39,6 +39,9 @@ export default function ProfilePage() {
   const [resetCodeMessage, setResetCodeMessage] = useState('');
   const [moodJustSet, setMoodJustSet] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [toastState, setToastState] = useState<'hidden' | 'typing' | 'saved'>('hidden');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingFieldRef = useRef<{ field: string; value: string } | null>(null);
 
   const fetchedRef = useRef(false);
   useEffect(() => {
@@ -68,9 +71,30 @@ export default function ProfilePage() {
   const handleFieldChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     clearMessages();
+    
+    // Show typing toast and debounce save
+    setToastState('typing');
+    pendingFieldRef.current = { field, value };
+    
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    
+    debounceRef.current = setTimeout(() => {
+      if (pendingFieldRef.current) {
+        void handleFieldSave(pendingFieldRef.current.field, pendingFieldRef.current.value);
+        pendingFieldRef.current = null;
+      }
+    }, 1200);
   };
 
   const handleFieldSave = async (field: string, value: string) => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    pendingFieldRef.current = null;
+    
     clearMessages();
     const numericFields = ['height_cm', 'current_weight_kg'];
     const payload: Record<string, string | number | null> = {};
@@ -79,7 +103,13 @@ export default function ProfilePage() {
     } else {
       payload[field] = value;
     }
-    await updateProfile(payload);
+    const result = await updateProfile(payload);
+    if (result?.success) {
+      setToastState('saved');
+      setTimeout(() => setToastState('hidden'), 2000);
+    } else {
+      setToastState('hidden');
+    }
   };
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -135,6 +165,31 @@ export default function ProfilePage() {
       </div>
 
       <div className="w-full px-6 md:px-10 lg:px-16 pt-20 xl:pt-8 pb-16 relative z-10">
+        {/* Save Toast */}
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${toastState !== 'hidden' ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
+          <div className={`flex items-center gap-2 px-4 py-2.5 bg-white rounded-full shadow-lg border transition-colors ${toastState === 'typing' ? 'border-amber-200' : 'border-green-100'}`}>
+            {toastState === 'typing' ? (
+              <>
+                <div className="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center">
+                  <svg className="w-3 h-3 text-amber-600 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                </div>
+                <span className="text-sm font-medium text-amber-700">Guardando...</span>
+              </>
+            ) : (
+              <>
+                <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
+                  <svg className="w-3 h-3 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                </div>
+                <span className="text-sm font-medium text-kore-gray-dark">Guardado</span>
+              </>
+            )}
+          </div>
+        </div>
         {/* Header */}
         <div data-hero="badge" className="mb-8 xl:mb-12">
           <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-1">Tu espacio personal</p>
@@ -147,10 +202,10 @@ export default function ProfilePage() {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
           {/* ══════ LEFT — Main content (2 cols wide) ══════ */}
-          <div className="xl:col-span-2 space-y-6">
+          <div className="xl:col-span-2 space-y-6 order-4 xl:order-1 contents xl:block">
 
             {/* ─── Card: Personal Info Form ─── */}
-            <div data-hero="heading" className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 md:p-8 border border-white/60 shadow-sm">
+            <div data-hero="heading" className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 md:p-8 border border-white/60 shadow-sm order-4 xl:order-none">
               <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-6">Mi información</h2>
 
               <div className="space-y-5">
@@ -233,18 +288,11 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {/* Feedback */}
-                {error && (
-                  <p className="text-sm text-red-600 bg-red-50 rounded-lg px-4 py-2">{error}</p>
-                )}
-                {successMessage && (
-                  <p className="text-sm text-green-700 bg-green-50 rounded-lg px-4 py-2">{successMessage}</p>
-                )}
-              </div>
+                              </div>
             </div>
 
             {/* ─── Card: Goal Selector ─── */}
-            <div data-hero="body" className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 md:p-8 border border-white/60 shadow-sm">
+            <div data-hero="body" className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 md:p-8 border border-white/60 shadow-sm order-3 xl:order-none">
               <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-2">Mi meta principal</h2>
               <p className="text-sm text-kore-gray-dark/50 mb-5">Selecciona tu objetivo para personalizar tu experiencia.</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -254,7 +302,17 @@ export default function ProfilePage() {
                     <button
                       key={goal.value}
                       type="button"
-                      onClick={() => { handleFieldChange('primary_goal', goal.value); updateProfile({ primary_goal: goal.value }); }}
+                      onClick={async () => { 
+                        setFormData((prev) => ({ ...prev, primary_goal: goal.value }));
+                        setToastState('typing');
+                        const result = await updateProfile({ primary_goal: goal.value }); 
+                        if (result?.success) {
+                          setToastState('saved');
+                          setTimeout(() => setToastState('hidden'), 2000);
+                        } else {
+                          setToastState('hidden');
+                        }
+                      }}
                       className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 text-center ${
                         isSelected
                           ? 'border-kore-red bg-kore-red/5 shadow-sm'
@@ -276,7 +334,7 @@ export default function ProfilePage() {
             </div>
 
             {/* ─── Card: Security ─── */}
-            <div data-hero="cta" className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 md:p-8 border border-white/60 shadow-sm">
+            <div data-hero="cta" className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 md:p-8 border border-white/60 shadow-sm order-6 xl:order-none">
               <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-2">Seguridad</h2>
               <p className="text-sm text-kore-gray-dark/50 mb-5">
                 Para cambiar tu contraseña, te enviaremos un código de verificación a tu correo electrónico.
@@ -321,10 +379,10 @@ export default function ProfilePage() {
           </div>
 
           {/* ══════ RIGHT — Sidebar cards ══════ */}
-          <div className="space-y-6">
+          <div className="space-y-6 contents xl:block">
 
             {/* ─── Card: Profile / Avatar ─── */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
+            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm order-1 xl:order-none">
               <div className="flex flex-col items-center text-center">
                 <button
                   type="button"
@@ -353,7 +411,7 @@ export default function ProfilePage() {
             </div>
 
             {/* ─── Card: Mood Check-in ─── */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
+            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm order-2 xl:order-none">
               <h2 className="font-heading text-base font-semibold text-kore-gray-dark mb-1">
                 {todayMood ? 'Tu estado de hoy' : 'Hoy me siento...'}
               </h2>
@@ -395,7 +453,7 @@ export default function ProfilePage() {
             </div>
 
             {/* ─── Card: Quick Stats ─── */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
+            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm order-5 xl:order-none">
               <h2 className="font-heading text-base font-semibold text-kore-gray-dark mb-4">Resumen</h2>
               <div className="space-y-3">
                 {formData.height_cm && (
