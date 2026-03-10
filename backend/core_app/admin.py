@@ -5,6 +5,7 @@ from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from core_app.forms import UserChangeForm, UserCreationForm
 from core_app.models import (
     AnalyticsEvent,
+    AnthropometryEvaluation,
     AvailabilitySlot,
     Booking,
     ContactMessage,
@@ -221,3 +222,17 @@ class TermsAcceptanceAdmin(admin.ModelAdmin):
     list_filter = ('terms_version',)
     search_fields = ('user__email', 'ip_address')
     readonly_fields = ('user', 'terms_version', 'ip_address', 'user_agent', 'accepted_at', 'created_at')
+
+
+@admin.register(AnthropometryEvaluation)
+class AnthropometryEvaluationAdmin(admin.ModelAdmin):
+    list_display = ('customer', 'trainer', 'bmi', 'bmi_category', 'body_fat_pct', 'created_at')
+    list_filter = ('bmi_color', 'bf_color', 'created_at')
+    search_fields = ('customer__email', 'customer__first_name')
+    readonly_fields = (
+        'age_at_evaluation', 'bmi', 'bmi_category', 'bmi_color',
+        'waist_hip_ratio', 'whr_risk', 'whr_color',
+        'waist_height_ratio', 'whe_risk', 'whe_color',
+        'body_fat_pct', 'bf_category', 'bf_color',
+        'fat_mass_kg', 'lean_mass_kg', 'waist_risk', 'waist_risk_color',
+    )

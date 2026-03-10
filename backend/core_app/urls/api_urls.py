@@ -15,6 +15,12 @@ from core_app.views.package_views import PackageViewSet
 from core_app.views.payment_views import PaymentViewSet
 from core_app.views.subscription_views import SubscriptionViewSet
 from core_app.views.terms_views import TermsAcceptanceCreateView, TermsAcceptanceStatusView
+from core_app.views.anthropometry_views import (
+    ClientAnthropometryDetailView,
+    ClientAnthropometryListView,
+    TrainerAnthropometryDetailView,
+    TrainerAnthropometryListCreateView,
+)
 from core_app.views.trainer_client_views import (
     TrainerClientDetailView,
     TrainerClientListView,
@@ -45,4 +51,8 @@ urlpatterns = [
     path('trainer/my-clients/<int:customer_id>/', TrainerClientDetailView.as_view(), name='trainer-client-detail'),
     path('trainer/my-clients/<int:customer_id>/sessions/', TrainerClientSessionsView.as_view(), name='trainer-client-sessions'),
     path('trainer/dashboard-stats/', TrainerDashboardStatsView.as_view(), name='trainer-dashboard-stats'),
+    path('trainer/my-clients/<int:customer_id>/anthropometry/', TrainerAnthropometryListCreateView.as_view(), name='trainer-anthropometry-list-create'),
+    path('trainer/my-clients/<int:customer_id>/anthropometry/<int:eval_id>/', TrainerAnthropometryDetailView.as_view(), name='trainer-anthropometry-detail'),
+    path('my-anthropometry/', ClientAnthropometryListView.as_view(), name='client-anthropometry-list'),
+    path('my-anthropometry/<int:eval_id>/', ClientAnthropometryDetailView.as_view(), name='client-anthropometry-detail'),
 ]
