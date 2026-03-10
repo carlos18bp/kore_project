@@ -76,8 +76,7 @@ class TestUpdateProfile:
         resp = client.patch('/api/auth/profile/', {
             'first_name': 'Nuevo',
             'sex': 'masculino',
-            'height_cm': '180.0',
-            'current_weight_kg': '75.5',
+            'date_of_birth': '1990-05-15',
             'city': 'Medellín',
             'primary_goal': 'muscle_gain',
         }, format='json')
@@ -87,6 +86,7 @@ class TestUpdateProfile:
         cp = data['customer_profile']
         assert cp['sex'] == 'masculino'
         assert cp['city'] == 'Medellín'
+        assert cp['date_of_birth'] == '1990-05-15'
         assert cp['profile_completed'] is True
 
     def test_partial_update_keeps_existing_data(self, customer):

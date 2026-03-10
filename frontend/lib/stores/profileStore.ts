@@ -6,6 +6,12 @@ import { useAuthStore } from '@/lib/stores/authStore';
 export type CustomerProfile = {
   avatar_url: string | null;
   sex: string;
+  date_of_birth: string | null;
+  eps: string;
+  id_type: string;
+  id_number: string;
+  id_expedition_date: string | null;
+  address: string;
   height_cm: string | null;
   current_weight_kg: string | null;
   city: string;
@@ -35,8 +41,12 @@ type UpdateProfilePayload = {
   last_name?: string;
   phone?: string;
   sex?: string;
-  height_cm?: number | null;
-  current_weight_kg?: number | null;
+  date_of_birth?: string | null;
+  eps?: string;
+  id_type?: string;
+  id_number?: string;
+  id_expedition_date?: string | null;
+  address?: string;
   city?: string;
   primary_goal?: string;
 };

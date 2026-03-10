@@ -14,6 +14,12 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
         fields = (
             'avatar_url',
             'sex',
+            'date_of_birth',
+            'eps',
+            'id_type',
+            'id_number',
+            'id_expedition_date',
+            'address',
             'height_cm',
             'current_weight_kg',
             'city',
@@ -66,14 +72,21 @@ class UpdateProfileSerializer(serializers.Serializer):
     last_name = serializers.CharField(max_length=150, required=False)
     phone = serializers.CharField(max_length=50, required=False, allow_blank=True)
     sex = serializers.ChoiceField(choices=CustomerProfile.Sex.choices, required=False)
-    height_cm = serializers.DecimalField(max_digits=5, decimal_places=1, required=False, allow_null=True)
-    current_weight_kg = serializers.DecimalField(max_digits=5, decimal_places=1, required=False, allow_null=True)
+    date_of_birth = serializers.DateField(required=False, allow_null=True)
+    eps = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    id_type = serializers.ChoiceField(choices=CustomerProfile.IdType.choices, required=False, allow_blank=True)
+    id_number = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    id_expedition_date = serializers.DateField(required=False, allow_null=True)
+    address = serializers.CharField(max_length=500, required=False, allow_blank=True)
     city = serializers.CharField(max_length=255, required=False, allow_blank=True)
     primary_goal = serializers.ChoiceField(choices=CustomerProfile.Goal.choices, required=False, allow_blank=True)
 
     def update(self, user, validated_data):
         user_fields = ('first_name', 'last_name', 'phone')
-        profile_fields = ('sex', 'height_cm', 'current_weight_kg', 'city', 'primary_goal')
+        profile_fields = (
+            'sex', 'date_of_birth', 'eps', 'id_type', 'id_number',
+            'id_expedition_date', 'address', 'city', 'primary_goal',
+        )
 
         user_changed = False
         for field in user_fields:

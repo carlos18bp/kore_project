@@ -7,9 +7,9 @@ from core_app.models.base import TimestampedModel
 class CustomerProfile(TimestampedModel):
     """Profile for users with the 'customer' role.
 
-    Stores customer-specific data such as physical stats, fitness goal,
-    city, and profile photo. Linked 1-to-1 with a User instance whose
-    role must be 'customer'.
+    Stores customer-specific data such as personal info, identification,
+    fitness goal, city, and profile photo. Linked 1-to-1 with a User
+    instance whose role must be 'customer'.
     """
 
     class Sex(models.TextChoices):
@@ -25,6 +25,13 @@ class CustomerProfile(TimestampedModel):
         GENERAL_HEALTH = 'general_health', 'Salud general'
         SPORTS_PERFORMANCE = 'sports_performance', 'Rendimiento deportivo'
 
+    class IdType(models.TextChoices):
+        TI = 'ti', 'Tarjeta de identidad'
+        CC = 'cc', 'Cédula de ciudadanía'
+        CE = 'ce', 'Cédula de extranjería'
+        PASAPORTE = 'pasaporte', 'Pasaporte'
+        DNI = 'dni', 'DNI'
+
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -33,13 +40,37 @@ class CustomerProfile(TimestampedModel):
     )
     avatar = models.ImageField(upload_to='avatars/', blank=True)
     sex = models.CharField(max_length=20, choices=Sex.choices, blank=True)
+    date_of_birth = models.DateField(
+        null=True, blank=True,
+        help_text='Fecha de nacimiento del cliente.',
+    )
+    eps = models.CharField(
+        max_length=255, blank=True,
+        help_text='EPS del cliente.',
+    )
+    id_type = models.CharField(
+        max_length=20, choices=IdType.choices, blank=True,
+        help_text='Tipo de documento de identidad.',
+    )
+    id_number = models.CharField(
+        max_length=50, blank=True,
+        help_text='Número de documento de identidad.',
+    )
+    id_expedition_date = models.DateField(
+        null=True, blank=True,
+        help_text='Fecha de expedición del documento.',
+    )
+    address = models.CharField(
+        max_length=500, blank=True,
+        help_text='Dirección de residencia.',
+    )
     height_cm = models.DecimalField(
         max_digits=5, decimal_places=1, null=True, blank=True,
-        help_text='Estatura en centímetros.',
+        help_text='Estatura en centímetros (dato del entrenador).',
     )
     current_weight_kg = models.DecimalField(
         max_digits=5, decimal_places=1, null=True, blank=True,
-        help_text='Peso actual en kilogramos.',
+        help_text='Peso actual en kilogramos (dato del entrenador).',
     )
     city = models.CharField(max_length=255, blank=True)
     primary_goal = models.CharField(
@@ -69,8 +100,7 @@ class CustomerProfile(TimestampedModel):
             self.user.first_name,
             self.user.last_name,
             self.sex,
-            self.height_cm is not None,
-            self.current_weight_kg is not None,
+            self.date_of_birth is not None,
             self.city,
             self.primary_goal,
         ])

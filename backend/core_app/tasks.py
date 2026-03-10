@@ -195,6 +195,27 @@ def send_expiring_subscription_reminders():
     return summary
 
 
+@db_periodic_task(crontab(minute='*/15'))
+def auto_complete_past_bookings():
+    """Mark pending bookings as confirmed once their slot has ended.
+
+    Runs every 15 minutes to catch sessions that just finished.
+
+    Returns:
+        dict: Summary with 'completed' count.
+    """
+    from core_app.models import Booking
+    now = timezone.now()
+    past_pending_bookings = Booking.objects.filter(
+        status=Booking.Status.PENDING,
+        slot__ends_at__lte=now,
+    )
+    completed = past_pending_bookings.update(status=Booking.Status.CONFIRMED)
+    if completed:
+        logger.info('Auto-completed %d past pending bookings', completed)
+    return {'completed': completed}
+
+
 @db_periodic_task(crontab(minute=30, hour=2))
 def maintain_availability_slots():
     """Daily slot maintenance: prune free past slots, fill future window.

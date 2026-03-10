@@ -18,6 +18,14 @@ const SEX_OPTIONS = [
   { value: 'prefiero_no_decir', label: 'Prefiero no decir' },
 ];
 
+const ID_TYPE_OPTIONS = [
+  { value: 'ti', label: 'Tarjeta de identidad' },
+  { value: 'cc', label: 'Cédula de ciudadanía' },
+  { value: 'ce', label: 'Cédula de extranjería' },
+  { value: 'pasaporte', label: 'Pasaporte' },
+  { value: 'dni', label: 'DNI' },
+];
+
 export default function ProfilePage() {
   const { user } = useAuthStore();
   const {
@@ -31,8 +39,9 @@ export default function ProfilePage() {
 
   // Form state
   const [formData, setFormData] = useState({
-    first_name: '', last_name: '', phone: '', sex: '', height_cm: '',
-    current_weight_kg: '', city: '', primary_goal: '',
+    first_name: '', last_name: '', phone: '', sex: '',
+    date_of_birth: '', eps: '', id_type: '', id_number: '',
+    id_expedition_date: '', address: '', city: '', primary_goal: '',
   });
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetCodeSending, setResetCodeSending] = useState(false);
@@ -59,8 +68,12 @@ export default function ProfilePage() {
         last_name: profile.last_name || '',
         phone: profile.phone || '',
         sex: cp?.sex || '',
-        height_cm: cp?.height_cm || '',
-        current_weight_kg: cp?.current_weight_kg || '',
+        date_of_birth: cp?.date_of_birth || '',
+        eps: cp?.eps || '',
+        id_type: cp?.id_type || '',
+        id_number: cp?.id_number || '',
+        id_expedition_date: cp?.id_expedition_date || '',
+        address: cp?.address || '',
         city: cp?.city || '',
         primary_goal: cp?.primary_goal || '',
       });
@@ -96,10 +109,10 @@ export default function ProfilePage() {
     pendingFieldRef.current = null;
     
     clearMessages();
-    const numericFields = ['height_cm', 'current_weight_kg'];
+    const dateFields = ['date_of_birth', 'id_expedition_date'];
     const payload: Record<string, string | number | null> = {};
-    if (numericFields.includes(field)) {
-      payload[field] = value ? parseFloat(value) : null;
+    if (dateFields.includes(field)) {
+      payload[field] = value || null;
     } else {
       payload[field] = value;
     }
@@ -255,24 +268,14 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs text-kore-gray-dark/60 uppercase tracking-wider mb-1.5">Estatura (cm)</label>
+                    <label className="block text-xs text-kore-gray-dark/60 uppercase tracking-wider mb-1.5">Dirección</label>
                     <input
-                      type="number" step="0.1" value={formData.height_cm}
-                      onChange={(e) => handleFieldChange('height_cm', e.target.value)}
-                      onBlur={() => handleFieldSave('height_cm', formData.height_cm)}
-                      placeholder="170"
-                      className="w-full px-4 py-2.5 rounded-xl border border-kore-gray-light/50 bg-white/50 text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/30 focus:border-kore-red/30 transition"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-kore-gray-dark/60 uppercase tracking-wider mb-1.5">Peso actual (kg)</label>
-                    <input
-                      type="number" step="0.1" value={formData.current_weight_kg}
-                      onChange={(e) => handleFieldChange('current_weight_kg', e.target.value)}
-                      onBlur={() => handleFieldSave('current_weight_kg', formData.current_weight_kg)}
-                      placeholder="70"
+                      type="text" value={formData.address}
+                      onChange={(e) => handleFieldChange('address', e.target.value)}
+                      onBlur={() => handleFieldSave('address', formData.address)}
+                      placeholder="Tu dirección de residencia"
                       className="w-full px-4 py-2.5 rounded-xl border border-kore-gray-light/50 bg-white/50 text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/30 focus:border-kore-red/30 transition"
                     />
                   </div>
@@ -282,7 +285,62 @@ export default function ProfilePage() {
                       type="text" value={formData.city}
                       onChange={(e) => handleFieldChange('city', e.target.value)}
                       onBlur={() => handleFieldSave('city', formData.city)}
-                      placeholder="Bogotá"
+                      placeholder="Tu ciudad"
+                      className="w-full px-4 py-2.5 rounded-xl border border-kore-gray-light/50 bg-white/50 text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/30 focus:border-kore-red/30 transition"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-kore-gray-dark/60 uppercase tracking-wider mb-1.5">Fecha de nacimiento</label>
+                    <input
+                      type="date" value={formData.date_of_birth}
+                      onChange={(e) => { handleFieldChange('date_of_birth', e.target.value); handleFieldSave('date_of_birth', e.target.value); }}
+                      className="w-full px-4 py-2.5 rounded-xl border border-kore-gray-light/50 bg-white/50 text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/30 focus:border-kore-red/30 transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-kore-gray-dark/60 uppercase tracking-wider mb-1.5">EPS</label>
+                    <input
+                      type="text" value={formData.eps}
+                      onChange={(e) => handleFieldChange('eps', e.target.value)}
+                      onBlur={() => handleFieldSave('eps', formData.eps)}
+                      placeholder="Tu EPS"
+                      className="w-full px-4 py-2.5 rounded-xl border border-kore-gray-light/50 bg-white/50 text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/30 focus:border-kore-red/30 transition"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs text-kore-gray-dark/60 uppercase tracking-wider mb-1.5">Tipo de documento</label>
+                    <select
+                      value={formData.id_type}
+                      onChange={(e) => { handleFieldChange('id_type', e.target.value); handleFieldSave('id_type', e.target.value); }}
+                      className="w-full px-4 py-2.5 rounded-xl border border-kore-gray-light/50 bg-white/50 text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/30 focus:border-kore-red/30 transition"
+                    >
+                      <option value="">Seleccionar</option>
+                      {ID_TYPE_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-kore-gray-dark/60 uppercase tracking-wider mb-1.5">Número de documento</label>
+                    <input
+                      type="text" value={formData.id_number}
+                      onChange={(e) => handleFieldChange('id_number', e.target.value)}
+                      onBlur={() => handleFieldSave('id_number', formData.id_number)}
+                      placeholder="Tu número de documento"
+                      className="w-full px-4 py-2.5 rounded-xl border border-kore-gray-light/50 bg-white/50 text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/30 focus:border-kore-red/30 transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-kore-gray-dark/60 uppercase tracking-wider mb-1.5">Fecha de expedición</label>
+                    <input
+                      type="date" value={formData.id_expedition_date}
+                      onChange={(e) => { handleFieldChange('id_expedition_date', e.target.value); handleFieldSave('id_expedition_date', e.target.value); }}
                       className="w-full px-4 py-2.5 rounded-xl border border-kore-gray-light/50 bg-white/50 text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/30 focus:border-kore-red/30 transition"
                     />
                   </div>
@@ -456,22 +514,22 @@ export default function ProfilePage() {
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm order-5 xl:order-none">
               <h2 className="font-heading text-base font-semibold text-kore-gray-dark mb-4">Resumen</h2>
               <div className="space-y-3">
-                {formData.height_cm && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-kore-gray-dark/50">Estatura</span>
-                    <span className="text-kore-gray-dark font-medium">{formData.height_cm} cm</span>
-                  </div>
-                )}
-                {formData.current_weight_kg && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-kore-gray-dark/50">Peso actual</span>
-                    <span className="text-kore-gray-dark font-medium">{formData.current_weight_kg} kg</span>
-                  </div>
-                )}
                 {formData.city && (
                   <div className="flex justify-between text-sm">
                     <span className="text-kore-gray-dark/50">Ciudad</span>
                     <span className="text-kore-gray-dark font-medium">{formData.city}</span>
+                  </div>
+                )}
+                {formData.date_of_birth && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-kore-gray-dark/50">Fecha de nacimiento</span>
+                    <span className="text-kore-gray-dark font-medium">{new Date(formData.date_of_birth + 'T00:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                  </div>
+                )}
+                {formData.eps && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-kore-gray-dark/50">EPS</span>
+                    <span className="text-kore-gray-dark font-medium">{formData.eps}</span>
                   </div>
                 )}
                 {formData.primary_goal && (
@@ -482,7 +540,7 @@ export default function ProfilePage() {
                     </span>
                   </div>
                 )}
-                {!formData.height_cm && !formData.current_weight_kg && !formData.city && !formData.primary_goal && (
+                {!formData.city && !formData.date_of_birth && !formData.primary_goal && (
                   <p className="text-xs text-kore-gray-dark/40 text-center py-2">Completa tu perfil para ver tu resumen</p>
                 )}
               </div>

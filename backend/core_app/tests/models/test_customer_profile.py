@@ -40,11 +40,11 @@ class TestCustomerProfileCompletion:
 
     def test_complete_when_all_fields_filled(self):
         """Profile is marked complete when all required fields are present."""
+        from datetime import date
         user = User.objects.create_user(email='u@example.com', password='p', first_name='A', last_name='B')
         profile = user.customer_profile
         profile.sex = 'masculino'
-        profile.height_cm = 175
-        profile.current_weight_kg = 70
+        profile.date_of_birth = date(1990, 5, 15)
         profile.city = 'Bogotá'
         profile.primary_goal = 'fat_loss'
         profile.save()
