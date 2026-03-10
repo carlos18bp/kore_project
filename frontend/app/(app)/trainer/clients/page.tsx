@@ -87,12 +87,11 @@ export default function TrainerClientsPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {filtered.map((client) => (
-                <Link
+                <div
                   key={client.id}
-                  href={`/trainer/clients/client?id=${client.id}`}
-                  className="group bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all"
+                  className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm hover:shadow-md transition-all"
                 >
-                  <div className="flex items-start gap-4">
+                  <Link href={`/trainer/clients/client?id=${client.id}`} className="flex items-start gap-4 group">
                     {/* Avatar */}
                     <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-kore-red/20 to-kore-burgundy/10 flex items-center justify-center ring-2 ring-white shadow-sm overflow-hidden">
                       {client.avatar_url ? (
@@ -116,24 +115,41 @@ export default function TrainerClientsPage() {
                         </span>
                       )}
                     </div>
-
-                    {/* Arrow */}
-                    <svg className="w-4 h-4 text-kore-gray-dark/20 group-hover:text-kore-red transition-colors mt-1" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                    </svg>
-                  </div>
+                  </Link>
 
                   {/* Stats */}
-                  <div className="mt-4 pt-3 border-t border-kore-gray-light/30 flex items-center gap-4 text-xs text-kore-gray-dark/50">
+                  <div className="mt-3 pt-3 border-t border-kore-gray-light/30 flex items-center gap-3 text-xs text-kore-gray-dark/50">
                     {client.active_package && (
                       <span className="font-medium text-kore-gray-dark/70">{client.active_package}</span>
                     )}
                     <span>{client.completed_sessions} sesiones</span>
                     {client.sessions_remaining > 0 && (
-                      <span className="text-green-600 font-medium">{client.sessions_remaining} restantes</span>
+                      <span className="text-green-600 font-medium">{client.sessions_remaining} rest.</span>
                     )}
                   </div>
-                </Link>
+
+                  {/* Quick actions */}
+                  <div className="mt-3 flex gap-2">
+                    <Link
+                      href={`/trainer/clients/client?id=${client.id}`}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-kore-cream/60 hover:bg-kore-cream text-kore-gray-dark/60 hover:text-kore-gray-dark text-xs font-medium transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                      </svg>
+                      Ficha
+                    </Link>
+                    <Link
+                      href={`/trainer/clients/client/anthropometry?id=${client.id}`}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-kore-red/5 hover:bg-kore-red/10 text-kore-red/70 hover:text-kore-red text-xs font-medium transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+                      </svg>
+                      Antropometría
+                    </Link>
+                  </div>
+                </div>
               ))}
             </div>
           )}
