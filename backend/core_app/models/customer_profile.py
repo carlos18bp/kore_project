@@ -64,14 +64,6 @@ class CustomerProfile(TimestampedModel):
         max_length=500, blank=True,
         help_text='Dirección de residencia.',
     )
-    height_cm = models.DecimalField(
-        max_digits=5, decimal_places=1, null=True, blank=True,
-        help_text='Estatura en centímetros (dato del entrenador).',
-    )
-    current_weight_kg = models.DecimalField(
-        max_digits=5, decimal_places=1, null=True, blank=True,
-        help_text='Peso actual en kilogramos (dato del entrenador).',
-    )
     city = models.CharField(max_length=255, blank=True)
     primary_goal = models.CharField(
         max_length=30, choices=Goal.choices, blank=True,

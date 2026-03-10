@@ -312,178 +312,192 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Main Content Grid */}
-        <div data-hero="body" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {/* Left - Quick Actions & Activity */}
-          <div className="md:col-span-2 xl:col-span-2 space-y-6">
-            {/* Quick Actions - Brand icons, no emojis */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
-              <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-5">Acciones rápidas</h2>
-              <div className="grid grid-cols-3 gap-3">
-                {quickActions.map((action) => (
-                  <Link
-                    key={action.label}
-                    href={action.href}
-                    className="group flex flex-col items-center gap-3 p-4 rounded-xl bg-kore-cream/50 hover:bg-kore-cream border border-transparent hover:border-kore-gray-light/30 transition-all text-center"
-                  >
-                    <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-kore-red shadow-sm group-hover:shadow-md transition-shadow">
-                      {action.icon}
+        {/* Goal + Mood + Progress Row — PROMOTED */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 xl:gap-6 mb-6 xl:mb-8">
+          {/* Goal + Mood Card */}
+          {(() => {
+            const goalValue = profile?.customer_profile?.primary_goal;
+            const GoalIcon = goalValue ? getGoalIcon(goalValue) : null;
+            const moodValue = todayMood?.mood;
+            const MoodIcon = moodValue ? getMoodIcon(moodValue) : null;
+            const moodColors = moodValue ? MOOD_COLORS[moodValue] : null;
+
+            return (
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm space-y-4">
+                {goalValue && GoalIcon ? (
+                  <div>
+                    <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-3">Mi objetivo</p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-kore-red/10 flex items-center justify-center flex-shrink-0">
+                        <GoalIcon className="w-5 h-5 text-kore-red" />
+                      </div>
+                      <span className="text-sm font-medium text-kore-gray-dark">{getGoalLabel(goalValue)}</span>
                     </div>
-                    <span className="text-xs text-kore-gray-dark/70 font-medium">{action.label}</span>
-                  </Link>
-                ))}
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-3">Mi objetivo</p>
+                    <Link href="/profile" className="text-sm text-kore-red hover:underline">Define tu objetivo</Link>
+                  </div>
+                )}
+                {(goalValue || !goalValue) && moodValue && <div className="border-t border-kore-gray-light/30" />}
+                {moodValue && MoodIcon && moodColors ? (
+                  <div>
+                    <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-3">Estado de hoy</p>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-full ${moodColors.activeBg} flex items-center justify-center flex-shrink-0`}>
+                        <MoodIcon className={`w-5 h-5 ${moodColors.text}`} />
+                      </div>
+                      <div>
+                        <span className={`text-sm font-medium ${moodColors.text}`}>{getMoodLabel(moodValue)}</span>
+                        <p className="text-xs text-kore-gray-dark/40 mt-0.5">{MOOD_MESSAGES[moodValue]}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : !moodValue ? (
+                  <div>
+                    {goalValue && <div className="border-t border-kore-gray-light/30" />}
+                    <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-2 mt-3">Estado de hoy</p>
+                    <p className="text-xs text-kore-gray-dark/40">Registra cómo te sientes hoy desde tu perfil.</p>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })()}
+
+          {/* Progress Message Card */}
+          <div className="relative bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm overflow-hidden">
+            <div className="absolute -right-6 -bottom-6 w-24 h-24 opacity-5">
+              <Image src="/images/flower.webp" alt="" fill className="object-contain" />
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center">
+                <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-2">Tu progreso</p>
+                <p className="text-sm text-kore-gray-dark/90 leading-relaxed">
+                  {getProgressMessage(sessionsUsed, progressPercent)}
+                </p>
               </div>
             </div>
+          </div>
 
-            {/* Recent Activity */}
+          {/* Profile Summary Card */}
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="relative w-12 h-12 rounded-full bg-gradient-to-br from-kore-red/20 to-kore-burgundy/10 flex items-center justify-center ring-2 ring-white shadow-sm overflow-hidden">
+                {user.avatar_url ? (
+                  <Image src={user.avatar_url} alt="Avatar" fill className="object-cover" />
+                ) : (
+                  <span className="font-heading text-lg font-semibold text-kore-red">
+                    {user.name.charAt(0)}
+                  </span>
+                )}
+              </div>
+              <div>
+                <p className="font-medium text-kore-gray-dark text-sm">{user.name}</p>
+                <p className="text-xs text-kore-gray-dark/40">{user.email}</p>
+              </div>
+            </div>
+            <div className="space-y-2.5 pt-3 border-t border-kore-gray-light/30">
+              <div className="flex justify-between text-sm">
+                <span className="text-kore-gray-dark/50">Programa</span>
+                <span className="text-kore-gray-dark font-medium">{program}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-kore-gray-dark/50">Entrenamientos</span>
+                <span className="text-kore-gray-dark font-medium">{sessionsUsed} de {sessionsTotal}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-kore-gray-dark/50">Miembro desde</span>
+                <span className="text-kore-gray-dark font-medium capitalize">{memberDate}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content Grid */}
+        <div data-hero="body" className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          {/* Left — Upcoming Sessions */}
+          <div className="xl:col-span-2 space-y-6">
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
-              <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-5">Tu historial</h2>
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="font-heading text-lg font-semibold text-kore-gray-dark">Próximas sesiones</h2>
+                <Link href="/book-session" className="text-xs text-kore-red font-medium hover:underline">
+                  Agendar nueva
+                </Link>
+              </div>
+              {(() => {
+                const upcoming = bookings.filter(
+                  (b) => b.status === 'pending' && new Date(b.slot.starts_at) > new Date()
+                ).sort((a, b) => new Date(a.slot.starts_at).getTime() - new Date(b.slot.starts_at).getTime());
+
+                return upcoming.length > 0 ? (
+                  <div className="space-y-3">
+                    {upcoming.slice(0, 5).map((booking) => {
+                      const d = new Date(booking.slot.starts_at);
+                      const dateStr = d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
+                      const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+                      const trainerName = booking.trainer
+                        ? `${booking.trainer.first_name} ${booking.trainer.last_name}`.trim()
+                        : '';
+                      return (
+                        <div key={booking.id} className="flex items-center gap-4 p-3 rounded-xl bg-kore-cream/30 hover:bg-kore-cream/60 transition-colors">
+                          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-kore-red/10 flex items-center justify-center">
+                            <CalendarIcon />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-kore-gray-dark capitalize">{dateStr}</p>
+                            <p className="text-xs text-kore-gray-dark/50">{booking.package?.title ?? '—'}{trainerName ? ` · ${trainerName}` : ''}</p>
+                          </div>
+                          <span className="text-sm font-medium text-kore-red">{timeStr}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="w-14 h-14 rounded-full bg-kore-cream mx-auto mb-3 flex items-center justify-center">
+                      <CalendarIcon />
+                    </div>
+                    <p className="text-sm text-kore-gray-dark/50 mb-2">No tienes sesiones próximas</p>
+                    <Link href="/book-session" className="text-sm text-kore-red font-medium hover:underline">
+                      Agenda tu siguiente sesión
+                    </Link>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Right — History (lower priority) */}
+          <div className="space-y-6">
+            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
+              <h2 className="font-heading text-base font-semibold text-kore-gray-dark mb-4">Historial reciente</h2>
               <div className="space-y-1">
-                {bookings.length > 0 ? (
-                  bookings.slice(0, 4).map((booking) => {
+                {bookings.filter(b => b.status === 'confirmed').length > 0 ? (
+                  bookings.filter(b => b.status === 'confirmed').slice(0, 4).map((booking) => {
                     const date = new Date(booking.slot.starts_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
-                    const statusLabel = booking.status === 'confirmed' ? 'Sesión completada'
-                      : booking.status === 'canceled' ? 'Sesión cancelada' : 'Sesión agendada';
-                    const desc = booking.package?.title ?? '—';
                     return (
-                      <div key={booking.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-kore-cream/50 transition-colors">
-                        <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-                          booking.status === 'canceled' ? 'bg-kore-gray-light/50' 
-                            : booking.status === 'confirmed' ? 'bg-green-100' 
-                            : 'bg-amber-100'
-                        }`}>
-                          <svg className={`w-5 h-5 ${
-                            booking.status === 'canceled' ? 'text-kore-gray-dark/40' 
-                              : booking.status === 'confirmed' ? 'text-green-600' 
-                              : 'text-amber-600'
-                          }`} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                            {booking.status === 'confirmed' ? (
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            ) : booking.status === 'canceled' ? (
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            ) : (
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            )}
+                      <div key={booking.id} className="flex items-center gap-3 p-2 rounded-lg">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                          <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-kore-gray-dark truncate">{statusLabel}</p>
-                          <p className="text-xs text-kore-gray-dark/50">{desc}</p>
+                          <p className="text-xs font-medium text-kore-gray-dark truncate">{booking.package?.title ?? '—'}</p>
                         </div>
                         <p className="text-xs text-kore-gray-dark/40 capitalize">{date}</p>
                       </div>
                     );
                   })
                 ) : (
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 rounded-full bg-kore-cream mx-auto mb-4 flex items-center justify-center">
-                      <CalendarIcon />
-                    </div>
-                    <p className="text-sm text-kore-gray-dark/50">Tu historial aparecerá aquí</p>
-                    <Link href="/book-session" className="text-sm text-kore-red font-medium mt-2 inline-block hover:underline">
-                      Agenda tu primera sesión
-                    </Link>
-                  </div>
+                  <p className="text-xs text-kore-gray-dark/40 text-center py-4">Sin sesiones completadas aún</p>
                 )}
-              </div>
-            </div>
-          </div>
-
-          {/* Right - Profile Sidebar */}
-          <div data-hero="cta" className="space-y-6">
-            {/* Profile Card */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
-              <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-5">Tu perfil</h2>
-              <div className="flex items-center gap-4 mb-5">
-                <div className="relative w-14 h-14 rounded-full bg-gradient-to-br from-kore-red/20 to-kore-burgundy/10 flex items-center justify-center ring-2 ring-white shadow-sm overflow-hidden">
-                  {user.avatar_url ? (
-                    <Image src={user.avatar_url} alt="Avatar" fill className="object-cover" />
-                  ) : (
-                    <span className="font-heading text-xl font-semibold text-kore-red">
-                      {user.name.charAt(0)}
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <p className="font-medium text-kore-gray-dark">{user.name}</p>
-                  <p className="text-xs text-kore-gray-dark/40">{user.email}</p>
-                </div>
-              </div>
-              <div className="space-y-3 pt-4 border-t border-kore-gray-light/30">
-                <div className="flex justify-between text-sm">
-                  <span className="text-kore-gray-dark/50">Programa</span>
-                  <span className="text-kore-gray-dark font-medium">{program}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-kore-gray-dark/50">Entrenamientos</span>
-                  <span className="text-kore-gray-dark font-medium">{sessionsUsed} de {sessionsTotal}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-kore-gray-dark/50">Miembro desde</span>
-                  <span className="text-kore-gray-dark font-medium capitalize">{memberDate}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Goal + Mood Card */}
-            {(() => {
-              const goalValue = profile?.customer_profile?.primary_goal;
-              const GoalIcon = goalValue ? getGoalIcon(goalValue) : null;
-              const moodValue = todayMood?.mood;
-              const MoodIcon = moodValue ? getMoodIcon(moodValue) : null;
-              const moodColors = moodValue ? MOOD_COLORS[moodValue] : null;
-
-              return (goalValue || moodValue) ? (
-                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm space-y-4">
-                  {goalValue && GoalIcon && (
-                    <div>
-                      <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-3">Mi objetivo</p>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-kore-red/10 flex items-center justify-center flex-shrink-0">
-                          <GoalIcon className="w-5 h-5 text-kore-red" />
-                        </div>
-                        <span className="text-sm font-medium text-kore-gray-dark">{getGoalLabel(goalValue)}</span>
-                      </div>
-                    </div>
-                  )}
-                  {goalValue && moodValue && <div className="border-t border-kore-gray-light/30" />}
-                  {moodValue && MoodIcon && moodColors && (
-                    <div>
-                      <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-3">Estado de hoy</p>
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full ${moodColors.activeBg} flex items-center justify-center flex-shrink-0`}>
-                          <MoodIcon className={`w-5 h-5 ${moodColors.text}`} />
-                        </div>
-                        <div>
-                          <span className={`text-sm font-medium ${moodColors.text}`}>{getMoodLabel(moodValue)}</span>
-                          <p className="text-xs text-kore-gray-dark/40 mt-0.5">{MOOD_MESSAGES[moodValue]}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : null;
-            })()}
-
-            {/* Progress Message Card - Desktop only */}
-            <div className="hidden xl:block relative bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm overflow-hidden">
-              {/* Subtle organic accent */}
-              <div className="absolute -right-6 -bottom-6 w-24 h-24 opacity-5">
-                <Image src="/images/flower.webp" alt="" fill className="object-contain" />
-              </div>
-              
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-2">Tu progreso</p>
-                  <p className="text-sm text-kore-gray-dark/90 leading-relaxed">
-                    {getProgressMessage(sessionsUsed, progressPercent)}
-                  </p>
-                </div>
               </div>
             </div>
           </div>

@@ -160,16 +160,31 @@ function TrainerClientDetailPage() {
                       <span className="font-medium text-kore-gray-dark">{sexLabels[client.profile.sex] || client.profile.sex}</span>
                     </div>
                   )}
-                  {client.profile.height_cm && (
+                  {client.profile.date_of_birth && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-kore-gray-dark/50">Estatura</span>
-                      <span className="font-medium text-kore-gray-dark">{client.profile.height_cm} cm</span>
+                      <span className="text-kore-gray-dark/50">Fecha de nacimiento</span>
+                      <span className="font-medium text-kore-gray-dark">{formatDate(client.profile.date_of_birth)}</span>
                     </div>
                   )}
-                  {client.profile.current_weight_kg && (
+                  {client.profile.eps && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-kore-gray-dark/50">Peso actual</span>
-                      <span className="font-medium text-kore-gray-dark">{client.profile.current_weight_kg} kg</span>
+                      <span className="text-kore-gray-dark/50">EPS</span>
+                      <span className="font-medium text-kore-gray-dark">{client.profile.eps}</span>
+                    </div>
+                  )}
+                  {client.profile.id_type && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-kore-gray-dark/50">Documento</span>
+                      <span className="font-medium text-kore-gray-dark">
+                        {({ ti: 'TI', cc: 'CC', ce: 'CE', pasaporte: 'Pasaporte', dni: 'DNI' }[client.profile.id_type] || client.profile.id_type)}
+                        {client.profile.id_number ? ` ${client.profile.id_number}` : ''}
+                      </span>
+                    </div>
+                  )}
+                  {client.profile.address && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-kore-gray-dark/50">Dirección</span>
+                      <span className="font-medium text-kore-gray-dark">{client.profile.address}</span>
                     </div>
                   )}
                   {client.profile.primary_goal && (
@@ -262,6 +277,41 @@ function TrainerClientDetailPage() {
                   <p className="text-sm text-kore-gray-dark/50">Este cliente no tiene una suscripción activa.</p>
                 </div>
               )}
+
+              {/* Upcoming Sessions */}
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
+                <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-5">Próximas sesiones</h2>
+                {(() => {
+                  const upcoming = clientSessions.filter(
+                    (s) => s.status === 'pending' && s.starts_at && new Date(s.starts_at) > new Date()
+                  );
+                  return upcoming.length > 0 ? (
+                    <div className="space-y-3">
+                      {upcoming.map((session) => {
+                        const d = new Date(session.starts_at!);
+                        const dateStr = d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
+                        const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+                        return (
+                          <div key={session.id} className="flex items-center gap-4 p-3 rounded-xl bg-kore-cream/30">
+                            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-kore-red/10 flex items-center justify-center">
+                              <svg className="w-5 h-5 text-kore-red" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                              </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-kore-gray-dark capitalize">{dateStr}</p>
+                              <p className="text-xs text-kore-gray-dark/50">{session.package_title}</p>
+                            </div>
+                            <span className="text-sm font-medium text-kore-red">{timeStr}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-kore-gray-dark/50 text-center py-4">Sin sesiones próximas agendadas.</p>
+                  );
+                })()}
+              </div>
             </div>
 
             {/* Right: Stats + Future Modules */}

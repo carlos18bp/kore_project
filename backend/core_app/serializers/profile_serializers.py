@@ -20,8 +20,6 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
             'id_number',
             'id_expedition_date',
             'address',
-            'height_cm',
-            'current_weight_kg',
             'city',
             'primary_goal',
             'kore_start_date',

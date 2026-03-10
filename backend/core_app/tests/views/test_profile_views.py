@@ -200,11 +200,11 @@ class TestWeightEndpoint:
         assert resp.status_code == 201
         assert WeightEntry.objects.filter(user=customer).count() == 1
 
-    def test_post_weight_syncs_profile(self, customer):
+    def test_post_weight_creates_entry_with_correct_value(self, customer):
         client = _auth_client(customer)
         client.post('/api/auth/weight/', {'weight_kg': '80.0'}, format='json')
-        customer.customer_profile.refresh_from_db()
-        assert float(customer.customer_profile.current_weight_kg) == pytest.approx(80.0, abs=0.1)
+        entry = WeightEntry.objects.get(user=customer)
+        assert float(entry.weight_kg) == pytest.approx(80.0, abs=0.1)
 
     def test_post_weight_updates_existing_today(self, customer):
         WeightEntry.objects.create(user=customer, weight_kg=70)

@@ -18,8 +18,12 @@ export type TrainerClient = {
 
 export type ClientProfile = {
   sex: string;
-  height_cm: string | null;
-  current_weight_kg: string | null;
+  date_of_birth: string | null;
+  eps: string;
+  id_type: string;
+  id_number: string;
+  id_expedition_date: string | null;
+  address: string;
   city: string;
   primary_goal: string;
   kore_start_date: string | null;

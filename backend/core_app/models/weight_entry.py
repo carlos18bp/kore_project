@@ -35,11 +35,3 @@ class WeightEntry(TimestampedModel):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        self._sync_profile_weight()
-
-    def _sync_profile_weight(self):
-        """Update customer profile with the latest weight."""
-        profile = getattr(self.user, 'customer_profile', None)
-        if profile is not None:
-            profile.current_weight_kg = self.weight_kg
-            profile.save(update_fields=['current_weight_kg', 'updated_at'])

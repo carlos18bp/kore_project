@@ -94,9 +94,8 @@ class TestWeightEntry:
         with pytest.raises(IntegrityError):
             WeightEntry.objects.create(user=user, weight_kg=73)
 
-    def test_syncs_profile_weight(self):
-        """Creating a WeightEntry updates customer_profile.current_weight_kg."""
+    def test_weight_entry_created_without_error(self):
+        """Creating a WeightEntry succeeds without syncing to profile."""
         user = User.objects.create_user(email='u@example.com', password='p')
-        WeightEntry.objects.create(user=user, weight_kg=80.0)
-        user.customer_profile.refresh_from_db()
-        assert user.customer_profile.current_weight_kg == pytest.approx(80.0, abs=0.1)
+        entry = WeightEntry.objects.create(user=user, weight_kg=80.0)
+        assert entry.weight_kg == pytest.approx(80.0, abs=0.1)
