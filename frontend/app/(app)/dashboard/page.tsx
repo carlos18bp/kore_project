@@ -332,16 +332,25 @@ export default function DashboardPage() {
                   <Link href="/profile" className="text-sm text-kore-red hover:underline">Define tu objetivo</Link>
                 )}
                 <div className="mt-4 pt-4 border-t border-kore-gray-light/30">
-                  <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-2">Tu progreso</p>
-                  <p className="text-sm text-kore-gray-dark/80 leading-relaxed">
-                    {getProgressMessage(sessionsUsed, progressPercent)}
-                  </p>
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-1">Tu progreso</p>
+                      <p className="text-sm text-kore-gray-dark/80 leading-relaxed">
+                        {getProgressMessage(sessionsUsed, progressPercent)}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             );
           })()}
 
-          {/* Estado de hoy Card — score 1-10 */}
+          {/* Estado de hoy Card — score 1-10 with personalized message */}
           <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
             <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-4">Estado de hoy</p>
             {todayMood ? (
@@ -365,8 +374,19 @@ export default function DashboardPage() {
                     <p className="text-xs text-kore-gray-dark/40">de 10</p>
                   </div>
                 </div>
+                <p className="text-xs text-kore-gray-dark/60 leading-relaxed mb-2">
+                  {todayMood.score >= 9
+                    ? 'Estás en un gran momento. Aprovecha esa energía para dar lo mejor en tu entrenamiento.'
+                    : todayMood.score >= 7
+                    ? 'Te sientes bien, y eso se nota. Mantén ese ritmo constante.'
+                    : todayMood.score >= 5
+                    ? 'Un día tranquilo. A veces la constancia importa más que la intensidad.'
+                    : todayMood.score >= 3
+                    ? 'No todos los días son iguales. Escucha tu cuerpo y avanza a tu ritmo.'
+                    : 'Es válido tener días difíciles. Lo importante es que estás aquí. Cuídate hoy.'}
+                </p>
                 {todayMood.notes && (
-                  <p className="text-xs text-kore-gray-dark/60 bg-kore-cream/50 rounded-lg p-2.5 italic">
+                  <p className="text-xs text-kore-gray-dark/50 bg-kore-cream/50 rounded-lg p-2.5 italic">
                     &ldquo;{todayMood.notes}&rdquo;
                   </p>
                 )}
