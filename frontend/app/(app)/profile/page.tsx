@@ -151,11 +151,7 @@ export default function ProfilePage() {
     }
   };
 
-  const handleMoodSelect = async (mood: 'motivated' | 'neutral' | 'tired') => {
-    await submitMood(mood);
-    setMoodJustSet(true);
-    setTimeout(() => setMoodJustSet(false), 3000);
-  };
+  void moodJustSet; // mood is now submitted via MoodCheckIn modal
 
   if (!user || loading) {
     return (
@@ -468,44 +464,40 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* ─── Card: Mood Check-in ─── */}
+            {/* ─── Card: Mood Check-in (1-10) ─── */}
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm order-2 xl:order-none">
               <h2 className="font-heading text-base font-semibold text-kore-gray-dark mb-1">
-                {todayMood ? 'Tu estado de hoy' : 'Hoy me siento...'}
+                {todayMood ? 'Tu estado de hoy' : '¿Cómo te sientes hoy?'}
               </h2>
               <p className="text-xs text-kore-gray-dark/50 mb-4">
-                {todayMood
-                  ? MOOD_MESSAGES[todayMood.mood]
-                  : 'Tu bienestar emocional importa.'}
+                Del 1 al 10, tu bienestar es parte de tu proceso.
               </p>
 
-              <div className="grid grid-cols-3 gap-3">
-                {MOOD_OPTIONS.map((opt) => {
-                  const isActive = todayMood?.mood === opt.value;
-                  const colors = MOOD_COLORS[opt.value];
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => handleMoodSelect(opt.value)}
-                      className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all duration-200 ${
-                        isActive
-                          ? `${colors.activeBg} ${colors.border} ring-2 ring-offset-1`
-                          : `${colors.bg} border-transparent hover:${colors.border}`
-                      }`}
-                    >
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center ${isActive ? colors.activeBg : colors.bg}`}>
-                        <opt.Icon className={`w-4 h-4 ${colors.text}`} />
-                      </div>
-                      <span className={`text-[10px] font-medium ${colors.text}`}>{opt.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
+              {todayMood ? (
+                <div className="flex items-center gap-3">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center font-heading text-xl font-bold ${
+                    todayMood.score >= 7 ? 'bg-green-100 text-green-700'
+                    : todayMood.score >= 4 ? 'bg-amber-100 text-amber-700'
+                    : 'bg-red-100 text-red-600'
+                  }`}>
+                    {todayMood.score}
+                  </div>
+                  <div>
+                    <p className={`text-sm font-medium ${
+                      todayMood.score >= 7 ? 'text-green-700' : todayMood.score >= 4 ? 'text-amber-700' : 'text-red-600'
+                    }`}>
+                      {todayMood.score >= 9 ? 'Excelente' : todayMood.score >= 7 ? 'Bien' : todayMood.score >= 5 ? 'Regular' : todayMood.score >= 3 ? 'Bajo' : 'Muy bajo'}
+                    </p>
+                    <p className="text-xs text-kore-gray-dark/40">de 10</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-kore-gray-dark/40">Aún no has registrado tu estado de hoy.</p>
+              )}
 
               {moodJustSet && todayMood && (
                 <div className="mt-3 p-2.5 bg-kore-cream/50 rounded-xl text-center">
-                  <p className="text-xs text-kore-gray-dark/70">{MOOD_MESSAGES[todayMood.mood]}</p>
+                  <p className="text-xs text-kore-gray-dark/70">Registrado correctamente.</p>
                 </div>
               )}
             </div>

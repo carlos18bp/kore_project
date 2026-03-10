@@ -41,9 +41,9 @@ function BookingRow({ booking, onClick }: { booking: BookingData; onClick: () =>
           })}
         </p>
         <p className="text-xs text-kore-gray-dark/50 mt-0.5">
-          {slotStart.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+          {slotStart.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
           {' — '}
-          {new Date(booking.slot.ends_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+          {new Date(booking.slot.ends_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
           {booking.trainer && (
             <span> · {booking.trainer.first_name} {booking.trainer.last_name}</span>
           )}

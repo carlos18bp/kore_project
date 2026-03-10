@@ -59,7 +59,7 @@ class ProfileResponseSerializer(serializers.Serializer):
         today = timezone.localdate()
         entry = MoodEntry.objects.filter(user=user, date=today).first()
         if entry:
-            return {'mood': entry.mood, 'date': str(entry.date)}
+            return {'score': entry.score, 'notes': entry.notes, 'date': str(entry.date)}
         return None
 
 
@@ -143,8 +143,13 @@ class ChangePasswordSerializer(serializers.Serializer):
 class MoodEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = MoodEntry
-        fields = ('id', 'mood', 'date', 'created_at')
+        fields = ('id', 'score', 'notes', 'date', 'created_at')
         read_only_fields = ('id', 'date', 'created_at')
+
+    def validate_score(self, value):
+        if value < 1 or value > 10:
+            raise serializers.ValidationError('El puntaje debe estar entre 1 y 10.')
+        return value
 
 
 class WeightEntrySerializer(serializers.ModelSerializer):

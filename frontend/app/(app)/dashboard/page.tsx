@@ -126,7 +126,7 @@ export default function DashboardPage() {
     ? new Date(upcomingReminder.slot.starts_at).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
     : null;
   const formattedTime = upcomingReminder?.slot
-    ? new Date(upcomingReminder.slot.starts_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
+    ? new Date(upcomingReminder.slot.starts_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })
     : '';
   const memberDate = sub
     ? new Date(sub.starts_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -312,77 +312,71 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Goal + Mood + Progress Row — PROMOTED */}
+        {/* Goal + Estado de hoy + Progress Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 xl:gap-6 mb-6 xl:mb-8">
-          {/* Goal + Mood Card */}
+          {/* Goal Card */}
           {(() => {
             const goalValue = profile?.customer_profile?.primary_goal;
             const GoalIcon = goalValue ? getGoalIcon(goalValue) : null;
-            const moodValue = todayMood?.mood;
-            const MoodIcon = moodValue ? getMoodIcon(moodValue) : null;
-            const moodColors = moodValue ? MOOD_COLORS[moodValue] : null;
-
             return (
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm space-y-4">
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
+                <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-3">Mi objetivo</p>
                 {goalValue && GoalIcon ? (
-                  <div>
-                    <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-3">Mi objetivo</p>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-kore-red/10 flex items-center justify-center flex-shrink-0">
-                        <GoalIcon className="w-5 h-5 text-kore-red" />
-                      </div>
-                      <span className="text-sm font-medium text-kore-gray-dark">{getGoalLabel(goalValue)}</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-kore-red/10 flex items-center justify-center flex-shrink-0">
+                      <GoalIcon className="w-5 h-5 text-kore-red" />
                     </div>
+                    <span className="text-sm font-medium text-kore-gray-dark">{getGoalLabel(goalValue)}</span>
                   </div>
                 ) : (
-                  <div>
-                    <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-3">Mi objetivo</p>
-                    <Link href="/profile" className="text-sm text-kore-red hover:underline">Define tu objetivo</Link>
-                  </div>
+                  <Link href="/profile" className="text-sm text-kore-red hover:underline">Define tu objetivo</Link>
                 )}
-                {(goalValue || !goalValue) && moodValue && <div className="border-t border-kore-gray-light/30" />}
-                {moodValue && MoodIcon && moodColors ? (
-                  <div>
-                    <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-3">Estado de hoy</p>
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full ${moodColors.activeBg} flex items-center justify-center flex-shrink-0`}>
-                        <MoodIcon className={`w-5 h-5 ${moodColors.text}`} />
-                      </div>
-                      <div>
-                        <span className={`text-sm font-medium ${moodColors.text}`}>{getMoodLabel(moodValue)}</span>
-                        <p className="text-xs text-kore-gray-dark/40 mt-0.5">{MOOD_MESSAGES[moodValue]}</p>
-                      </div>
-                    </div>
-                  </div>
-                ) : !moodValue ? (
-                  <div>
-                    {goalValue && <div className="border-t border-kore-gray-light/30" />}
-                    <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-2 mt-3">Estado de hoy</p>
-                    <p className="text-xs text-kore-gray-dark/40">Registra cómo te sientes hoy desde tu perfil.</p>
-                  </div>
-                ) : null}
+                <div className="mt-4 pt-4 border-t border-kore-gray-light/30">
+                  <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-2">Tu progreso</p>
+                  <p className="text-sm text-kore-gray-dark/80 leading-relaxed">
+                    {getProgressMessage(sessionsUsed, progressPercent)}
+                  </p>
+                </div>
               </div>
             );
           })()}
 
-          {/* Progress Message Card */}
-          <div className="relative bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm overflow-hidden">
-            <div className="absolute -right-6 -bottom-6 w-24 h-24 opacity-5">
-              <Image src="/images/flower.webp" alt="" fill className="object-contain" />
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center">
-                <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-                </svg>
+          {/* Estado de hoy Card — score 1-10 */}
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
+            <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-4">Estado de hoy</p>
+            {todayMood ? (
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center font-heading text-xl font-bold ${
+                    todayMood.score >= 7 ? 'bg-green-100 text-green-700'
+                    : todayMood.score >= 4 ? 'bg-amber-100 text-amber-700'
+                    : 'bg-red-100 text-red-600'
+                  }`}>
+                    {todayMood.score}
+                  </div>
+                  <div>
+                    <p className={`text-sm font-medium ${
+                      todayMood.score >= 7 ? 'text-green-700'
+                      : todayMood.score >= 4 ? 'text-amber-700'
+                      : 'text-red-600'
+                    }`}>
+                      {todayMood.score >= 9 ? 'Excelente' : todayMood.score >= 7 ? 'Bien' : todayMood.score >= 5 ? 'Regular' : todayMood.score >= 3 ? 'Bajo' : 'Muy bajo'}
+                    </p>
+                    <p className="text-xs text-kore-gray-dark/40">de 10</p>
+                  </div>
+                </div>
+                {todayMood.notes && (
+                  <p className="text-xs text-kore-gray-dark/60 bg-kore-cream/50 rounded-lg p-2.5 italic">
+                    &ldquo;{todayMood.notes}&rdquo;
+                  </p>
+                )}
               </div>
-              <div className="flex-1">
-                <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-2">Tu progreso</p>
-                <p className="text-sm text-kore-gray-dark/90 leading-relaxed">
-                  {getProgressMessage(sessionsUsed, progressPercent)}
-                </p>
+            ) : (
+              <div className="text-center py-2">
+                <p className="text-xs text-kore-gray-dark/40 mb-2">Registra cómo te sientes hoy</p>
+                <Link href="/profile" className="text-xs text-kore-red font-medium hover:underline">Ir a mi perfil</Link>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Profile Summary Card */}
@@ -440,7 +434,7 @@ export default function DashboardPage() {
                     {upcoming.slice(0, 5).map((booking) => {
                       const d = new Date(booking.slot.starts_at);
                       const dateStr = d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
-                      const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+                      const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
                       const trainerName = booking.trainer
                         ? `${booking.trainer.first_name} ${booking.trainer.last_name}`.trim()
                         : '';

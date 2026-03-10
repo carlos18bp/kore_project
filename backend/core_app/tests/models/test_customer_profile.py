@@ -62,18 +62,19 @@ class TestMoodEntry:
     """MoodEntry model constraints."""
 
     def test_create_mood_entry(self):
-        """Create a valid mood entry."""
+        """Create a valid mood entry with 1-10 score."""
         user = User.objects.create_user(email='u@example.com', password='p')
-        entry = MoodEntry.objects.create(user=user, mood='motivated')
-        assert entry.mood == 'motivated'
+        entry = MoodEntry.objects.create(user=user, score=8, notes='Feeling great')
+        assert entry.score == 8
+        assert entry.notes == 'Feeling great'
         assert entry.date == timezone.localdate()
 
     def test_unique_per_user_per_day(self):
         """Only one mood entry per user per day."""
         user = User.objects.create_user(email='u@example.com', password='p')
-        MoodEntry.objects.create(user=user, mood='motivated')
+        MoodEntry.objects.create(user=user, score=9)
         with pytest.raises(IntegrityError):
-            MoodEntry.objects.create(user=user, mood='tired')
+            MoodEntry.objects.create(user=user, score=3)
 
 
 @pytest.mark.django_db

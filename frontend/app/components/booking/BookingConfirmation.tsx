@@ -52,11 +52,13 @@ export default function BookingConfirmation({
             {new Date(slot.starts_at).toLocaleTimeString('es-CO', {
               hour: '2-digit',
               minute: '2-digit',
+              hour12: true,
             })}
             {' — '}
             {new Date(slot.ends_at).toLocaleTimeString('es-CO', {
               hour: '2-digit',
               minute: '2-digit',
+              hour12: true,
             })}
           </p>
         </div>

@@ -58,11 +58,12 @@ class TestGetProfile:
         assert resp.json()['user']['today_mood'] is None
 
     def test_returns_today_mood_when_set(self, customer):
-        MoodEntry.objects.create(user=customer, mood='motivated')
+        MoodEntry.objects.create(user=customer, score=9, notes='Great day')
         client = _auth_client(customer)
         resp = client.get('/api/auth/profile/')
         mood = resp.json()['user']['today_mood']
-        assert mood['mood'] == 'motivated'
+        assert mood['score'] == 9
+        assert mood['notes'] == 'Great day'
 
 
 # ── PATCH /api/auth/profile/ ──
@@ -170,22 +171,22 @@ class TestMoodEndpoint:
         client = _auth_client(customer)
         resp = client.get('/api/auth/mood/')
         assert resp.status_code == 200
-        assert resp.json()['mood'] is None
 
     def test_post_mood_creates_entry(self, customer):
         client = _auth_client(customer)
-        resp = client.post('/api/auth/mood/', {'mood': 'tired'}, format='json')
+        resp = client.post('/api/auth/mood/', {'score': 3, 'notes': 'Tired today'}, format='json')
         assert resp.status_code == 201
-        assert resp.json()['mood'] == 'tired'
+        assert resp.json()['score'] == 3
+        assert resp.json()['notes'] == 'Tired today'
         assert MoodEntry.objects.filter(user=customer).count() == 1
 
     def test_post_mood_updates_existing(self, customer):
-        MoodEntry.objects.create(user=customer, mood='neutral')
+        MoodEntry.objects.create(user=customer, score=6)
         client = _auth_client(customer)
-        resp = client.post('/api/auth/mood/', {'mood': 'motivated'}, format='json')
+        resp = client.post('/api/auth/mood/', {'score': 9}, format='json')
         assert resp.status_code == 200
         assert MoodEntry.objects.filter(user=customer).count() == 1
-        assert MoodEntry.objects.get(user=customer).mood == 'motivated'
+        assert MoodEntry.objects.get(user=customer).score == 9
 
 
 # ── POST /api/auth/weight/ ──

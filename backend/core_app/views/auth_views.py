@@ -160,10 +160,13 @@ def mood_view(request):
     # POST — create or update today's mood
     serializer = MoodEntrySerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
+    defaults = {'score': serializer.validated_data['score']}
+    if 'notes' in serializer.validated_data:
+        defaults['notes'] = serializer.validated_data['notes']
     entry, created = MoodEntry.objects.update_or_create(
         user=request.user,
         date=today,
-        defaults={'mood': serializer.validated_data['mood']},
+        defaults=defaults,
     )
     resp_status = status.HTTP_201_CREATED if created else status.HTTP_200_OK
     return Response(MoodEntrySerializer(entry).data, status=resp_status)

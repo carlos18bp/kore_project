@@ -69,7 +69,7 @@ type ProfileResponse = {
       kore_start_date: string | null;
       profile_completed: boolean;
     } | null;
-    today_mood?: { mood: string; date: string } | null;
+    today_mood?: { score: number; notes: string; date: string } | null;
   };
 };
 

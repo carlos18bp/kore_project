@@ -19,7 +19,8 @@ export type CustomerProfile = {
 };
 
 export type TodayMood = {
-  mood: 'motivated' | 'neutral' | 'tired';
+  score: number;
+  notes: string;
   date: string;
 };
 
@@ -67,7 +68,7 @@ type ProfileState = {
   updateProfile: (data: UpdateProfilePayload) => Promise<{ success: boolean; error?: string }>;
   uploadAvatar: (file: File) => Promise<{ success: boolean; avatar_url?: string; error?: string }>;
   changePassword: (data: ChangePasswordPayload) => Promise<{ success: boolean; error?: string }>;
-  submitMood: (mood: 'motivated' | 'neutral' | 'tired') => Promise<{ success: boolean; error?: string }>;
+  submitMood: (score: number, notes?: string) => Promise<{ success: boolean; error?: string }>;
   submitWeight: (weightKg: number) => Promise<{ success: boolean; error?: string }>;
   clearMessages: () => void;
 };
@@ -185,13 +186,14 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
     }
   },
 
-  submitMood: async (mood) => {
+  submitMood: async (score, notes) => {
     try {
-      const { data } = await api.post<TodayMood>('/auth/mood/', { mood }, {
+      const payload: { score: number; notes?: string } = { score };
+      if (notes !== undefined) payload.notes = notes;
+      const { data } = await api.post<TodayMood>('/auth/mood/', payload, {
         headers: authHeaders(),
       });
       set({ todayMood: data });
-      // Update profile cache
       const current = get().profile;
       if (current) {
         set({ profile: { ...current, today_mood: data } });

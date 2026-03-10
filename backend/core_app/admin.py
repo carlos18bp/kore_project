@@ -194,8 +194,8 @@ class CustomerProfileAdmin(admin.ModelAdmin):
 
 @admin.register(MoodEntry)
 class MoodEntryAdmin(admin.ModelAdmin):
-    list_display = ('user', 'mood', 'date', 'created_at')
-    list_filter = ('mood', 'date')
+    list_display = ('user', 'score', 'date', 'created_at')
+    list_filter = ('score', 'date')
     search_fields = ('user__email',)
     autocomplete_fields = ('user',)
 

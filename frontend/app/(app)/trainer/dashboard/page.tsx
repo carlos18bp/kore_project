@@ -106,7 +106,7 @@ export default function TrainerDashboardPage() {
                   weekday: 'short', day: 'numeric', month: 'short',
                 });
                 const time = new Date(session.starts_at).toLocaleTimeString('es-CO', {
-                  hour: '2-digit', minute: '2-digit',
+                  hour: '2-digit', minute: '2-digit', hour12: true,
                 });
                 return (
                   <Link

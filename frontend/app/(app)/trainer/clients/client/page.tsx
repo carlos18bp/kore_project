@@ -60,7 +60,7 @@ function TrainerClientDetailPage() {
     const d = new Date(dateStr);
     return {
       date: d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' }),
-      time: d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
+      time: d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true }),
     };
   };
 
@@ -107,7 +107,7 @@ function TrainerClientDetailPage() {
           {client.next_session && (() => {
             const d = new Date(client.next_session.starts_at);
             const dateStr = d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
-            const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+            const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
             return (
               <div className="mb-6 bg-gradient-to-r from-kore-red to-kore-burgundy rounded-2xl p-5 text-white">
                 <div className="flex items-center justify-between">
@@ -290,7 +290,7 @@ function TrainerClientDetailPage() {
                       {upcoming.map((session) => {
                         const d = new Date(session.starts_at!);
                         const dateStr = d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
-                        const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+                        const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
                         return (
                           <div key={session.id} className="flex items-center gap-4 p-3 rounded-xl bg-kore-cream/30">
                             <div className="flex-shrink-0 w-10 h-10 rounded-full bg-kore-red/10 flex items-center justify-center">

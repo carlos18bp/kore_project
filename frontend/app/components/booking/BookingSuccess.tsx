@@ -75,9 +75,9 @@ export default function BookingSuccess({ booking, onReset }: Props) {
                   year: 'numeric',
                 })}
                 {' — '}
-                {slotStart.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                {slotStart.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
                 {' a '}
-                {slotEnd.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                {slotEnd.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
               </span>
             </div>
             <div className="px-6 py-4 flex gap-4">
