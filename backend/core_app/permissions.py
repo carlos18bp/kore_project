@@ -17,6 +17,18 @@ class IsAdminRole(BasePermission):
         return is_admin_user(request.user)
 
 
+def is_trainer_user(user):
+    """Return True if user is authenticated and has the trainer role."""
+    if not user or not user.is_authenticated:
+        return False
+    return getattr(user, 'role', None) == 'trainer'
+
+
+class IsTrainerRole(BasePermission):
+    def has_permission(self, request, view):
+        return is_trainer_user(request.user)
+
+
 class IsAdminOrReadOnly(BasePermission):
     def has_permission(self, request, view):
         if request.method in SAFE_METHODS:

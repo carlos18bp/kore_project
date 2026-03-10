@@ -454,8 +454,8 @@ describe('BookSessionPage', () => {
 
   it('generates Saturday slots with 06:00-13:00 window when Saturday selected', () => {
     jest.useFakeTimers();
-    // Set time to very early Saturday March 7, 2026
-    jest.setSystemTime(new Date(2026, 2, 7, 0, 0, 0));
+    // Set time to Thursday March 5, so Saturday March 7 is 2 days away (>24h)
+    jest.setSystemTime(new Date(2026, 2, 5, 0, 0, 0));
 
     const trainerData = {
       id: 1, user_id: 10, first_name: 'G', last_name: 'F',

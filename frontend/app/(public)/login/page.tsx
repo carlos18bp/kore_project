@@ -21,7 +21,7 @@ export default function LoginPage() {
   const recaptchaRef = useRef<ReCAPTCHA>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const router = useRouter();
-  const { login, isAuthenticated, hydrate, hydrated } = useAuthStore();
+  const { login, user, isAuthenticated, hydrate, hydrated } = useAuthStore();
 
   useHeroAnimation(sectionRef);
 
@@ -31,9 +31,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (hydrated && isAuthenticated) {
-      router.push('/dashboard');
+      router.push(user?.role === 'trainer' ? '/trainer/dashboard' : '/dashboard');
     }
-  }, [hydrated, isAuthenticated, router]);
+  }, [hydrated, isAuthenticated, user, router]);
 
   useEffect(() => {
     api.get('/google-captcha/site-key/')
@@ -60,7 +60,8 @@ export default function LoginPage() {
     const result = await login(email, password, captchaToken ?? undefined);
 
     if (result.success) {
-      router.push('/dashboard');
+      const currentUser = useAuthStore.getState().user;
+      router.push(currentUser?.role === 'trainer' ? '/trainer/dashboard' : '/dashboard');
     } else {
       setError(result.error || 'Error al iniciar sesión');
       setIsLoading(false);

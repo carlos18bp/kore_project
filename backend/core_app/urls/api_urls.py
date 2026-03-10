@@ -15,6 +15,12 @@ from core_app.views.package_views import PackageViewSet
 from core_app.views.payment_views import PaymentViewSet
 from core_app.views.subscription_views import SubscriptionViewSet
 from core_app.views.terms_views import TermsAcceptanceCreateView, TermsAcceptanceStatusView
+from core_app.views.trainer_client_views import (
+    TrainerClientDetailView,
+    TrainerClientListView,
+    TrainerClientSessionsView,
+    TrainerDashboardStatsView,
+)
 from core_app.views.trainer_profile_views import TrainerProfileViewSet
 
 router = DefaultRouter()
@@ -35,4 +41,8 @@ urlpatterns = [
     path('site-settings/', SiteSettingsView.as_view(), name='site-settings'),
     path('terms-acceptance/status/', TermsAcceptanceStatusView.as_view(), name='terms-acceptance-status'),
     path('terms-acceptance/accept/', TermsAcceptanceCreateView.as_view(), name='terms-acceptance-accept'),
+    path('trainer/my-clients/', TrainerClientListView.as_view(), name='trainer-client-list'),
+    path('trainer/my-clients/<int:customer_id>/', TrainerClientDetailView.as_view(), name='trainer-client-detail'),
+    path('trainer/my-clients/<int:customer_id>/sessions/', TrainerClientSessionsView.as_view(), name='trainer-client-sessions'),
+    path('trainer/dashboard-stats/', TrainerDashboardStatsView.as_view(), name='trainer-dashboard-stats'),
 ]

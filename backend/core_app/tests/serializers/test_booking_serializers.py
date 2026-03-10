@@ -36,8 +36,8 @@ def future_slot(db):
     """Create a bookable future slot for happy-path serializer scenarios."""
     now = FIXED_NOW
     return AvailabilitySlot.objects.create(
-        starts_at=now + timedelta(hours=2),
-        ends_at=now + timedelta(hours=3),
+        starts_at=now + timedelta(hours=26),
+        ends_at=now + timedelta(hours=27),
     )
 
 
@@ -139,16 +139,16 @@ class TestBookingSerializerValidation:
         """Customer with an existing future booking can reserve another non-overlapping slot."""
         now = FIXED_NOW
         slot1 = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=2),
-            ends_at=now + timedelta(hours=3),
+            starts_at=now + timedelta(hours=26),
+            ends_at=now + timedelta(hours=27),
         )
         Booking.objects.create(
             customer=customer, package=package, slot=slot1,
             status=Booking.Status.CONFIRMED,
         )
         slot2 = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=4),
-            ends_at=now + timedelta(hours=5),
+            starts_at=now + timedelta(hours=28),
+            ends_at=now + timedelta(hours=29),
         )
         request = _make_request(customer)
         serializer = BookingSerializer(
@@ -161,8 +161,8 @@ class TestBookingSerializerValidation:
         """Overlapping slot with active booking is rejected (lines 171-180)."""
         now = FIXED_NOW
         slot1 = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=2),
-            ends_at=now + timedelta(hours=4),
+            starts_at=now + timedelta(hours=26),
+            ends_at=now + timedelta(hours=28),
         )
         Booking.objects.create(
             customer=customer, package=package, slot=slot1,
@@ -170,8 +170,8 @@ class TestBookingSerializerValidation:
         )
         # Overlapping slot: starts during slot1
         slot2 = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=3),
-            ends_at=now + timedelta(hours=5),
+            starts_at=now + timedelta(hours=27),
+            ends_at=now + timedelta(hours=29),
         )
         request = _make_request(customer)
         serializer = BookingSerializer(
@@ -192,8 +192,8 @@ class TestBookingSerializerValidation:
 
         now = FIXED_NOW
         existing_slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=2),
-            ends_at=now + timedelta(hours=3),
+            starts_at=now + timedelta(hours=26),
+            ends_at=now + timedelta(hours=27),
             trainer=trainer,
         )
         Booking.objects.create(
@@ -205,8 +205,8 @@ class TestBookingSerializerValidation:
         )
 
         candidate_slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=3, minutes=30),
-            ends_at=now + timedelta(hours=4, minutes=30),
+            starts_at=now + timedelta(hours=27, minutes=30),
+            ends_at=now + timedelta(hours=28, minutes=30),
             trainer=trainer,
         )
         request = _make_request(customer_b)
@@ -230,8 +230,8 @@ class TestBookingSerializerValidation:
 
         now = FIXED_NOW
         existing_slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=2),
-            ends_at=now + timedelta(hours=3),
+            starts_at=now + timedelta(hours=26),
+            ends_at=now + timedelta(hours=27),
             trainer=trainer,
         )
         Booking.objects.create(
@@ -243,8 +243,8 @@ class TestBookingSerializerValidation:
         )
 
         candidate_slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=3, minutes=45),
-            ends_at=now + timedelta(hours=4, minutes=45),
+            starts_at=now + timedelta(hours=27, minutes=45),
+            ends_at=now + timedelta(hours=28, minutes=45),
             trainer=trainer,
         )
         request = _make_request(customer_b)
@@ -260,16 +260,16 @@ class TestBookingSerializerValidation:
         from rest_framework.exceptions import ValidationError as DRFValidationError
         now = FIXED_NOW
         slot1 = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=2),
-            ends_at=now + timedelta(hours=4),
+            starts_at=now + timedelta(hours=26),
+            ends_at=now + timedelta(hours=28),
         )
         Booking.objects.create(
             customer=customer, package=package, slot=slot1,
             status=Booking.Status.CONFIRMED,
         )
         overlapping_slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=3),
-            ends_at=now + timedelta(hours=5),
+            starts_at=now + timedelta(hours=27),
+            ends_at=now + timedelta(hours=29),
         )
         with pytest.raises(DRFValidationError) as exc_info:
             BookingSerializer._validate_no_overlap(customer, overlapping_slot)
@@ -284,10 +284,10 @@ class TestBookingSerializerValidation:
             status=Subscription.Status.ACTIVE,
             starts_at=now, expires_at=now + timedelta(days=30),
         )
-        # Existing booking: 10:00 - 11:00
+        # Existing booking: +34h - +35h
         slot1 = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=10),
-            ends_at=now + timedelta(hours=11),
+            starts_at=now + timedelta(hours=34),
+            ends_at=now + timedelta(hours=35),
         )
         slot1.is_blocked = True
         slot1.save()
@@ -295,10 +295,10 @@ class TestBookingSerializerValidation:
             customer=customer, package=package, slot=slot1,
             subscription=sub, status=Booking.Status.CONFIRMED,
         )
-        # New slot: 8:00 - 9:00 (starts before slot1 ends at 11:00, but doesn't overlap)
+        # New slot: +32h - +33h (starts before slot1 ends, but doesn't overlap)
         slot2 = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=8),
-            ends_at=now + timedelta(hours=9),
+            starts_at=now + timedelta(hours=32),
+            ends_at=now + timedelta(hours=33),
         )
         request = _make_request(customer)
         serializer = BookingSerializer(
@@ -318,10 +318,10 @@ class TestBookingSerializerValidation:
             status=Subscription.Status.ACTIVE,
             starts_at=now, expires_at=now + timedelta(days=30),
         )
-        # Existing booking: 10:00 - 11:00
+        # Existing booking: +34h - +35h
         slot1 = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=10),
-            ends_at=now + timedelta(hours=11),
+            starts_at=now + timedelta(hours=34),
+            ends_at=now + timedelta(hours=35),
         )
         slot1.is_blocked = True
         slot1.save()
@@ -329,10 +329,10 @@ class TestBookingSerializerValidation:
             customer=customer, package=package, slot=slot1,
             subscription=sub, status=Booking.Status.CONFIRMED,
         )
-        # New slot: 11:00 - 12:00 (starts exactly when slot1 ends - allowed)
+        # New slot: +35h - +36h (starts exactly when slot1 ends - allowed)
         slot2 = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=11),
-            ends_at=now + timedelta(hours=12),
+            starts_at=now + timedelta(hours=35),
+            ends_at=now + timedelta(hours=36),
         )
         request = _make_request(customer)
         serializer = BookingSerializer(
@@ -350,19 +350,19 @@ class TestBookingSerializerValidation:
             status=Subscription.Status.ACTIVE,
             starts_at=now, expires_at=now + timedelta(days=30),
         )
-        # Canceled booking: 10:00 - 11:00
+        # Canceled booking: +34h - +35h
         slot1 = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=10),
-            ends_at=now + timedelta(hours=11),
+            starts_at=now + timedelta(hours=34),
+            ends_at=now + timedelta(hours=35),
         )
         Booking.objects.create(
             customer=customer, package=package, slot=slot1,
             subscription=sub, status=Booking.Status.CANCELED,
         )
-        # New slot: 9:00 - 10:00 (before canceled booking - allowed)
+        # New slot: +33h - +34h (before canceled booking - allowed)
         slot2 = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=9),
-            ends_at=now + timedelta(hours=10),
+            starts_at=now + timedelta(hours=33),
+            ends_at=now + timedelta(hours=34),
         )
         request = _make_request(customer)
         serializer = BookingSerializer(
@@ -476,8 +476,8 @@ class TestBookingSerializerCreate:
         """Slot blocked between validate and create raises error (lines 213-219)."""
         now = FIXED_NOW
         slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=2),
-            ends_at=now + timedelta(hours=3),
+            starts_at=now + timedelta(hours=26),
+            ends_at=now + timedelta(hours=27),
         )
         request = _make_request(customer)
         serializer = BookingSerializer(
@@ -498,8 +498,8 @@ class TestBookingSerializerCreate:
         """Subscription exhausted during atomic create (lines 225-229)."""
         now = FIXED_NOW
         slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=4),
-            ends_at=now + timedelta(hours=5),
+            starts_at=now + timedelta(hours=28),
+            ends_at=now + timedelta(hours=29),
         )
         sub = Subscription.objects.create(
             customer=customer, package=package,
@@ -546,8 +546,8 @@ class TestBookingSerializerCreate:
         """Slot with canceled booking can be rebooked without deleting history."""
         now = FIXED_NOW
         slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=2),
-            ends_at=now + timedelta(hours=3),
+            starts_at=now + timedelta(hours=26),
+            ends_at=now + timedelta(hours=27),
             is_blocked=False,
         )
         # Create a canceled booking on this slot
