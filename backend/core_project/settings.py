@@ -161,6 +161,12 @@ STORAGES = {
     'staticfiles': {
         'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
     },
+    'dbbackup': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        'OPTIONS': {
+            'location': config('BACKUP_STORAGE_PATH', default='/var/backups/kore_project'),
+        },
+    },
 }
 
 
@@ -267,10 +273,7 @@ HUEY = {
 # ---------------------------------------------------------------------------
 # Backups (django-dbbackup)
 # ---------------------------------------------------------------------------
-DBBACKUP_STORAGE = 'django.core.files.storage.FileSystemStorage'
-DBBACKUP_STORAGE_OPTIONS = {
-    'location': config('BACKUP_STORAGE_PATH', default='/var/backups/kore_project'),
-}
+# Storage is configured via STORAGES['dbbackup'] above (new-style API).
 DBBACKUP_COMPRESS = True
 DBBACKUP_CLEANUP_KEEP = 4
 DBBACKUP_CLEANUP_KEEP_MEDIA = 4
