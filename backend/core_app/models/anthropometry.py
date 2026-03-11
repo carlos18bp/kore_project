@@ -1,4 +1,9 @@
-"""Anthropometry evaluation model for the KÓRE diagnostic engine."""
+"""Anthropometry evaluation model for the KÓRE diagnostic engine.
+
+Stores raw measurements in two JSON fields (perimeters and skinfolds)
+plus basic required fields.  All computed indices are auto-calculated
+on save.
+"""
 
 from datetime import date
 
@@ -12,9 +17,8 @@ from core_app.models.base import TimestampedModel
 class AnthropometryEvaluation(TimestampedModel):
     """A single anthropometric evaluation of a client by a trainer.
 
-    Stores raw measurements and auto-calculated indices (IMC, ICC, ICE,
-    % grasa, masa grasa/libre, riesgo abdominal).  All computed fields
-    are populated on save via the calculator service.
+    Raw perimeter and skinfold measurements are stored in JSONFields
+    keyed like ``brazo_relajado_d``, ``triceps_i``, ``pecho``, etc.
     """
 
     customer = models.ForeignKey(
@@ -31,44 +35,39 @@ class AnthropometryEvaluation(TimestampedModel):
         blank=True,
     )
 
-    # ── Raw measurements (required) ──
+    # ── Required basic measurements ──
     weight_kg = models.DecimalField(
         max_digits=5, decimal_places=1,
         validators=[MinValueValidator(20), MaxValueValidator(300)],
-        help_text='Peso en kilogramos.',
     )
     height_cm = models.DecimalField(
         max_digits=5, decimal_places=1,
         validators=[MinValueValidator(100), MaxValueValidator(250)],
-        help_text='Estatura en centímetros.',
     )
     waist_cm = models.DecimalField(
         max_digits=5, decimal_places=1,
         validators=[MinValueValidator(20), MaxValueValidator(200)],
-        help_text='Perímetro de cintura en centímetros.',
     )
     hip_cm = models.DecimalField(
         max_digits=5, decimal_places=1,
         validators=[MinValueValidator(20), MaxValueValidator(200)],
-        help_text='Perímetro de cadera en centímetros.',
+        help_text='Glúteos / cadera.',
     )
 
-    # ── Raw measurements (optional) ──
-    chest_cm = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
-    abdomen_cm = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
-    arm_relaxed_cm = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
-    arm_flexed_cm = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
-    thigh_cm = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
-    calf_cm = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
-    neck_cm = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
-
-    notes = models.TextField(blank=True, help_text='Observaciones del entrenador.')
-
-    # ── Computed indices (auto-populated on save) ──
-    age_at_evaluation = models.PositiveSmallIntegerField(
-        null=True, blank=True,
-        help_text='Age at the time of evaluation.',
+    # ── Detailed measurements (JSON) ──
+    perimeters = models.JSONField(
+        default=dict, blank=True,
+        help_text='Perímetros en cm. Keys: brazo_relajado_d/i, brazo_flexionado_d/i, antebrazo_d/i, muneca_d/i, pecho, cintura, gluteos, muslo_d/i, pantorrilla_d/i, tobillo_d/i.',
     )
+    skinfolds = models.JSONField(
+        default=dict, blank=True,
+        help_text='Pliegues en mm. Keys: triceps_d/i, biceps_d/i, subescapular_d/i, cresta_iliaca_d/i, supraespinal, abdominal, muslo_d/i, pantorrilla_d/i.',
+    )
+
+    notes = models.TextField(blank=True)
+
+    # ── Computed indices ──
+    age_at_evaluation = models.PositiveSmallIntegerField(null=True, blank=True)
     bmi = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     bmi_category = models.CharField(max_length=30, blank=True)
     bmi_color = models.CharField(max_length=10, blank=True)
@@ -84,12 +83,16 @@ class AnthropometryEvaluation(TimestampedModel):
     body_fat_pct = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
     bf_category = models.CharField(max_length=20, blank=True)
     bf_color = models.CharField(max_length=10, blank=True)
+    bf_method = models.CharField(max_length=30, blank=True, help_text='jackson_pollock or deurenberg')
 
     fat_mass_kg = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
     lean_mass_kg = models.DecimalField(max_digits=5, decimal_places=1, null=True, blank=True)
 
     waist_risk = models.CharField(max_length=20, blank=True)
     waist_risk_color = models.CharField(max_length=10, blank=True)
+
+    sum_skinfolds = models.DecimalField(max_digits=6, decimal_places=1, null=True, blank=True)
+    asymmetries = models.JSONField(default=dict, blank=True, help_text='Detected bilateral asymmetries >10%.')
 
     class Meta:
         ordering = ('-created_at',)
@@ -102,7 +105,6 @@ class AnthropometryEvaluation(TimestampedModel):
         super().save(*args, **kwargs)
 
     def _compute_indices(self):
-        """Run all anthropometry calculations and populate computed fields."""
         from core_app.services.anthropometry_calculator import compute_all
 
         cp = getattr(self.customer, 'customer_profile', None)
@@ -113,7 +115,7 @@ class AnthropometryEvaluation(TimestampedModel):
             today = date.today()
             age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
         else:
-            age = 30  # fallback
+            age = 30
 
         self.age_at_evaluation = age
 
@@ -124,6 +126,7 @@ class AnthropometryEvaluation(TimestampedModel):
             hip_cm=float(self.hip_cm),
             age=age,
             sex=sex,
+            skinfolds=self.skinfolds or {},
         )
 
         for field, value in results.items():

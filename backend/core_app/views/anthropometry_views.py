@@ -23,16 +23,16 @@ class AnthropometrySerializer(serializers.ModelSerializer):
             'customer_id',
             'trainer_name',
             'weight_kg', 'height_cm', 'waist_cm', 'hip_cm',
-            'chest_cm', 'abdomen_cm', 'arm_relaxed_cm', 'arm_flexed_cm',
-            'thigh_cm', 'calf_cm', 'neck_cm',
+            'perimeters', 'skinfolds',
             'notes',
             'age_at_evaluation',
             'bmi', 'bmi_category', 'bmi_color',
             'waist_hip_ratio', 'whr_risk', 'whr_color',
             'waist_height_ratio', 'whe_risk', 'whe_color',
-            'body_fat_pct', 'bf_category', 'bf_color',
+            'body_fat_pct', 'bf_category', 'bf_color', 'bf_method',
             'fat_mass_kg', 'lean_mass_kg',
             'waist_risk', 'waist_risk_color',
+            'sum_skinfolds', 'asymmetries',
             'created_at',
         )
         read_only_fields = (
@@ -41,9 +41,10 @@ class AnthropometrySerializer(serializers.ModelSerializer):
             'bmi', 'bmi_category', 'bmi_color',
             'waist_hip_ratio', 'whr_risk', 'whr_color',
             'waist_height_ratio', 'whe_risk', 'whe_color',
-            'body_fat_pct', 'bf_category', 'bf_color',
+            'body_fat_pct', 'bf_category', 'bf_color', 'bf_method',
             'fat_mass_kg', 'lean_mass_kg',
             'waist_risk', 'waist_risk_color',
+            'sum_skinfolds', 'asymmetries',
             'created_at',
         )
 

@@ -10,13 +10,8 @@ export type AnthropometryEvaluation = {
   height_cm: string;
   waist_cm: string;
   hip_cm: string;
-  chest_cm: string | null;
-  abdomen_cm: string | null;
-  arm_relaxed_cm: string | null;
-  arm_flexed_cm: string | null;
-  thigh_cm: string | null;
-  calf_cm: string | null;
-  neck_cm: string | null;
+  perimeters: Record<string, number>;
+  skinfolds: Record<string, number>;
   notes: string;
   age_at_evaluation: number;
   bmi: string;
@@ -31,10 +26,13 @@ export type AnthropometryEvaluation = {
   body_fat_pct: string;
   bf_category: string;
   bf_color: string;
+  bf_method: string;
   fat_mass_kg: string;
   lean_mass_kg: string;
   waist_risk: string;
   waist_risk_color: string;
+  sum_skinfolds: string | null;
+  asymmetries: Record<string, { d: number; i: number; diff_pct: number }>;
   created_at: string;
 };
 
@@ -43,14 +41,9 @@ export type AnthropometryFormData = {
   height_cm: string;
   waist_cm: string;
   hip_cm: string;
-  chest_cm?: string;
-  abdomen_cm?: string;
-  arm_relaxed_cm?: string;
-  arm_flexed_cm?: string;
-  thigh_cm?: string;
-  calf_cm?: string;
-  neck_cm?: string;
-  notes?: string;
+  perimeters: Record<string, string>;
+  skinfolds: Record<string, string>;
+  notes: string;
 };
 
 type AnthropometryState = {
@@ -89,12 +82,26 @@ export const useAnthropometryStore = create<AnthropometryState>((set) => ({
   createEvaluation: async (clientId: number, formData: AnthropometryFormData) => {
     set({ submitting: true, error: '' });
     try {
-      const payload: Record<string, string | number | null> = {};
-      for (const [key, val] of Object.entries(formData)) {
-        if (val && String(val).trim()) {
-          payload[key] = key === 'notes' ? val : parseFloat(val);
-        }
+      const payload: Record<string, unknown> = {
+        weight_kg: parseFloat(formData.weight_kg),
+        height_cm: parseFloat(formData.height_cm),
+        waist_cm: parseFloat(formData.waist_cm),
+        hip_cm: parseFloat(formData.hip_cm),
+        notes: formData.notes || '',
+      };
+      // Build perimeters JSON (only non-empty values)
+      const perimeters: Record<string, number> = {};
+      for (const [k, v] of Object.entries(formData.perimeters || {})) {
+        if (v && String(v).trim()) perimeters[k] = parseFloat(v);
       }
+      payload.perimeters = perimeters;
+      // Build skinfolds JSON (only non-empty values)
+      const skinfolds: Record<string, number> = {};
+      for (const [k, v] of Object.entries(formData.skinfolds || {})) {
+        if (v && String(v).trim()) skinfolds[k] = parseFloat(v);
+      }
+      payload.skinfolds = skinfolds;
+
       const { data } = await api.post(`/trainer/my-clients/${clientId}/anthropometry/`, payload, {
         headers: authHeaders(),
       });
