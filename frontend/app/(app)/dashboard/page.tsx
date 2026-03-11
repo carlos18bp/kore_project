@@ -7,6 +7,7 @@ import { useAuthStore } from '@/lib/stores/authStore';
 import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
 import { useBookingStore } from '@/lib/stores/bookingStore';
 import { useProfileStore } from '@/lib/stores/profileStore';
+import { useAnthropometryStore } from '@/lib/stores/anthropometryStore';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 import UpcomingSessionReminder from '@/app/components/booking/UpcomingSessionReminder';
 import SubscriptionExpiryReminder from '@/app/components/subscription/SubscriptionExpiryReminder';
@@ -53,6 +54,7 @@ export default function DashboardPage() {
   const { activeSubscription: sub, fetchSubscriptions } = useSubscriptionStore();
   const { upcomingReminder, bookings, fetchUpcomingReminder, fetchBookings } = useBookingStore();
   const { profile, todayMood, fetchProfile } = useProfileStore();
+  const { evaluations: anthroEvals, fetchMyEvaluations } = useAnthropometryStore();
   const sectionRef = useRef<HTMLElement>(null);
   const profileFetchedRef = useRef(false);
   useHeroAnimation(sectionRef);
@@ -61,7 +63,8 @@ export default function DashboardPage() {
     fetchSubscriptions();
     fetchUpcomingReminder();
     fetchBookings();
-  }, [fetchSubscriptions, fetchUpcomingReminder, fetchBookings]);
+    fetchMyEvaluations();
+  }, [fetchSubscriptions, fetchUpcomingReminder, fetchBookings, fetchMyEvaluations]);
 
   useEffect(() => {
     if (profileFetchedRef.current) return;
@@ -487,8 +490,64 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Right — History (lower priority) */}
+          {/* Right — Diagnosis + History */}
           <div className="space-y-6">
+            {/* Anthropometry summary card */}
+            {anthroEvals.length > 0 && (() => {
+              const latest = anthroEvals[0];
+              const first = anthroEvals.length > 1 ? anthroEvals[anthroEvals.length - 1] : null;
+              const CT: Record<string, string> = { green: 'text-green-700', yellow: 'text-amber-700', red: 'text-red-600' };
+              const CD: Record<string, string> = { green: 'bg-green-500', yellow: 'bg-amber-500', red: 'bg-red-500' };
+              const weightDiff = first ? parseFloat(latest.weight_kg) - parseFloat(first.weight_kg) : null;
+              const fatDiff = first ? parseFloat(latest.body_fat_pct) - parseFloat(first.body_fat_pct) : null;
+              return (
+                <Link href="/my-diagnosis" className="block bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Mi cuerpo</h2>
+                    <svg className="w-4 h-4 text-kore-gray-dark/30 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    <div className="text-center">
+                      <p className="font-heading text-lg font-bold text-kore-gray-dark">{latest.weight_kg}</p>
+                      <p className="text-[10px] text-kore-gray-dark/40">kg</p>
+                    </div>
+                    <div className="text-center">
+                      <p className={`font-heading text-lg font-bold ${CT[latest.bf_color] || CT.green}`}>{latest.body_fat_pct}%</p>
+                      <p className="text-[10px] text-kore-gray-dark/40">grasa</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="font-heading text-lg font-bold text-green-700">{latest.lean_mass_kg}</p>
+                      <p className="text-[10px] text-kore-gray-dark/40">masa libre</p>
+                    </div>
+                  </div>
+                  {first && (weightDiff !== null || fatDiff !== null) && (
+                    <div className="flex items-center gap-2 text-[10px]">
+                      <span className="text-kore-gray-dark/40">Desde inicio:</span>
+                      {weightDiff !== null && Math.abs(weightDiff) >= 0.1 && (
+                        <span className={weightDiff < 0 ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>
+                          {weightDiff > 0 ? '+' : ''}{weightDiff.toFixed(1)} kg
+                        </span>
+                      )}
+                      {fatDiff !== null && Math.abs(fatDiff) >= 0.1 && (
+                        <span className={fatDiff < 0 ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>
+                          {fatDiff > 0 ? '+' : ''}{fatDiff.toFixed(1)}% grasa
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <div className="mt-2 flex items-center gap-1.5">
+                    {['bmi', 'whr', 'bf', 'waist'].map((idx) => {
+                      const color = idx === 'bmi' ? latest.bmi_color : idx === 'whr' ? latest.whr_color : idx === 'bf' ? latest.bf_color : latest.waist_risk_color;
+                      return <div key={idx} className={`w-2 h-2 rounded-full ${CD[color] || CD.green}`} />;
+                    })}
+                    <span className="text-[10px] text-kore-gray-dark/40 ml-1">Ver detalle</span>
+                  </div>
+                </Link>
+              );
+            })()}
+
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
               <h2 className="font-heading text-base font-semibold text-kore-gray-dark mb-4">Historial reciente</h2>
               <div className="space-y-1">
