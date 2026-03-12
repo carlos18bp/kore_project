@@ -1,10 +1,24 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useTextReveal } from '@/app/composables/useScrollAnimations';
 import MobileSwiper from '@/app/components/MobileSwiper';
+import { api } from '@/lib/services/http';
 
+/* ── API package type ── */
+type ApiPackage = {
+  id: number;
+  title: string;
+  category: string;
+  sessions_count: number;
+  session_duration_minutes: number;
+  price: string;
+  currency: string;
+  is_active: boolean;
+};
+
+/* ── Derived plan shown in the UI ── */
 type Plan = {
   name: string;
   sessions: number;
@@ -13,8 +27,10 @@ type Plan = {
   total: string;
 };
 
-type ProgramType = {
+/* ── Static program metadata (descriptions, includes, colors) ── */
+type ProgramMeta = {
   id: string;
+  category: string;
   name: string;
   shortName: string;
   mobileShortName: string;
@@ -22,15 +38,15 @@ type ProgramType = {
   description: string;
   includes: string[];
   idealFor: string[];
-  plans: Plan[];
   accent: string;
   accentBg: string;
   accentBorder: string;
 };
 
-const programTypes: ProgramType[] = [
+const programMeta: ProgramMeta[] = [
   {
     id: 'personalizado',
+    category: 'personalizado',
     name: 'Personalizado FLW',
     shortName: 'Personalizado',
     mobileShortName: '1 a 1',
@@ -51,17 +67,10 @@ const programTypes: ProgramType[] = [
     accent: 'text-kore-red-bright',
     accentBg: 'bg-kore-red-bright',
     accentBorder: 'border-kore-red-bright',
-    plans: [
-      { name: 'Sesión Individual', sessions: 1, duration: '60 min', pricePerSession: '$85.000', total: '$85.000' },
-      { name: 'Programa Básico', sessions: 4, duration: '60 min', pricePerSession: '$80.000', total: '$320.000' },
-      { name: 'Programa Continuidad', sessions: 8, duration: '60 min', pricePerSession: '$75.000', total: '$600.000' },
-      { name: 'Programa Avance', sessions: 12, duration: '60 min', pricePerSession: '$70.000', total: '$840.000' },
-      { name: 'Programa Consolidación', sessions: 16, duration: '60 min', pricePerSession: '$65.000', total: '$1.040.000' },
-      { name: 'Programa Integral', sessions: 20, duration: '60 min', pricePerSession: '$60.000', total: '$1.200.000' },
-    ],
   },
   {
     id: 'semi',
+    category: 'semi_personalizado',
     name: 'Semi-personalizado FLW',
     shortName: 'Semi-personalizado',
     mobileShortName: '2-3 pers.',
@@ -82,16 +91,10 @@ const programTypes: ProgramType[] = [
     accent: 'text-kore-red-light',
     accentBg: 'bg-kore-red-light',
     accentBorder: 'border-kore-red-light',
-    plans: [
-      { name: 'Programa Inicial', sessions: 4, duration: '60 min', pricePerSession: '$60.000', total: '$240.000' },
-      { name: 'Programa Continuidad', sessions: 8, duration: '60 min', pricePerSession: '$55.000', total: '$440.000' },
-      { name: 'Programa Avance', sessions: 12, duration: '60 min', pricePerSession: '$50.000', total: '$600.000' },
-      { name: 'Programa Consolidación', sessions: 16, duration: '60 min', pricePerSession: '$47.500', total: '$760.000' },
-      { name: 'Programa Integral', sessions: 20, duration: '60 min', pricePerSession: '$45.000', total: '$900.000' },
-    ],
   },
   {
     id: 'terapeutico',
+    category: 'terapeutico',
     name: 'Terapéutico FLW',
     shortName: 'Terapéutico',
     mobileShortName: 'Terapia',
@@ -112,21 +115,84 @@ const programTypes: ProgramType[] = [
     accent: 'text-kore-red-lightest',
     accentBg: 'bg-kore-red-lightest',
     accentBorder: 'border-kore-red-lightest',
-    plans: [
-      { name: 'Sesión Terapéutica', sessions: 1, duration: '60 min', pricePerSession: '$95.000', total: '$95.000' },
-      { name: 'Programa Terapéutico', sessions: 4, duration: '60 min', pricePerSession: '$90.000', total: '$360.000' },
-      { name: 'Programa Recuperación', sessions: 8, duration: '60 min', pricePerSession: '$85.000', total: '$680.000' },
-      { name: 'Programa Funcional', sessions: 12, duration: '60 min', pricePerSession: '$80.000', total: '$960.000' },
-      { name: 'Programa Integral', sessions: 20, duration: '60 min', pricePerSession: '$75.000', total: '$1.500.000' },
-    ],
   },
 ];
 
+/* ── Helpers ── */
+function formatCOP(value: number): string {
+  return '$' + value.toLocaleString('es-CO');
+}
+
+function apiPackageToPlans(packages: ApiPackage[]): Plan[] {
+  return packages
+    .filter((p) => p.is_active)
+    .sort((a, b) => a.sessions_count - b.sessions_count)
+    .map((pkg) => {
+      const total = parseFloat(pkg.price);
+      const perSession = pkg.sessions_count > 0 ? Math.round(total / pkg.sessions_count) : total;
+      return {
+        name: pkg.title,
+        sessions: pkg.sessions_count,
+        duration: `${pkg.session_duration_minutes} min`,
+        pricePerSession: formatCOP(perSession),
+        total: formatCOP(total),
+      };
+    });
+}
+
 export default function PricingTable() {
   const [activeTab, setActiveTab] = useState(0);
-  const active = programTypes[activeTab];
+  const [packagesByCategory, setPackagesByCategory] = useState<Record<string, ApiPackage[]>>({});
+  const [loadingPkgs, setLoadingPkgs] = useState(true);
   const sectionRef = useRef<HTMLElement>(null);
   useTextReveal(sectionRef);
+
+  // Fetch packages from the API
+  useEffect(() => {
+    let cancelled = false;
+    const fetchPackages = async () => {
+      const allPackages: ApiPackage[] = [];
+      let page = 1;
+      let hasMore = true;
+      while (hasMore) {
+        try {
+          const url = page === 1 ? '/packages/' : `/packages/?page=${page}`;
+          const { data } = await api.get(url);
+          if (cancelled) return;
+          if (Array.isArray(data)) {
+            allPackages.push(...data);
+            hasMore = false;
+          } else {
+            const results = data.results as ApiPackage[] | undefined;
+            allPackages.push(...(results ?? []));
+            hasMore = data.next !== null;
+            page++;
+          }
+        } catch {
+          break;
+        }
+      }
+      if (cancelled) return;
+      const grouped: Record<string, ApiPackage[]> = {};
+      for (const pkg of allPackages) {
+        if (!grouped[pkg.category]) grouped[pkg.category] = [];
+        grouped[pkg.category].push(pkg);
+      }
+      setPackagesByCategory(grouped);
+      setLoadingPkgs(false);
+    };
+    fetchPackages();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Build plans per program from API data
+  const programPlans: Record<string, Plan[]> = {};
+  for (const meta of programMeta) {
+    programPlans[meta.id] = apiPackageToPlans(packagesByCategory[meta.category] ?? []);
+  }
+
+  const activeMeta = programMeta[activeTab];
+  const activePlans = programPlans[activeMeta.id] ?? [];
 
   return (
     <section ref={sectionRef} className="bg-kore-cream py-10 lg:py-12 overflow-hidden">
@@ -147,9 +213,9 @@ export default function PricingTable() {
 
         {/* ===== MOBILE: Compact Program Cards ===== */}
         <div data-animate="fade-up" data-delay="0.3" className="md:hidden flex flex-col gap-3 mb-6">
-          {programTypes.map((program, index) => {
-            /* istanbul ignore next */
-            const minPrice = program.plans[0]?.total ?? '';
+          {programMeta.map((program, index) => {
+            const plans = programPlans[program.id] ?? [];
+            const minPrice = plans[0]?.total ?? '';
             return (
               <Link
                 key={program.id}
@@ -165,9 +231,11 @@ export default function PricingTable() {
                   <h3 className="font-heading text-sm font-bold text-kore-gray-dark truncate">
                     {program.name.replace(' FLW', '')}
                   </h3>
-                  <p className="text-xs text-kore-gray-dark/50 mt-0.5">
-                    Desde <span className={`font-bold ${program.accent}`}>{minPrice}</span>
-                  </p>
+                  {minPrice && (
+                    <p className="text-xs text-kore-gray-dark/50 mt-0.5">
+                      Desde <span className={`font-bold ${program.accent}`}>{minPrice}</span>
+                    </p>
+                  )}
                 </div>
                 <svg className="w-4 h-4 text-kore-gray-dark/30 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
@@ -181,7 +249,7 @@ export default function PricingTable() {
         {/* Program Type Tabs */}
         <div data-animate="fade-up" data-delay="0.3" className="hidden md:block mb-8 md:mb-12">
           <div className="flex justify-center gap-3">
-            {programTypes.map((program, index) => (
+            {programMeta.map((program, index) => (
               <button
                 key={program.id}
                 onClick={() => setActiveTab(index)}
@@ -200,12 +268,12 @@ export default function PricingTable() {
         {/* Active Program Info - Desktop Only */}
         <div data-animate="fade-up" data-delay="0.2" className="hidden md:block max-w-5xl mx-auto mb-8 md:mb-12">
           <div className="text-center mb-6 md:mb-8">
-            <h3 className={`text-xl md:text-3xl font-heading font-semibold ${active.accent} mb-2 md:mb-3`}>
-              {active.name}
+            <h3 className={`text-xl md:text-3xl font-heading font-semibold ${activeMeta.accent} mb-2 md:mb-3`}>
+              {activeMeta.name}
             </h3>
-            <p className="text-sm md:text-lg text-kore-gray-dark/80 italic mb-3 md:mb-4">{active.tagline}</p>
+            <p className="text-sm md:text-lg text-kore-gray-dark/80 italic mb-3 md:mb-4">{activeMeta.tagline}</p>
             <p className="text-sm md:text-base text-kore-gray-dark/70 leading-relaxed max-w-2xl mx-auto">
-              {active.description}
+              {activeMeta.description}
             </p>
           </div>
 
@@ -214,10 +282,10 @@ export default function PricingTable() {
             <div>
               <h4 className="text-sm font-medium tracking-widest uppercase text-kore-gray-dark/50 mb-4">Incluye</h4>
               <ul className="space-y-3">
-                {active.includes.map((item, i) => (
+                {activeMeta.includes.map((item, i) => (
                   <li key={i} className="flex items-start gap-3">
-                    <span className={`flex-shrink-0 w-5 h-5 rounded-full ${active.accentBg}/10 flex items-center justify-center mt-0.5`}>
-                      <svg className={`w-3 h-3 ${active.accent}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <span className={`flex-shrink-0 w-5 h-5 rounded-full ${activeMeta.accentBg}/10 flex items-center justify-center mt-0.5`}>
+                      <svg className={`w-3 h-3 ${activeMeta.accent}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
                     </span>
@@ -229,10 +297,10 @@ export default function PricingTable() {
             <div>
               <h4 className="text-sm font-medium tracking-widest uppercase text-kore-gray-dark/50 mb-4">Ideal para</h4>
               <ul className="space-y-3">
-                {active.idealFor.map((item, i) => (
+                {activeMeta.idealFor.map((item, i) => (
                   <li key={i} className="flex items-start gap-3">
-                    <span className={`flex-shrink-0 w-5 h-5 rounded-full ${active.accentBg}/10 flex items-center justify-center mt-0.5`}>
-                      <svg className={`w-3 h-3 ${active.accent}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <span className={`flex-shrink-0 w-5 h-5 rounded-full ${activeMeta.accentBg}/10 flex items-center justify-center mt-0.5`}>
+                      <svg className={`w-3 h-3 ${activeMeta.accent}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
                     </span>
@@ -246,32 +314,36 @@ export default function PricingTable() {
 
         {/* Pricing Cards - Desktop grid */}
         <div data-animate="stagger-children" data-delay="0.3" className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-          {active.plans.map((plan, index) => {
-            const isPopular = index === Math.floor(active.plans.length / 2);
+          {activePlans.length === 0 && loadingPkgs ? (
+            <div className="col-span-full flex justify-center py-8">
+              <div className="animate-spin h-6 w-6 border-2 border-kore-red border-t-transparent rounded-full" />
+            </div>
+          ) : activePlans.map((plan, index) => {
+            const isPopular = index === Math.floor(activePlans.length / 2);
             return (
               <div
                 key={plan.name}
                 className={`relative rounded-2xl p-8 transition-all duration-300 ${
                   isPopular
-                    ? `border-2 ${active.accentBorder} bg-white shadow-xl scale-[1.02] mt-4`
+                    ? `border-2 ${activeMeta.accentBorder} bg-white shadow-xl scale-[1.02] mt-4`
                     : 'border border-kore-gray-light bg-white hover:shadow-lg'
                 }`}
               >
                 {isPopular && (
-                  <span className={`inline-block self-center ${active.accentBg} text-white text-xs font-medium tracking-wide uppercase px-4 py-1 rounded-full mb-3`}>Más elegido</span>
+                  <span className={`inline-block self-center ${activeMeta.accentBg} text-white text-xs font-medium tracking-wide uppercase px-4 py-1 rounded-full mb-3`}>Más elegido</span>
                 )}
                 <p className="text-sm text-kore-gray-dark/50 uppercase tracking-wide mb-1">{plan.name}</p>
                 <div className="flex items-baseline gap-2 mb-4">
-                  <span className={`font-heading text-4xl font-semibold ${active.accent}`}>{plan.sessions}</span>
+                  <span className={`font-heading text-4xl font-semibold ${activeMeta.accent}`}>{plan.sessions}</span>
                   <span className="text-kore-gray-dark/60 text-sm">{plan.sessions === 1 ? 'sesión' : 'sesiones'}</span>
                 </div>
                 <div className="border-t border-kore-gray-light my-4" />
                 <div className="space-y-3 mb-6">
                   <div className="flex justify-between text-sm"><span className="text-kore-gray-dark/60">Duración</span><span className="font-medium text-kore-gray-dark">{plan.duration}</span></div>
                   <div className="flex justify-between text-sm"><span className="text-kore-gray-dark/60">Valor por sesión</span><span className="font-medium text-kore-gray-dark">{plan.pricePerSession}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-kore-gray-dark/60">Valor total</span><span className={`font-semibold text-lg ${active.accent}`}>{plan.total}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-kore-gray-dark/60">Valor total</span><span className={`font-semibold text-lg ${activeMeta.accent}`}>{plan.total}</span></div>
                 </div>
-                <a href="#diagnostico" className={`block w-full text-center py-3 rounded-lg text-sm font-medium transition-all duration-200 ${isPopular ? `${active.accentBg} text-white hover:opacity-90` : `border-2 ${active.accentBorder} ${active.accent} hover:bg-kore-wine-dark hover:border-kore-wine-dark hover:text-white`}`}>Comenzar</a>
+                <a href="#diagnostico" className={`block w-full text-center py-3 rounded-lg text-sm font-medium transition-all duration-200 ${isPopular ? `${activeMeta.accentBg} text-white hover:opacity-90` : `border-2 ${activeMeta.accentBorder} ${activeMeta.accent} hover:bg-kore-wine-dark hover:border-kore-wine-dark hover:text-white`}`}>Comenzar</a>
               </div>
             );
           })}

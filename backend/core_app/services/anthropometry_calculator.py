@@ -218,13 +218,22 @@ def calculate_asymmetries(measurements):
 
 
 def compute_all(weight_kg, height_cm, waist_cm, hip_cm, age, sex, skinfolds=None):
-    """Run all calculations and return a flat dict of results."""
+    """Run all calculations and return a flat dict of results.
+
+    ``waist_cm`` and ``hip_cm`` may be *None*; waist-dependent indices
+    will simply be left empty.
+    """
     skinfolds = skinfolds or {}
 
     bmi = calculate_bmi(weight_kg, height_cm)
-    whr = calculate_whr(waist_cm, hip_cm, sex)
-    whe = calculate_whe(waist_cm, height_cm)
-    waist_r = calculate_waist_risk(waist_cm, sex)
+
+    # Waist-dependent indices — only when data is present
+    has_waist = waist_cm is not None
+    has_hip = hip_cm is not None
+
+    whr = calculate_whr(waist_cm, hip_cm, sex) if has_waist and has_hip else None
+    whe = calculate_whe(waist_cm, height_cm) if has_waist else None
+    waist_r = calculate_waist_risk(waist_cm, sex) if has_waist else None
 
     # Try Jackson-Pollock first (more accurate), fall back to Deurenberg
     jp = calculate_body_fat_jackson_pollock(skinfolds, age, sex) if skinfolds else None
@@ -253,20 +262,117 @@ def compute_all(weight_kg, height_cm, waist_cm, hip_cm, age, sex, skinfolds=None
         'bmi': bmi['value'],
         'bmi_category': bmi['category'],
         'bmi_color': bmi['color'],
-        'waist_hip_ratio': whr['value'],
-        'whr_risk': whr['risk'],
-        'whr_color': whr['color'],
-        'waist_height_ratio': whe['value'],
-        'whe_risk': whe['risk'],
-        'whe_color': whe['color'],
+        'waist_hip_ratio': whr['value'] if whr else None,
+        'whr_risk': whr['risk'] if whr else '',
+        'whr_color': whr['color'] if whr else '',
+        'waist_height_ratio': whe['value'] if whe else None,
+        'whe_risk': whe['risk'] if whe else '',
+        'whe_color': whe['color'] if whe else '',
         'body_fat_pct': bf_value,
         'bf_category': bf_category,
         'bf_color': bf_color,
         'bf_method': bf_method,
         'fat_mass_kg': mass['fat_mass_kg'],
         'lean_mass_kg': mass['lean_mass_kg'],
-        'waist_risk': waist_r['risk'],
-        'waist_risk_color': waist_r['color'],
+        'waist_risk': waist_r['risk'] if waist_r else '',
+        'waist_risk_color': waist_r['color'] if waist_r else '',
         'sum_skinfolds': sum_sf,
         'asymmetries': asymmetries,
     }
+
+
+# ── Default recommendation texts ──
+
+_REC_TEXTS = {
+    'bmi': {
+        'green': {
+            'result': 'Tu peso está dentro del rango saludable. La relación entre peso y estatura es adecuada.',
+            'action': 'Mantén tus hábitos actuales de alimentación y ejercicio. La constancia es tu mejor aliada.',
+        },
+        'yellow': {
+            'result': 'Tu peso está ligeramente por encima del rango ideal. Muchas personas con buena masa muscular caen aquí.',
+            'action': 'Enfócate en tu composición corporal: no se trata solo de peso, sino de cuánto es músculo y cuánto es grasa.',
+        },
+        'red': {
+            'result': 'Tu peso está en un rango que puede representar un riesgo para tu salud.',
+            'action': 'Combina tu entrenamiento con una alimentación consciente. Los cambios pequeños y sostenidos generan los mejores resultados.',
+        },
+    },
+    'whr': {
+        'green': {
+            'result': 'Tu grasa se distribuye de forma saludable. Buen indicador cardiovascular.',
+            'action': 'Sigue con tu rutina. Los entrenamientos que combinan fuerza y cardio ayudan a mantener esta distribución.',
+        },
+        'yellow': {
+            'result': 'Hay una acumulación moderada de grasa en la zona abdominal.',
+            'action': 'Ejercicios cardiovasculares y de core pueden ayudar a reducir la grasa abdominal.',
+        },
+        'red': {
+            'result': 'La distribución de grasa indica concentración abdominal significativa.',
+            'action': 'Prioriza actividad cardiovascular regular y ejercicios de fuerza.',
+        },
+    },
+    'bf': {
+        'green': {
+            'result': 'Tu porcentaje de grasa está en un rango saludable. Buena composición corporal.',
+            'action': 'Para mantener o mejorar, combina entrenamientos de fuerza con alimentación balanceada.',
+        },
+        'yellow': {
+            'result': 'Tu grasa corporal está un poco por encima del rango ideal.',
+            'action': 'Enfócate en entrenamientos de fuerza combinados con actividad cardiovascular.',
+        },
+        'red': {
+            'result': 'Tu porcentaje de grasa está elevado.',
+            'action': 'Prioriza la pérdida de grasa manteniendo tu masa muscular. Hábitos sostenibles son más efectivos que dietas extremas.',
+        },
+    },
+    'waist': {
+        'green': {
+            'result': 'Tu cintura está en un rango seguro. La grasa abdominal no representa un riesgo adicional.',
+            'action': 'Mantén tu nivel de actividad física.',
+        },
+        'yellow': {
+            'result': 'Tu cintura está en una zona de atención. Reducir unos centímetros mejoraría tu perfil de salud.',
+            'action': 'Incorpora más movimiento en tu día a día además de tus sesiones.',
+        },
+        'red': {
+            'result': 'Tu cintura indica acumulación de grasa abdominal que puede afectar tu salud.',
+            'action': 'Cuida tu alimentación — especialmente azúcares y alcohol — además de tu entrenamiento.',
+        },
+    },
+    'mass': {
+        'green': {
+            'result': 'Tu masa libre de grasa se mantiene o crece mientras reduces grasa. Recomposición corporal en marcha.',
+            'action': 'Sigue así. El entrenamiento de fuerza es tu mejor herramienta.',
+        },
+        'yellow': {
+            'result': 'Estás en un proceso de cambio. Vigila que tu masa libre de grasa no baje demasiado.',
+            'action': 'Asegúrate de consumir suficiente proteína y no recortar calorías excesivamente.',
+        },
+        'red': {
+            'result': 'Es importante ganar masa muscular y reducir grasa.',
+            'action': 'Prioriza el entrenamiento de fuerza y una ingesta adecuada de proteína.',
+        },
+    },
+}
+
+
+def generate_default_recommendations(evaluation):
+    """Build a default recommendations dict based on computed index colors."""
+    recs = {}
+
+    def _pick(index_key, color):
+        color = color or 'green'
+        texts = _REC_TEXTS.get(index_key, {}).get(color, _REC_TEXTS.get(index_key, {}).get('green', {}))
+        return texts if texts else {'result': '', 'action': ''}
+
+    recs['bmi'] = _pick('bmi', evaluation.bmi_color)
+    if evaluation.whr_color:
+        recs['whr'] = _pick('whr', evaluation.whr_color)
+    if evaluation.bf_color:
+        recs['bf'] = _pick('bf', evaluation.bf_color)
+    if evaluation.waist_risk_color:
+        recs['waist'] = _pick('waist', evaluation.waist_risk_color)
+    recs['mass'] = _pick('mass', evaluation.bf_color)
+
+    return recs

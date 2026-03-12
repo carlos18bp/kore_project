@@ -35,6 +35,11 @@ class AnthropometryEvaluation(TimestampedModel):
         blank=True,
     )
 
+    evaluation_date = models.DateField(
+        null=True, blank=True,
+        help_text='Fecha real del examen. Si no se indica, se usa la fecha de creación.',
+    )
+
     # ── Required basic measurements ──
     weight_kg = models.DecimalField(
         max_digits=5, decimal_places=1,
@@ -46,10 +51,12 @@ class AnthropometryEvaluation(TimestampedModel):
     )
     waist_cm = models.DecimalField(
         max_digits=5, decimal_places=1,
+        null=True, blank=True,
         validators=[MinValueValidator(20), MaxValueValidator(200)],
     )
     hip_cm = models.DecimalField(
         max_digits=5, decimal_places=1,
+        null=True, blank=True,
         validators=[MinValueValidator(20), MaxValueValidator(200)],
         help_text='Glúteos / cadera.',
     )
@@ -65,6 +72,10 @@ class AnthropometryEvaluation(TimestampedModel):
     )
 
     notes = models.TextField(blank=True)
+    recommendations = models.JSONField(
+        default=dict, blank=True,
+        help_text='Trainer-editable recommendations per index: {bmi: {result, action}, ...}.',
+    )
 
     # ── Computed indices ──
     age_at_evaluation = models.PositiveSmallIntegerField(null=True, blank=True)
@@ -101,7 +112,10 @@ class AnthropometryEvaluation(TimestampedModel):
         return f"Antropometría #{self.pk} — {self.customer.email} ({self.created_at.date()})"
 
     def save(self, *args, **kwargs):
+        if not self.evaluation_date:
+            self.evaluation_date = date.today()
         self._compute_indices()
+        self._fill_default_recommendations()
         super().save(*args, **kwargs)
 
     def _compute_indices(self):
@@ -122,8 +136,8 @@ class AnthropometryEvaluation(TimestampedModel):
         results = compute_all(
             weight_kg=float(self.weight_kg),
             height_cm=float(self.height_cm),
-            waist_cm=float(self.waist_cm),
-            hip_cm=float(self.hip_cm),
+            waist_cm=float(self.waist_cm) if self.waist_cm else None,
+            hip_cm=float(self.hip_cm) if self.hip_cm else None,
             age=age,
             sex=sex,
             skinfolds=self.skinfolds or {},
@@ -131,3 +145,9 @@ class AnthropometryEvaluation(TimestampedModel):
 
         for field, value in results.items():
             setattr(self, field, value)
+
+    def _fill_default_recommendations(self):
+        if self.recommendations:
+            return
+        from core_app.services.anthropometry_calculator import generate_default_recommendations
+        self.recommendations = generate_default_recommendations(self)

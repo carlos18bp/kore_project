@@ -22,9 +22,10 @@ class AnthropometrySerializer(serializers.ModelSerializer):
             'id',
             'customer_id',
             'trainer_name',
+            'evaluation_date',
             'weight_kg', 'height_cm', 'waist_cm', 'hip_cm',
             'perimeters', 'skinfolds',
-            'notes',
+            'notes', 'recommendations',
             'age_at_evaluation',
             'bmi', 'bmi_category', 'bmi_color',
             'waist_hip_ratio', 'whr_risk', 'whr_color',
@@ -112,25 +113,41 @@ class TrainerAnthropometryListCreateView(APIView):
 
 
 class TrainerAnthropometryDetailView(APIView):
-    """Get a specific anthropometry evaluation.
+    """Get or partially update a specific anthropometry evaluation.
 
-    GET /api/trainer/my-clients/<id>/anthropometry/<eval_id>/
+    GET   /api/trainer/my-clients/<id>/anthropometry/<eval_id>/
+    PATCH /api/trainer/my-clients/<id>/anthropometry/<eval_id>/
     """
 
     permission_classes = [IsAuthenticated, IsTrainerRole]
 
-    def get(self, request, customer_id, eval_id):
+    def _get_evaluation(self, request, customer_id, eval_id):
         trainer_profile = getattr(request.user, 'trainer_profile', None)
         if not trainer_profile:
-            return Response({'detail': 'No trainer profile.'}, status=status.HTTP_404_NOT_FOUND)
-
+            return None, Response({'detail': 'No trainer profile.'}, status=status.HTTP_404_NOT_FOUND)
         try:
             evaluation = AnthropometryEvaluation.objects.get(
                 id=eval_id, customer_id=customer_id, trainer=trainer_profile,
             )
         except AnthropometryEvaluation.DoesNotExist:
-            return Response({'detail': 'Evaluación no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+            return None, Response({'detail': 'Evaluación no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+        return evaluation, None
 
+    def get(self, request, customer_id, eval_id):
+        evaluation, err = self._get_evaluation(request, customer_id, eval_id)
+        if err:
+            return err
+        return Response(AnthropometrySerializer(evaluation).data)
+
+    def patch(self, request, customer_id, eval_id):
+        evaluation, err = self._get_evaluation(request, customer_id, eval_id)
+        if err:
+            return err
+        allowed = {'recommendations', 'notes'}
+        for field in allowed:
+            if field in request.data:
+                setattr(evaluation, field, request.data[field])
+        evaluation.save()
         return Response(AnthropometrySerializer(evaluation).data)
 
 

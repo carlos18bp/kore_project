@@ -6,21 +6,23 @@ export type AnthropometryEvaluation = {
   id: number;
   customer_id: number;
   trainer_name: string;
+  evaluation_date: string;
   weight_kg: string;
   height_cm: string;
-  waist_cm: string;
-  hip_cm: string;
+  waist_cm: string | null;
+  hip_cm: string | null;
   perimeters: Record<string, number>;
   skinfolds: Record<string, number>;
   notes: string;
+  recommendations: Record<string, { result: string; action: string }>;
   age_at_evaluation: number;
   bmi: string;
   bmi_category: string;
   bmi_color: string;
-  waist_hip_ratio: string;
+  waist_hip_ratio: string | null;
   whr_risk: string;
   whr_color: string;
-  waist_height_ratio: string;
+  waist_height_ratio: string | null;
   whe_risk: string;
   whe_color: string;
   body_fat_pct: string;
@@ -37,6 +39,7 @@ export type AnthropometryEvaluation = {
 };
 
 export type AnthropometryFormData = {
+  evaluation_date: string;
   weight_kg: string;
   height_cm: string;
   waist_cm: string;
@@ -53,6 +56,7 @@ type AnthropometryState = {
   error: string;
   fetchEvaluations: (clientId: number) => Promise<void>;
   createEvaluation: (clientId: number, data: AnthropometryFormData) => Promise<AnthropometryEvaluation | null>;
+  updateEvaluation: (clientId: number, evalId: number, data: { recommendations?: Record<string, { result: string; action: string }>; notes?: string }) => Promise<AnthropometryEvaluation | null>;
   fetchMyEvaluations: () => Promise<void>;
 };
 
@@ -83,10 +87,9 @@ export const useAnthropometryStore = create<AnthropometryState>((set) => ({
     set({ submitting: true, error: '' });
     try {
       const payload: Record<string, unknown> = {
+        evaluation_date: formData.evaluation_date || undefined,
         weight_kg: parseFloat(formData.weight_kg),
         height_cm: parseFloat(formData.height_cm),
-        waist_cm: parseFloat(formData.waist_cm),
-        hip_cm: parseFloat(formData.hip_cm),
         notes: formData.notes || '',
       };
       // Build perimeters JSON (only non-empty values)
@@ -95,6 +98,11 @@ export const useAnthropometryStore = create<AnthropometryState>((set) => ({
         if (v && String(v).trim()) perimeters[k] = parseFloat(v);
       }
       payload.perimeters = perimeters;
+      // Extract waist/hip from top-level form or from perimeters (cintura/gluteos)
+      const waistVal = (formData.waist_cm && formData.waist_cm.trim()) ? formData.waist_cm : String(perimeters.cintura || '');
+      const hipVal = (formData.hip_cm && formData.hip_cm.trim()) ? formData.hip_cm : String(perimeters.gluteos || '');
+      if (waistVal && waistVal !== '0') payload.waist_cm = parseFloat(waistVal);
+      if (hipVal && hipVal !== '0') payload.hip_cm = parseFloat(hipVal);
       // Build skinfolds JSON (only non-empty values)
       const skinfolds: Record<string, number> = {};
       for (const [k, v] of Object.entries(formData.skinfolds || {})) {
@@ -114,6 +122,25 @@ export const useAnthropometryStore = create<AnthropometryState>((set) => ({
       const message = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
         || 'No se pudo guardar la evaluación.';
       set({ error: message, submitting: false });
+      return null;
+    }
+  },
+
+  updateEvaluation: async (clientId: number, evalId: number, data) => {
+    set({ submitting: true, error: '' });
+    try {
+      const { data: updated } = await api.patch(
+        `/trainer/my-clients/${clientId}/anthropometry/${evalId}/`,
+        data,
+        { headers: authHeaders() },
+      );
+      set((state) => ({
+        evaluations: state.evaluations.map((ev) => (ev.id === evalId ? updated : ev)),
+        submitting: false,
+      }));
+      return updated;
+    } catch {
+      set({ error: 'No se pudieron guardar las recomendaciones.', submitting: false });
       return null;
     }
   },

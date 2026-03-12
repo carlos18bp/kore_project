@@ -290,7 +290,7 @@ function BookSessionContent() {
 
         if (slotEnd.getTime() > windowEnd.getTime()) break;
         if (slotEnd.getTime() <= nowMs) continue;
-        if (slotStart.getTime() < nowMs + 24 * 60 * 60 * 1000) continue;
+        if (slotStart.getTime() < nowMs + 16 * 60 * 60 * 1000) continue;
         if (minSlotStartTime && slotStart < minSlotStartTime) continue;
         if (maxSlotEndTime && slotEnd > maxSlotEndTime) continue;
         if (hasTravelBufferConflict(slotStart, slotEnd, dayBookedSlots)) continue;

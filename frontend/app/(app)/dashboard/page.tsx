@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useLayoutEffect } from 'react';
+import gsap from 'gsap';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuthStore } from '@/lib/stores/authStore';
@@ -58,6 +59,7 @@ export default function DashboardPage() {
   const sectionRef = useRef<HTMLElement>(null);
   const profileFetchedRef = useRef(false);
   useHeroAnimation(sectionRef);
+  const anthroDotsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchSubscriptions();
@@ -71,6 +73,19 @@ export default function DashboardPage() {
     profileFetchedRef.current = true;
     fetchProfile();
   }, [fetchProfile]);
+
+  // GSAP wave animation for anthropometry dots
+  useEffect(() => {
+    if (!anthroDotsRef.current) return;
+    const dots = anthroDotsRef.current.querySelectorAll('.anthro-wave-dot');
+    if (!dots.length) return;
+    const tl = gsap.timeline({ repeat: -1, repeatDelay: 0.6 });
+    dots.forEach((dot, i) => {
+      tl.to(dot, { y: -4, scaleY: 1.3, duration: 0.25, ease: 'power2.out' }, i * 0.12)
+        .to(dot, { y: 0, scaleY: 1, duration: 0.35, ease: 'bounce.out' }, i * 0.12 + 0.25);
+    });
+    return () => { tl.kill(); };
+  }, [anthroEvals]);
 
   // Dynamic greeting based on time of day
   const getGreeting = () => {
@@ -503,7 +518,7 @@ export default function DashboardPage() {
               return (
                 <Link href="/my-diagnosis" className="block bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
                   <div className="flex items-center justify-between mb-3">
-                    <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Mi cuerpo</h2>
+                    <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Mi estado físico</h2>
                     <svg className="w-4 h-4 text-kore-gray-dark/30 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                     </svg>
@@ -537,10 +552,10 @@ export default function DashboardPage() {
                       )}
                     </div>
                   )}
-                  <div className="mt-2 flex items-center gap-1.5">
+                  <div ref={anthroDotsRef} className="mt-2 flex items-center gap-1.5">
                     {['bmi', 'whr', 'bf', 'waist'].map((idx) => {
                       const color = idx === 'bmi' ? latest.bmi_color : idx === 'whr' ? latest.whr_color : idx === 'bf' ? latest.bf_color : latest.waist_risk_color;
-                      return <div key={idx} className={`w-2 h-2 rounded-full ${CD[color] || CD.green}`} />;
+                      return <div key={idx} className={`anthro-wave-dot w-2 h-2 rounded-full ${CD[color] || CD.green}`} />;
                     })}
                     <span className="text-[10px] text-kore-gray-dark/40 ml-1">Ver detalle</span>
                   </div>

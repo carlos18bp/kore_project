@@ -226,7 +226,7 @@ class TermsAcceptanceAdmin(admin.ModelAdmin):
 
 @admin.register(AnthropometryEvaluation)
 class AnthropometryEvaluationAdmin(admin.ModelAdmin):
-    list_display = ('customer', 'trainer', 'bmi', 'bmi_category', 'body_fat_pct', 'created_at')
+    list_display = ('customer', 'trainer', 'evaluation_date', 'bmi', 'bmi_category', 'body_fat_pct', 'created_at')
     list_filter = ('bmi_color', 'bf_color', 'created_at')
     search_fields = ('customer__email', 'customer__first_name')
     readonly_fields = (

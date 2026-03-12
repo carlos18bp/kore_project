@@ -143,10 +143,10 @@ class BookingSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({'slot_id': 'El horario está bloqueado.'})
         if slot.ends_at <= timezone.now():
             raise serializers.ValidationError({'slot_id': 'El horario ya pasó.'})
-        min_advance = timezone.now() + timedelta(hours=24)
+        min_advance = timezone.now() + timedelta(hours=16)
         if slot.starts_at < min_advance:
             raise serializers.ValidationError(
-                {'slot_id': 'Debes agendar con al menos 24 horas de anticipación.'}
+                {'slot_id': 'Debes agendar con al menos 16 horas de anticipación.'}
             )
         horizon = timezone.now() + timedelta(days=BOOKING_HORIZON_DAYS)
         if slot.starts_at >= horizon:
