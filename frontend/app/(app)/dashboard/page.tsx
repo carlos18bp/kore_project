@@ -231,7 +231,7 @@ export default function DashboardPage() {
         {/* ══════ STRUCTURED GRID DASHBOARD ══════ */}
         <div data-hero="body" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
 
-          {/* ① Progress — tall card spanning 2 rows on xl */}
+          {/* ① Progress + Goal — tall card spanning 2 rows on xl */}
           <div className="xl:row-span-2 bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium">Tu progreso</p>
@@ -255,18 +255,158 @@ export default function DashboardPage() {
                 <p className="text-sm text-kore-gray-dark/50">completadas de {sessionsTotal}</p>
               </div>
             </div>
-            {/* Motivational message with purple star */}
+            {/* Mi objetivo (inline) */}
+            {(() => {
+              const goalValue = profile?.customer_profile?.primary_goal;
+              const GoalIcon = goalValue ? getGoalIcon(goalValue) : null;
+              return (
+                <div className="py-4 border-t border-kore-gray-light/30">
+                  {goalValue && GoalIcon ? (
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-kore-red/10 flex items-center justify-center flex-shrink-0">
+                        <GoalIcon className="w-5 h-5 text-kore-red" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Mi objetivo</p>
+                        <span className="text-sm font-medium text-kore-gray-dark">{getGoalLabel(goalValue)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <Link href="/profile" className="text-sm text-kore-red hover:underline">Define tu objetivo</Link>
+                  )}
+                </div>
+              );
+            })()}
+            {/* Tu motivación */}
             <div className="flex items-start gap-3 mt-auto pt-4 border-t border-kore-gray-light/30">
               <div className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center">
                 <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
                 </svg>
               </div>
-              <p className="text-xs text-kore-gray-dark/70 leading-relaxed">{getProgressMessage(sessionsUsed, progressPercent)}</p>
+              <div className="flex-1">
+                <p className="text-[10px] text-purple-600/80 uppercase tracking-wider font-semibold mb-1">Tu motivación</p>
+                <p className="text-xs text-kore-gray-dark/70 leading-relaxed">{getProgressMessage(sessionsUsed, progressPercent)}</p>
+              </div>
             </div>
           </div>
 
-          {/* ② Evaluación Postural */}
+          {/* ② CTA: Agendar / Próxima sesión */}
+          {formattedDate ? (
+            <div className="bg-gradient-to-br from-kore-red to-kore-burgundy rounded-2xl p-6 text-white">
+              <p className="text-xs text-white/60 uppercase tracking-widest font-medium mb-3">Próxima sesión</p>
+              <p className="font-heading text-xl font-semibold capitalize mb-1">{formattedDate}</p>
+              <p className="text-white/70 text-sm mb-3">{formattedTime}</p>
+              <div className="flex items-center gap-2 text-xs text-white/50">
+                <CalendarIcon />
+                <span>{upcomingReminder?.trainer ? `${upcomingReminder.trainer.first_name} ${upcomingReminder.trainer.last_name}`.trim() : program}</span>
+              </div>
+            </div>
+          ) : (
+            <Link href="/book-session" className="group flex flex-col justify-between bg-gradient-to-br from-kore-red to-kore-burgundy rounded-2xl p-6 text-white hover:shadow-lg transition-shadow">
+              <div>
+                <p className="text-xs text-white/60 uppercase tracking-widest font-medium mb-3">Tu siguiente paso</p>
+                <p className="font-heading text-xl font-semibold mb-1">Agendar sesión</p>
+                <p className="text-white/70 text-sm">Continúa tu transformación</p>
+              </div>
+              <div className="mt-4 flex items-center gap-2 text-sm font-medium group-hover:gap-3 transition-all">
+                <span>Reservar ahora</span>
+                <ArrowRightIcon />
+              </div>
+            </Link>
+          )}
+
+          {/* ③ Tu programa */}
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
+            <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-3">Tu programa</p>
+            <p className="font-heading text-lg font-semibold text-kore-red mb-1">{program}</p>
+            <p className="text-xs text-kore-gray-dark/50">Miembro desde {memberDate}</p>
+            <div className="mt-3 pt-3 border-t border-kore-gray-light/30 flex items-center gap-2 text-xs">
+              <span className="w-2 h-2 rounded-full bg-kore-red/60"></span>
+              <span className="text-kore-gray-dark/60">Total de entrenamientos: <span className="font-semibold text-kore-gray-dark">{sessionsUsed}</span></span>
+            </div>
+          </div>
+
+          {/* ④ Perfil */}
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
+            <div className="flex items-center gap-4 mb-3">
+              <div className="relative w-11 h-11 rounded-full bg-gradient-to-br from-kore-red/20 to-kore-burgundy/10 flex items-center justify-center ring-2 ring-white shadow-sm overflow-hidden">
+                {user.avatar_url ? (
+                  <Image src={user.avatar_url} alt="Avatar" fill className="object-cover" />
+                ) : (
+                  <span className="font-heading text-base font-semibold text-kore-red">{user.name.charAt(0)}</span>
+                )}
+              </div>
+              <div>
+                <p className="font-medium text-kore-gray-dark text-sm">{user.name}</p>
+                <p className="text-[10px] text-kore-gray-dark/40">{user.email}</p>
+              </div>
+            </div>
+            <div className="space-y-2 pt-3 border-t border-kore-gray-light/30 text-xs">
+              <div className="flex justify-between"><span className="text-kore-gray-dark/50">Programa</span><span className="text-kore-gray-dark font-medium">{program}</span></div>
+              <div className="flex justify-between"><span className="text-kore-gray-dark/50">Entrenamientos</span><span className="text-kore-gray-dark font-medium">{sessionsUsed} de {sessionsTotal}</span></div>
+              <div className="flex justify-between"><span className="text-kore-gray-dark/50">Miembro desde</span><span className="text-kore-gray-dark font-medium capitalize">{memberDate}</span></div>
+            </div>
+          </div>
+
+          {/* ⑤ Historial reciente (compact) */}
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm">
+            <h2 className="font-heading text-sm font-semibold text-kore-gray-dark mb-2">Historial reciente</h2>
+            <div className="space-y-0.5">
+              {bookings.filter(b => b.status === 'confirmed').length > 0 ? (
+                bookings.filter(b => b.status === 'confirmed').slice(0, 3).map((booking) => {
+                  const date = new Date(booking.slot.starts_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
+                  return (
+                    <div key={booking.id} className="flex items-center gap-2 py-1.5 rounded-lg">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+                        <svg className="w-3 h-3 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0"><p className="text-[11px] font-medium text-kore-gray-dark truncate">{booking.package?.title ?? '—'}</p></div>
+                      <p className="text-[10px] text-kore-gray-dark/40 capitalize">{date}</p>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-xs text-kore-gray-dark/40 text-center py-2">Sin sesiones completadas</p>
+              )}
+            </div>
+          </div>
+
+          {/* ⑥ Estado de hoy */}
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
+            <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-3">Estado de hoy</p>
+            {todayMood ? (
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className={`w-11 h-11 rounded-full flex items-center justify-center font-heading text-lg font-bold ${
+                    todayMood.score >= 7 ? 'bg-green-100 text-green-700' : todayMood.score >= 4 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'
+                  }`}>{todayMood.score}</div>
+                  <div>
+                    <p className={`text-sm font-medium ${todayMood.score >= 7 ? 'text-green-700' : todayMood.score >= 4 ? 'text-amber-700' : 'text-red-600'}`}>
+                      {todayMood.score >= 9 ? 'Excelente' : todayMood.score >= 7 ? 'Bien' : todayMood.score >= 5 ? 'Regular' : todayMood.score >= 3 ? 'Bajo' : 'Muy bajo'}
+                    </p>
+                    <p className="text-[10px] text-kore-gray-dark/40">de 10</p>
+                  </div>
+                </div>
+                <p className="text-xs text-kore-gray-dark/60 leading-relaxed">
+                  {todayMood.score >= 9 ? 'Estás en un gran momento. Aprovecha esa energía para dar lo mejor en tu entrenamiento.'
+                    : todayMood.score >= 7 ? 'Te sientes bien, y eso se nota. Mantén ese ritmo constante.'
+                    : todayMood.score >= 5 ? 'Un día tranquilo. A veces la constancia importa más que la intensidad.'
+                    : todayMood.score >= 3 ? 'No todos los días son iguales. Escucha tu cuerpo y avanza a tu ritmo.'
+                    : 'Es válido tener días difíciles. Lo importante es que estás aquí.'}
+                </p>
+              </div>
+            ) : (
+              <div className="text-center py-2">
+                <p className="text-xs text-kore-gray-dark/40 mb-2">Registra cómo te sientes hoy</p>
+                <Link href="/profile" className="text-xs text-kore-red font-medium hover:underline">Ir a mi perfil</Link>
+              </div>
+            )}
+          </div>
+
+          {/* ⑦ Evaluación Postural */}
           {posturoEvals.length > 0 && (() => {
             const latest = posturoEvals[0];
             const CTP: Record<string, string> = { green: 'text-green-700', yellow: 'text-amber-700', orange: 'text-orange-700', red: 'text-red-600' };
@@ -311,117 +451,6 @@ export default function DashboardPage() {
               </Link>
             );
           })()}
-
-          {/* ③ Mi objetivo */}
-          {(() => {
-            const goalValue = profile?.customer_profile?.primary_goal;
-            const GoalIcon = goalValue ? getGoalIcon(goalValue) : null;
-            return (
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
-                <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-3">Mi objetivo</p>
-                {goalValue && GoalIcon ? (
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-kore-red/10 flex items-center justify-center flex-shrink-0">
-                      <GoalIcon className="w-5 h-5 text-kore-red" />
-                    </div>
-                    <span className="text-sm font-medium text-kore-gray-dark">{getGoalLabel(goalValue)}</span>
-                  </div>
-                ) : (
-                  <Link href="/profile" className="text-sm text-kore-red hover:underline">Define tu objetivo</Link>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* ④ CTA: Agendar / Próxima sesión */}
-          {formattedDate ? (
-            <div className="bg-gradient-to-br from-kore-red to-kore-burgundy rounded-2xl p-6 text-white">
-              <p className="text-xs text-white/60 uppercase tracking-widest font-medium mb-3">Próxima sesión</p>
-              <p className="font-heading text-xl font-semibold capitalize mb-1">{formattedDate}</p>
-              <p className="text-white/70 text-sm mb-3">{formattedTime}</p>
-              <div className="flex items-center gap-2 text-xs text-white/50">
-                <CalendarIcon />
-                <span>{upcomingReminder?.trainer ? `${upcomingReminder.trainer.first_name} ${upcomingReminder.trainer.last_name}`.trim() : program}</span>
-              </div>
-            </div>
-          ) : (
-            <Link href="/book-session" className="group flex flex-col justify-between bg-gradient-to-br from-kore-red to-kore-burgundy rounded-2xl p-6 text-white hover:shadow-lg transition-shadow">
-              <div>
-                <p className="text-xs text-white/60 uppercase tracking-widest font-medium mb-3">Tu siguiente paso</p>
-                <p className="font-heading text-xl font-semibold mb-1">Agendar sesión</p>
-                <p className="text-white/70 text-sm">Continúa tu transformación</p>
-              </div>
-              <div className="mt-4 flex items-center gap-2 text-sm font-medium group-hover:gap-3 transition-all">
-                <span>Reservar ahora</span>
-                <ArrowRightIcon />
-              </div>
-            </Link>
-          )}
-
-          {/* ⑤ Tu programa */}
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
-            <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-3">Tu programa</p>
-            <p className="font-heading text-lg font-semibold text-kore-red mb-1">{program}</p>
-            <p className="text-xs text-kore-gray-dark/50">Miembro desde {memberDate}</p>
-            <div className="mt-3 pt-3 border-t border-kore-gray-light/30 flex items-center gap-2 text-xs">
-              <span className="w-2 h-2 rounded-full bg-kore-red/60"></span>
-              <span className="text-kore-gray-dark/60">Total de entrenamientos: <span className="font-semibold text-kore-gray-dark">{sessionsUsed}</span></span>
-            </div>
-          </div>
-
-          {/* ⑥ Estado de hoy */}
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
-            <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-3">Estado de hoy</p>
-            {todayMood ? (
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className={`w-11 h-11 rounded-full flex items-center justify-center font-heading text-lg font-bold ${
-                    todayMood.score >= 7 ? 'bg-green-100 text-green-700' : todayMood.score >= 4 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'
-                  }`}>{todayMood.score}</div>
-                  <div>
-                    <p className={`text-sm font-medium ${todayMood.score >= 7 ? 'text-green-700' : todayMood.score >= 4 ? 'text-amber-700' : 'text-red-600'}`}>
-                      {todayMood.score >= 9 ? 'Excelente' : todayMood.score >= 7 ? 'Bien' : todayMood.score >= 5 ? 'Regular' : todayMood.score >= 3 ? 'Bajo' : 'Muy bajo'}
-                    </p>
-                    <p className="text-[10px] text-kore-gray-dark/40">de 10</p>
-                  </div>
-                </div>
-                <p className="text-xs text-kore-gray-dark/60 leading-relaxed">
-                  {todayMood.score >= 9 ? 'Estás en un gran momento. Aprovecha esa energía para dar lo mejor en tu entrenamiento.'
-                    : todayMood.score >= 7 ? 'Te sientes bien, y eso se nota. Mantén ese ritmo constante.'
-                    : todayMood.score >= 5 ? 'Un día tranquilo. A veces la constancia importa más que la intensidad.'
-                    : todayMood.score >= 3 ? 'No todos los días son iguales. Escucha tu cuerpo y avanza a tu ritmo.'
-                    : 'Es válido tener días difíciles. Lo importante es que estás aquí.'}
-                </p>
-              </div>
-            ) : (
-              <div className="text-center py-2">
-                <p className="text-xs text-kore-gray-dark/40 mb-2">Registra cómo te sientes hoy</p>
-                <Link href="/profile" className="text-xs text-kore-red font-medium hover:underline">Ir a mi perfil</Link>
-              </div>
-            )}
-          </div>
-
-          {/* ⑦ Perfil */}
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
-            <div className="flex items-center gap-4 mb-3">
-              <div className="relative w-11 h-11 rounded-full bg-gradient-to-br from-kore-red/20 to-kore-burgundy/10 flex items-center justify-center ring-2 ring-white shadow-sm overflow-hidden">
-                {user.avatar_url ? (
-                  <Image src={user.avatar_url} alt="Avatar" fill className="object-cover" />
-                ) : (
-                  <span className="font-heading text-base font-semibold text-kore-red">{user.name.charAt(0)}</span>
-                )}
-              </div>
-              <div>
-                <p className="font-medium text-kore-gray-dark text-sm">{user.name}</p>
-                <p className="text-[10px] text-kore-gray-dark/40">{user.email}</p>
-              </div>
-            </div>
-            <div className="space-y-2 pt-3 border-t border-kore-gray-light/30 text-xs">
-              <div className="flex justify-between"><span className="text-kore-gray-dark/50">Programa</span><span className="text-kore-gray-dark font-medium">{program}</span></div>
-              <div className="flex justify-between"><span className="text-kore-gray-dark/50">Entrenamientos</span><span className="text-kore-gray-dark font-medium">{sessionsUsed} de {sessionsTotal}</span></div>
-              <div className="flex justify-between"><span className="text-kore-gray-dark/50">Miembro desde</span><span className="text-kore-gray-dark font-medium capitalize">{memberDate}</span></div>
-            </div>
-          </div>
 
           {/* ⑧ Mi estado físico (Antropometría) */}
           {anthroEvals.length > 0 && (() => {
@@ -479,8 +508,8 @@ export default function DashboardPage() {
             );
           })()}
 
-          {/* ⑨ Próximas sesiones — spans 2 columns on xl */}
-          <div className="md:col-span-2 bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
+          {/* ⑨ Próximas sesiones — single column list */}
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Próximas sesiones</h2>
               <Link href="/book-session" className="text-xs text-kore-red font-medium hover:underline">Agendar nueva</Link>
@@ -490,7 +519,7 @@ export default function DashboardPage() {
                 (b) => b.status === 'pending' && new Date(b.slot.starts_at) > new Date()
               ).sort((a, b) => new Date(a.slot.starts_at).getTime() - new Date(b.slot.starts_at).getTime());
               return upcoming.length > 0 ? (
-                <div className="space-y-2.5">
+                <div className="space-y-2">
                   {upcoming.slice(0, 4).map((booking) => {
                     const d = new Date(booking.slot.starts_at);
                     const dateStr = d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -502,10 +531,9 @@ export default function DashboardPage() {
                           <CalendarIcon />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-kore-gray-dark capitalize">{dateStr}</p>
+                          <p className="text-xs font-medium text-kore-gray-dark capitalize">{dateStr} <span className="text-kore-red">· {timeStr}</span></p>
                           <p className="text-[10px] text-kore-gray-dark/50">{booking.package?.title ?? '—'}{trainerName ? ` · ${trainerName}` : ''}</p>
                         </div>
-                        <span className="text-xs font-medium text-kore-red">{timeStr}</span>
                       </div>
                     );
                   })}
@@ -518,31 +546,6 @@ export default function DashboardPage() {
                 </div>
               );
             })()}
-          </div>
-
-          {/* ⑩ Historial reciente */}
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
-            <h2 className="font-heading text-base font-semibold text-kore-gray-dark mb-3">Historial reciente</h2>
-            <div className="space-y-1">
-              {bookings.filter(b => b.status === 'confirmed').length > 0 ? (
-                bookings.filter(b => b.status === 'confirmed').slice(0, 4).map((booking) => {
-                  const date = new Date(booking.slot.starts_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
-                  return (
-                    <div key={booking.id} className="flex items-center gap-3 p-2 rounded-lg">
-                      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-green-100 flex items-center justify-center">
-                        <svg className="w-3.5 h-3.5 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <div className="flex-1 min-w-0"><p className="text-xs font-medium text-kore-gray-dark truncate">{booking.package?.title ?? '—'}</p></div>
-                      <p className="text-[10px] text-kore-gray-dark/40 capitalize">{date}</p>
-                    </div>
-                  );
-                })
-              ) : (
-                <p className="text-xs text-kore-gray-dark/40 text-center py-4">Sin sesiones completadas aún</p>
-              )}
-            </div>
           </div>
         </div>
       </div>
