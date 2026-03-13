@@ -7,7 +7,7 @@ Client endpoints: read-only access to their own evaluations.
 import json
 
 from rest_framework import serializers, status
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -168,13 +168,16 @@ class TrainerPosturometryListCreateView(APIView):
 
 
 class TrainerPosturometryDetailView(APIView):
-    """Get or partially update a specific posturometry evaluation.
+    """Get, update, or delete a specific posturometry evaluation.
 
-    GET   /api/trainer/my-clients/<id>/posturometry/<eval_id>/
-    PATCH /api/trainer/my-clients/<id>/posturometry/<eval_id>/
+    GET    /api/trainer/my-clients/<id>/posturometry/<eval_id>/
+    PATCH  /api/trainer/my-clients/<id>/posturometry/<eval_id>/
+    PUT    /api/trainer/my-clients/<id>/posturometry/<eval_id>/
+    DELETE /api/trainer/my-clients/<id>/posturometry/<eval_id>/
     """
 
     permission_classes = [IsAuthenticated, IsTrainerRole]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def _get_evaluation(self, request, customer_id, eval_id):
         trainer_profile = getattr(request.user, 'trainer_profile', None)
@@ -194,22 +197,60 @@ class TrainerPosturometryDetailView(APIView):
             return err
         return Response(PosturometrySerializer(evaluation, context={'request': request}).data)
 
+    def _apply_full_update(self, evaluation, request):
+        """Apply all mutable fields from request data onto the evaluation."""
+        json_fields = ('anterior_data', 'lateral_right_data', 'lateral_left_data', 'posterior_data')
+        for field in json_fields:
+            if field in request.data:
+                evaluation.__setattr__(field, _parse_json_field(request.data, field))
+
+        text_fields = (
+            'anterior_observations', 'lateral_right_observations',
+            'lateral_left_observations', 'posterior_observations', 'notes',
+        )
+        for field in text_fields:
+            if field in request.data:
+                setattr(evaluation, field, request.data.get(field, ''))
+
+        if 'evaluation_date' in request.data:
+            setattr(evaluation, 'evaluation_date', request.data.get('evaluation_date') or None)
+
+        if 'recommendations' in request.data:
+            value = request.data['recommendations']
+            if isinstance(value, str):
+                try:
+                    value = json.loads(value)
+                except (json.JSONDecodeError, ValueError):
+                    pass
+            evaluation.recommendations = value
+
+        for photo_field in ('anterior_photo', 'lateral_right_photo', 'lateral_left_photo', 'posterior_photo'):
+            photo = request.FILES.get(photo_field)
+            if photo:
+                setattr(evaluation, photo_field, photo)
+
+    def put(self, request, customer_id, eval_id):
+        evaluation, err = self._get_evaluation(request, customer_id, eval_id)
+        if err:
+            return err
+        self._apply_full_update(evaluation, request)
+        evaluation.save()
+        return Response(PosturometrySerializer(evaluation, context={'request': request}).data)
+
     def patch(self, request, customer_id, eval_id):
         evaluation, err = self._get_evaluation(request, customer_id, eval_id)
         if err:
             return err
-        allowed = {'recommendations', 'notes'}
-        for field in allowed:
-            if field in request.data:
-                value = request.data[field]
-                if field == 'recommendations' and isinstance(value, str):
-                    try:
-                        value = json.loads(value)
-                    except (json.JSONDecodeError, ValueError):
-                        pass
-                setattr(evaluation, field, value)
+        self._apply_full_update(evaluation, request)
         evaluation.save()
         return Response(PosturometrySerializer(evaluation, context={'request': request}).data)
+
+    def delete(self, request, customer_id, eval_id):
+        evaluation, err = self._get_evaluation(request, customer_id, eval_id)
+        if err:
+            return err
+        evaluation.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ── Client endpoints ──

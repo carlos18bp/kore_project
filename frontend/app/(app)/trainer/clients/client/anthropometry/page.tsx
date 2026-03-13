@@ -90,7 +90,7 @@ function TrainerAnthropometryPage() {
   const { user } = useAuthStore();
   const searchParams = useSearchParams();
   const clientId = Number(searchParams.get('id'));
-  const { evaluations, loading, submitting, error, fetchEvaluations, createEvaluation, updateEvaluation } = useAnthropometryStore();
+  const { evaluations, loading, submitting, error, fetchEvaluations, createEvaluation, updateEvaluation, fullUpdateEvaluation, deleteEvaluation } = useAnthropometryStore();
   const sectionRef = useRef<HTMLElement>(null);
   useHeroAnimation(sectionRef);
 
@@ -106,6 +106,13 @@ function TrainerAnthropometryPage() {
     perimeters: {}, skinfolds: {}, notes: '',
   });
   const [justCreated, setJustCreated] = useState<AnthropometryEvaluation | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+
+  const emptyForm = (): AnthropometryFormData => ({
+    evaluation_date: '', weight_kg: '', height_cm: '', waist_cm: '', hip_cm: '',
+    perimeters: {}, skinfolds: {}, notes: '',
+  });
 
   useEffect(() => {
     if (clientId) fetchEvaluations(clientId);
@@ -124,11 +131,52 @@ function TrainerAnthropometryPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientId) return;
-    const result = await createEvaluation(clientId, form);
+    const result = editingId
+      ? await fullUpdateEvaluation(clientId, editingId, form)
+      : await createEvaluation(clientId, form);
     if (result) {
       setJustCreated(result);
       setShowForm(false);
-      setForm({ evaluation_date: '', weight_kg: '', height_cm: '', waist_cm: '', hip_cm: '', perimeters: {}, skinfolds: {}, notes: '' });
+      setForm(emptyForm());
+      setEditingId(null);
+    }
+  };
+
+  const handleEdit = (ev: AnthropometryEvaluation) => {
+    const perimeters: Record<string, string> = {};
+    if (ev.perimeters) {
+      for (const [k, v] of Object.entries(ev.perimeters)) {
+        perimeters[k] = String(v);
+      }
+    }
+    const skinfolds: Record<string, string> = {};
+    if (ev.skinfolds) {
+      for (const [k, v] of Object.entries(ev.skinfolds)) {
+        skinfolds[k] = String(v);
+      }
+    }
+    setForm({
+      evaluation_date: ev.evaluation_date || '',
+      weight_kg: ev.weight_kg || '',
+      height_cm: ev.height_cm || '',
+      waist_cm: ev.waist_cm ? String(ev.waist_cm) : '',
+      hip_cm: ev.hip_cm ? String(ev.hip_cm) : '',
+      perimeters,
+      skinfolds,
+      notes: ev.notes || '',
+    });
+    setEditingId(ev.id);
+    setJustCreated(null);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDelete = async (evalId: number) => {
+    if (!clientId) return;
+    const ok = await deleteEvaluation(clientId, evalId);
+    if (ok) {
+      setConfirmDeleteId(null);
+      if (justCreated?.id === evalId) setJustCreated(null);
     }
   };
 
@@ -170,7 +218,7 @@ function TrainerAnthropometryPage() {
           <form onSubmit={handleSubmit} className="space-y-4 mb-6">
             {/* Basic measurements */}
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
-              <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-4">Datos básicos</h2>
+              <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-4">{editingId ? 'Editar evaluación' : 'Datos básicos'}</h2>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs text-kore-gray-dark/60 uppercase tracking-wider mb-1">Fecha del examen</label>
@@ -273,9 +321,9 @@ function TrainerAnthropometryPage() {
               <textarea value={form.notes} onChange={(e) => handleBasicChange('notes', e.target.value)} rows={2} className={inputClass + ' resize-none mb-4'} placeholder="Notas adicionales..." />
               <div className="flex gap-3">
                 <button type="submit" disabled={submitting} className="bg-kore-red hover:bg-kore-red-dark text-white font-medium py-2.5 px-6 rounded-xl transition-colors text-sm disabled:opacity-60 cursor-pointer">
-                  {submitting ? 'Calculando...' : 'Calcular y guardar'}
+                  {submitting ? 'Calculando...' : editingId ? 'Actualizar evaluación' : 'Calcular y guardar'}
                 </button>
-                <button type="button" onClick={() => setShowForm(false)} className="bg-kore-cream hover:bg-kore-gray-light/60 text-kore-gray-dark font-medium py-2.5 px-6 rounded-xl transition-colors text-sm cursor-pointer">
+                <button type="button" onClick={() => { setShowForm(false); setEditingId(null); setForm(emptyForm()); }} className="bg-kore-cream hover:bg-kore-gray-light/60 text-kore-gray-dark font-medium py-2.5 px-6 rounded-xl transition-colors text-sm cursor-pointer">
                   Cancelar
                 </button>
               </div>
@@ -464,6 +512,14 @@ function TrainerAnthropometryPage() {
                       <p className="text-sm font-medium text-kore-gray-dark">{date}{i === 0 && <span className="text-xs text-kore-red ml-2">Más reciente</span>}</p>
                       <p className="text-xs text-kore-gray-dark/50">IMC {ev.bmi} · Grasa {ev.body_fat_pct}% · Peso {ev.weight_kg} kg</p>
                     </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button type="button" onClick={() => handleEdit(ev)} className="p-1.5 rounded-lg hover:bg-kore-cream/60 text-kore-gray-dark/40 hover:text-kore-red transition-colors cursor-pointer" title="Editar">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
+                      </button>
+                      <button type="button" onClick={() => setConfirmDeleteId(ev.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-kore-gray-dark/40 hover:text-red-600 transition-colors cursor-pointer" title="Eliminar">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -474,6 +530,24 @@ function TrainerAnthropometryPage() {
             <p className="text-sm text-kore-gray-dark/50">No hay evaluaciones de antropometría para este cliente.</p>
           </div>
         ) : null}
+
+        {/* ══════ DELETE CONFIRMATION MODAL ══════ */}
+        {confirmDeleteId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl p-6 shadow-xl max-w-sm w-full mx-4">
+              <h3 className="font-heading text-lg font-semibold text-kore-gray-dark mb-2">Eliminar evaluación</h3>
+              <p className="text-sm text-kore-gray-dark/70 mb-5">¿Estás seguro? Esta acción no se puede deshacer.</p>
+              <div className="flex gap-3 justify-end">
+                <button type="button" onClick={() => setConfirmDeleteId(null)} className="px-4 py-2 rounded-xl text-sm font-medium text-kore-gray-dark bg-kore-cream hover:bg-kore-gray-light/60 transition-colors cursor-pointer">
+                  Cancelar
+                </button>
+                <button type="button" disabled={submitting} onClick={() => handleDelete(confirmDeleteId)} className="px-4 py-2 rounded-xl text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-60 cursor-pointer">
+                  {submitting ? 'Eliminando...' : 'Eliminar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

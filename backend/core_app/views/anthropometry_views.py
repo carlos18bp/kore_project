@@ -113,10 +113,12 @@ class TrainerAnthropometryListCreateView(APIView):
 
 
 class TrainerAnthropometryDetailView(APIView):
-    """Get or partially update a specific anthropometry evaluation.
+    """Get, update, or delete a specific anthropometry evaluation.
 
-    GET   /api/trainer/my-clients/<id>/anthropometry/<eval_id>/
-    PATCH /api/trainer/my-clients/<id>/anthropometry/<eval_id>/
+    GET    /api/trainer/my-clients/<id>/anthropometry/<eval_id>/
+    PATCH  /api/trainer/my-clients/<id>/anthropometry/<eval_id>/
+    PUT    /api/trainer/my-clients/<id>/anthropometry/<eval_id>/
+    DELETE /api/trainer/my-clients/<id>/anthropometry/<eval_id>/
     """
 
     permission_classes = [IsAuthenticated, IsTrainerRole]
@@ -139,16 +141,49 @@ class TrainerAnthropometryDetailView(APIView):
             return err
         return Response(AnthropometrySerializer(evaluation).data)
 
+    def _apply_update(self, evaluation, data):
+        """Apply mutable fields from request data onto the evaluation."""
+        numeric_fields = ('weight_kg', 'height_cm', 'waist_cm', 'hip_cm')
+        for field in numeric_fields:
+            if field in data:
+                val = data[field]
+                setattr(evaluation, field, float(val) if val not in (None, '', 'null') else None)
+
+        if 'evaluation_date' in data:
+            evaluation.evaluation_date = data['evaluation_date'] or None
+
+        json_fields = ('perimeters', 'skinfolds')
+        for field in json_fields:
+            if field in data:
+                setattr(evaluation, field, data[field] if isinstance(data[field], dict) else {})
+
+        text_fields = ('notes', 'recommendations')
+        for field in text_fields:
+            if field in data:
+                setattr(evaluation, field, data[field])
+
+    def put(self, request, customer_id, eval_id):
+        evaluation, err = self._get_evaluation(request, customer_id, eval_id)
+        if err:
+            return err
+        self._apply_update(evaluation, request.data)
+        evaluation.save()
+        return Response(AnthropometrySerializer(evaluation).data)
+
     def patch(self, request, customer_id, eval_id):
         evaluation, err = self._get_evaluation(request, customer_id, eval_id)
         if err:
             return err
-        allowed = {'recommendations', 'notes'}
-        for field in allowed:
-            if field in request.data:
-                setattr(evaluation, field, request.data[field])
+        self._apply_update(evaluation, request.data)
         evaluation.save()
         return Response(AnthropometrySerializer(evaluation).data)
+
+    def delete(self, request, customer_id, eval_id):
+        evaluation, err = self._get_evaluation(request, customer_id, eval_id)
+        if err:
+            return err
+        evaluation.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ── Client endpoints ──

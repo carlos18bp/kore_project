@@ -78,6 +78,8 @@ type PosturometryState = {
   fetchEvaluations: (clientId: number) => Promise<void>;
   createEvaluation: (clientId: number, data: PosturometryFormData) => Promise<PosturometryEvaluation | null>;
   updateEvaluation: (clientId: number, evalId: number, data: { recommendations?: Record<string, { result: string; action: string }>; notes?: string }) => Promise<PosturometryEvaluation | null>;
+  fullUpdateEvaluation: (clientId: number, evalId: number, data: PosturometryFormData) => Promise<PosturometryEvaluation | null>;
+  deleteEvaluation: (clientId: number, evalId: number) => Promise<boolean>;
   fetchMyEvaluations: () => Promise<void>;
 };
 
@@ -155,6 +157,58 @@ export const usePosturometryStore = create<PosturometryState>((set) => ({
     } catch {
       set({ error: 'No se pudieron guardar las recomendaciones.', submitting: false });
       return null;
+    }
+  },
+
+  fullUpdateEvaluation: async (clientId: number, evalId: number, formData: PosturometryFormData) => {
+    set({ submitting: true, error: '' });
+    try {
+      const fd = new FormData();
+      if (formData.evaluation_date) fd.append('evaluation_date', formData.evaluation_date);
+      fd.append('anterior_data', JSON.stringify(formData.anterior_data));
+      fd.append('lateral_right_data', JSON.stringify(formData.lateral_right_data));
+      fd.append('lateral_left_data', JSON.stringify(formData.lateral_left_data));
+      fd.append('posterior_data', JSON.stringify(formData.posterior_data));
+      fd.append('anterior_observations', formData.anterior_observations || '');
+      fd.append('lateral_right_observations', formData.lateral_right_observations || '');
+      fd.append('lateral_left_observations', formData.lateral_left_observations || '');
+      fd.append('posterior_observations', formData.posterior_observations || '');
+      fd.append('notes', formData.notes || '');
+      if (formData.anterior_photo) fd.append('anterior_photo', formData.anterior_photo);
+      if (formData.lateral_right_photo) fd.append('lateral_right_photo', formData.lateral_right_photo);
+      if (formData.lateral_left_photo) fd.append('lateral_left_photo', formData.lateral_left_photo);
+      if (formData.posterior_photo) fd.append('posterior_photo', formData.posterior_photo);
+
+      const { data } = await api.put(`/trainer/my-clients/${clientId}/posturometry/${evalId}/`, fd, {
+        headers: { ...authHeaders(), 'Content-Type': 'multipart/form-data' },
+      });
+      set((state) => ({
+        evaluations: state.evaluations.map((ev) => (ev.id === evalId ? data : ev)),
+        submitting: false,
+      }));
+      return data;
+    } catch (err) {
+      const message = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        || 'No se pudo actualizar la evaluación postural.';
+      set({ error: message, submitting: false });
+      return null;
+    }
+  },
+
+  deleteEvaluation: async (clientId: number, evalId: number) => {
+    set({ submitting: true, error: '' });
+    try {
+      await api.delete(`/trainer/my-clients/${clientId}/posturometry/${evalId}/`, {
+        headers: authHeaders(),
+      });
+      set((state) => ({
+        evaluations: state.evaluations.filter((ev) => ev.id !== evalId),
+        submitting: false,
+      }));
+      return true;
+    } catch {
+      set({ error: 'No se pudo eliminar la evaluación.', submitting: false });
+      return false;
     }
   },
 
