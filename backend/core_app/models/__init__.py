@@ -15,6 +15,7 @@ from .weight_entry import WeightEntry
 from .password_reset_code import PasswordResetCode
 from .terms_acceptance import TermsAcceptance
 from .anthropometry import AnthropometryEvaluation
+from .posturometry import PosturometryEvaluation
 
 __all__ = [
     'User',
@@ -37,4 +38,5 @@ __all__ = [
     'PasswordResetCode',
     'TermsAcceptance',
     'AnthropometryEvaluation',
+    'PosturometryEvaluation',
 ]

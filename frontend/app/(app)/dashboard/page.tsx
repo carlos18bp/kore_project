@@ -9,6 +9,7 @@ import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
 import { useBookingStore } from '@/lib/stores/bookingStore';
 import { useProfileStore } from '@/lib/stores/profileStore';
 import { useAnthropometryStore } from '@/lib/stores/anthropometryStore';
+import { usePosturometryStore } from '@/lib/stores/posturometryStore';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 import UpcomingSessionReminder from '@/app/components/booking/UpcomingSessionReminder';
 import SubscriptionExpiryReminder from '@/app/components/subscription/SubscriptionExpiryReminder';
@@ -56,6 +57,7 @@ export default function DashboardPage() {
   const { upcomingReminder, bookings, fetchUpcomingReminder, fetchBookings } = useBookingStore();
   const { profile, todayMood, fetchProfile } = useProfileStore();
   const { evaluations: anthroEvals, fetchMyEvaluations } = useAnthropometryStore();
+  const { evaluations: posturoEvals, fetchMyEvaluations: fetchMyPosturoEvals } = usePosturometryStore();
   const sectionRef = useRef<HTMLElement>(null);
   const profileFetchedRef = useRef(false);
   useHeroAnimation(sectionRef);
@@ -66,7 +68,8 @@ export default function DashboardPage() {
     fetchUpcomingReminder();
     fetchBookings();
     fetchMyEvaluations();
-  }, [fetchSubscriptions, fetchUpcomingReminder, fetchBookings, fetchMyEvaluations]);
+    fetchMyPosturoEvals();
+  }, [fetchSubscriptions, fetchUpcomingReminder, fetchBookings, fetchMyEvaluations, fetchMyPosturoEvals]);
 
   useEffect(() => {
     if (profileFetchedRef.current) return;
@@ -225,41 +228,23 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Progress Stats - Mobile optimized cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 xl:gap-6 mb-6 xl:mb-8">
-          {/* Program Progress Card */}
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
+        {/* ══════ STRUCTURED GRID DASHBOARD ══════ */}
+        <div data-hero="body" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+
+          {/* ① Progress — tall card spanning 2 rows on xl */}
+          <div className="xl:row-span-2 bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium">Tu progreso</p>
               <span className="text-xs text-green-700 font-semibold bg-green-100 px-2.5 py-1 rounded-full">
                 {getProgressStage(progressPercent)}
               </span>
             </div>
-            
-            {/* Circular Progress */}
-            <div className="flex items-center gap-5">
+            <div className="flex items-center gap-5 mb-5">
               <div className="relative w-20 h-20 flex-shrink-0">
                 <svg className="w-20 h-20 transform -rotate-90" viewBox="0 0 36 36">
-                  <path
-                    d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="#E5E5E5"
-                    strokeWidth="3"
-                  />
-                  <path
-                    d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="url(#progressGradient)"
-                    strokeWidth="3"
-                    strokeDasharray={`${progressPercent}, 100`}
-                    strokeLinecap="round"
-                  />
-                  <defs>
-                    <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor="#670F22" />
-                      <stop offset="100%" stopColor="#AB0D2F" />
-                    </linearGradient>
-                  </defs>
+                  <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#E5E5E5" strokeWidth="3" />
+                  <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="url(#progressGradient)" strokeWidth="3" strokeDasharray={`${progressPercent}, 100`} strokeLinecap="round" />
+                  <defs><linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#670F22" /><stop offset="100%" stopColor="#AB0D2F" /></linearGradient></defs>
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
                   <span className="font-heading text-xl font-bold text-kore-gray-dark">{progressPercent}%</span>
@@ -270,74 +255,69 @@ export default function DashboardPage() {
                 <p className="text-sm text-kore-gray-dark/50">completadas de {sessionsTotal}</p>
               </div>
             </div>
-          </div>
-
-          {/* Program Info Card */}
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
-            <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-4">Tu programa</p>
-            <p className="font-heading text-xl font-semibold text-kore-red mb-2">{program}</p>
-            <p className="text-sm text-kore-gray-dark/50">Miembro desde {memberDate}</p>
-            <div className="mt-4 pt-4 border-t border-kore-gray-light/30">
-              <div className="flex items-center gap-2 text-sm">
-                <span className="w-2 h-2 rounded-full bg-kore-red/60"></span>
-                <span className="text-kore-gray-dark/60">Total de entrenamientos: <span className="font-semibold text-kore-gray-dark">{sessionsUsed}</span></span>
+            {/* Motivational message with purple star */}
+            <div className="flex items-start gap-3 mt-auto pt-4 border-t border-kore-gray-light/30">
+              <div className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center">
+                <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                </svg>
               </div>
+              <p className="text-xs text-kore-gray-dark/70 leading-relaxed">{getProgressMessage(sessionsUsed, progressPercent)}</p>
             </div>
           </div>
 
-          {/* Next Session Card - DESKTOP prominent CTA */}
-          <div className="hidden xl:block">
-            {formattedDate ? (
-              <div className="bg-gradient-to-br from-kore-red to-kore-burgundy rounded-2xl p-6 text-white h-full">
-                <p className="text-xs text-white/60 uppercase tracking-widest font-medium mb-4">Próxima sesión</p>
-                <p className="font-heading text-xl font-semibold capitalize mb-1">{formattedDate}</p>
-                <p className="text-white/70 text-sm">{formattedTime}</p>
-              </div>
-            ) : (
-              <Link
-                href="/book-session"
-                className="group flex flex-col justify-between bg-gradient-to-br from-kore-red to-kore-burgundy rounded-2xl p-6 text-white h-full hover:shadow-lg transition-shadow"
-              >
-                <div>
-                  <p className="text-xs text-white/60 uppercase tracking-widest font-medium mb-4">Tu siguiente paso</p>
-                  <p className="font-heading text-xl font-semibold mb-1">Agendar sesión</p>
-                  <p className="text-white/70 text-sm">Continúa tu transformación</p>
+          {/* ② Evaluación Postural */}
+          {posturoEvals.length > 0 && (() => {
+            const latest = posturoEvals[0];
+            const CTP: Record<string, string> = { green: 'text-green-700', yellow: 'text-amber-700', orange: 'text-orange-700', red: 'text-red-600' };
+            const CBP: Record<string, string> = { green: 'bg-green-100', yellow: 'bg-amber-100', orange: 'bg-orange-100', red: 'bg-red-100' };
+            const CDP: Record<string, string> = { green: 'bg-green-500', yellow: 'bg-amber-500', orange: 'bg-orange-500', red: 'bg-red-500' };
+            return (
+              <Link href="/my-posturometry" className="block bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Evaluación Postural</h2>
+                  <svg className="w-4 h-4 text-kore-gray-dark/30 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
                 </div>
-                <div className="mt-4 flex items-center gap-2 text-sm font-medium group-hover:gap-3 transition-all">
-                  <span>Reservar ahora</span>
-                  <ArrowRightIcon />
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${CBP[latest.global_color] || CBP.green}`}>
+                    <span className={`font-heading text-lg font-bold ${CTP[latest.global_color] || CTP.green}`}>{latest.global_index}</span>
+                  </div>
+                  <div>
+                    <p className={`text-sm font-medium ${CTP[latest.global_color] || CTP.green}`}>{latest.global_category}</p>
+                    <p className="text-[10px] text-kore-gray-dark/40">Índice global</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2 mb-2">
+                  {[
+                    { label: 'Superior', val: latest.upper_index, col: latest.upper_color },
+                    { label: 'Central', val: latest.central_index, col: latest.central_color },
+                    { label: 'Inferior', val: latest.lower_index, col: latest.lower_color },
+                  ].map((r) => (
+                    <div key={r.label} className="text-center">
+                      <p className={`font-heading text-sm font-bold ${CTP[r.col] || CTP.green}`}>{r.val}</p>
+                      <p className="text-[10px] text-kore-gray-dark/40">{r.label}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {['upper', 'central', 'lower'].map((r) => {
+                    const col = r === 'upper' ? latest.upper_color : r === 'central' ? latest.central_color : latest.lower_color;
+                    return <div key={r} className={`w-2 h-2 rounded-full ${CDP[col] || CDP.green}`} />;
+                  })}
+                  <span className="text-[10px] text-kore-gray-dark/40 ml-1">Ver detalle</span>
                 </div>
               </Link>
-            )}
-          </div>
-        </div>
+            );
+          })()}
 
-        {/* MOBILE: Next Session if exists */}
-        {formattedDate && (
-          <div className="xl:hidden mb-6">
-            <div className="bg-gradient-to-br from-kore-red/90 to-kore-burgundy rounded-2xl p-5 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-white/60 uppercase tracking-widest font-medium mb-2">Próxima sesión</p>
-                  <p className="font-heading text-lg font-semibold capitalize">{formattedDate}</p>
-                  <p className="text-white/70 text-sm">{formattedTime}</p>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
-                  <CalendarIcon />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Goal + Estado de hoy + Progress Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 xl:gap-6 mb-6 xl:mb-8">
-          {/* Goal Card */}
+          {/* ③ Mi objetivo */}
           {(() => {
             const goalValue = profile?.customer_profile?.primary_goal;
             const GoalIcon = goalValue ? getGoalIcon(goalValue) : null;
             return (
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
                 <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-3">Mi objetivo</p>
                 {goalValue && GoalIcon ? (
                   <div className="flex items-center gap-3">
@@ -349,65 +329,69 @@ export default function DashboardPage() {
                 ) : (
                   <Link href="/profile" className="text-sm text-kore-red hover:underline">Define tu objetivo</Link>
                 )}
-                <div className="mt-4 pt-4 border-t border-kore-gray-light/30">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center">
-                      <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-                      </svg>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-1">Tu progreso</p>
-                      <p className="text-sm text-kore-gray-dark/80 leading-relaxed">
-                        {getProgressMessage(sessionsUsed, progressPercent)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
               </div>
             );
           })()}
 
-          {/* Estado de hoy Card — score 1-10 with personalized message */}
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
-            <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-4">Estado de hoy</p>
+          {/* ④ CTA: Agendar / Próxima sesión */}
+          {formattedDate ? (
+            <div className="bg-gradient-to-br from-kore-red to-kore-burgundy rounded-2xl p-6 text-white">
+              <p className="text-xs text-white/60 uppercase tracking-widest font-medium mb-3">Próxima sesión</p>
+              <p className="font-heading text-xl font-semibold capitalize mb-1">{formattedDate}</p>
+              <p className="text-white/70 text-sm mb-3">{formattedTime}</p>
+              <div className="flex items-center gap-2 text-xs text-white/50">
+                <CalendarIcon />
+                <span>{upcomingReminder?.trainer ? `${upcomingReminder.trainer.first_name} ${upcomingReminder.trainer.last_name}`.trim() : program}</span>
+              </div>
+            </div>
+          ) : (
+            <Link href="/book-session" className="group flex flex-col justify-between bg-gradient-to-br from-kore-red to-kore-burgundy rounded-2xl p-6 text-white hover:shadow-lg transition-shadow">
+              <div>
+                <p className="text-xs text-white/60 uppercase tracking-widest font-medium mb-3">Tu siguiente paso</p>
+                <p className="font-heading text-xl font-semibold mb-1">Agendar sesión</p>
+                <p className="text-white/70 text-sm">Continúa tu transformación</p>
+              </div>
+              <div className="mt-4 flex items-center gap-2 text-sm font-medium group-hover:gap-3 transition-all">
+                <span>Reservar ahora</span>
+                <ArrowRightIcon />
+              </div>
+            </Link>
+          )}
+
+          {/* ⑤ Tu programa */}
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
+            <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-3">Tu programa</p>
+            <p className="font-heading text-lg font-semibold text-kore-red mb-1">{program}</p>
+            <p className="text-xs text-kore-gray-dark/50">Miembro desde {memberDate}</p>
+            <div className="mt-3 pt-3 border-t border-kore-gray-light/30 flex items-center gap-2 text-xs">
+              <span className="w-2 h-2 rounded-full bg-kore-red/60"></span>
+              <span className="text-kore-gray-dark/60">Total de entrenamientos: <span className="font-semibold text-kore-gray-dark">{sessionsUsed}</span></span>
+            </div>
+          </div>
+
+          {/* ⑥ Estado de hoy */}
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
+            <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-3">Estado de hoy</p>
             {todayMood ? (
               <div>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center font-heading text-xl font-bold ${
-                    todayMood.score >= 7 ? 'bg-green-100 text-green-700'
-                    : todayMood.score >= 4 ? 'bg-amber-100 text-amber-700'
-                    : 'bg-red-100 text-red-600'
-                  }`}>
-                    {todayMood.score}
-                  </div>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className={`w-11 h-11 rounded-full flex items-center justify-center font-heading text-lg font-bold ${
+                    todayMood.score >= 7 ? 'bg-green-100 text-green-700' : todayMood.score >= 4 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'
+                  }`}>{todayMood.score}</div>
                   <div>
-                    <p className={`text-sm font-medium ${
-                      todayMood.score >= 7 ? 'text-green-700'
-                      : todayMood.score >= 4 ? 'text-amber-700'
-                      : 'text-red-600'
-                    }`}>
+                    <p className={`text-sm font-medium ${todayMood.score >= 7 ? 'text-green-700' : todayMood.score >= 4 ? 'text-amber-700' : 'text-red-600'}`}>
                       {todayMood.score >= 9 ? 'Excelente' : todayMood.score >= 7 ? 'Bien' : todayMood.score >= 5 ? 'Regular' : todayMood.score >= 3 ? 'Bajo' : 'Muy bajo'}
                     </p>
-                    <p className="text-xs text-kore-gray-dark/40">de 10</p>
+                    <p className="text-[10px] text-kore-gray-dark/40">de 10</p>
                   </div>
                 </div>
-                <p className="text-xs text-kore-gray-dark/60 leading-relaxed mb-2">
-                  {todayMood.score >= 9
-                    ? 'Estás en un gran momento. Aprovecha esa energía para dar lo mejor en tu entrenamiento.'
-                    : todayMood.score >= 7
-                    ? 'Te sientes bien, y eso se nota. Mantén ese ritmo constante.'
-                    : todayMood.score >= 5
-                    ? 'Un día tranquilo. A veces la constancia importa más que la intensidad.'
-                    : todayMood.score >= 3
-                    ? 'No todos los días son iguales. Escucha tu cuerpo y avanza a tu ritmo.'
-                    : 'Es válido tener días difíciles. Lo importante es que estás aquí. Cuídate hoy.'}
+                <p className="text-xs text-kore-gray-dark/60 leading-relaxed">
+                  {todayMood.score >= 9 ? 'Estás en un gran momento. Aprovecha esa energía para dar lo mejor en tu entrenamiento.'
+                    : todayMood.score >= 7 ? 'Te sientes bien, y eso se nota. Mantén ese ritmo constante.'
+                    : todayMood.score >= 5 ? 'Un día tranquilo. A veces la constancia importa más que la intensidad.'
+                    : todayMood.score >= 3 ? 'No todos los días son iguales. Escucha tu cuerpo y avanza a tu ritmo.'
+                    : 'Es válido tener días difíciles. Lo importante es que estás aquí.'}
                 </p>
-                {todayMood.notes && (
-                  <p className="text-xs text-kore-gray-dark/50 bg-kore-cream/50 rounded-lg p-2.5 italic">
-                    &ldquo;{todayMood.notes}&rdquo;
-                  </p>
-                )}
               </div>
             ) : (
               <div className="text-center py-2">
@@ -417,176 +401,147 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Profile Summary Card */}
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="relative w-12 h-12 rounded-full bg-gradient-to-br from-kore-red/20 to-kore-burgundy/10 flex items-center justify-center ring-2 ring-white shadow-sm overflow-hidden">
+          {/* ⑦ Perfil */}
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
+            <div className="flex items-center gap-4 mb-3">
+              <div className="relative w-11 h-11 rounded-full bg-gradient-to-br from-kore-red/20 to-kore-burgundy/10 flex items-center justify-center ring-2 ring-white shadow-sm overflow-hidden">
                 {user.avatar_url ? (
                   <Image src={user.avatar_url} alt="Avatar" fill className="object-cover" />
                 ) : (
-                  <span className="font-heading text-lg font-semibold text-kore-red">
-                    {user.name.charAt(0)}
-                  </span>
+                  <span className="font-heading text-base font-semibold text-kore-red">{user.name.charAt(0)}</span>
                 )}
               </div>
               <div>
                 <p className="font-medium text-kore-gray-dark text-sm">{user.name}</p>
-                <p className="text-xs text-kore-gray-dark/40">{user.email}</p>
+                <p className="text-[10px] text-kore-gray-dark/40">{user.email}</p>
               </div>
             </div>
-            <div className="space-y-2.5 pt-3 border-t border-kore-gray-light/30">
-              <div className="flex justify-between text-sm">
-                <span className="text-kore-gray-dark/50">Programa</span>
-                <span className="text-kore-gray-dark font-medium">{program}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-kore-gray-dark/50">Entrenamientos</span>
-                <span className="text-kore-gray-dark font-medium">{sessionsUsed} de {sessionsTotal}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-kore-gray-dark/50">Miembro desde</span>
-                <span className="text-kore-gray-dark font-medium capitalize">{memberDate}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content Grid */}
-        <div data-hero="body" className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {/* Left — Upcoming Sessions */}
-          <div className="xl:col-span-2 space-y-6">
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="font-heading text-lg font-semibold text-kore-gray-dark">Próximas sesiones</h2>
-                <Link href="/book-session" className="text-xs text-kore-red font-medium hover:underline">
-                  Agendar nueva
-                </Link>
-              </div>
-              {(() => {
-                const upcoming = bookings.filter(
-                  (b) => b.status === 'pending' && new Date(b.slot.starts_at) > new Date()
-                ).sort((a, b) => new Date(a.slot.starts_at).getTime() - new Date(b.slot.starts_at).getTime());
-
-                return upcoming.length > 0 ? (
-                  <div className="space-y-3">
-                    {upcoming.slice(0, 5).map((booking) => {
-                      const d = new Date(booking.slot.starts_at);
-                      const dateStr = d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
-                      const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
-                      const trainerName = booking.trainer
-                        ? `${booking.trainer.first_name} ${booking.trainer.last_name}`.trim()
-                        : '';
-                      return (
-                        <div key={booking.id} className="flex items-center gap-4 p-3 rounded-xl bg-kore-cream/30 hover:bg-kore-cream/60 transition-colors">
-                          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-kore-red/10 flex items-center justify-center">
-                            <CalendarIcon />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-kore-gray-dark capitalize">{dateStr}</p>
-                            <p className="text-xs text-kore-gray-dark/50">{booking.package?.title ?? '—'}{trainerName ? ` · ${trainerName}` : ''}</p>
-                          </div>
-                          <span className="text-sm font-medium text-kore-red">{timeStr}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <div className="w-14 h-14 rounded-full bg-kore-cream mx-auto mb-3 flex items-center justify-center">
-                      <CalendarIcon />
-                    </div>
-                    <p className="text-sm text-kore-gray-dark/50 mb-2">No tienes sesiones próximas</p>
-                    <Link href="/book-session" className="text-sm text-kore-red font-medium hover:underline">
-                      Agenda tu siguiente sesión
-                    </Link>
-                  </div>
-                );
-              })()}
+            <div className="space-y-2 pt-3 border-t border-kore-gray-light/30 text-xs">
+              <div className="flex justify-between"><span className="text-kore-gray-dark/50">Programa</span><span className="text-kore-gray-dark font-medium">{program}</span></div>
+              <div className="flex justify-between"><span className="text-kore-gray-dark/50">Entrenamientos</span><span className="text-kore-gray-dark font-medium">{sessionsUsed} de {sessionsTotal}</span></div>
+              <div className="flex justify-between"><span className="text-kore-gray-dark/50">Miembro desde</span><span className="text-kore-gray-dark font-medium capitalize">{memberDate}</span></div>
             </div>
           </div>
 
-          {/* Right — Diagnosis + History */}
-          <div className="space-y-6">
-            {/* Anthropometry summary card */}
-            {anthroEvals.length > 0 && (() => {
-              const latest = anthroEvals[0];
-              const first = anthroEvals.length > 1 ? anthroEvals[anthroEvals.length - 1] : null;
-              const CT: Record<string, string> = { green: 'text-green-700', yellow: 'text-amber-700', red: 'text-red-600' };
-              const CD: Record<string, string> = { green: 'bg-green-500', yellow: 'bg-amber-500', red: 'bg-red-500' };
-              const weightDiff = first ? parseFloat(latest.weight_kg) - parseFloat(first.weight_kg) : null;
-              const fatDiff = first ? parseFloat(latest.body_fat_pct) - parseFloat(first.body_fat_pct) : null;
-              return (
-                <Link href="/my-diagnosis" className="block bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
-                  <div className="flex items-center justify-between mb-3">
-                    <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Mi estado físico</h2>
-                    <svg className="w-4 h-4 text-kore-gray-dark/30 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                    </svg>
+          {/* ⑧ Mi estado físico (Antropometría) */}
+          {anthroEvals.length > 0 && (() => {
+            const latest = anthroEvals[0];
+            const first = anthroEvals.length > 1 ? anthroEvals[anthroEvals.length - 1] : null;
+            const CT: Record<string, string> = { green: 'text-green-700', yellow: 'text-amber-700', red: 'text-red-600' };
+            const CD: Record<string, string> = { green: 'bg-green-500', yellow: 'bg-amber-500', red: 'bg-red-500' };
+            const weightDiff = first ? parseFloat(latest.weight_kg) - parseFloat(first.weight_kg) : null;
+            const fatDiff = first ? parseFloat(latest.body_fat_pct) - parseFloat(first.body_fat_pct) : null;
+            return (
+              <Link href="/my-diagnosis" className="block bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Mi estado físico</h2>
+                  <svg className="w-4 h-4 text-kore-gray-dark/30 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
+                </div>
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  <div className="text-center">
+                    <p className="font-heading text-lg font-bold text-kore-gray-dark">{latest.weight_kg}</p>
+                    <p className="text-[10px] text-kore-gray-dark/40">kg</p>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 mb-3">
-                    <div className="text-center">
-                      <p className="font-heading text-lg font-bold text-kore-gray-dark">{latest.weight_kg}</p>
-                      <p className="text-[10px] text-kore-gray-dark/40">kg</p>
-                    </div>
-                    <div className="text-center">
-                      <p className={`font-heading text-lg font-bold ${CT[latest.bf_color] || CT.green}`}>{latest.body_fat_pct}%</p>
-                      <p className="text-[10px] text-kore-gray-dark/40">grasa</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="font-heading text-lg font-bold text-green-700">{latest.lean_mass_kg}</p>
-                      <p className="text-[10px] text-kore-gray-dark/40">masa libre</p>
-                    </div>
+                  <div className="text-center">
+                    <p className={`font-heading text-lg font-bold ${CT[latest.bf_color] || CT.green}`}>{latest.body_fat_pct}%</p>
+                    <p className="text-[10px] text-kore-gray-dark/40">grasa</p>
                   </div>
-                  {first && (weightDiff !== null || fatDiff !== null) && (
-                    <div className="flex items-center gap-2 text-[10px]">
-                      <span className="text-kore-gray-dark/40">Desde inicio:</span>
-                      {weightDiff !== null && Math.abs(weightDiff) >= 0.1 && (
-                        <span className={weightDiff < 0 ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>
-                          {weightDiff > 0 ? '+' : ''}{weightDiff.toFixed(1)} kg
-                        </span>
-                      )}
-                      {fatDiff !== null && Math.abs(fatDiff) >= 0.1 && (
-                        <span className={fatDiff < 0 ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>
-                          {fatDiff > 0 ? '+' : ''}{fatDiff.toFixed(1)}% grasa
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  <div ref={anthroDotsRef} className="mt-2 flex items-center gap-1.5">
-                    {['bmi', 'whr', 'bf', 'waist'].map((idx) => {
-                      const color = idx === 'bmi' ? latest.bmi_color : idx === 'whr' ? latest.whr_color : idx === 'bf' ? latest.bf_color : latest.waist_risk_color;
-                      return <div key={idx} className={`anthro-wave-dot w-2 h-2 rounded-full ${CD[color] || CD.green}`} />;
-                    })}
-                    <span className="text-[10px] text-kore-gray-dark/40 ml-1">Ver detalle</span>
+                  <div className="text-center">
+                    <p className="font-heading text-lg font-bold text-green-700">{latest.lean_mass_kg}</p>
+                    <p className="text-[10px] text-kore-gray-dark/40">masa libre</p>
                   </div>
-                </Link>
-              );
-            })()}
+                </div>
+                {first && (weightDiff !== null || fatDiff !== null) && (
+                  <div className="flex items-center gap-2 text-[10px]">
+                    <span className="text-kore-gray-dark/40">Desde inicio:</span>
+                    {weightDiff !== null && Math.abs(weightDiff) >= 0.1 && (
+                      <span className={weightDiff < 0 ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>
+                        {weightDiff > 0 ? '+' : ''}{weightDiff.toFixed(1)} kg
+                      </span>
+                    )}
+                    {fatDiff !== null && Math.abs(fatDiff) >= 0.1 && (
+                      <span className={fatDiff < 0 ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>
+                        {fatDiff > 0 ? '+' : ''}{fatDiff.toFixed(1)}% grasa
+                      </span>
+                    )}
+                  </div>
+                )}
+                <div ref={anthroDotsRef} className="mt-2 flex items-center gap-1.5">
+                  {['bmi', 'whr', 'bf', 'waist'].map((idx) => {
+                    const color = idx === 'bmi' ? latest.bmi_color : idx === 'whr' ? latest.whr_color : idx === 'bf' ? latest.bf_color : latest.waist_risk_color;
+                    return <div key={idx} className={`anthro-wave-dot w-2 h-2 rounded-full ${CD[color] || CD.green}`} />;
+                  })}
+                  <span className="text-[10px] text-kore-gray-dark/40 ml-1">Ver detalle</span>
+                </div>
+              </Link>
+            );
+          })()}
 
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
-              <h2 className="font-heading text-base font-semibold text-kore-gray-dark mb-4">Historial reciente</h2>
-              <div className="space-y-1">
-                {bookings.filter(b => b.status === 'confirmed').length > 0 ? (
-                  bookings.filter(b => b.status === 'confirmed').slice(0, 4).map((booking) => {
-                    const date = new Date(booking.slot.starts_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
+          {/* ⑨ Próximas sesiones — spans 2 columns on xl */}
+          <div className="md:col-span-2 bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Próximas sesiones</h2>
+              <Link href="/book-session" className="text-xs text-kore-red font-medium hover:underline">Agendar nueva</Link>
+            </div>
+            {(() => {
+              const upcoming = bookings.filter(
+                (b) => b.status === 'pending' && new Date(b.slot.starts_at) > new Date()
+              ).sort((a, b) => new Date(a.slot.starts_at).getTime() - new Date(b.slot.starts_at).getTime());
+              return upcoming.length > 0 ? (
+                <div className="space-y-2.5">
+                  {upcoming.slice(0, 4).map((booking) => {
+                    const d = new Date(booking.slot.starts_at);
+                    const dateStr = d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
+                    const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+                    const trainerName = booking.trainer ? `${booking.trainer.first_name} ${booking.trainer.last_name}`.trim() : '';
                     return (
-                      <div key={booking.id} className="flex items-center gap-3 p-2 rounded-lg">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                          <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
+                      <div key={booking.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-kore-cream/30 hover:bg-kore-cream/60 transition-colors">
+                        <div className="flex-shrink-0 w-9 h-9 rounded-full bg-kore-red/10 flex items-center justify-center">
+                          <CalendarIcon />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-kore-gray-dark truncate">{booking.package?.title ?? '—'}</p>
+                          <p className="text-xs font-medium text-kore-gray-dark capitalize">{dateStr}</p>
+                          <p className="text-[10px] text-kore-gray-dark/50">{booking.package?.title ?? '—'}{trainerName ? ` · ${trainerName}` : ''}</p>
                         </div>
-                        <p className="text-xs text-kore-gray-dark/40 capitalize">{date}</p>
+                        <span className="text-xs font-medium text-kore-red">{timeStr}</span>
                       </div>
                     );
-                  })
-                ) : (
-                  <p className="text-xs text-kore-gray-dark/40 text-center py-4">Sin sesiones completadas aún</p>
-                )}
-              </div>
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <div className="w-12 h-12 rounded-full bg-kore-cream mx-auto mb-2 flex items-center justify-center"><CalendarIcon /></div>
+                  <p className="text-xs text-kore-gray-dark/50 mb-1">No tienes sesiones próximas</p>
+                  <Link href="/book-session" className="text-xs text-kore-red font-medium hover:underline">Agenda tu siguiente sesión</Link>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* ⑩ Historial reciente */}
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
+            <h2 className="font-heading text-base font-semibold text-kore-gray-dark mb-3">Historial reciente</h2>
+            <div className="space-y-1">
+              {bookings.filter(b => b.status === 'confirmed').length > 0 ? (
+                bookings.filter(b => b.status === 'confirmed').slice(0, 4).map((booking) => {
+                  const date = new Date(booking.slot.starts_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
+                  return (
+                    <div key={booking.id} className="flex items-center gap-3 p-2 rounded-lg">
+                      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-green-100 flex items-center justify-center">
+                        <svg className="w-3.5 h-3.5 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0"><p className="text-xs font-medium text-kore-gray-dark truncate">{booking.package?.title ?? '—'}</p></div>
+                      <p className="text-[10px] text-kore-gray-dark/40 capitalize">{date}</p>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-xs text-kore-gray-dark/40 text-center py-4">Sin sesiones completadas aún</p>
+              )}
             </div>
           </div>
         </div>

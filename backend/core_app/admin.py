@@ -3,6 +3,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 
 from core_app.forms import UserChangeForm, UserCreationForm
+from core_app.models.posturometry import PosturometryEvaluation
 from core_app.models import (
     AnalyticsEvent,
     AnthropometryEvaluation,
@@ -235,4 +236,18 @@ class AnthropometryEvaluationAdmin(admin.ModelAdmin):
         'waist_height_ratio', 'whe_risk', 'whe_color',
         'body_fat_pct', 'bf_category', 'bf_color',
         'fat_mass_kg', 'lean_mass_kg', 'waist_risk', 'waist_risk_color',
+    )
+
+
+@admin.register(PosturometryEvaluation)
+class PosturometryEvaluationAdmin(admin.ModelAdmin):
+    list_display = ('customer', 'trainer', 'evaluation_date', 'global_index', 'global_category', 'created_at')
+    list_filter = ('global_color', 'created_at')
+    search_fields = ('customer__email', 'customer__first_name')
+    readonly_fields = (
+        'global_index', 'global_category', 'global_color',
+        'upper_index', 'upper_category', 'upper_color',
+        'central_index', 'central_category', 'central_color',
+        'lower_index', 'lower_category', 'lower_color',
+        'segment_scores', 'findings',
     )

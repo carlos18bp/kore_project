@@ -21,6 +21,12 @@ from core_app.views.anthropometry_views import (
     TrainerAnthropometryDetailView,
     TrainerAnthropometryListCreateView,
 )
+from core_app.views.posturometry_views import (
+    ClientPosturometryDetailView,
+    ClientPosturometryListView,
+    TrainerPosturometryDetailView,
+    TrainerPosturometryListCreateView,
+)
 from core_app.views.trainer_client_views import (
     TrainerClientDetailView,
     TrainerClientListView,
@@ -55,4 +61,8 @@ urlpatterns = [
     path('trainer/my-clients/<int:customer_id>/anthropometry/<int:eval_id>/', TrainerAnthropometryDetailView.as_view(), name='trainer-anthropometry-detail'),
     path('my-anthropometry/', ClientAnthropometryListView.as_view(), name='client-anthropometry-list'),
     path('my-anthropometry/<int:eval_id>/', ClientAnthropometryDetailView.as_view(), name='client-anthropometry-detail'),
+    path('trainer/my-clients/<int:customer_id>/posturometry/', TrainerPosturometryListCreateView.as_view(), name='trainer-posturometry-list-create'),
+    path('trainer/my-clients/<int:customer_id>/posturometry/<int:eval_id>/', TrainerPosturometryDetailView.as_view(), name='trainer-posturometry-detail'),
+    path('my-posturometry/', ClientPosturometryListView.as_view(), name='client-posturometry-list'),
+    path('my-posturometry/<int:eval_id>/', ClientPosturometryDetailView.as_view(), name='client-posturometry-detail'),
 ]
