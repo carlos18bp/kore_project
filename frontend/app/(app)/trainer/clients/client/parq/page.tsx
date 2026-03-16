@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useParqStore, ParqAssessment } from '@/lib/stores/parqStore';
 
@@ -78,7 +78,7 @@ function AssessmentCard({ assessment }: { assessment: ParqAssessment }) {
   );
 }
 
-export default function TrainerClientParqPage() {
+function TrainerClientParqContent() {
   const searchParams = useSearchParams();
   const clientId = searchParams.get('clientId');
   const { assessments, loading, error, fetchClientAssessments } = useParqStore();
@@ -122,5 +122,13 @@ export default function TrainerClientParqPage() {
         ))}
       </div>
     </div>
+  );
+}
+
+export default function TrainerClientParqPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-12 text-kore-gray-dark/40">Cargando...</div>}>
+      <TrainerClientParqContent />
+    </Suspense>
   );
 }

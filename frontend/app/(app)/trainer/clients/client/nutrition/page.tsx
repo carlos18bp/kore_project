@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useNutritionStore, NutritionHabit } from '@/lib/stores/nutritionStore';
 
@@ -87,7 +87,7 @@ function EntryCard({ entry }: { entry: NutritionHabit }) {
   );
 }
 
-export default function TrainerClientNutritionPage() {
+function TrainerClientNutritionContent() {
   const searchParams = useSearchParams();
   const clientId = searchParams.get('clientId');
   const { entries, loading, error, fetchClientEntries } = useNutritionStore();
@@ -131,5 +131,13 @@ export default function TrainerClientNutritionPage() {
         ))}
       </div>
     </div>
+  );
+}
+
+export default function TrainerClientNutritionPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-12 text-kore-gray-dark/40">Cargando...</div>}>
+      <TrainerClientNutritionContent />
+    </Suspense>
   );
 }
