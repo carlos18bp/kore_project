@@ -7,3 +7,4 @@ class CoreAppConfig(AppConfig):
 
     def ready(self):
         import core_app.signals  # noqa: F401
+        import core_project.tasks  # noqa: F401 — Huey periodic task discovery
