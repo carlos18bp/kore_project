@@ -27,6 +27,12 @@ from core_app.views.posturometry_views import (
     TrainerPosturometryDetailView,
     TrainerPosturometryListCreateView,
 )
+from core_app.views.physical_evaluation_views import (
+    ClientPhysicalEvalDetailView,
+    ClientPhysicalEvalListView,
+    TrainerPhysicalEvalDetailView,
+    TrainerPhysicalEvalListCreateView,
+)
 from core_app.views.trainer_client_views import (
     TrainerClientDetailView,
     TrainerClientListView,
@@ -65,4 +71,8 @@ urlpatterns = [
     path('trainer/my-clients/<int:customer_id>/posturometry/<int:eval_id>/', TrainerPosturometryDetailView.as_view(), name='trainer-posturometry-detail'),
     path('my-posturometry/', ClientPosturometryListView.as_view(), name='client-posturometry-list'),
     path('my-posturometry/<int:eval_id>/', ClientPosturometryDetailView.as_view(), name='client-posturometry-detail'),
+    path('trainer/my-clients/<int:customer_id>/physical-evaluation/', TrainerPhysicalEvalListCreateView.as_view(), name='trainer-physical-eval-list-create'),
+    path('trainer/my-clients/<int:customer_id>/physical-evaluation/<int:eval_id>/', TrainerPhysicalEvalDetailView.as_view(), name='trainer-physical-eval-detail'),
+    path('my-physical-evaluation/', ClientPhysicalEvalListView.as_view(), name='client-physical-eval-list'),
+    path('my-physical-evaluation/<int:eval_id>/', ClientPhysicalEvalDetailView.as_view(), name='client-physical-eval-detail'),
 ]

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useLayoutEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -10,6 +10,7 @@ import { useBookingStore } from '@/lib/stores/bookingStore';
 import { useProfileStore } from '@/lib/stores/profileStore';
 import { useAnthropometryStore } from '@/lib/stores/anthropometryStore';
 import { usePosturometryStore } from '@/lib/stores/posturometryStore';
+import { usePhysicalEvaluationStore } from '@/lib/stores/physicalEvaluationStore';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 import UpcomingSessionReminder from '@/app/components/booking/UpcomingSessionReminder';
 import SubscriptionExpiryReminder from '@/app/components/subscription/SubscriptionExpiryReminder';
@@ -58,10 +59,31 @@ export default function DashboardPage() {
   const { profile, todayMood, fetchProfile } = useProfileStore();
   const { evaluations: anthroEvals, fetchMyEvaluations } = useAnthropometryStore();
   const { evaluations: posturoEvals, fetchMyEvaluations: fetchMyPosturoEvals } = usePosturometryStore();
+  const { evaluations: physicalEvals, fetchMyEvaluations: fetchMyPhysicalEvals } = usePhysicalEvaluationStore();
   const sectionRef = useRef<HTMLElement>(null);
   const profileFetchedRef = useRef(false);
   useHeroAnimation(sectionRef);
   const anthroDotsRef = useRef<HTMLDivElement>(null);
+  const posturoDotsRef = useRef<HTMLDivElement>(null);
+  const physicalDotsRef = useRef<HTMLDivElement>(null);
+  const bubblesRef = useRef<HTMLDivElement>(null);
+  const mobileBubblesRef = useRef<HTMLDivElement>(null);
+
+  // Computed variables (must be before GSAP effects that depend on them)
+  const sessionsRemaining = sub?.sessions_remaining ?? 0;
+  const sessionsTotal = sub?.sessions_total ?? 0;
+  const sessionsUsed = sub?.sessions_used ?? 0;
+  const progressPercent = sessionsTotal > 0 ? Math.round((sessionsUsed / sessionsTotal) * 100) : 0;
+  const program = sub?.package?.title ?? 'Sin programa activo';
+  const formattedDate = upcomingReminder?.slot
+    ? new Date(upcomingReminder.slot.starts_at).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
+    : null;
+  const formattedTime = upcomingReminder?.slot
+    ? new Date(upcomingReminder.slot.starts_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })
+    : '';
+  const memberDate = sub
+    ? new Date(sub.starts_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '—';
 
   useEffect(() => {
     fetchSubscriptions();
@@ -69,7 +91,8 @@ export default function DashboardPage() {
     fetchBookings();
     fetchMyEvaluations();
     fetchMyPosturoEvals();
-  }, [fetchSubscriptions, fetchUpcomingReminder, fetchBookings, fetchMyEvaluations, fetchMyPosturoEvals]);
+    fetchMyPhysicalEvals();
+  }, [fetchSubscriptions, fetchUpcomingReminder, fetchBookings, fetchMyEvaluations, fetchMyPosturoEvals, fetchMyPhysicalEvals]);
 
   useEffect(() => {
     if (profileFetchedRef.current) return;
@@ -77,18 +100,105 @@ export default function DashboardPage() {
     fetchProfile();
   }, [fetchProfile]);
 
-  // GSAP wave animation for anthropometry dots
+  // GSAP floating bubbles animation for CTA cards (desktop + mobile)
   useEffect(() => {
-    if (!anthroDotsRef.current) return;
-    const dots = anthroDotsRef.current.querySelectorAll('.anthro-wave-dot');
-    if (!dots.length) return;
-    const tl = gsap.timeline({ repeat: -1, repeatDelay: 0.6 });
-    dots.forEach((dot, i) => {
-      tl.to(dot, { y: -4, scaleY: 1.3, duration: 0.25, ease: 'power2.out' }, i * 0.12)
-        .to(dot, { y: 0, scaleY: 1, duration: 0.35, ease: 'bounce.out' }, i * 0.12 + 0.25);
+    const refs = [bubblesRef.current, mobileBubblesRef.current].filter(Boolean);
+    if (!refs.length) return;
+    const ctx = gsap.context(() => {
+      refs.forEach((container) => {
+        const bubbles = container!.querySelectorAll('.cta-bubble');
+        bubbles.forEach((bubble) => {
+          const startX = Math.random() * 100;
+          const startY = Math.random() * 100;
+          const size = 80 + Math.random() * 140;
+          gsap.set(bubble, {
+            left: `${startX}%`,
+            top: `${startY}%`,
+            width: size,
+            height: size,
+            xPercent: -50,
+            yPercent: -50,
+            opacity: 0.15 + Math.random() * 0.25,
+          });
+          gsap.to(bubble, {
+            x: `random(-80, 80)`,
+            y: `random(-50, 50)`,
+            scale: `random(0.7, 1.6)`,
+            opacity: `random(0.2, 0.55)`,
+            duration: `random(5, 10)`,
+            repeat: -1,
+            yoyo: true,
+            ease: 'sine.inOut',
+            delay: Math.random() * 2,
+          });
+        });
+      });
     });
-    return () => { tl.kill(); };
+    return () => ctx.revert();
+  }, [formattedDate]);
+
+  // GSAP smooth pulse animation for anthropometry dots
+  useEffect(() => {
+    if (!anthroEvals.length) return;
+    const raf = requestAnimationFrame(() => {
+      if (!anthroDotsRef.current) return;
+      const dots = anthroDotsRef.current.querySelectorAll('.anthro-wave-dot');
+      if (!dots.length) return;
+      const tl = gsap.timeline({ repeat: -1, defaults: { ease: 'sine.inOut' } });
+      dots.forEach((dot, i) => {
+        tl.to(dot, { y: -4, scale: 1.6, opacity: 0.5, duration: 0.5 }, i * 0.18)
+          .to(dot, { y: 0, scale: 1, opacity: 1, duration: 0.5 }, i * 0.18 + 0.5);
+      });
+      (anthroDotsRef.current as HTMLElement & { _gsapTl?: gsap.core.Timeline })._gsapTl = tl;
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      const el = anthroDotsRef.current as HTMLElement & { _gsapTl?: gsap.core.Timeline } | null;
+      if (el?._gsapTl) el._gsapTl.kill();
+    };
   }, [anthroEvals]);
+
+  // GSAP smooth pulse animation for posturometry dots
+  useEffect(() => {
+    if (!posturoEvals.length) return;
+    const raf = requestAnimationFrame(() => {
+      if (!posturoDotsRef.current) return;
+      const dots = posturoDotsRef.current.querySelectorAll('.posturo-wave-dot');
+      if (!dots.length) return;
+      const tl = gsap.timeline({ repeat: -1, defaults: { ease: 'sine.inOut' } });
+      dots.forEach((dot, i) => {
+        tl.to(dot, { y: -4, scale: 1.6, opacity: 0.5, duration: 0.5 }, i * 0.18)
+          .to(dot, { y: 0, scale: 1, opacity: 1, duration: 0.5 }, i * 0.18 + 0.5);
+      });
+      (posturoDotsRef.current as HTMLElement & { _gsapTl?: gsap.core.Timeline })._gsapTl = tl;
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      const el = posturoDotsRef.current as HTMLElement & { _gsapTl?: gsap.core.Timeline } | null;
+      if (el?._gsapTl) el._gsapTl.kill();
+    };
+  }, [posturoEvals]);
+
+  // GSAP smooth pulse animation for physical evaluation dots
+  useEffect(() => {
+    if (!physicalEvals.length) return;
+    const raf = requestAnimationFrame(() => {
+      if (!physicalDotsRef.current) return;
+      const dots = physicalDotsRef.current.querySelectorAll('.physical-wave-dot');
+      if (!dots.length) return;
+      const tl = gsap.timeline({ repeat: -1, defaults: { ease: 'sine.inOut' } });
+      dots.forEach((dot, i) => {
+        tl.to(dot, { y: -4, scale: 1.6, opacity: 0.5, duration: 0.5 }, i * 0.18)
+          .to(dot, { y: 0, scale: 1, opacity: 1, duration: 0.5 }, i * 0.18 + 0.5);
+      });
+      (physicalDotsRef.current as HTMLElement & { _gsapTl?: gsap.core.Timeline })._gsapTl = tl;
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      const el = physicalDotsRef.current as HTMLElement & { _gsapTl?: gsap.core.Timeline } | null;
+      if (el?._gsapTl) el._gsapTl.kill();
+    };
+  }, [physicalEvals]);
 
   // Dynamic greeting based on time of day
   const getGreeting = () => {
@@ -138,21 +248,6 @@ export default function DashboardPage() {
     );
   }
 
-  const sessionsRemaining = sub?.sessions_remaining ?? 0;
-  const sessionsTotal = sub?.sessions_total ?? 0;
-  const sessionsUsed = sub?.sessions_used ?? 0;
-  const progressPercent = sessionsTotal > 0 ? Math.round((sessionsUsed / sessionsTotal) * 100) : 0;
-  const program = sub?.package?.title ?? 'Sin programa activo';
-  const formattedDate = upcomingReminder?.slot
-    ? new Date(upcomingReminder.slot.starts_at).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
-    : null;
-  const formattedTime = upcomingReminder?.slot
-    ? new Date(upcomingReminder.slot.starts_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })
-    : '';
-  const memberDate = sub
-    ? new Date(sub.starts_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })
-    : '—';
-
   const quickActions = [
     { label: 'Mi suscripción', icon: <CardIcon />, href: '/subscription' },
     { label: 'Mis programas', icon: <ClipboardIcon />, href: '/my-programs' },
@@ -184,13 +279,35 @@ export default function DashboardPage() {
           </h1>
         </div>
 
-        {/* MOBILE: Prominent CTA - Agendar sesión */}
+        {/* MOBILE: Prominent CTA - Agendar sesión — with animated bubbles + grain */}
         <div className="xl:hidden mb-6">
           <Link
             href="/book-session"
-            className="group flex items-center justify-between w-full bg-gradient-to-r from-kore-red to-kore-burgundy text-white p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+            className="group relative flex items-center justify-between w-full text-white p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
           >
-            <div className="flex items-center gap-4">
+            <div className="absolute inset-0 bg-gradient-to-r from-kore-red via-kore-crimson to-kore-burgundy" />
+            <div ref={mobileBubblesRef} className="absolute inset-0 pointer-events-none">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="cta-bubble absolute rounded-full"
+                  style={{
+                    background: i % 5 === 0
+                      ? 'radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%)'
+                      : i % 5 === 1
+                      ? 'radial-gradient(circle, rgba(255,200,200,0.22) 0%, transparent 70%)'
+                      : i % 5 === 2
+                      ? 'radial-gradient(circle, rgba(255,150,170,0.20) 0%, transparent 70%)'
+                      : i % 5 === 3
+                      ? 'radial-gradient(circle, rgba(255,220,210,0.18) 0%, transparent 70%)'
+                      : 'radial-gradient(circle, rgba(255,180,190,0.20) 0%, transparent 70%)',
+                    filter: 'blur(12px)',
+                  }}
+                />
+              ))}
+            </div>
+            <div className="absolute inset-0 opacity-[0.12] pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`, backgroundSize: '128px 128px' }} />
+            <div className="relative z-10 flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
                 <CalendarIcon />
               </div>
@@ -199,7 +316,7 @@ export default function DashboardPage() {
                 <p className="text-sm text-white/70">Continúa tu progreso</p>
               </div>
             </div>
-            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
+            <div className="relative z-10 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
               <ArrowRightIcon />
             </div>
           </Link>
@@ -277,6 +394,35 @@ export default function DashboardPage() {
                 </div>
               );
             })()}
+            {/* Estado de hoy (embedded) */}
+            <div className="py-4 border-t border-kore-gray-light/30">
+              {todayMood ? (
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-heading text-base font-bold flex-shrink-0 ${
+                    todayMood.score >= 7 ? 'bg-green-100 text-green-700' : todayMood.score >= 4 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'
+                  }`}>{todayMood.score}</div>
+                  <div>
+                    <p className="text-[10px] text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Estado de hoy</p>
+                    <p className={`text-sm font-medium ${todayMood.score >= 7 ? 'text-green-700' : todayMood.score >= 4 ? 'text-amber-700' : 'text-red-600'}`}>
+                      {todayMood.score >= 9 ? 'Excelente' : todayMood.score >= 7 ? 'Bien' : todayMood.score >= 5 ? 'Regular' : todayMood.score >= 3 ? 'Bajo' : 'Muy bajo'}
+                      <span className="text-kore-gray-dark/40 text-[10px] font-normal ml-1">de 10</span>
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-kore-cream flex items-center justify-center flex-shrink-0">
+                    <svg className="w-5 h-5 text-kore-gray-dark/30" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Estado de hoy</p>
+                    <Link href="/profile" className="text-xs text-kore-red font-medium hover:underline">Registra cómo te sientes</Link>
+                  </div>
+                </div>
+              )}
+            </div>
             {/* Tu motivación */}
             <div className="flex items-start gap-3 mt-auto pt-4 border-t border-kore-gray-light/30">
               <div className="flex-shrink-0 w-9 h-9 rounded-full bg-purple-100 flex items-center justify-center">
@@ -291,27 +437,81 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* ② CTA: Agendar / Próxima sesión */}
+          {/* ② CTA: Agendar / Próxima sesión — with animated bubbles + grain */}
           {formattedDate ? (
-            <div className="bg-gradient-to-br from-kore-red to-kore-burgundy rounded-2xl p-6 text-white">
-              <p className="text-xs text-white/60 uppercase tracking-widest font-medium mb-3">Próxima sesión</p>
-              <p className="font-heading text-xl font-semibold capitalize mb-1">{formattedDate}</p>
-              <p className="text-white/70 text-sm mb-3">{formattedTime}</p>
-              <div className="flex items-center gap-2 text-xs text-white/50">
-                <CalendarIcon />
-                <span>{upcomingReminder?.trainer ? `${upcomingReminder.trainer.first_name} ${upcomingReminder.trainer.last_name}`.trim() : program}</span>
+            <div className="relative rounded-2xl p-6 text-white overflow-hidden">
+              {/* Base gradient */}
+              <div className="absolute inset-0 bg-gradient-to-br from-kore-red via-kore-crimson to-kore-burgundy" />
+              {/* Animated bubbles */}
+              <div ref={bubblesRef} className="absolute inset-0 pointer-events-none">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="cta-bubble absolute rounded-full opacity-30"
+                    style={{
+                      background: i % 5 === 0
+                        ? 'radial-gradient(circle, rgba(255,64,64,0.7) 0%, transparent 70%)'
+                        : i % 5 === 1
+                        ? 'radial-gradient(circle, rgba(171,13,47,0.6) 0%, transparent 70%)'
+                        : i % 5 === 2
+                        ? 'radial-gradient(circle, rgba(255,118,118,0.5) 0%, transparent 70%)'
+                        : i % 5 === 3
+                        ? 'radial-gradient(circle, rgba(194,0,0,0.5) 0%, transparent 70%)'
+                        : 'radial-gradient(circle, rgba(205,12,54,0.6) 0%, transparent 70%)',
+                      filter: 'blur(6px)',
+                    }}
+                  />
+                ))}
+              </div>
+              {/* Grain overlay */}
+              <div className="absolute inset-0 opacity-[0.12] pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`, backgroundSize: '128px 128px' }} />
+              {/* Content */}
+              <div className="relative z-10">
+                <p className="text-xs text-white/60 uppercase tracking-widest font-medium mb-3">Próxima sesión</p>
+                <p className="font-heading text-xl font-semibold capitalize mb-1">{formattedDate}</p>
+                <p className="text-white/70 text-sm mb-3">{formattedTime}</p>
+                <div className="flex items-center gap-2 text-xs text-white/50">
+                  <CalendarIcon />
+                  <span>{upcomingReminder?.trainer ? `${upcomingReminder.trainer.first_name} ${upcomingReminder.trainer.last_name}`.trim() : program}</span>
+                </div>
               </div>
             </div>
           ) : (
-            <Link href="/book-session" className="group flex flex-col justify-between bg-gradient-to-br from-kore-red to-kore-burgundy rounded-2xl p-6 text-white hover:shadow-lg transition-shadow">
-              <div>
+            <Link href="/book-session" className="group relative block rounded-2xl p-6 text-white overflow-hidden hover:shadow-lg transition-shadow">
+              {/* Base gradient */}
+              <div className="absolute inset-0 bg-gradient-to-br from-kore-red via-kore-crimson to-kore-burgundy" />
+              {/* Animated bubbles */}
+              <div ref={bubblesRef} className="absolute inset-0 pointer-events-none">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="cta-bubble absolute rounded-full opacity-30"
+                    style={{
+                      background: i % 5 === 0
+                        ? 'radial-gradient(circle, rgba(255,64,64,0.7) 0%, transparent 70%)'
+                        : i % 5 === 1
+                        ? 'radial-gradient(circle, rgba(171,13,47,0.6) 0%, transparent 70%)'
+                        : i % 5 === 2
+                        ? 'radial-gradient(circle, rgba(255,118,118,0.5) 0%, transparent 70%)'
+                        : i % 5 === 3
+                        ? 'radial-gradient(circle, rgba(194,0,0,0.5) 0%, transparent 70%)'
+                        : 'radial-gradient(circle, rgba(205,12,54,0.6) 0%, transparent 70%)',
+                      filter: 'blur(6px)',
+                    }}
+                  />
+                ))}
+              </div>
+              {/* Grain overlay */}
+              <div className="absolute inset-0 opacity-[0.12] pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`, backgroundSize: '128px 128px' }} />
+              {/* Content */}
+              <div className="relative z-10">
                 <p className="text-xs text-white/60 uppercase tracking-widest font-medium mb-3">Tu siguiente paso</p>
                 <p className="font-heading text-xl font-semibold mb-1">Agendar sesión</p>
                 <p className="text-white/70 text-sm">Continúa tu transformación</p>
-              </div>
-              <div className="mt-4 flex items-center gap-2 text-sm font-medium group-hover:gap-3 transition-all">
-                <span>Reservar ahora</span>
-                <ArrowRightIcon />
+                <div className="mt-4 flex items-center gap-2 text-sm font-medium group-hover:gap-3 transition-all">
+                  <span>Reservar ahora</span>
+                  <ArrowRightIcon />
+                </div>
               </div>
             </Link>
           )}
@@ -349,62 +549,46 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* ⑤ Historial reciente (compact) */}
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm">
-            <h2 className="font-heading text-sm font-semibold text-kore-gray-dark mb-2">Historial reciente</h2>
-            <div className="space-y-0.5">
-              {bookings.filter(b => b.status === 'confirmed').length > 0 ? (
-                bookings.filter(b => b.status === 'confirmed').slice(0, 3).map((booking) => {
-                  const date = new Date(booking.slot.starts_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
-                  return (
-                    <div key={booking.id} className="flex items-center gap-2 py-1.5 rounded-lg">
-                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
-                        <svg className="w-3 h-3 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <div className="flex-1 min-w-0"><p className="text-[11px] font-medium text-kore-gray-dark truncate">{booking.package?.title ?? '—'}</p></div>
-                      <p className="text-[10px] text-kore-gray-dark/40 capitalize">{date}</p>
-                    </div>
-                  );
-                })
-              ) : (
-                <p className="text-xs text-kore-gray-dark/40 text-center py-2">Sin sesiones completadas</p>
-              )}
+          {/* ⑤ Próximas sesiones */}
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Próximas sesiones</h2>
+              <Link href="/book-session" className="text-xs text-kore-red font-medium hover:underline">Agendar nueva</Link>
             </div>
+            {(() => {
+              const upcoming = bookings.filter(
+                (b) => b.status === 'pending' && new Date(b.slot.starts_at) > new Date()
+              ).sort((a, b) => new Date(a.slot.starts_at).getTime() - new Date(b.slot.starts_at).getTime());
+              return upcoming.length > 0 ? (
+                <div className="space-y-2">
+                  {upcoming.slice(0, 4).map((booking) => {
+                    const d = new Date(booking.slot.starts_at);
+                    const dateStr = d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
+                    const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+                    const trainerName = booking.trainer ? `${booking.trainer.first_name} ${booking.trainer.last_name}`.trim() : '';
+                    return (
+                      <div key={booking.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-kore-cream/30 hover:bg-kore-cream/60 transition-colors">
+                        <div className="flex-shrink-0 w-9 h-9 rounded-full bg-kore-red/10 flex items-center justify-center">
+                          <CalendarIcon />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-kore-gray-dark capitalize">{dateStr} <span className="text-kore-red">· {timeStr}</span></p>
+                          <p className="text-[10px] text-kore-gray-dark/50">{booking.package?.title ?? '—'}{trainerName ? ` · ${trainerName}` : ''}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <div className="w-12 h-12 rounded-full bg-kore-cream mx-auto mb-2 flex items-center justify-center"><CalendarIcon /></div>
+                  <p className="text-xs text-kore-gray-dark/50 mb-1">No tienes sesiones próximas</p>
+                  <Link href="/book-session" className="text-xs text-kore-red font-medium hover:underline">Agenda tu siguiente sesión</Link>
+                </div>
+              );
+            })()}
           </div>
 
-          {/* ⑥ Estado de hoy */}
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
-            <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-3">Estado de hoy</p>
-            {todayMood ? (
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className={`w-11 h-11 rounded-full flex items-center justify-center font-heading text-lg font-bold ${
-                    todayMood.score >= 7 ? 'bg-green-100 text-green-700' : todayMood.score >= 4 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'
-                  }`}>{todayMood.score}</div>
-                  <div>
-                    <p className={`text-sm font-medium ${todayMood.score >= 7 ? 'text-green-700' : todayMood.score >= 4 ? 'text-amber-700' : 'text-red-600'}`}>
-                      {todayMood.score >= 9 ? 'Excelente' : todayMood.score >= 7 ? 'Bien' : todayMood.score >= 5 ? 'Regular' : todayMood.score >= 3 ? 'Bajo' : 'Muy bajo'}
-                    </p>
-                    <p className="text-[10px] text-kore-gray-dark/40">de 10</p>
-                  </div>
-                </div>
-                <p className="text-xs text-kore-gray-dark/60 leading-relaxed">
-                  {todayMood.score >= 9 ? 'Estás en un gran momento. Aprovecha esa energía para dar lo mejor en tu entrenamiento.'
-                    : todayMood.score >= 7 ? 'Te sientes bien, y eso se nota. Mantén ese ritmo constante.'
-                    : todayMood.score >= 5 ? 'Un día tranquilo. A veces la constancia importa más que la intensidad.'
-                    : todayMood.score >= 3 ? 'No todos los días son iguales. Escucha tu cuerpo y avanza a tu ritmo.'
-                    : 'Es válido tener días difíciles. Lo importante es que estás aquí.'}
-                </p>
-              </div>
-            ) : (
-              <div className="text-center py-2">
-                <p className="text-xs text-kore-gray-dark/40 mb-2">Registra cómo te sientes hoy</p>
-                <Link href="/profile" className="text-xs text-kore-red font-medium hover:underline">Ir a mi perfil</Link>
-              </div>
-            )}
-          </div>
 
           {/* ⑦ Evaluación Postural */}
           {posturoEvals.length > 0 && (() => {
@@ -441,10 +625,10 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div ref={posturoDotsRef} className="flex items-center gap-1.5">
                   {['upper', 'central', 'lower'].map((r) => {
                     const col = r === 'upper' ? latest.upper_color : r === 'central' ? latest.central_color : latest.lower_color;
-                    return <div key={r} className={`w-2 h-2 rounded-full ${CDP[col] || CDP.green}`} />;
+                    return <div key={r} className={`posturo-wave-dot w-2 h-2 rounded-full ${CDP[col] || CDP.green}`} />;
                   })}
                   <span className="text-[10px] text-kore-gray-dark/40 ml-1">Ver detalle</span>
                 </div>
@@ -463,7 +647,9 @@ export default function DashboardPage() {
             return (
               <Link href="/my-diagnosis" className="block bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
                 <div className="flex items-center justify-between mb-3">
-                  <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Mi estado físico</h2>
+                  <div>
+                    <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Mi diagnóstico</h2>
+                  </div>
                   <svg className="w-4 h-4 text-kore-gray-dark/30 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                   </svg>
@@ -508,44 +694,76 @@ export default function DashboardPage() {
             );
           })()}
 
-          {/* ⑨ Próximas sesiones — single column list */}
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Próximas sesiones</h2>
-              <Link href="/book-session" className="text-xs text-kore-red font-medium hover:underline">Agendar nueva</Link>
-            </div>
-            {(() => {
-              const upcoming = bookings.filter(
-                (b) => b.status === 'pending' && new Date(b.slot.starts_at) > new Date()
-              ).sort((a, b) => new Date(a.slot.starts_at).getTime() - new Date(b.slot.starts_at).getTime());
-              return upcoming.length > 0 ? (
-                <div className="space-y-2">
-                  {upcoming.slice(0, 4).map((booking) => {
-                    const d = new Date(booking.slot.starts_at);
-                    const dateStr = d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
-                    const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
-                    const trainerName = booking.trainer ? `${booking.trainer.first_name} ${booking.trainer.last_name}`.trim() : '';
-                    return (
-                      <div key={booking.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-kore-cream/30 hover:bg-kore-cream/60 transition-colors">
-                        <div className="flex-shrink-0 w-9 h-9 rounded-full bg-kore-red/10 flex items-center justify-center">
-                          <CalendarIcon />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-kore-gray-dark capitalize">{dateStr} <span className="text-kore-red">· {timeStr}</span></p>
-                          <p className="text-[10px] text-kore-gray-dark/50">{booking.package?.title ?? '—'}{trainerName ? ` · ${trainerName}` : ''}</p>
-                        </div>
-                      </div>
-                    );
+          {/* ⑨ Evaluación Física */}
+          {physicalEvals.length > 0 && (() => {
+            const latest = physicalEvals[0];
+            const CTP: Record<string, string> = { green: 'text-green-700', yellow: 'text-amber-700', red: 'text-red-600' };
+            const CBP: Record<string, string> = { green: 'bg-green-100', yellow: 'bg-amber-100', red: 'bg-red-100' };
+            const CDP: Record<string, string> = { green: 'bg-green-500', yellow: 'bg-amber-500', red: 'bg-red-500' };
+            return (
+              <Link href="/my-physical-evaluation" className="block bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Evaluación Física</h2>
+                  <svg className="w-4 h-4 text-kore-gray-dark/30 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
+                </div>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${CBP[latest.general_color] || CBP.green}`}>
+                    <span className={`font-heading text-lg font-bold ${CTP[latest.general_color] || CTP.green}`}>{latest.general_index}</span>
+                  </div>
+                  <div>
+                    <p className={`text-sm font-medium ${CTP[latest.general_color] || CTP.green}`}>{latest.general_category}</p>
+                    <p className="text-[10px] text-kore-gray-dark/40">Condición general</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 gap-2 mb-2">
+                  {[
+                    { label: 'Fuerza', val: latest.strength_index, col: latest.strength_color },
+                    { label: 'Resist.', val: latest.endurance_index, col: latest.endurance_color },
+                    { label: 'Movil.', val: latest.mobility_index, col: latest.mobility_color },
+                    { label: 'Equil.', val: latest.balance_index, col: latest.balance_color },
+                  ].map((r) => (
+                    <div key={r.label} className="text-center">
+                      <p className={`font-heading text-sm font-bold ${CTP[r.col] || CTP.green}`}>{r.val ?? '—'}</p>
+                      <p className="text-[10px] text-kore-gray-dark/40">{r.label}</p>
+                    </div>
+                  ))}
+                </div>
+                <div ref={physicalDotsRef} className="flex items-center gap-1.5">
+                  {['strength', 'endurance', 'mobility', 'balance'].map((k) => {
+                    const col = String((latest as unknown as Record<string, unknown>)[`${k}_color`] || 'green');
+                    return <div key={k} className={`physical-wave-dot w-2 h-2 rounded-full ${CDP[col] || CDP.green}`} />;
                   })}
+                  <span className="text-[10px] text-kore-gray-dark/40 ml-1">Ver detalle</span>
                 </div>
+              </Link>
+            );
+          })()}
+
+          {/* ⑥ Historial reciente (compact) */}
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm">
+            <h2 className="font-heading text-sm font-semibold text-kore-gray-dark mb-2">Historial reciente</h2>
+            <div className="space-y-0.5">
+              {bookings.filter(b => b.status === 'confirmed').length > 0 ? (
+                bookings.filter(b => b.status === 'confirmed').slice(0, 3).map((booking) => {
+                  const date = new Date(booking.slot.starts_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
+                  return (
+                    <div key={booking.id} className="flex items-center gap-2 py-1.5 rounded-lg">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+                        <svg className="w-3 h-3 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0"><p className="text-[11px] font-medium text-kore-gray-dark truncate">{booking.package?.title ?? '—'}</p></div>
+                      <p className="text-[10px] text-kore-gray-dark/40 capitalize">{date}</p>
+                    </div>
+                  );
+                })
               ) : (
-                <div className="text-center py-6">
-                  <div className="w-12 h-12 rounded-full bg-kore-cream mx-auto mb-2 flex items-center justify-center"><CalendarIcon /></div>
-                  <p className="text-xs text-kore-gray-dark/50 mb-1">No tienes sesiones próximas</p>
-                  <Link href="/book-session" className="text-xs text-kore-red font-medium hover:underline">Agenda tu siguiente sesión</Link>
-                </div>
-              );
-            })()}
+                <p className="text-xs text-kore-gray-dark/40 text-center py-2">Sin sesiones completadas</p>
+              )}
+            </div>
           </div>
         </div>
       </div>

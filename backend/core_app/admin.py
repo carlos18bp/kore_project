@@ -4,6 +4,7 @@ from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 
 from core_app.forms import UserChangeForm, UserCreationForm
 from core_app.models.posturometry import PosturometryEvaluation
+from core_app.models.physical_evaluation import PhysicalEvaluation
 from core_app.models import (
     AnalyticsEvent,
     AnthropometryEvaluation,
@@ -250,4 +251,21 @@ class PosturometryEvaluationAdmin(admin.ModelAdmin):
         'central_index', 'central_category', 'central_color',
         'lower_index', 'lower_category', 'lower_color',
         'segment_scores', 'findings',
+    )
+
+
+@admin.register(PhysicalEvaluation)
+class PhysicalEvaluationAdmin(admin.ModelAdmin):
+    list_display = ('customer', 'trainer', 'evaluation_date', 'general_index', 'general_category', 'created_at')
+    list_filter = ('general_color', 'created_at')
+    search_fields = ('customer__email', 'customer__first_name')
+    readonly_fields = (
+        'age_at_evaluation', 'sex_at_evaluation',
+        'squats_score', 'pushups_score', 'plank_score', 'walk_score', 'unipodal_score',
+        'strength_index', 'strength_category', 'strength_color',
+        'endurance_index', 'endurance_category', 'endurance_color',
+        'mobility_index', 'mobility_category', 'mobility_color',
+        'balance_index', 'balance_category', 'balance_color',
+        'general_index', 'general_category', 'general_color',
+        'cross_module_alerts',
     )
