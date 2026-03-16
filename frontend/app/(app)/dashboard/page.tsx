@@ -146,8 +146,8 @@ export default function DashboardPage() {
       if (!dots.length) return;
       const tl = gsap.timeline({ repeat: -1, defaults: { ease: 'sine.inOut' } });
       dots.forEach((dot, i) => {
-        tl.to(dot, { y: -4, scale: 1.6, opacity: 0.5, duration: 0.5 }, i * 0.18)
-          .to(dot, { y: 0, scale: 1, opacity: 1, duration: 0.5 }, i * 0.18 + 0.5);
+        tl.to(dot, { y: -3, opacity: 0.45, duration: 0.4 }, i * 0.15)
+          .to(dot, { y: 0, opacity: 1, duration: 0.4 }, i * 0.15 + 0.4);
       });
       (anthroDotsRef.current as HTMLElement & { _gsapTl?: gsap.core.Timeline })._gsapTl = tl;
     });
@@ -167,8 +167,8 @@ export default function DashboardPage() {
       if (!dots.length) return;
       const tl = gsap.timeline({ repeat: -1, defaults: { ease: 'sine.inOut' } });
       dots.forEach((dot, i) => {
-        tl.to(dot, { y: -4, scale: 1.6, opacity: 0.5, duration: 0.5 }, i * 0.18)
-          .to(dot, { y: 0, scale: 1, opacity: 1, duration: 0.5 }, i * 0.18 + 0.5);
+        tl.to(dot, { y: -3, opacity: 0.45, duration: 0.4 }, i * 0.15)
+          .to(dot, { y: 0, opacity: 1, duration: 0.4 }, i * 0.15 + 0.4);
       });
       (posturoDotsRef.current as HTMLElement & { _gsapTl?: gsap.core.Timeline })._gsapTl = tl;
     });
@@ -188,8 +188,8 @@ export default function DashboardPage() {
       if (!dots.length) return;
       const tl = gsap.timeline({ repeat: -1, defaults: { ease: 'sine.inOut' } });
       dots.forEach((dot, i) => {
-        tl.to(dot, { y: -4, scale: 1.6, opacity: 0.5, duration: 0.5 }, i * 0.18)
-          .to(dot, { y: 0, scale: 1, opacity: 1, duration: 0.5 }, i * 0.18 + 0.5);
+        tl.to(dot, { y: -3, opacity: 0.45, duration: 0.4 }, i * 0.15)
+          .to(dot, { y: 0, opacity: 1, duration: 0.4 }, i * 0.15 + 0.4);
       });
       (physicalDotsRef.current as HTMLElement & { _gsapTl?: gsap.core.Timeline })._gsapTl = tl;
     });
