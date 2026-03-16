@@ -33,6 +33,19 @@ from core_app.views.physical_evaluation_views import (
     TrainerPhysicalEvalDetailView,
     TrainerPhysicalEvalListCreateView,
 )
+from core_app.views.pending_assessments_view import PendingAssessmentsView
+from core_app.views.nutrition_views import (
+    ClientNutritionDetailView,
+    ClientNutritionListCreateView,
+    TrainerNutritionDetailView,
+    TrainerNutritionListView,
+)
+from core_app.views.parq_views import (
+    ClientParqDetailView,
+    ClientParqListCreateView,
+    TrainerParqDetailView,
+    TrainerParqListView,
+)
 from core_app.views.trainer_client_views import (
     TrainerClientDetailView,
     TrainerClientListView,
@@ -75,4 +88,13 @@ urlpatterns = [
     path('trainer/my-clients/<int:customer_id>/physical-evaluation/<int:eval_id>/', TrainerPhysicalEvalDetailView.as_view(), name='trainer-physical-eval-detail'),
     path('my-physical-evaluation/', ClientPhysicalEvalListView.as_view(), name='client-physical-eval-list'),
     path('my-physical-evaluation/<int:eval_id>/', ClientPhysicalEvalDetailView.as_view(), name='client-physical-eval-detail'),
+    path('my-pending-assessments/', PendingAssessmentsView.as_view(), name='client-pending-assessments'),
+    path('my-nutrition/', ClientNutritionListCreateView.as_view(), name='client-nutrition-list-create'),
+    path('my-nutrition/<int:eval_id>/', ClientNutritionDetailView.as_view(), name='client-nutrition-detail'),
+    path('trainer/my-clients/<int:customer_id>/nutrition/', TrainerNutritionListView.as_view(), name='trainer-nutrition-list'),
+    path('trainer/my-clients/<int:customer_id>/nutrition/<int:eval_id>/', TrainerNutritionDetailView.as_view(), name='trainer-nutrition-detail'),
+    path('my-parq/', ClientParqListCreateView.as_view(), name='client-parq-list-create'),
+    path('my-parq/<int:eval_id>/', ClientParqDetailView.as_view(), name='client-parq-detail'),
+    path('trainer/my-clients/<int:customer_id>/parq/', TrainerParqListView.as_view(), name='trainer-parq-list'),
+    path('trainer/my-clients/<int:customer_id>/parq/<int:eval_id>/', TrainerParqDetailView.as_view(), name='trainer-parq-detail'),
 ]

@@ -281,41 +281,13 @@ export default function DashboardPage() {
 
       <div className="w-full px-4 sm:px-6 md:px-10 lg:px-14 pt-20 xl:pt-6 pb-12 relative z-10">
 
-        {/* ═══ TOP HEADER: Greeting + Profile badge ═══ */}
-        <div data-hero="badge" className="mb-6 xl:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        {/* ═══ TOP HEADER: Greeting ═══ */}
+        <div data-hero="badge" className="mb-6 xl:mb-8">
           <div>
-            <p className="text-[10px] text-kore-gray-dark/40 uppercase tracking-widest mb-0.5">Tu espacio</p>
+            <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-1">Tu espacio</p>
             <h1 className="font-heading text-2xl md:text-3xl font-semibold text-kore-gray-dark">
               {getGreeting()}, {user.name.split(' ')[0]}
             </h1>
-          </div>
-          {/* Inline profile badge — eliminates sparse profile card */}
-          <div className="flex items-center gap-3 bg-white/60 backdrop-blur-sm rounded-2xl px-4 py-2.5 border border-white/50 shadow-sm">
-            <div className="relative w-9 h-9 rounded-full bg-gradient-to-br from-kore-red/20 to-kore-burgundy/10 flex items-center justify-center ring-2 ring-white shadow-sm overflow-hidden flex-shrink-0">
-              {user.avatar_url ? (
-                <Image src={user.avatar_url} alt="Avatar" fill className="object-cover" />
-              ) : (
-                <span className="font-heading text-xs font-semibold text-kore-red">{user.name.charAt(0)}</span>
-              )}
-            </div>
-            <div className="min-w-0 hidden sm:block">
-              <p className="font-medium text-kore-gray-dark text-xs truncate">{user.name}</p>
-              <p className="text-[9px] text-kore-gray-dark/40 truncate">{user.email}</p>
-            </div>
-            <div className="hidden lg:flex items-center gap-4 ml-3 pl-3 border-l border-kore-gray-light/30">
-              <div className="text-center">
-                <p className="text-[9px] text-kore-gray-dark/40">Programa</p>
-                <p className="text-[10px] font-medium text-kore-gray-dark truncate max-w-[120px]">{program}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-[9px] text-kore-gray-dark/40">Sesiones</p>
-                <p className="text-[10px] font-medium text-kore-gray-dark">{sessionsUsed}/{sessionsTotal}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-[9px] text-kore-gray-dark/40">Miembro desde</p>
-                <p className="text-[10px] font-medium text-kore-gray-dark capitalize">{memberDate}</p>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -376,7 +348,7 @@ export default function DashboardPage() {
                 </svg>
               </div>
               <div className="flex-1">
-                <p className="text-xs text-kore-gray-dark/90 leading-relaxed font-medium">
+                <p className="text-sm text-kore-gray-dark/90 leading-relaxed font-medium">
                   {getProgressMessage(sessionsUsed, progressPercent)}
                 </p>
               </div>
@@ -390,8 +362,8 @@ export default function DashboardPage() {
           {/* ① Progress + Goal + Mood + Motivation — left column */}
           <div className="xl:col-span-3 xl:row-span-2 bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm flex flex-col">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] text-kore-gray-dark/50 uppercase tracking-widest font-medium">Tu progreso</p>
-              <span className="text-[10px] text-green-700 font-semibold bg-green-100 px-2 py-0.5 rounded-full">
+              <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium">Tu progreso</p>
+              <span className="text-xs text-green-700 font-semibold bg-green-100 px-2 py-0.5 rounded-full">
                 {getProgressStage(progressPercent)}
               </span>
             </div>
@@ -423,8 +395,8 @@ export default function DashboardPage() {
                         <GoalIcon className="w-4 h-4 text-kore-red" />
                       </div>
                       <div>
-                        <p className="text-[9px] text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Mi objetivo</p>
-                        <span className="text-xs font-medium text-kore-gray-dark">{getGoalLabel(goalValue)}</span>
+                        <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Mi objetivo</p>
+                        <span className="text-sm font-medium text-kore-gray-dark">{getGoalLabel(goalValue)}</span>
                       </div>
                     </div>
                   ) : (
@@ -441,10 +413,10 @@ export default function DashboardPage() {
                     todayMood.score >= 7 ? 'bg-green-100 text-green-700' : todayMood.score >= 4 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'
                   }`}>{todayMood.score}</div>
                   <div>
-                    <p className="text-[9px] text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Estado de hoy</p>
-                    <p className={`text-xs font-medium ${todayMood.score >= 7 ? 'text-green-700' : todayMood.score >= 4 ? 'text-amber-700' : 'text-red-600'}`}>
+                    <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Estado de hoy</p>
+                    <p className={`text-sm font-medium ${todayMood.score >= 7 ? 'text-green-700' : todayMood.score >= 4 ? 'text-amber-700' : 'text-red-600'}`}>
                       {todayMood.score >= 9 ? 'Excelente' : todayMood.score >= 7 ? 'Bien' : todayMood.score >= 5 ? 'Regular' : todayMood.score >= 3 ? 'Bajo' : 'Muy bajo'}
-                      <span className="text-kore-gray-dark/40 text-[9px] font-normal ml-1">de 10</span>
+                      <span className="text-kore-gray-dark/40 text-xs font-normal ml-1">de 10</span>
                     </p>
                   </div>
                 </div>
@@ -456,8 +428,8 @@ export default function DashboardPage() {
                     </svg>
                   </div>
                   <div>
-                    <p className="text-[9px] text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Estado de hoy</p>
-                    <Link href="/profile" className="text-[10px] text-kore-red font-medium hover:underline">Registra cómo te sientes</Link>
+                    <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Estado de hoy</p>
+                    <Link href="/profile" className="text-xs text-kore-red font-medium hover:underline">Registra cómo te sientes</Link>
                   </div>
                 </div>
               )}
@@ -470,9 +442,14 @@ export default function DashboardPage() {
                 </svg>
               </div>
               <div className="flex-1">
-                <p className="text-[9px] text-purple-600/80 uppercase tracking-wider font-semibold mb-0.5">Tu motivación</p>
-                <p className="text-[10px] text-kore-gray-dark/70 leading-relaxed">{getProgressMessage(sessionsUsed, progressPercent)}</p>
+                <p className="text-xs text-purple-600/80 uppercase tracking-wider font-semibold mb-0.5">Tu motivación</p>
+                <p className="text-xs text-kore-gray-dark/70 leading-relaxed">{getProgressMessage(sessionsUsed, progressPercent)}</p>
               </div>
+            </div>
+            {/* Miembro desde */}
+            <div className="pt-3 border-t border-kore-gray-light/30">
+              <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Miembro desde</p>
+              <p className="text-sm font-medium text-kore-gray-dark capitalize">{memberDate}</p>
             </div>
           </div>
 
@@ -507,9 +484,9 @@ export default function DashboardPage() {
                 <div className="absolute inset-0 opacity-[0.12] pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`, backgroundSize: '128px 128px' }} />
                 {/* Content */}
                 <div className="relative z-10">
-                  <p className="text-[10px] text-white/60 uppercase tracking-widest font-medium mb-2">Próxima sesión</p>
-                  <p className="font-heading text-lg font-semibold capitalize mb-0.5">{formattedDate}</p>
-                  <p className="text-white/70 text-sm mb-2">{formattedTime}</p>
+                  <p className="text-xs text-white/60 uppercase tracking-widest font-medium mb-2">Próxima sesión</p>
+                  <p className="font-heading text-xl font-semibold capitalize mb-0.5">{formattedDate}</p>
+                  <p className="text-white/80 text-base mb-2">{formattedTime}</p>
                   <div className="flex items-center gap-2 text-xs text-white/50">
                     <CalendarIcon />
                     <span>{upcomingReminder?.trainer ? `${upcomingReminder.trainer.first_name} ${upcomingReminder.trainer.last_name}`.trim() : program}</span>
@@ -545,9 +522,9 @@ export default function DashboardPage() {
                 <div className="absolute inset-0 opacity-[0.12] pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`, backgroundSize: '128px 128px' }} />
                 {/* Content */}
                 <div className="relative z-10">
-                  <p className="text-[10px] text-white/60 uppercase tracking-widest font-medium mb-2">Tu siguiente paso</p>
-                  <p className="font-heading text-lg font-semibold mb-0.5">Agendar sesión</p>
-                  <p className="text-white/70 text-sm">Continúa tu transformación</p>
+                  <p className="text-xs text-white/60 uppercase tracking-widest font-medium mb-2">Tu siguiente paso</p>
+                  <p className="font-heading text-xl font-semibold mb-0.5">Agendar sesión</p>
+                  <p className="text-white/80 text-base">Continúa tu transformación</p>
                   <div className="mt-3 flex items-center gap-2 text-sm font-medium group-hover:gap-3 transition-all">
                     <span>Reservar ahora</span>
                     <ArrowRightIcon />
@@ -581,8 +558,8 @@ export default function DashboardPage() {
                             </svg>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-medium text-kore-gray-dark capitalize">{dateStr} <span className="text-kore-red">· {timeStr}</span></p>
-                            <p className="text-[9px] text-kore-gray-dark/50">{booking.package?.title ?? '—'}{trainerName ? ` · ${trainerName}` : ''}</p>
+                            <p className="text-sm font-medium text-kore-gray-dark capitalize">{dateStr} <span className="text-kore-red">· {timeStr}</span></p>
+                            <p className="text-xs text-kore-gray-dark/50">{booking.package?.title ?? '—'}{trainerName ? ` · ${trainerName}` : ''}</p>
                           </div>
                         </div>
                       );
@@ -591,8 +568,8 @@ export default function DashboardPage() {
                 ) : (
                   <div className="text-center py-4">
                     <div className="w-10 h-10 rounded-full bg-kore-cream mx-auto mb-1.5 flex items-center justify-center"><CalendarIcon /></div>
-                    <p className="text-[10px] text-kore-gray-dark/50 mb-0.5">No tienes sesiones próximas</p>
-                    <Link href="/book-session" className="text-[10px] text-kore-red font-medium hover:underline">Agenda tu siguiente sesión</Link>
+                    <p className="text-sm text-kore-gray-dark/50 mb-1">No tienes sesiones próximas</p>
+                    <Link href="/book-session" className="text-xs text-kore-red font-medium hover:underline">Agenda tu siguiente sesión</Link>
                   </div>
                 );
               })()}
@@ -608,7 +585,7 @@ export default function DashboardPage() {
               const col = koreIndex.kore_color;
               return (
                 <div className="flex flex-col h-full">
-                  <p className="text-[10px] text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-3">Calificación KÓRE</p>
+                  <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-3">Calificación KÓRE</p>
                   <div className="flex items-center gap-4 mb-4">
                     <div className="relative w-16 h-16 flex-shrink-0">
                       <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
@@ -621,7 +598,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex-1">
                       <p className={`text-sm font-semibold ${CK[col] || CK.green}`}>{koreIndex.kore_category}</p>
-                      <p className="text-[10px] text-kore-gray-dark/40 leading-relaxed mt-0.5">{koreIndex.kore_message}</p>
+                      <p className="text-xs text-kore-gray-dark/40 leading-relaxed mt-0.5">{koreIndex.kore_message}</p>
                     </div>
                   </div>
                   {/* Module breakdown mini bars */}
@@ -639,22 +616,22 @@ export default function DashboardPage() {
                       const barCol = val >= 75 ? 'bg-emerald-500' : val >= 60 ? 'bg-amber-400' : val >= 40 ? 'bg-orange-400' : 'bg-red-500';
                       return (
                         <div key={key} className="flex items-center gap-2">
-                          <span className="text-[10px] text-kore-gray-dark/50 w-20 truncate">{label}</span>
+                          <span className="text-xs text-kore-gray-dark/50 w-20 truncate">{label}</span>
                           <div className="flex-1 h-2 bg-gray-100 rounded-full">
                             <div className={`h-2 rounded-full transition-all duration-500 ${barCol}`} style={{ width: `${Math.min(val, 100)}%` }} />
                           </div>
-                          <span className="text-[10px] text-kore-gray-dark/60 font-semibold w-7 text-right">{Math.round(val)}</span>
+                          <span className="text-xs text-kore-gray-dark/60 font-semibold w-7 text-right">{Math.round(val)}</span>
                         </div>
                       );
                     }).filter(Boolean)}
                   </div>
-                  <p className="text-[9px] text-kore-gray-dark/30 mt-3">{koreIndex.modules_available} de {koreIndex.modules_total} módulos evaluados</p>
+                  <p className="text-xs text-kore-gray-dark/30 mt-3">{koreIndex.modules_available} de {koreIndex.modules_total} módulos evaluados</p>
                 </div>
               );
             })() : (
               <div>
-                <p className="text-[10px] text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-2">Calificación KÓRE</p>
-                <p className="text-xs text-kore-gray-dark/40">Completa tus evaluaciones para ver tu calificación general.</p>
+                <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-2">Calificación KÓRE</p>
+                <p className="text-sm text-kore-gray-dark/40">Completa tus evaluaciones para ver tu calificación general.</p>
               </div>
             )}
           </div>
@@ -673,7 +650,7 @@ export default function DashboardPage() {
             return (
               <Link href="/my-posturometry" className="block bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
                 <div className="flex items-center justify-between mb-2.5">
-                  <h2 className="font-heading text-sm font-semibold text-kore-gray-dark">Evaluación Postural</h2>
+                  <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Evaluación Postural</h2>
                   <svg className="w-3.5 h-3.5 text-kore-gray-dark/30 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                   </svg>
@@ -683,8 +660,8 @@ export default function DashboardPage() {
                     <span className={`font-heading text-base font-bold ${CTP[latest.global_color] || CTP.green}`}>{latest.global_index}</span>
                   </div>
                   <div>
-                    <p className={`text-xs font-medium ${CTP[latest.global_color] || CTP.green}`}>{latest.global_category}</p>
-                    <p className="text-[9px] text-kore-gray-dark/40">Índice global</p>
+                    <p className={`text-sm font-medium ${CTP[latest.global_color] || CTP.green}`}>{latest.global_category}</p>
+                    <p className="text-xs text-kore-gray-dark/40">Índice global</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-1.5 mb-2">
@@ -694,8 +671,8 @@ export default function DashboardPage() {
                     { label: 'Inferior', val: latest.lower_index, col: latest.lower_color },
                   ].map((r) => (
                     <div key={r.label} className="text-center bg-kore-cream/40 rounded-lg py-1.5">
-                      <p className={`font-heading text-xs font-bold ${CTP[r.col] || CTP.green}`}>{r.val}</p>
-                      <p className="text-[8px] text-kore-gray-dark/40">{r.label}</p>
+                      <p className={`font-heading text-sm font-bold ${CTP[r.col] || CTP.green}`}>{r.val}</p>
+                      <p className="text-xs text-kore-gray-dark/40">{r.label}</p>
                     </div>
                   ))}
                 </div>
@@ -708,16 +685,16 @@ export default function DashboardPage() {
                   ].map((r) => (
                     <div key={r.label} className="flex items-center gap-2">
                       <div className={`posturo-wave-dot w-2 h-2 rounded-full flex-shrink-0 ${CDP[r.col] || CDP.green}`} />
-                      <span className="text-[10px] text-kore-gray-dark/70 flex-1">{r.label}</span>
-                      <span className={`text-[9px] font-medium ${CTP[r.col] || CTP.green}`}>{r.cat || 'Funcional'}</span>
+                      <span className="text-xs text-kore-gray-dark/70 flex-1">{r.label}</span>
+                      <span className={`text-xs font-medium ${CTP[r.col] || CTP.green}`}>{r.cat || 'Funcional'}</span>
                     </div>
                   ))}
                 </div>
                 {/* Trainer notes */}
                 {latest.notes && (
                   <div className="pt-2 border-t border-kore-gray-light/20">
-                    <p className="text-[8px] text-kore-gray-dark/40 uppercase tracking-wider font-medium mb-0.5">Tu entrenador</p>
-                    <p className="text-[10px] text-kore-gray-dark/60 leading-relaxed line-clamp-2 italic">{latest.notes}</p>
+                    <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider font-medium mb-0.5">Tu entrenador</p>
+                    <p className="text-xs text-kore-gray-dark/60 leading-relaxed line-clamp-2 italic">{latest.notes}</p>
                   </div>
                 )}
               </Link>
@@ -735,7 +712,7 @@ export default function DashboardPage() {
             return (
               <Link href="/my-diagnosis" className="block bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
                 <div className="flex items-center justify-between mb-2.5">
-                  <h2 className="font-heading text-sm font-semibold text-kore-gray-dark">Mi diagnóstico</h2>
+                  <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Mi diagnóstico</h2>
                   <svg className="w-3.5 h-3.5 text-kore-gray-dark/30 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                   </svg>
@@ -747,13 +724,13 @@ export default function DashboardPage() {
                     { label: 'masa libre', val: latest.lean_mass_kg, colClass: 'text-green-700' },
                   ].map((item) => (
                     <div key={item.label} className="text-center bg-kore-cream/40 rounded-lg py-1.5">
-                      <p className={`font-heading text-sm font-bold ${item.colClass}`}>{item.val}</p>
-                      <p className="text-[8px] text-kore-gray-dark/40">{item.label}</p>
+                      <p className={`font-heading text-base font-bold ${item.colClass}`}>{item.val}</p>
+                      <p className="text-xs text-kore-gray-dark/40">{item.label}</p>
                     </div>
                   ))}
                 </div>
                 {first && (weightDiff !== null || fatDiff !== null) && (
-                  <div className="flex items-center gap-2 text-[9px] mb-1.5">
+                  <div className="flex items-center gap-2 text-xs mb-1.5">
                     <span className="text-kore-gray-dark/40">Desde inicio:</span>
                     {weightDiff !== null && Math.abs(weightDiff) >= 0.1 && (
                       <span className={weightDiff < 0 ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>
@@ -777,16 +754,16 @@ export default function DashboardPage() {
                   ].map((item) => (
                     <div key={item.key} className="flex items-center gap-2">
                       <div className={`anthro-wave-dot w-2 h-2 rounded-full flex-shrink-0 ${CD[item.col] || CD.green}`} />
-                      <span className="text-[10px] text-kore-gray-dark/70 flex-1">{item.label}</span>
-                      <span className={`text-[9px] font-medium ${CT[item.col] || CT.green}`}>{item.cat}</span>
+                      <span className="text-xs text-kore-gray-dark/70 flex-1">{item.label}</span>
+                      <span className={`text-xs font-medium ${CT[item.col] || CT.green}`}>{item.cat}</span>
                     </div>
                   ))}
                 </div>
                 {/* Trainer notes */}
                 {latest.notes && (
                   <div className="pt-2 border-t border-kore-gray-light/20">
-                    <p className="text-[8px] text-kore-gray-dark/40 uppercase tracking-wider font-medium mb-0.5">Tu entrenador</p>
-                    <p className="text-[10px] text-kore-gray-dark/60 leading-relaxed line-clamp-2 italic">{latest.notes}</p>
+                    <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider font-medium mb-0.5">Tu entrenador</p>
+                    <p className="text-xs text-kore-gray-dark/60 leading-relaxed line-clamp-2 italic">{latest.notes}</p>
                   </div>
                 )}
               </Link>
@@ -802,7 +779,7 @@ export default function DashboardPage() {
             return (
               <Link href="/my-physical-evaluation" className="block bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
                 <div className="flex items-center justify-between mb-2.5">
-                  <h2 className="font-heading text-sm font-semibold text-kore-gray-dark">Evaluación Física</h2>
+                  <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Evaluación Física</h2>
                   <svg className="w-3.5 h-3.5 text-kore-gray-dark/30 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                   </svg>
@@ -812,8 +789,8 @@ export default function DashboardPage() {
                     <span className={`font-heading text-base font-bold ${CTP[latest.general_color] || CTP.green}`}>{latest.general_index}</span>
                   </div>
                   <div>
-                    <p className={`text-xs font-medium ${CTP[latest.general_color] || CTP.green}`}>{latest.general_category}</p>
-                    <p className="text-[9px] text-kore-gray-dark/40">Condición general</p>
+                    <p className="text-sm font-medium {CTP[latest.general_color] || CTP.green}">{latest.general_category}</p>
+                    <p className="text-xs text-kore-gray-dark/40">Condición general</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-4 gap-1 mb-2">
@@ -824,8 +801,8 @@ export default function DashboardPage() {
                     { label: 'Equil.', val: latest.balance_index, col: latest.balance_color },
                   ].map((r) => (
                     <div key={r.label} className="text-center bg-kore-cream/40 rounded-lg py-1.5">
-                      <p className={`font-heading text-xs font-bold ${CTP[r.col] || CTP.green}`}>{r.val ?? '—'}</p>
-                      <p className="text-[8px] text-kore-gray-dark/40">{r.label}</p>
+                      <p className={`font-heading text-sm font-bold ${CTP[r.col] || CTP.green}`}>{r.val ?? '—'}</p>
+                      <p className="text-xs text-kore-gray-dark/40">{r.label}</p>
                     </div>
                   ))}
                 </div>
@@ -839,16 +816,16 @@ export default function DashboardPage() {
                   ].map((item) => (
                     <div key={item.key} className="flex items-center gap-2">
                       <div className={`physical-wave-dot w-2 h-2 rounded-full flex-shrink-0 ${CDP[item.col] || CDP.green}`} />
-                      <span className="text-[10px] text-kore-gray-dark/70 flex-1">{item.label}</span>
-                      <span className={`text-[9px] font-medium ${CTP[item.col] || CTP.green}`}>{item.cat || '—'}</span>
+                      <span className="text-xs text-kore-gray-dark/70 flex-1">{item.label}</span>
+                      <span className={`text-xs font-medium ${CTP[item.col] || CTP.green}`}>{item.cat || '—'}</span>
                     </div>
                   ))}
                 </div>
                 {/* Trainer notes */}
                 {latest.notes && (
                   <div className="pt-2 border-t border-kore-gray-light/20">
-                    <p className="text-[8px] text-kore-gray-dark/40 uppercase tracking-wider font-medium mb-0.5">Tu entrenador</p>
-                    <p className="text-[10px] text-kore-gray-dark/60 leading-relaxed line-clamp-2 italic">{latest.notes}</p>
+                    <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider font-medium mb-0.5">Tu entrenador</p>
+                    <p className="text-xs text-kore-gray-dark/60 leading-relaxed line-clamp-2 italic">{latest.notes}</p>
                   </div>
                 )}
               </Link>
@@ -868,7 +845,7 @@ export default function DashboardPage() {
               return (
                 <Link href="/my-nutrition" className="block bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
                   <div className="flex items-center justify-between mb-2">
-                    <h2 className="font-heading text-sm font-semibold text-kore-gray-dark">Mi Nutrición</h2>
+                    <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Mi Nutrición</h2>
                     <svg className="w-3.5 h-3.5 text-kore-gray-dark/30 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                     </svg>
@@ -879,7 +856,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className={`text-xs font-medium ${CTN[latest.habit_color] || CTN.green}`}>{latest.habit_category}</p>
-                      <p className="text-[9px] text-kore-gray-dark/40">Índice /10</p>
+                      <p className="text-xs text-kore-gray-dark/40">Índice /10</p>
                     </div>
                   </div>
                   <div className="w-full bg-gray-100 rounded-full h-1.5">
@@ -897,7 +874,7 @@ export default function DashboardPage() {
               return (
                 <Link href="/my-parq" className="block bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
                   <div className="flex items-center justify-between mb-2">
-                    <h2 className="font-heading text-sm font-semibold text-kore-gray-dark">PAR-Q+</h2>
+                    <h2 className="font-heading text-base font-semibold text-kore-gray-dark">PAR-Q+</h2>
                     <svg className="w-3.5 h-3.5 text-kore-gray-dark/30 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                     </svg>
@@ -920,7 +897,7 @@ export default function DashboardPage() {
                     </div>
                     <div>
                       <p className={`text-xs font-medium ${CTQ[latest.risk_color] || CTQ.green}`}>{latest.risk_label}</p>
-                      <p className="text-[9px] text-kore-gray-dark/40">{latest.yes_count}/7 respuestas afirmativas</p>
+                      <p className="text-xs text-kore-gray-dark/40">{latest.yes_count}/7 respuestas afirmativas</p>
                     </div>
                   </div>
                 </Link>
@@ -929,7 +906,7 @@ export default function DashboardPage() {
 
             {/* ⑥ Historial reciente */}
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-3.5 border border-white/60 shadow-sm">
-              <h2 className="font-heading text-xs font-semibold text-kore-gray-dark mb-1.5">Historial reciente</h2>
+              <h2 className="font-heading text-sm font-semibold text-kore-gray-dark mb-2">Historial reciente</h2>
               <div className="space-y-0.5">
                 {bookings.filter(b => b.status === 'confirmed').length > 0 ? (
                   bookings.filter(b => b.status === 'confirmed').slice(0, 3).map((booking) => {
@@ -941,13 +918,13 @@ export default function DashboardPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         </div>
-                        <div className="flex-1 min-w-0"><p className="text-[10px] font-medium text-kore-gray-dark truncate">{booking.package?.title ?? '—'}</p></div>
-                        <p className="text-[9px] text-kore-gray-dark/40 capitalize">{date}</p>
+                        <div className="flex-1 min-w-0"><p className="text-xs font-medium text-kore-gray-dark truncate">{booking.package?.title ?? '—'}</p></div>
+                        <p className="text-xs text-kore-gray-dark/40 capitalize">{date}</p>
                       </div>
                     );
                   })
                 ) : (
-                  <p className="text-[10px] text-kore-gray-dark/40 text-center py-1.5">Sin sesiones completadas</p>
+                  <p className="text-xs text-kore-gray-dark/40 text-center py-1.5">Sin sesiones completadas</p>
                 )}
               </div>
             </div>

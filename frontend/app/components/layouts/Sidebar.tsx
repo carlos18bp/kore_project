@@ -8,6 +8,7 @@ import { useAuthStore } from '@/lib/stores/authStore';
 import { useProfileStore } from '@/lib/stores/profileStore';
 import { WHATSAPP_URL } from '@/lib/constants';
 import { GOAL_OPTIONS } from '@/app/components/profile/ProfileIcons';
+import { usePendingAssessmentsStore } from '@/lib/stores/pendingAssessmentsStore';
 
 const navItems = [
   {
@@ -56,6 +57,24 @@ const navItems = [
     ),
   },
   {
+    label: 'Mi Nutrición',
+    href: '/my-nutrition',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8.25v-1.5m0 1.5c-1.355 0-2.697.056-4.024.166C6.845 8.51 6 9.473 6 10.608v2.513m6-4.871c1.355 0 2.697.056 4.024.166C17.155 8.51 18 9.473 18 10.608v2.513M15 8.25v-1.5m-6 1.5v-1.5m12 9.75l-1.5.75a3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0L3 16.5m15-3.379a48.474 48.474 0 00-6-.371c-2.032 0-4.034.126-6 .371m12 0c.39.049.777.102 1.163.16 1.07.16 1.837 1.094 1.837 2.175v5.169c0 .621-.504 1.125-1.125 1.125H4.125A1.125 1.125 0 013 20.625v-5.17c0-1.08.768-2.014 1.837-2.174A47.78 47.78 0 016 13.12M12.265 3.11a.375.375 0 11-.53 0L12 2.845l.265.265zm-3 0a.375.375 0 11-.53 0L9 2.845l.265.265zm6 0a.375.375 0 11-.53 0L15 2.845l.265.265z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'PAR-Q',
+    href: '/my-parq',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.25 2.25 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.9-4.414c.376.023.75.05 1.124.08 1.131.094 1.976 1.057 1.976 2.192V16.5A2.25 2.25 0 0118 18.75h-2.25m-7.5-10.5H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V18.75m-7.5-10.5h6.375c.621 0 1.125.504 1.125 1.125v9.375m-8.25-3l1.5 1.5 3-3.75" />
+      </svg>
+    ),
+  },
+  {
     label: 'Mi Perfil',
     href: '/profile',
     icon: (
@@ -92,10 +111,22 @@ export default function Sidebar() {
   const userGoal = profile?.customer_profile?.primary_goal;
   const goalLabel = GOAL_OPTIONS.find((g) => g.value === userGoal)?.label;
   const [isOpen, setIsOpen] = useState(false);
+  const {
+    nutritionDue, parqDue,
+    anthropometryUnseen, posturometryUnseen, physicalEvalUnseen,
+    profileIncomplete, subscriptionExpiring,
+    loaded: pendingLoaded, fetchPending, markSeen,
+  } = usePendingAssessmentsStore();
 
   useEffect(() => {
     setIsOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (user && !pendingLoaded) {
+      fetchPending();
+    }
+  }, [user, pendingLoaded, fetchPending]);
 
   const handleLogout = () => {
     logout();
@@ -179,7 +210,12 @@ export default function Sidebar() {
                 <Link
                   href={item.href}
                   prefetch={false}
-                  onClick={() => setIsOpen(false)}
+                  onClick={() => {
+                    setIsOpen(false);
+                    if (item.href === '/my-diagnosis') markSeen('anthropometry');
+                    if (item.href === '/my-posturometry') markSeen('posturometry');
+                    if (item.href === '/my-physical-evaluation') markSeen('physical_eval');
+                  }}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                     isActive
                       ? 'bg-kore-red/10 text-kore-red'
@@ -188,6 +224,27 @@ export default function Sidebar() {
                 >
                   {item.icon}
                   {item.label}
+                  {item.href === '/my-nutrition' && nutritionDue && (
+                    <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
+                  )}
+                  {item.href === '/my-parq' && parqDue && (
+                    <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
+                  )}
+                  {item.href === '/my-diagnosis' && anthropometryUnseen && (
+                    <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
+                  )}
+                  {item.href === '/my-posturometry' && posturometryUnseen && (
+                    <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
+                  )}
+                  {item.href === '/my-physical-evaluation' && physicalEvalUnseen && (
+                    <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
+                  )}
+                  {item.href === '/profile' && profileIncomplete && (
+                    <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
+                  )}
+                  {item.href === '/subscription' && subscriptionExpiring && (
+                    <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
+                  )}
                 </Link>
               </li>
             );

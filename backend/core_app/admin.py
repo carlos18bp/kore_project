@@ -5,6 +5,8 @@ from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from core_app.forms import UserChangeForm, UserCreationForm
 from core_app.models.posturometry import PosturometryEvaluation
 from core_app.models.physical_evaluation import PhysicalEvaluation
+from core_app.models.nutrition_habit import NutritionHabit
+from core_app.models.parq_assessment import ParqAssessment
 from core_app.models import (
     AnalyticsEvent,
     AnthropometryEvaluation,
@@ -269,3 +271,19 @@ class PhysicalEvaluationAdmin(admin.ModelAdmin):
         'general_index', 'general_category', 'general_color',
         'cross_module_alerts',
     )
+
+
+@admin.register(NutritionHabit)
+class NutritionHabitAdmin(admin.ModelAdmin):
+    list_display = ('customer', 'habit_score', 'habit_category', 'created_at')
+    list_filter = ('habit_color', 'created_at')
+    search_fields = ('customer__email', 'customer__first_name')
+    readonly_fields = ('habit_score', 'habit_category', 'habit_color')
+
+
+@admin.register(ParqAssessment)
+class ParqAssessmentAdmin(admin.ModelAdmin):
+    list_display = ('customer', 'yes_count', 'risk_label', 'risk_color', 'created_at')
+    list_filter = ('risk_color', 'created_at')
+    search_fields = ('customer__email', 'customer__first_name')
+    readonly_fields = ('yes_count', 'risk_classification', 'risk_label', 'risk_color')

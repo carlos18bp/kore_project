@@ -17,6 +17,8 @@ from .terms_acceptance import TermsAcceptance
 from .anthropometry import AnthropometryEvaluation
 from .posturometry import PosturometryEvaluation
 from .physical_evaluation import PhysicalEvaluation
+from .nutrition_habit import NutritionHabit
+from .parq_assessment import ParqAssessment
 
 __all__ = [
     'User',
@@ -41,4 +43,6 @@ __all__ = [
     'AnthropometryEvaluation',
     'PosturometryEvaluation',
     'PhysicalEvaluation',
+    'NutritionHabit',
+    'ParqAssessment',
 ]

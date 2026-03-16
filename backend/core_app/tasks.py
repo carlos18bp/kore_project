@@ -216,6 +216,130 @@ def auto_complete_past_bookings():
     return {'completed': completed}
 
 
+@db_periodic_task(crontab(minute=0, hour=9, day_of_week='1'))
+def send_nutrition_reminders():
+    """Send weekly nutrition habit reminders to active clients.
+
+    Runs Monday 9am. Targets customers with active subscriptions whose
+    last NutritionHabit entry is older than 7 days (or never submitted).
+
+    Returns:
+        dict: Summary with 'processed' and 'sent' counts.
+    """
+    from core_app.models.nutrition_habit import NutritionHabit
+    from core_app.services.email_service import send_template_email
+
+    now = timezone.now()
+    cutoff = now - timedelta(days=7)
+
+    active_customers = Subscription.objects.filter(
+        status=Subscription.Status.ACTIVE,
+    ).values_list('customer_id', flat=True).distinct()
+
+    from core_app.models import User
+    customers = User.objects.filter(
+        id__in=active_customers,
+        role=User.Role.CUSTOMER,
+    )
+
+    processed = 0
+    sent = 0
+
+    for customer in customers:
+        latest = NutritionHabit.objects.filter(
+            customer=customer,
+        ).order_by('-created_at').first()
+
+        if latest and latest.created_at > cutoff:
+            continue
+
+        processed += 1
+        customer_name = f'{customer.first_name} {customer.last_name}'.strip() or customer.email
+
+        success = send_template_email(
+            template_name='nutrition_reminder',
+            subject='Es hora de registrar tus hábitos alimentarios — KÓRE',
+            to_emails=[customer.email],
+            context={'customer_name': customer_name},
+        )
+
+        Notification.objects.create(
+            notification_type=Notification.Type.NUTRITION_REMINDER,
+            status=Notification.Status.SENT if success else Notification.Status.FAILED,
+            sent_to=customer.email,
+            payload={'customer_id': customer.id},
+        )
+
+        if success:
+            sent += 1
+
+    summary = {'processed': processed, 'sent': sent}
+    logger.info('Nutrition reminders completed: %s', summary)
+    return summary
+
+
+@db_periodic_task(crontab(minute=0, hour=9, day='1'))
+def send_parq_reminders():
+    """Send quarterly PAR-Q reminders to active clients.
+
+    Runs on the 1st of each month at 9am. Targets customers with active
+    subscriptions whose last ParqAssessment is older than 90 days (or never).
+
+    Returns:
+        dict: Summary with 'processed' and 'sent' counts.
+    """
+    from core_app.models.parq_assessment import ParqAssessment
+    from core_app.services.email_service import send_template_email
+
+    now = timezone.now()
+    cutoff = now - timedelta(days=90)
+
+    active_customers = Subscription.objects.filter(
+        status=Subscription.Status.ACTIVE,
+    ).values_list('customer_id', flat=True).distinct()
+
+    from core_app.models import User
+    customers = User.objects.filter(
+        id__in=active_customers,
+        role=User.Role.CUSTOMER,
+    )
+
+    processed = 0
+    sent = 0
+
+    for customer in customers:
+        latest = ParqAssessment.objects.filter(
+            customer=customer,
+        ).order_by('-created_at').first()
+
+        if latest and latest.created_at > cutoff:
+            continue
+
+        processed += 1
+        customer_name = f'{customer.first_name} {customer.last_name}'.strip() or customer.email
+
+        success = send_template_email(
+            template_name='parq_reminder',
+            subject='Actualiza tu cuestionario PAR-Q — KÓRE',
+            to_emails=[customer.email],
+            context={'customer_name': customer_name},
+        )
+
+        Notification.objects.create(
+            notification_type=Notification.Type.PARQ_REMINDER,
+            status=Notification.Status.SENT if success else Notification.Status.FAILED,
+            sent_to=customer.email,
+            payload={'customer_id': customer.id},
+        )
+
+        if success:
+            sent += 1
+
+    summary = {'processed': processed, 'sent': sent}
+    logger.info('PAR-Q reminders completed: %s', summary)
+    return summary
+
+
 @db_periodic_task(crontab(minute=30, hour=2))
 def maintain_availability_slots():
     """Daily slot maintenance: prune free past slots, fill future window.
