@@ -11,6 +11,9 @@ import { useProfileStore } from '@/lib/stores/profileStore';
 import { useAnthropometryStore } from '@/lib/stores/anthropometryStore';
 import { usePosturometryStore } from '@/lib/stores/posturometryStore';
 import { usePhysicalEvaluationStore } from '@/lib/stores/physicalEvaluationStore';
+import { useNutritionStore } from '@/lib/stores/nutritionStore';
+import { useParqStore } from '@/lib/stores/parqStore';
+import { usePendingAssessmentsStore } from '@/lib/stores/pendingAssessmentsStore';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 import UpcomingSessionReminder from '@/app/components/booking/UpcomingSessionReminder';
 import SubscriptionExpiryReminder from '@/app/components/subscription/SubscriptionExpiryReminder';
@@ -60,6 +63,9 @@ export default function DashboardPage() {
   const { evaluations: anthroEvals, fetchMyEvaluations } = useAnthropometryStore();
   const { evaluations: posturoEvals, fetchMyEvaluations: fetchMyPosturoEvals } = usePosturometryStore();
   const { evaluations: physicalEvals, fetchMyEvaluations: fetchMyPhysicalEvals } = usePhysicalEvaluationStore();
+  const { entries: nutritionEntries, fetchMyEntries: fetchMyNutrition } = useNutritionStore();
+  const { assessments: parqAssessments, fetchMyAssessments: fetchMyParq } = useParqStore();
+  const { koreIndex, fetchPending: fetchPendingAssessments, loaded: pendingLoaded } = usePendingAssessmentsStore();
   const sectionRef = useRef<HTMLElement>(null);
   const profileFetchedRef = useRef(false);
   useHeroAnimation(sectionRef);
@@ -92,7 +98,10 @@ export default function DashboardPage() {
     fetchMyEvaluations();
     fetchMyPosturoEvals();
     fetchMyPhysicalEvals();
-  }, [fetchSubscriptions, fetchUpcomingReminder, fetchBookings, fetchMyEvaluations, fetchMyPosturoEvals, fetchMyPhysicalEvals]);
+    fetchMyNutrition();
+    fetchMyParq();
+    fetchPendingAssessments();
+  }, [fetchSubscriptions, fetchUpcomingReminder, fetchBookings, fetchMyEvaluations, fetchMyPosturoEvals, fetchMyPhysicalEvals, fetchMyNutrition, fetchMyParq, fetchPendingAssessments]);
 
   useEffect(() => {
     if (profileFetchedRef.current) return;
@@ -516,32 +525,84 @@ export default function DashboardPage() {
             </Link>
           )}
 
-          {/* ③ Tu programa */}
+          {/* ③ Calificación KÓRE */}
           <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
-            <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium mb-3">Tu programa</p>
-            <p className="font-heading text-lg font-semibold text-kore-red mb-1">{program}</p>
-            <p className="text-xs text-kore-gray-dark/50">Miembro desde {memberDate}</p>
-            <div className="mt-3 pt-3 border-t border-kore-gray-light/30 flex items-center gap-2 text-xs">
-              <span className="w-2 h-2 rounded-full bg-kore-red/60"></span>
-              <span className="text-kore-gray-dark/60">Total de entrenamientos: <span className="font-semibold text-kore-gray-dark">{sessionsUsed}</span></span>
-            </div>
+            {koreIndex && koreIndex.kore_score !== null ? (() => {
+              const score = koreIndex.kore_score;
+              const CK: Record<string, string> = { green: 'text-emerald-700', yellow: 'text-amber-600', orange: 'text-orange-600', red: 'text-red-600' };
+              const pct = Math.min(score / 100, 1) * 100;
+              const col = koreIndex.kore_color;
+              return (
+                <div>
+                  <p className="text-[10px] text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-3">Calificación KÓRE</p>
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className={`relative w-16 h-16 flex-shrink-0`}>
+                      <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
+                        <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#E5E5E5" strokeWidth="3" />
+                        <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke={col === 'green' ? '#10b981' : col === 'yellow' ? '#f59e0b' : col === 'orange' ? '#f97316' : '#ef4444'} strokeWidth="3" strokeDasharray={`${pct}, 100`} strokeLinecap="round" />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className={`font-heading text-lg font-bold ${CK[col] || CK.green}`}>{score}</span>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <p className={`text-sm font-semibold ${CK[col] || CK.green}`}>{koreIndex.kore_category}</p>
+                      <p className="text-[10px] text-kore-gray-dark/40 leading-relaxed mt-0.5">{koreIndex.kore_message}</p>
+                    </div>
+                  </div>
+                  {/* Module breakdown mini bars */}
+                  <div className="space-y-1.5">
+                    {[
+                      { key: 'anthropometry', label: 'Composición' },
+                      { key: 'metabolic_risk', label: 'Riesgo metab.' },
+                      { key: 'posturometry', label: 'Postura' },
+                      { key: 'physical', label: 'Condición' },
+                      { key: 'mood', label: 'Bienestar' },
+                      { key: 'nutrition', label: 'Nutrición' },
+                    ].map(({ key, label }) => {
+                      const val = koreIndex.components[key];
+                      if (val === undefined) return null;
+                      const barCol = val >= 75 ? 'bg-emerald-500' : val >= 60 ? 'bg-amber-400' : val >= 40 ? 'bg-orange-400' : 'bg-red-500';
+                      return (
+                        <div key={key} className="flex items-center gap-2">
+                          <span className="text-[9px] text-kore-gray-dark/40 w-16 truncate">{label}</span>
+                          <div className="flex-1 h-1.5 bg-gray-100 rounded-full">
+                            <div className={`h-1.5 rounded-full ${barCol}`} style={{ width: `${Math.min(val, 100)}%` }} />
+                          </div>
+                          <span className="text-[9px] text-kore-gray-dark/60 font-medium w-6 text-right">{Math.round(val)}</span>
+                        </div>
+                      );
+                    }).filter(Boolean)}
+                  </div>
+                  <p className="text-[9px] text-kore-gray-dark/30 mt-2">{koreIndex.modules_available} de {koreIndex.modules_total} módulos evaluados</p>
+                </div>
+              );
+            })() : (
+              <div>
+                <p className="text-[10px] text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-2">Calificación KÓRE</p>
+                <p className="text-xs text-kore-gray-dark/40">Completa tus evaluaciones para ver tu calificación general.</p>
+              </div>
+            )}
           </div>
 
-          {/* ④ Perfil */}
+          {/* ④ Perfil + Programa */}
           <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
-            <div className="flex items-center gap-4 mb-3">
-              <div className="relative w-11 h-11 rounded-full bg-gradient-to-br from-kore-red/20 to-kore-burgundy/10 flex items-center justify-center ring-2 ring-white shadow-sm overflow-hidden">
+            {/* User info header */}
+            <div className="flex items-center gap-3 mb-4">
+              <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-kore-red/20 to-kore-burgundy/10 flex items-center justify-center ring-2 ring-white shadow-sm overflow-hidden flex-shrink-0">
                 {user.avatar_url ? (
                   <Image src={user.avatar_url} alt="Avatar" fill className="object-cover" />
                 ) : (
-                  <span className="font-heading text-base font-semibold text-kore-red">{user.name.charAt(0)}</span>
+                  <span className="font-heading text-sm font-semibold text-kore-red">{user.name.charAt(0)}</span>
                 )}
               </div>
-              <div>
-                <p className="font-medium text-kore-gray-dark text-sm">{user.name}</p>
-                <p className="text-[10px] text-kore-gray-dark/40">{user.email}</p>
+              <div className="min-w-0">
+                <p className="font-medium text-kore-gray-dark text-sm truncate">{user.name}</p>
+                <p className="text-[10px] text-kore-gray-dark/40 truncate">{user.email}</p>
               </div>
             </div>
+
+            {/* Program + sessions info */}
             <div className="space-y-2 pt-3 border-t border-kore-gray-light/30 text-xs">
               <div className="flex justify-between"><span className="text-kore-gray-dark/50">Programa</span><span className="text-kore-gray-dark font-medium">{program}</span></div>
               <div className="flex justify-between"><span className="text-kore-gray-dark/50">Entrenamientos</span><span className="text-kore-gray-dark font-medium">{sessionsUsed} de {sessionsTotal}</span></div>
@@ -736,6 +797,76 @@ export default function DashboardPage() {
                     return <div key={k} className={`physical-wave-dot w-2 h-2 rounded-full ${CDP[col] || CDP.green}`} />;
                   })}
                   <span className="text-[10px] text-kore-gray-dark/40 ml-1">Ver detalle</span>
+                </div>
+              </Link>
+            );
+          })()}
+
+          {/* ⑩ Mi Nutrición */}
+          {nutritionEntries.length > 0 && (() => {
+            const latest = nutritionEntries[0];
+            const score = latest.habit_score ? parseFloat(latest.habit_score) : 0;
+            const CTN: Record<string, string> = { green: 'text-emerald-700', yellow: 'text-amber-700', red: 'text-red-600' };
+            const CBN: Record<string, string> = { green: 'bg-emerald-100', yellow: 'bg-amber-100', red: 'bg-red-100' };
+            const pct = Math.min(score / 10, 1) * 100;
+            const CDN: Record<string, string> = { green: 'bg-emerald-500', yellow: 'bg-amber-500', red: 'bg-red-500' };
+            return (
+              <Link href="/my-nutrition" className="block bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Mi Nutrición</h2>
+                  <svg className="w-4 h-4 text-kore-gray-dark/30 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
+                </div>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${CBN[latest.habit_color] || CBN.green}`}>
+                    <span className={`font-heading text-lg font-bold ${CTN[latest.habit_color] || CTN.green}`}>{score}</span>
+                  </div>
+                  <div>
+                    <p className={`text-sm font-medium ${CTN[latest.habit_color] || CTN.green}`}>{latest.habit_category}</p>
+                    <p className="text-[10px] text-kore-gray-dark/40">Índice de hábitos /10</p>
+                  </div>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-2">
+                  <div className={`h-2 rounded-full ${CDN[latest.habit_color] || CDN.green}`} style={{ width: `${pct}%` }} />
+                </div>
+              </Link>
+            );
+          })()}
+
+          {/* ⑪ PAR-Q */}
+          {parqAssessments.length > 0 && (() => {
+            const latest = parqAssessments[0];
+            const CTQ: Record<string, string> = { green: 'text-emerald-700', yellow: 'text-amber-700', red: 'text-red-600' };
+            const CBQ: Record<string, string> = { green: 'bg-emerald-100', yellow: 'bg-amber-100', red: 'bg-red-100' };
+            return (
+              <Link href="/my-parq" className="block bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="font-heading text-base font-semibold text-kore-gray-dark">PAR-Q+</h2>
+                  <svg className="w-4 h-4 text-kore-gray-dark/30 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${CBQ[latest.risk_color] || CBQ.green}`}>
+                    {latest.risk_color === 'green' ? (
+                      <svg className={`w-6 h-6 ${CTQ.green}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                      </svg>
+                    ) : latest.risk_color === 'yellow' ? (
+                      <svg className={`w-6 h-6 ${CTQ.yellow}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                      </svg>
+                    ) : (
+                      <svg className={`w-6 h-6 ${CTQ.red}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.008v.008H12v-.008zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    )}
+                  </div>
+                  <div>
+                    <p className={`text-sm font-medium ${CTQ[latest.risk_color] || CTQ.green}`}>{latest.risk_label}</p>
+                    <p className="text-[10px] text-kore-gray-dark/40">{latest.yes_count}/7 respuestas afirmativas</p>
+                  </div>
                 </div>
               </Link>
             );

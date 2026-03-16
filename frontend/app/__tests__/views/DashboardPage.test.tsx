@@ -59,10 +59,10 @@ describe('DashboardPage', () => {
     expect(screen.getAllByText(/Customer10/).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders program info card', () => {
+  it('renders program info inside profile card', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
     render(<DashboardPage />);
-    expect(screen.getByText('Tu programa')).toBeInTheDocument();
+    expect(screen.getAllByText('Programa').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Sin programa activo').length).toBeGreaterThanOrEqual(1);
   });
 
