@@ -178,6 +178,29 @@ function build(be, fe, e2e, beFiles, feFiles, e2eFlows) {
 
   lines.push('## 📊 Coverage Report', '');
 
+  // ── Test Results ──
+  let e2ePassed = 0, e2eFailed = 0, e2eSkipped = 0, e2eTotal = 0;
+  for (const f of e2eFlows) {
+    e2ePassed += f.tests.passed ?? 0;
+    e2eFailed += f.tests.failed ?? 0;
+    e2eSkipped += f.tests.skipped ?? 0;
+    e2eTotal += f.tests.total ?? 0;
+  }
+  const hasAnyFailure = e2eFailed > 0;
+  const resultEmoji = hasAnyFailure ? '⚠️' : '✅';
+  const totalStr = e2eTotal > 0 ? ` — ${e2ePassed}/${e2eTotal} passed` : '';
+  lines.push(`### ${resultEmoji} Test Results${totalStr}`, '');
+  lines.push('| Suite | Passed | Failed | Skipped | Total |');
+  lines.push('|-------|--------|--------|---------|-------|');
+  lines.push('| Backend (pytest) | — | — | — | — |');
+  lines.push('| Frontend Unit (Jest) | — | — | — | — |');
+  if (e2eTotal > 0) {
+    lines.push(`| Frontend E2E (Playwright) | ${e2ePassed} | ${e2eFailed} | ${e2eSkipped} | ${e2eTotal} |`);
+  } else {
+    lines.push('| Frontend E2E (Playwright) | — | — | — | — |');
+  }
+  lines.push('');
+
   // ── Summary table ──
   lines.push('| Suite | Coverage | Bar | Details |');
   lines.push('|-------|----------|-----|---------|');
@@ -208,7 +231,7 @@ function build(be, fe, e2e, beFiles, feFiles, e2eFlows) {
 
   // ── Backend Details ──
   lines.push('<details>');
-  lines.push('<summary>▼ Backend Details</summary>');
+  lines.push('<summary>▼ 🐍 Backend Details</summary>');
   lines.push('');
   if (be) {
     lines.push('| Metric | Covered | Total | % |');
@@ -246,7 +269,7 @@ function build(be, fe, e2e, beFiles, feFiles, e2eFlows) {
 
   // ── Frontend Unit Details ──
   lines.push('<details>');
-  lines.push('<summary>▼ Frontend Unit Details</summary>');
+  lines.push('<summary>▼ 🧪 Frontend Unit Details</summary>');
   lines.push('');
   if (fe) {
     lines.push('| Metric | Covered | Total | % |');
@@ -284,7 +307,7 @@ function build(be, fe, e2e, beFiles, feFiles, e2eFlows) {
 
   // ── Frontend E2E Flow Details ──
   lines.push('<details>');
-  lines.push('<summary>▼ Frontend E2E Flow Details</summary>');
+  lines.push('<summary>▼ 🎭 Frontend E2E Flow Details</summary>');
   lines.push('');
   if (e2e) {
     lines.push('| Status | Count |');
