@@ -3,6 +3,7 @@ export const FlowTags = {
   AUTH_LOGOUT: ['@flow:auth-logout', '@module:auth', '@priority:P2'],
   AUTH_SESSION_PERSISTENCE: ['@flow:auth-session-persistence', '@module:auth', '@priority:P2'],
   AUTH_REGISTER: ['@flow:auth-register', '@module:auth', '@priority:P1'],
+  AUTH_PROTECTED_ROUTES: ['@flow:auth-protected-routes', '@module:auth', '@priority:P2'],
 
   BOOKING_SESSION_PAGE: ['@flow:booking-session-page', '@module:booking', '@priority:P1'],
   BOOKING_SESSION_FLOW: ['@flow:booking-session-flow', '@module:booking', '@priority:P1'],
@@ -13,6 +14,7 @@ export const FlowTags = {
   BOOKING_CALENDAR_EDGE_CASES: ['@flow:booking-calendar-edge-cases', '@module:booking', '@priority:P3'],
   BOOKING_NO_SESSIONS: ['@flow:booking-no-sessions', '@module:booking', '@priority:P2'],
   BOOKING_SESSION_DETAIL: ['@flow:booking-session-detail', '@module:booking', '@priority:P2'],
+  BOOKING_CANCEL_FLOW: ['@flow:booking-cancel-flow', '@module:booking', '@priority:P1'],
 
   APP_COVERAGE_GAPS: ['@flow:app-coverage-gaps', '@module:app', '@priority:P3'],
   APP_EDGE_CASE_BRANCHES: ['@flow:app-edge-case-branches', '@module:app', '@priority:P3'],
@@ -27,10 +29,12 @@ export const FlowTags = {
 
   SUBSCRIPTION_PAGE: ['@flow:subscription-page', '@module:subscription', '@priority:P1'],
   SUBSCRIPTION_EXPIRY_REMINDER: ['@flow:subscription-expiry-reminder', '@module:subscription', '@priority:P2'],
+  SUBSCRIPTION_CANCEL_FLOW: ['@flow:subscription-cancel-flow', '@module:subscription', '@priority:P2'],
 
   CHECKOUT_FLOW: ['@flow:checkout-flow', '@module:checkout', '@priority:P1'],
   CHECKOUT_GUEST_REDIRECT: ['@flow:checkout-guest-redirect', '@module:checkout', '@priority:P2'],
   CHECKOUT_COVERAGE_GAPS: ['@flow:checkout-coverage-gaps', '@module:checkout', '@priority:P3'],
+  CHECKOUT_PAYMENT_STATUS_POLLING: ['@flow:checkout-payment-status-polling', '@module:checkout', '@priority:P2'],
 
   PUBLIC_HOME: ['@flow:public-home', '@module:public', '@priority:P2'],
   PUBLIC_NAVBAR: ['@flow:public-navbar', '@module:public', '@priority:P3'],

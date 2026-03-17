@@ -239,6 +239,34 @@
       "priority": "P3",
       "roles": ["guest"],
       "description": "View the terms and conditions page and navigate back to programs."
+    },
+    "booking-cancel-flow": {
+      "name": "Booking Cancel Flow",
+      "module": "booking",
+      "priority": "P1",
+      "roles": ["user"],
+      "description": "Full cancel journey: open session detail → enter reason → confirm → verify status change."
+    },
+    "checkout-payment-status-polling": {
+      "name": "Checkout Payment Status Polling",
+      "module": "checkout",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "End-to-end polling cycle: submit → processing indicator → approved/failed resolution."
+    },
+    "subscription-cancel-flow": {
+      "name": "Subscription Cancel Flow",
+      "module": "subscription",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "Cancel subscription from subscription page and verify status change."
+    },
+    "auth-protected-routes": {
+      "name": "Auth Protected Routes",
+      "module": "auth",
+      "priority": "P2",
+      "roles": ["guest"],
+      "description": "Systematic test of authenticated routes redirecting to /login when unauthenticated."
     }
   }
 }
