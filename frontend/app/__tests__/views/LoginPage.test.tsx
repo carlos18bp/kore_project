@@ -33,6 +33,11 @@ jest.mock('react-google-recaptcha', () => {
   );
 });
 
+jest.mock('@/app/composables/useScrollAnimations', () => ({
+  useHeroAnimation: jest.fn(),
+  useTextReveal: jest.fn(),
+}));
+
 jest.mock('next/link', () => ({
   __esModule: true,
   default: ({ children, href, ...rest }: { children: React.ReactNode; href: string }) => (
@@ -108,7 +113,7 @@ describe('LoginPage', () => {
 
   it('toggles password visibility', async () => {
     render(<LoginPage />);
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const passwordInput = screen.getByLabelText(/Contraseña/i);
 
     expect(passwordInput).toHaveAttribute('type', 'password');
@@ -131,7 +136,7 @@ describe('LoginPage', () => {
     mockedApi.post.mockRejectedValueOnce(axiosError);
 
     render(<LoginPage />);
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
     await fillLoginForm(user, 'wrong@email.com', 'wrongpass');
     await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
@@ -145,7 +150,7 @@ describe('LoginPage', () => {
     mockedApi.post.mockResolvedValueOnce({ data: MOCK_LOGIN_RESPONSE });
 
     render(<LoginPage />);
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
     await fillLoginForm(user, 'customer10@kore.com', 'ogthsv25');
     await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
@@ -189,7 +194,7 @@ describe('LoginPage', () => {
     mockedApi.post.mockReturnValueOnce(new Promise(() => {}));
 
     render(<LoginPage />);
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
     await fillLoginForm(user, 'customer10@kore.com', 'ogthsv25');
     await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
