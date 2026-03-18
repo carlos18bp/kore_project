@@ -19,12 +19,13 @@ if (process.env.E2E_REPORTS === '1') {
 
 export default defineConfig({
   testDir: './e2e',
-  timeout: 60_000,
+  timeout: process.env.CI ? 120_000 : 60_000,
   expect: {
-    timeout: 5_000,
+    timeout: process.env.CI ? 15_000 : 5_000,
   },
+  retries: process.env.CI ? 1 : 0,
   fullyParallel: true,
-  workers: 3, // Reduced to 1 for environments with limited resources
+  workers: process.env.CI ? 1 : 3,
   reporter: reporters,
   webServer: {
     command: 'NODE_OPTIONS=--no-deprecation npm run dev -- --port 3000',

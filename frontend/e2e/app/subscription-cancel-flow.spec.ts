@@ -1,4 +1,4 @@
-import { test, expect, loginAsTestUser, setupDefaultApiMocks } from '../fixtures';
+import { test, expect, injectAuthCookies } from '../fixtures';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
@@ -75,9 +75,8 @@ test.describe('Subscription Cancel Flow', { tag: [...FlowTags.SUBSCRIPTION_CANCE
   }
 
   test('active subscription shows cancel button as disabled', async ({ page }) => {
-    await setupDefaultApiMocks(page);
+    await injectAuthCookies(page);
     await setupMocks(page, mockSubscription);
-    await loginAsTestUser(page);
     await page.goto('/subscription');
 
     const cancelBtn = page.getByRole('button', { name: 'Cancelar suscripción' });
@@ -86,9 +85,8 @@ test.describe('Subscription Cancel Flow', { tag: [...FlowTags.SUBSCRIPTION_CANCE
   });
 
   test('disabled cancel button does not open confirmation dialog', async ({ page }) => {
-    await setupDefaultApiMocks(page);
+    await injectAuthCookies(page);
     await setupMocks(page, mockSubscription);
-    await loginAsTestUser(page);
     await page.goto('/subscription');
 
     const cancelBtn = page.getByRole('button', { name: 'Cancelar suscripción' });
@@ -107,9 +105,8 @@ test.describe('Subscription Cancel Flow', { tag: [...FlowTags.SUBSCRIPTION_CANCE
       sessions_remaining: 0,
       next_billing_date: null,
     };
-    await setupDefaultApiMocks(page);
+    await injectAuthCookies(page);
     await setupMocks(page, expiredSub);
-    await loginAsTestUser(page);
     await page.goto('/subscription');
 
     await expect(page.getByText('Expirada', { exact: true }).first()).toBeVisible({ timeout: 10_000 });
@@ -119,9 +116,8 @@ test.describe('Subscription Cancel Flow', { tag: [...FlowTags.SUBSCRIPTION_CANCE
 
   test('canceled subscription shows Cancelada badge without cancel action', async ({ page }) => {
     const canceledSub = { ...mockSubscription, status: 'canceled' };
-    await setupDefaultApiMocks(page);
+    await injectAuthCookies(page);
     await setupMocks(page, canceledSub);
-    await loginAsTestUser(page);
     await page.goto('/subscription');
 
     await expect(page.getByText('Cancelada', { exact: true }).first()).toBeVisible({ timeout: 10_000 });

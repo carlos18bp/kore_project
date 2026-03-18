@@ -48,19 +48,28 @@ export async function mockLoginApi(page: Page) {
 }
 
 /**
- * Inject auth cookies directly — for tests that only need an authenticated state
- * without going through the login form.
+ * Inject auth cookies with minimal auth mocks (login API, captcha, profile) but
+ * NO default API mocks. Use this when the test registers its own custom routes
+ * before navigation — avoids LIFO conflicts with setupDefaultApiMocks routes.
  */
-export async function mockLoginAsTestUser(page: Page) {
+export async function injectAuthCookies(page: Page) {
   await mockLoginApi(page);
-  await setupDefaultApiMocks(page);
-
-  const baseURL = 'http://localhost:3000';
+  await mockCaptchaSiteKey(page);
+  await mockAuthProfile(page);
   await page.context().addCookies([
     { name: 'kore_token', value: FAKE_TOKEN, domain: 'localhost', path: '/' },
     { name: 'kore_user', value: encodeURIComponent(FAKE_USER_COOKIE), domain: 'localhost', path: '/' },
   ]);
-  await page.goto(`${baseURL}/dashboard`);
+}
+
+/**
+ * Inject auth cookies + default API mocks + navigate to /dashboard.
+ * For tests that only need an authenticated state without custom route overrides.
+ */
+export async function mockLoginAsTestUser(page: Page) {
+  await injectAuthCookies(page);
+  await setupDefaultApiMocks(page);
+  await page.goto('http://localhost:3000/dashboard');
 }
 
 /**
@@ -128,6 +137,11 @@ export async function setupDefaultApiMocks(page: Page) {
     } else {
       await route.continue();
     }
+  });
+
+  // Subscription expiry reminder — no reminder by default
+  await page.route('**/api/subscriptions/expiry-reminder/**', async (route) => {
+    await route.fulfill({ status: 204 });
   });
 
   // Upcoming reminder — no upcoming booking

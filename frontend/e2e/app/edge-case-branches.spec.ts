@@ -1,4 +1,4 @@
-import { test, expect, loginAsTestUser, E2E_USER } from '../fixtures';
+import { test, expect, injectAuthCookies, E2E_USER } from '../fixtures';
 import type { Page } from '@playwright/test';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
@@ -115,9 +115,9 @@ test.describe('Edge-case branch coverage', { tag: [...FlowTags.APP_EDGE_CASE_BRA
 
   test('booking success with trainer=null shows "—" fallback', async ({ page }) => {
     const mockSub = buildProgramSubscription();
+    await injectAuthCookies(page);
     await mockBookingCreationFlowRoutes(page, mockTrainer, mockSlots, mockSub);
 
-    await loginAsTestUser(page);
     await page.goto('/book-session');
     await expect(page.getByText('Agenda tu sesión')).toBeVisible();
 

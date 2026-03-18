@@ -1,4 +1,4 @@
-import { test, expect, loginAsTestUser } from '../fixtures';
+import { test, expect, mockLoginAsTestUser } from '../fixtures';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 test.describe('My Programs Page', { tag: [...FlowTags.MY_PROGRAMS_LIST, RoleTags.USER] }, () => {
@@ -9,20 +9,20 @@ test.describe('My Programs Page', { tag: [...FlowTags.MY_PROGRAMS_LIST, RoleTags
   });
 
   test('authenticated user sees My Programs heading', async ({ page }) => {
-    await loginAsTestUser(page);
+    await mockLoginAsTestUser(page);
     await page.goto('/my-programs');
     await expect(page.getByRole('heading', { name: 'Mis Programas' })).toBeVisible();
   });
 
   test('sidebar link navigates to my-programs', async ({ page }) => {
-    await loginAsTestUser(page);
+    await mockLoginAsTestUser(page);
     await page.locator('aside').getByRole('link', { name: 'Mis Programas' }).click();
     await page.waitForURL('**/my-programs');
     await expect(page.getByRole('heading', { name: 'Mis Programas' })).toBeVisible();
   });
 
   test('shows empty state or subscription list', async ({ page }) => {
-    await loginAsTestUser(page);
+    await mockLoginAsTestUser(page);
     await page.goto('/my-programs');
     // Wait for either subscriptions or the empty state to render (after API loads)
     await expect(

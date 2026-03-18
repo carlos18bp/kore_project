@@ -1,10 +1,9 @@
-import { test, expect, E2E_USER, loginAsTestUser, setupDefaultApiMocks } from '../fixtures';
+import { test, expect, E2E_USER, mockLoginAsTestUser } from '../fixtures';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags.USER] }, () => {
   test.beforeEach(async ({ page }) => {
-    await setupDefaultApiMocks(page);
-    await loginAsTestUser(page);
+    await mockLoginAsTestUser(page);
     await expect(page).toHaveURL(/\/dashboard$/);
   });
 
