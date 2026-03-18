@@ -150,11 +150,21 @@ sequenceDiagram
 ```mermaid
 erDiagram
     User ||--o| TrainerProfile : "1:1 (role=trainer)"
+    User ||--o| CustomerProfile : "1:1 (role=customer)"
     User ||--o{ Subscription : "has many"
     User ||--o{ Booking : "has many (as customer)"
     User ||--o{ Payment : "has many"
     User ||--o{ PaymentIntent : "has many"
     User ||--o{ AnalyticsEvent : "has many (optional)"
+    User ||--o{ MoodEntry : "has many"
+    User ||--o{ WeightEntry : "has many"
+    User ||--o{ PasswordResetCode : "has many"
+    User ||--o{ TermsAcceptance : "has many"
+    User ||--o{ AnthropometryEvaluation : "has many (as customer)"
+    User ||--o{ PosturometryEvaluation : "has many (as customer)"
+    User ||--o{ PhysicalEvaluation : "has many (as customer)"
+    User ||--o{ NutritionHabit : "has many (as customer)"
+    User ||--o{ ParqAssessment : "has many (as customer)"
 
     Package ||--o{ Subscription : "has many"
     Package ||--o{ Booking : "has many"
@@ -165,6 +175,9 @@ erDiagram
 
     TrainerProfile ||--o{ AvailabilitySlot : "has many"
     TrainerProfile ||--o{ Booking : "has many"
+    TrainerProfile ||--o{ AnthropometryEvaluation : "has many"
+    TrainerProfile ||--o{ PosturometryEvaluation : "has many"
+    TrainerProfile ||--o{ PhysicalEvaluation : "has many"
 
     AvailabilitySlot ||--o{ Booking : "has many"
 
@@ -194,6 +207,23 @@ erDiagram
         text bio
         string location
         int session_duration_minutes
+    }
+
+    CustomerProfile {
+        int id PK
+        int user_id FK
+        string avatar
+        enum sex "masculino|femenino|otro|prefiero_no_decir"
+        date date_of_birth
+        string eps
+        enum id_type "ti|cc|ce|pasaporte|dni"
+        string id_number
+        date id_expedition_date
+        string address
+        string city
+        enum primary_goal "fat_loss|muscle_gain|rehab|general_health|sports_performance"
+        date kore_start_date
+        bool profile_completed
     }
 
     Package {
@@ -306,6 +336,137 @@ erDiagram
         json metadata
     }
 
+    AnthropometryEvaluation {
+        int id PK
+        int customer_id FK
+        int trainer_id FK
+        date evaluation_date
+        decimal weight_kg
+        decimal height_cm
+        decimal waist_cm
+        decimal hip_cm
+        json perimeters
+        json skinfolds
+        text notes
+        json recommendations
+        decimal bmi
+        string bmi_category
+        decimal waist_hip_ratio
+        decimal body_fat_pct
+        decimal fat_mass_kg
+        decimal lean_mass_kg
+        json asymmetries
+    }
+
+    PosturometryEvaluation {
+        int id PK
+        int customer_id FK
+        int trainer_id FK
+        date evaluation_date
+        json anterior_data
+        json lateral_right_data
+        json lateral_left_data
+        json posterior_data
+        image anterior_photo
+        image lateral_right_photo
+        image lateral_left_photo
+        image posterior_photo
+        text notes
+        json recommendations
+        decimal global_index
+        decimal upper_index
+        decimal central_index
+        decimal lower_index
+        json segment_scores
+        json findings
+    }
+
+    PhysicalEvaluation {
+        int id PK
+        int customer_id FK
+        int trainer_id FK
+        date evaluation_date
+        int squats_reps
+        int pushups_reps
+        int plank_seconds
+        int walk_meters
+        int unipodal_seconds
+        int hip_mobility
+        int shoulder_mobility
+        int ankle_mobility
+        text notes
+        json recommendations
+        decimal strength_index
+        decimal endurance_index
+        decimal mobility_index
+        decimal balance_index
+        decimal general_index
+        json cross_module_alerts
+    }
+
+    NutritionHabit {
+        int id PK
+        int customer_id FK
+        int meals_per_day
+        decimal water_liters
+        int fruit_weekly
+        int vegetable_weekly
+        int protein_frequency
+        int ultraprocessed_weekly
+        int sugary_drinks_weekly
+        bool eats_breakfast
+        text notes
+        decimal habit_score
+        string habit_category
+    }
+
+    ParqAssessment {
+        int id PK
+        int customer_id FK
+        bool q1_heart_condition
+        bool q2_chest_pain
+        bool q3_dizziness
+        bool q4_chronic_condition
+        bool q5_prescribed_medication
+        bool q6_bone_joint_problem
+        bool q7_medical_supervision
+        text additional_notes
+        int yes_count
+        string risk_classification
+    }
+
+    MoodEntry {
+        int id PK
+        int user_id FK
+        int score
+        text notes
+        date date
+    }
+
+    WeightEntry {
+        int id PK
+        int user_id FK
+        decimal weight_kg
+        date date
+    }
+
+    PasswordResetCode {
+        int id PK
+        int user_id FK
+        string code
+        datetime expires_at
+        bool used
+    }
+
+    TermsAcceptance {
+        int id PK
+        int user_id FK
+        string terms_version
+        string ip_address
+        text user_agent
+        datetime accepted_at
+    }
+
     SiteSettings {
         int id PK
         string company_name
@@ -355,6 +516,7 @@ erDiagram
 |-------|------|--------|-----|-----------------|
 | User | `models/user.py` | 8 | — | email unique, custom AbstractBaseUser |
 | TrainerProfile | `models/trainer_profile.py` | 5 | User (1:1) | limit_choices_to role=trainer |
+| CustomerProfile | `models/customer_profile.py` | 13 | User (1:1) | limit_choices_to role=customer, auto profile_completed |
 | Package | `models/package.py` | 12 | — | ordering by (order, id) |
 | Subscription | `models/subscription.py` | 14 | User, Package | — |
 | AvailabilitySlot | `models/availability.py` | 6 | TrainerProfile | ends_at > starts_at check, unique (starts_at, ends_at) |
@@ -363,12 +525,21 @@ erDiagram
 | PaymentIntent | `models/payment_intent.py` | 14 | User, Package | reference unique |
 | Notification | `models/notification.py` | 8 | Booking, Payment | — |
 | AnalyticsEvent | `models/analytics.py` | 6 | User (nullable) | — |
+| AnthropometryEvaluation | `models/anthropometry.py` | 30+ | User, TrainerProfile | auto-computed indices on save |
+| PosturometryEvaluation | `models/posturometry.py` | 25+ | User, TrainerProfile | 4-view JSON + photos, auto-computed indices |
+| PhysicalEvaluation | `models/physical_evaluation.py` | 40+ | User, TrainerProfile | cross-module alerts from anthropometry/posturometry |
+| NutritionHabit | `models/nutrition_habit.py` | 12 | User | auto-computed habit_score on save |
+| ParqAssessment | `models/parq_assessment.py` | 12 | User | auto-computed risk_classification on save |
+| MoodEntry | `models/mood_entry.py` | 4 | User | unique_together (user, date) |
+| WeightEntry | `models/weight_entry.py` | 3 | User | unique_together (user, date) |
+| PasswordResetCode | `models/password_reset_code.py` | 4 | User | 10-min expiry, single-use |
+| TermsAcceptance | `models/terms_acceptance.py` | 5 | User | unique_together (user, terms_version) |
 | SiteSettings | `models/content.py` | 10 | — | SingletonModel (pk=1) |
 | FAQCategory | `models/content.py` | 4 | — | slug unique |
 | FAQItem | `models/content.py` | 5 | FAQCategory | — |
 | ContactMessage | `models/content.py` | 5 | — | — |
 
-**Total: 14 models** across 12 files (content.py has 4 models).
+**Total: 24 models** across 22 files (21 domain + 1 base; content.py has 4 models).
 
 ---
 
@@ -381,6 +552,15 @@ erDiagram
 | `ics_generator` | `services/ics_generator.py` | Generates ICS calendar files for confirmed bookings |
 | `subscription_cleanup` | `services/subscription_cleanup.py` | Expires overdue subscriptions |
 | `wompi_service` | `services/wompi_service.py` | Wompi API client (create transactions, generate references, verify signatures) |
+| `anthropometry_calculator` | `services/anthropometry_calculator.py` | Pure calculation functions: BMI, waist-hip ratio, body fat %, lean mass, asymmetries |
+| `posturometry_calculator` | `services/posturometry_calculator.py` | Postural indices from 4-view segment observations (REEDCO/NYPR-based scoring) |
+| `physical_evaluation_calculator` | `services/physical_evaluation_calculator.py` | Age/sex-stratified baremo scoring for fitness tests; composite indices; cross-module alerts |
+| `nutrition_calculator` | `services/nutrition_calculator.py` | Composite habit score (0–10) from 8 dietary habit variables |
+| `parq_calculator` | `services/parq_calculator.py` | PAR-Q+ risk classification from 7 general health questions |
+| `kore_index_calculator` | `services/kore_index_calculator.py` | Composite KORE score (0–100) aggregating all diagnostic modules with weighted contributions |
+| `slot_schedule` | `services/slot_schedule.py` | Weekly schedule constants and slot-generation helpers for availability management |
+
+**Total: 12 services.**
 
 ---
 
@@ -397,25 +577,48 @@ erDiagram
 | `(public)` | `/contact` | Contact form | No |
 | `(public)` | `/kore-brand` | Brand/about page | No |
 | `(public)` | `/terms` | Terms & conditions | No |
+| `(public)` | `/forgot-password` | Password reset form | No |
 | `(app)` | `/dashboard` | Customer dashboard | Yes |
 | `(app)` | `/calendar` | Session calendar view | Yes |
 | `(app)` | `/book-session` | Book a new session | Yes |
 | `(app)` | `/my-programs` | My programs/subscriptions | Yes |
 | `(app)` | `/my-programs/program` | Single program detail | Yes |
 | `(app)` | `/subscription` | Subscription management | Yes |
+| `(app)` | `/profile` | Customer profile management | Yes |
+| `(app)` | `/my-diagnosis` | Diagnosis overview (KORE index) | Yes |
+| `(app)` | `/my-nutrition` | Nutrition habit entries | Yes |
+| `(app)` | `/my-parq` | PAR-Q+ assessments | Yes |
+| `(app)` | `/my-physical-evaluation` | Physical evaluation results | Yes |
+| `(app)` | `/my-posturometry` | Posturometry results | Yes |
+| `(app)` | `/trainer/dashboard` | Trainer dashboard (stats) | Yes (trainer) |
+| `(app)` | `/trainer/clients` | Trainer client list | Yes (trainer) |
+| `(app)` | `/trainer/clients/client` | Client detail | Yes (trainer) |
+| `(app)` | `/trainer/clients/client/anthropometry` | Client anthropometry CRUD | Yes (trainer) |
+| `(app)` | `/trainer/clients/client/nutrition` | Client nutrition view | Yes (trainer) |
+| `(app)` | `/trainer/clients/client/parq` | Client PAR-Q view | Yes (trainer) |
+| `(app)` | `/trainer/clients/client/physical-evaluation` | Client physical eval CRUD | Yes (trainer) |
+| `(app)` | `/trainer/clients/client/posturometry` | Client posturometry CRUD | Yes (trainer) |
 
-**Total: 15 pages** (9 public + 6 authenticated).
+**Total: 30 pages** (10 public + 12 customer + 8 trainer).
 
 ---
 
 ## 8. Store Architecture (Zustand)
 
 | Store | File | State & Actions |
-|-------|------|-----------------|
+|-------|------|------------------|
 | `authStore` | `lib/stores/authStore.ts` | User state, login/logout, token management, profile fetch |
 | `bookingStore` | `lib/stores/bookingStore.ts` | Slots, bookings CRUD, calendar data, booking creation/cancellation |
 | `checkoutStore` | `lib/stores/checkoutStore.ts` | Checkout flow, Wompi config, payment intent creation, signature generation |
 | `subscriptionStore` | `lib/stores/subscriptionStore.ts` | Subscriptions list, active subscription, session tracking, expiry reminders |
+| `profileStore` | `lib/stores/profileStore.ts` | Customer profile CRUD, avatar upload, mood check-in, goal selection |
+| `anthropometryStore` | `lib/stores/anthropometryStore.ts` | Anthropometry evaluations list, body composition indices |
+| `nutritionStore` | `lib/stores/nutritionStore.ts` | Nutrition assessment form data, habit scoring |
+| `parqStore` | `lib/stores/parqStore.ts` | PAR-Q questionnaire responses, risk assessment |
+| `physicalEvaluationStore` | `lib/stores/physicalEvaluationStore.ts` | Physical evaluation results, fitness indicators |
+| `posturometryStore` | `lib/stores/posturometryStore.ts` | Posturometry evaluations, regional postural analysis |
+| `pendingAssessmentsStore` | `lib/stores/pendingAssessmentsStore.ts` | KORE score, pending assessment module tracking |
+| `trainerStore` | `lib/stores/trainerStore.ts` | Trainer dashboard stats, client list, client detail, client sessions |
 
 ---
 

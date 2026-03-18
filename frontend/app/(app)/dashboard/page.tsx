@@ -789,7 +789,7 @@ export default function DashboardPage() {
                     <span className={`font-heading text-base font-bold ${CTP[latest.general_color] || CTP.green}`}>{latest.general_index}</span>
                   </div>
                   <div>
-                    <p className="text-sm font-medium {CTP[latest.general_color] || CTP.green}">{latest.general_category}</p>
+                    <p className={`text-sm font-medium ${CTP[latest.general_color] || CTP.green}`}>{latest.general_category}</p>
                     <p className="text-xs text-kore-gray-dark/40">Condición general</p>
                   </div>
                 </div>

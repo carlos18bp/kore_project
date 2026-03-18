@@ -1,6 +1,5 @@
 """Tests for the posturometry calculation engine."""
 
-import pytest
 from core_app.services.posturometry_calculator import (
     SEGMENT_REGISTRY,
     classify_index,
@@ -10,7 +9,6 @@ from core_app.services.posturometry_calculator import (
     generate_default_recommendations,
     generate_findings,
 )
-
 
 # ── Helpers ──
 

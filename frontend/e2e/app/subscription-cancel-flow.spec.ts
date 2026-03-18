@@ -74,27 +74,26 @@ test.describe('Subscription Cancel Flow', { tag: [...FlowTags.SUBSCRIPTION_CANCE
     ]);
   }
 
-  test('active subscription shows cancel button as disabled', async ({ page }) => {
+  test('active subscription shows cancel button as enabled', async ({ page }) => {
     await injectAuthCookies(page);
     await setupMocks(page, mockSubscription);
     await page.goto('/subscription');
 
     const cancelBtn = page.getByRole('button', { name: 'Cancelar suscripción' });
     await expect(cancelBtn).toBeVisible({ timeout: 10_000 });
-    await expect(cancelBtn).toBeDisabled();
+    await expect(cancelBtn).toBeEnabled();
   });
 
-  test('disabled cancel button does not open confirmation dialog', async ({ page }) => {
+  test('clicking cancel button opens confirmation dialog', async ({ page }) => {
     await injectAuthCookies(page);
     await setupMocks(page, mockSubscription);
     await page.goto('/subscription');
 
     const cancelBtn = page.getByRole('button', { name: 'Cancelar suscripción' });
-    await expect(cancelBtn).toBeDisabled({ timeout: 10_000 });
+    await expect(cancelBtn).toBeVisible({ timeout: 10_000 });
 
-    // Attempt force-click — confirmation should NOT appear
-    await cancelBtn.click({ force: true }).catch(() => {});
-    await expect(page.getByText('¿Seguro que deseas cancelar?')).not.toBeVisible();
+    await cancelBtn.click();
+    await expect(page.getByText('¿Seguro que deseas cancelar?')).toBeVisible({ timeout: 5_000 });
   });
 
   test('expired subscription does not show cancel button', async ({ page }) => {
@@ -110,7 +109,7 @@ test.describe('Subscription Cancel Flow', { tag: [...FlowTags.SUBSCRIPTION_CANCE
     await page.goto('/subscription');
 
     await expect(page.getByText('Expirada', { exact: true }).first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('Esta suscripción está inactiva')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Renovar este programa' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Cancelar suscripción' })).not.toBeVisible();
   });
 

@@ -1,15 +1,17 @@
 """Tests for password reset API views (request-code, verify-code, reset)."""
 
-from datetime import timedelta
+from datetime import datetime, timedelta
+from datetime import timezone as dt_timezone
 from unittest.mock import patch
 
 import pytest
 from django.core import signing
 from django.urls import reverse
-from django.utils import timezone
 from rest_framework import status
 
 from core_app.models import PasswordResetCode, User
+
+FIXED_NOW = datetime(2026, 6, 15, 12, 0, 0, tzinfo=dt_timezone.utc)
 
 
 @pytest.fixture
@@ -93,9 +95,10 @@ class TestVerifyPasswordResetCode:
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
     @pytest.mark.django_db
-    def test_expired_code_returns_400(self, api_client, customer_user):
+    def test_expired_code_returns_400(self, api_client, customer_user, monkeypatch):
+        monkeypatch.setattr('django.utils.timezone.now', lambda: FIXED_NOW)
         code_obj = PasswordResetCode.create_for_user(customer_user)
-        code_obj.expires_at = timezone.now() - timedelta(minutes=1)
+        code_obj.expires_at = FIXED_NOW - timedelta(minutes=1)
         code_obj.save()
         resp = api_client.post(
             self.url,

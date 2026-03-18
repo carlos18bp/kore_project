@@ -4,7 +4,6 @@ import hashlib
 from unittest.mock import MagicMock, patch
 
 import pytest
-from core_project.settings import _resolve_wompi_base_url
 from django.test import override_settings
 
 from core_app.services.wompi_service import (
@@ -18,6 +17,7 @@ from core_app.services.wompi_service import (
     get_transaction_by_id,
     verify_event_checksum,
 )
+from core_project.settings import _resolve_wompi_base_url
 
 WOMPI_SETTINGS = {
     'WOMPI_PUBLIC_KEY': 'pub_test_abc',
@@ -490,6 +490,7 @@ class TestExtractResponseDetails:
         status_code, response_data = _extract_response_details(exc)
         assert status_code == 500
         assert response_data == {'raw': 'Internal Server Error'}
+        mock_resp.json.assert_called_once()
 
     def test_falls_back_to_none_on_generic_exception(self):
         """Generic Exception from response.json() sets response_data to None — lines 67-68."""
@@ -502,6 +503,7 @@ class TestExtractResponseDetails:
         status_code, response_data = _extract_response_details(exc)
         assert status_code == 502
         assert response_data is None
+        mock_resp.json.assert_called_once()
 
     def test_falls_back_to_empty_raw_when_text_is_empty(self):
         """ValueError with empty text leaves response_data as None — line 65 false branch."""
@@ -515,6 +517,7 @@ class TestExtractResponseDetails:
         status_code, response_data = _extract_response_details(exc)
         assert status_code == 500
         assert response_data is None
+        mock_resp.json.assert_called_once()
 
 
 class TestCreateTransactionNegativeInstallments:
@@ -540,6 +543,7 @@ class TestCreateTransactionNegativeInstallments:
             installments=-5,
         )
 
+        mock_post.assert_called_once()
         call_kwargs = mock_post.call_args
         payload = call_kwargs.kwargs.get('json') or call_kwargs[1].get('json')
         assert payload['payment_method']['installments'] == 1
@@ -558,7 +562,7 @@ class TestCreateTransactionWithPaymentMethodErrors:
         mock_resp.json.return_value = {'data': {}}
         mock_post.return_value = mock_resp
 
-        with pytest.raises(WompiError, match='No transaction ID'):
+        with pytest.raises(WompiError, match='No transaction ID') as exc_info:
             create_transaction_with_payment_method(
                 amount_in_cents=1000,
                 currency='COP',
@@ -566,6 +570,8 @@ class TestCreateTransactionWithPaymentMethodErrors:
                 reference='ref-no-id',
                 payment_method={'type': 'NEQUI', 'phone_number': '3001112233'},
             )
+        assert 'No transaction ID' in str(exc_info.value)
+        mock_post.assert_called_once()
 
     @override_settings(**WOMPI_SETTINGS)
     @patch('core_app.services.wompi_service.get_acceptance_token', return_value='tok')
@@ -587,6 +593,7 @@ class TestCreateTransactionWithPaymentMethodErrors:
                 payment_method={'type': 'PSE', 'financial_institution_code': '1007'},
             )
         assert exc_info.value.status_code == 503
+        mock_post.assert_called_once()
 
 
 class TestResolveWompiBaseUrl:

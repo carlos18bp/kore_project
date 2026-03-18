@@ -8,7 +8,13 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from core_app.models import AvailabilitySlot, Booking, Package, PosturometryEvaluation, User
+from core_app.models import (
+    AvailabilitySlot,
+    Booking,
+    Package,
+    PosturometryEvaluation,
+    User,
+)
 from core_app.models.trainer_profile import TrainerProfile
 
 

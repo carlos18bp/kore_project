@@ -207,8 +207,7 @@ class TestProcessRecurringBilling:
         self, mock_ref, mock_txn, due_subscription
     ):
         """Clear billing_failed_at when charging succeeds after previous failure."""
-        from django.utils import timezone
-        due_subscription.billing_failed_at = timezone.now()
+        due_subscription.billing_failed_at = DUE_REFERENCE
         due_subscription.save()
 
         mock_ref.return_value = 'kore-ref-success'

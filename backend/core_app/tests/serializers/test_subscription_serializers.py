@@ -1,13 +1,15 @@
 """Tests for subscription serializers."""
 
-from datetime import timedelta
+from datetime import datetime, timedelta
+from datetime import timezone as dt_timezone
 from decimal import Decimal
 
 import pytest
-from django.utils import timezone
 
 from core_app.models import Package, Subscription, User
 from core_app.serializers.subscription_serializers import SubscriptionSerializer
+
+FIXED_NOW = datetime(2025, 6, 15, 12, 0, 0, tzinfo=dt_timezone.utc)
 
 
 @pytest.fixture
@@ -30,12 +32,11 @@ def package(db):
 @pytest.fixture
 def subscription(customer, package):
     """Create an active subscription with partial usage."""
-    now = timezone.now()
     return Subscription.objects.create(
         customer=customer, package=package,
         sessions_total=8, sessions_used=3,
         status=Subscription.Status.ACTIVE,
-        starts_at=now, expires_at=now + timedelta(days=30),
+        starts_at=FIXED_NOW, expires_at=FIXED_NOW + timedelta(days=30),
     )
 
 
@@ -50,6 +51,7 @@ class TestSubscriptionSerializer:
             'id', 'customer_email', 'package', 'sessions_total',
             'sessions_used', 'sessions_remaining', 'status',
             'starts_at', 'expires_at', 'next_billing_date',
+            'is_recurring', 'billing_failed_at',
             'created_at', 'updated_at',
         }
         assert set(data.keys()) == expected_fields
@@ -61,12 +63,11 @@ class TestSubscriptionSerializer:
 
     def test_sessions_remaining_zero_floor(self, customer, package):
         """Floor sessions_remaining at zero when sessions_used exceeds total."""
-        now = timezone.now()
         sub = Subscription.objects.create(
             customer=customer, package=package,
             sessions_total=4, sessions_used=6,
             status=Subscription.Status.ACTIVE,
-            starts_at=now, expires_at=now + timedelta(days=30),
+            starts_at=FIXED_NOW, expires_at=FIXED_NOW + timedelta(days=30),
         )
         data = SubscriptionSerializer(sub).data
         assert data['sessions_remaining'] == 0
@@ -94,13 +95,12 @@ class TestSubscriptionSerializer:
 
     def test_status_values(self, customer, package):
         """Serialize different status values correctly."""
-        now = timezone.now()
         for status_choice in Subscription.Status:
             sub = Subscription.objects.create(
                 customer=customer, package=package,
                 sessions_total=4, sessions_used=0,
                 status=status_choice,
-                starts_at=now, expires_at=now + timedelta(days=30),
+                starts_at=FIXED_NOW, expires_at=FIXED_NOW + timedelta(days=30),
             )
             data = SubscriptionSerializer(sub).data
             assert data['status'] == status_choice.value

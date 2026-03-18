@@ -27,7 +27,7 @@ test.describe('Auth Protected Routes', { tag: [...FlowTags.AUTH_PROTECTED_ROUTES
 
   test('unauthenticated user visiting /checkout without package redirects to login or programs', async ({ page }) => {
     await page.goto('/checkout');
-    // Checkout may redirect to login or to subscription/programs depending on implementation
     await page.waitForURL(/\/(login|register|subscription|programs)/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/(login|register|subscription|programs)/);
   });
 });

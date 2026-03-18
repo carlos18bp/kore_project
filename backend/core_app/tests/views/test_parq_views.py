@@ -1,16 +1,18 @@
 """Tests for PAR-Q+ assessment views (client create/read + trainer read-only)."""
 
-from datetime import timedelta
+from datetime import datetime, timedelta
+from datetime import timezone as dt_timezone
 from decimal import Decimal
 
 import pytest
-from django.utils import timezone
 from rest_framework.test import APIClient
 
 from core_app.models import Booking, Package, User
+from core_app.models.availability import AvailabilitySlot
 from core_app.models.parq_assessment import ParqAssessment
 from core_app.models.trainer_profile import TrainerProfile
-from core_app.models.availability import AvailabilitySlot
+
+FIXED_NOW = datetime(2026, 6, 15, 12, 0, 0, tzinfo=dt_timezone.utc)
 
 
 def _auth(client, user):
@@ -83,14 +85,15 @@ class TestClientParqListCreate:
         assert resp.status_code == 400
         assert '3 meses' in resp.data['detail']
 
-    def test_rate_limit_allows_after_90_days(self):
+    def test_rate_limit_allows_after_90_days(self, monkeypatch):
+        monkeypatch.setattr('django.utils.timezone.now', lambda: FIXED_NOW)
         client = APIClient()
         customer = User.objects.create_user(email='parq5@test.com', password='pass', role='customer')
         _auth(client, customer)
 
         old = ParqAssessment.objects.create(customer=customer)
         ParqAssessment.objects.filter(pk=old.pk).update(
-            created_at=timezone.now() - timedelta(days=91),
+            created_at=FIXED_NOW - timedelta(days=91),
         )
 
         resp = client.post('/api/my-parq/', _valid_payload(), format='json')
@@ -134,9 +137,8 @@ class TestTrainerParqViews:
         trainer_user = User.objects.create_user(email='parq_t@test.com', password='pass', role='trainer')
         trainer = TrainerProfile.objects.create(user=trainer_user, specialty='S', location='L')
         pkg = Package.objects.create(title='Pack', sessions_count=4, validity_days=30, price=Decimal('100.00'))
-        now = timezone.now()
         slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(days=1), ends_at=now + timedelta(days=1, hours=1),
+            starts_at=FIXED_NOW + timedelta(days=1), ends_at=FIXED_NOW + timedelta(days=1, hours=1),
             is_active=True, is_blocked=False,
         )
         Booking.objects.create(customer=customer, package=pkg, slot=slot, trainer=trainer, status='confirmed')

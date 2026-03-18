@@ -19,6 +19,58 @@ sys.modules[SPEC.name] = run_tests_all_suites
 SPEC.loader.exec_module(run_tests_all_suites)
 
 
+class _FakeRegion:
+    """Stub for coverage code_regions entries."""
+
+    def __init__(self, kind, lines):
+        self.kind = kind
+        self.lines = lines
+
+
+def _make_fake_coverage(valid_path):
+    """Build a FakeCoverage class scoped to *valid_path*."""
+
+    class _FakeCoverageData:
+        def measured_files(self):
+            return [
+                valid_path,
+                str(Path(valid_path).parent.parent / "tests" / "test_payments.py"),
+                str(Path(valid_path).parents[2] / "other" / "module.py"),
+            ]
+
+    class _FakeCoverage:
+        def __init__(self, data_file):
+            self._data = _FakeCoverageData()
+
+        def load(self):
+            return None
+
+        def get_data(self):
+            return self._data
+
+        def _analyze(self, filepath):
+            if filepath != valid_path:
+                raise AssertionError("Unexpected analysis request")
+            return SimpleNamespace(
+                executed={1},
+                numbers=SimpleNamespace(
+                    n_statements=4, n_missing=1, n_branches=2, n_missing_branches=1,
+                ),
+            )
+
+        def _get_file_reporter(self, filepath):
+            if filepath != valid_path:
+                raise AssertionError("Unexpected reporter request")
+            return SimpleNamespace(
+                code_regions=lambda: [
+                    _FakeRegion("function", {1, 2}),
+                    _FakeRegion("function", {3, 4}),
+                ]
+            )
+
+    return _FakeCoverage
+
+
 def _noop_runner(name: str) -> run_tests_all_suites.StepResult:
     return run_tests_all_suites.StepResult(
         name=name,
@@ -190,51 +242,8 @@ def test_read_backend_summary_aggregates_statement_total(tmp_path, monkeypatch):
     """Aggregates statement totals from core app data only."""
     (tmp_path / ".coverage").write_text("data", encoding="utf-8")
     valid_path = str(tmp_path / "core_app" / "services" / "payments.py")
-    ignored_test_path = str(tmp_path / "core_app" / "tests" / "test_payments.py")
-    ignored_other_path = str(tmp_path / "other" / "module.py")
 
-    class FakeCoverageData:
-        def measured_files(self):
-            return [valid_path, ignored_test_path, ignored_other_path]
-
-    class FakeRegion:
-        def __init__(self, kind, lines):
-            self.kind = kind
-            self.lines = lines
-
-    class FakeCoverage:
-        def __init__(self, data_file):
-            self._data = FakeCoverageData()
-
-        def load(self):
-            return None
-
-        def get_data(self):
-            return self._data
-
-        def _analyze(self, filepath):
-            if filepath != valid_path:
-                raise AssertionError("Unexpected analysis request")
-            return SimpleNamespace(
-                executed={1},
-                numbers=SimpleNamespace(
-                    n_statements=4,
-                    n_missing=1,
-                    n_branches=2,
-                    n_missing_branches=1,
-                ),
-            )
-
-        def _get_file_reporter(self, filepath):
-            if filepath != valid_path:
-                raise AssertionError("Unexpected reporter request")
-            return SimpleNamespace(
-                code_regions=lambda: [
-                    FakeRegion("function", {1, 2}),
-                    FakeRegion("function", {3, 4}),
-                ]
-            )
-
+    FakeCoverage = _make_fake_coverage(valid_path)
     monkeypatch.setitem(sys.modules, "coverage", SimpleNamespace(Coverage=FakeCoverage))
 
     summary = run_tests_all_suites.read_backend_coverage_summary(tmp_path)

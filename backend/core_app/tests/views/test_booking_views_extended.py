@@ -507,6 +507,66 @@ class TestOnlyNextSessionValidation:
 # Occupied-day endpoint
 # ----------------------------------------------------------------
 
+def _create_occupied_day_bookings(customer, package, trainer_profile):
+    """Build a mix of bookings for occupied-day filtering tests.
+
+    Returns (included_booking, target_day) — the single booking that should
+    appear in the occupied-day response.
+    """
+    other_trainer_user = User.objects.create_user(
+        email='occupied_other_trainer@example.com', password='p', role=User.Role.TRAINER,
+    )
+    other_trainer = TrainerProfile.objects.create(
+        user=other_trainer_user, specialty='Other', location='Remote',
+    )
+
+    target_day = (FIXED_NOW + timedelta(days=2)).date()
+    target_start = datetime(
+        target_day.year, target_day.month, target_day.day, 7, 0, tzinfo=dt_timezone.utc,
+    )
+
+    included_slot = AvailabilitySlot.objects.create(
+        starts_at=target_start, ends_at=target_start + timedelta(hours=1),
+        trainer=trainer_profile, is_blocked=True,
+    )
+    included_booking = Booking.objects.create(
+        customer=customer, package=package, slot=included_slot,
+        trainer=trainer_profile, status=Booking.Status.CONFIRMED,
+    )
+
+    canceled_slot = AvailabilitySlot.objects.create(
+        starts_at=target_start + timedelta(hours=2),
+        ends_at=target_start + timedelta(hours=3),
+        trainer=trainer_profile, is_blocked=False,
+    )
+    Booking.objects.create(
+        customer=customer, package=package, slot=canceled_slot,
+        trainer=trainer_profile, status=Booking.Status.CANCELED,
+    )
+
+    other_day_slot = AvailabilitySlot.objects.create(
+        starts_at=target_start + timedelta(days=1),
+        ends_at=target_start + timedelta(days=1, hours=1),
+        trainer=trainer_profile, is_blocked=True,
+    )
+    Booking.objects.create(
+        customer=customer, package=package, slot=other_day_slot,
+        trainer=trainer_profile, status=Booking.Status.PENDING,
+    )
+
+    other_trainer_slot = AvailabilitySlot.objects.create(
+        starts_at=target_start + timedelta(hours=4),
+        ends_at=target_start + timedelta(hours=5),
+        trainer=other_trainer, is_blocked=True,
+    )
+    Booking.objects.create(
+        customer=customer, package=package, slot=other_trainer_slot,
+        trainer=other_trainer, status=Booking.Status.CONFIRMED,
+    )
+
+    return included_booking, target_day
+
+
 @pytest.mark.django_db
 class TestOccupiedDayEndpoint:
     """Validates daily booked-session payload used for frontend availability."""
@@ -520,77 +580,8 @@ class TestOccupiedDayEndpoint:
 
     def test_returns_only_active_bookings_for_trainer_and_day(self, api_client, customer, package, trainer_profile):
         """Includes pending/confirmed bookings for the selected trainer/day only."""
-        other_trainer_user = User.objects.create_user(
-            email='occupied_other_trainer@example.com', password='p', role=User.Role.TRAINER,
-        )
-        other_trainer = TrainerProfile.objects.create(
-            user=other_trainer_user, specialty='Other', location='Remote',
-        )
-
-        target_day = (FIXED_NOW + timedelta(days=2)).date()
-        target_start = datetime(
-            target_day.year,
-            target_day.month,
-            target_day.day,
-            7,
-            0,
-            tzinfo=dt_timezone.utc,
-        )
-
-        included_slot = AvailabilitySlot.objects.create(
-            starts_at=target_start,
-            ends_at=target_start + timedelta(hours=1),
-            trainer=trainer_profile,
-            is_blocked=True,
-        )
-        included_booking = Booking.objects.create(
-            customer=customer,
-            package=package,
-            slot=included_slot,
-            trainer=trainer_profile,
-            status=Booking.Status.CONFIRMED,
-        )
-
-        canceled_slot = AvailabilitySlot.objects.create(
-            starts_at=target_start + timedelta(hours=2),
-            ends_at=target_start + timedelta(hours=3),
-            trainer=trainer_profile,
-            is_blocked=False,
-        )
-        Booking.objects.create(
-            customer=customer,
-            package=package,
-            slot=canceled_slot,
-            trainer=trainer_profile,
-            status=Booking.Status.CANCELED,
-        )
-
-        other_day_slot = AvailabilitySlot.objects.create(
-            starts_at=target_start + timedelta(days=1),
-            ends_at=target_start + timedelta(days=1, hours=1),
-            trainer=trainer_profile,
-            is_blocked=True,
-        )
-        Booking.objects.create(
-            customer=customer,
-            package=package,
-            slot=other_day_slot,
-            trainer=trainer_profile,
-            status=Booking.Status.PENDING,
-        )
-
-        other_trainer_slot = AvailabilitySlot.objects.create(
-            starts_at=target_start + timedelta(hours=4),
-            ends_at=target_start + timedelta(hours=5),
-            trainer=other_trainer,
-            is_blocked=True,
-        )
-        Booking.objects.create(
-            customer=customer,
-            package=package,
-            slot=other_trainer_slot,
-            trainer=other_trainer,
-            status=Booking.Status.CONFIRMED,
+        included_booking, target_day = _create_occupied_day_bookings(
+            customer, package, trainer_profile,
         )
 
         api_client.force_authenticate(user=customer)

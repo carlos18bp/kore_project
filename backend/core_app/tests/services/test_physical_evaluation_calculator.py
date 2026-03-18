@@ -138,7 +138,7 @@ class ClassifyIndexTests(TestCase):
 
 
 class ComputeAllTests(TestCase):
-    def test_full_evaluation_male_30(self):
+    def test_full_evaluation_male_30_individual_scores(self):
         result = compute_all(
             age=30, sex='masculino',
             squats_reps=30, pushups_reps=15, plank_seconds=50,
@@ -150,6 +150,14 @@ class ComputeAllTests(TestCase):
         self.assertEqual(result['plank_score'], 3)
         self.assertEqual(result['walk_score'], 3)
         self.assertEqual(result['unipodal_score'], 3)
+
+    def test_full_evaluation_male_30_composite_indices(self):
+        result = compute_all(
+            age=30, sex='masculino',
+            squats_reps=30, pushups_reps=15, plank_seconds=50,
+            walk_meters=550, unipodal_seconds=30,
+            hip_mobility=4, shoulder_mobility=3, ankle_mobility=4,
+        )
         self.assertIsNotNone(result['strength_index'])
         self.assertIsNotNone(result['general_index'])
         self.assertEqual(result['general_color'], 'green')

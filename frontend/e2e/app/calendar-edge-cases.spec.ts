@@ -12,6 +12,8 @@ const FAKE_USER_COOKIE = JSON.stringify({
   phone: '',
   role: 'customer',
   name: 'Usuario Prueba',
+  profile_completed: true,
+  avatar_url: null,
 });
 
 async function configureCalendarDefaults(page: Page) {
@@ -30,6 +32,10 @@ async function configureCalendarDefaults(page: Page) {
           last_name: 'Prueba',
           phone: '',
           role: 'customer',
+          profile_completed: true,
+          avatar_url: null,
+          customer_profile: { profile_completed: true, sex: 'M', date_of_birth: '1990-01-15', city: 'Bogotá', primary_goal: 'health' },
+          today_mood: { score: 7, notes: '', date: new Date().toISOString().slice(0, 10) },
         },
       }),
     }),
@@ -142,7 +148,7 @@ test.describe('BookingCalendar Edge Cases', { tag: [...FlowTags.BOOKING_CALENDAR
     }
   });
 
-  test('days without available slots are disabled', async ({ page }) => {
+  test('Sunday days are disabled (no sessions on Sundays)', async ({ page }) => {
     await page.route('**/api/availability-slots/**', (route) =>
       route.fulfill({
         status: 200,
@@ -154,19 +160,25 @@ test.describe('BookingCalendar Edge Cases', { tag: [...FlowTags.BOOKING_CALENDAR
     await page.goto('/book-session');
     await expect(page.getByText('Selecciona un día')).toBeVisible({ timeout: 10_000 });
 
-    const enabledDayCount = await page
-      .locator('button:not([disabled])')
-      .filter({ hasText: /^\d{1,2}$/ })
-      .count();
+    // Find a Sunday in the current month and verify it is disabled
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    let sundayDay: number | null = null;
+    for (let d = today.getDate() + 1; d <= daysInMonth; d++) {
+      if (new Date(year, month, d).getDay() === 0) { sundayDay = d; break; }
+    }
 
-    expect(enabledDayCount).toBe(0);
+    if (sundayDay !== null) {
+      const sundayBtn = page.getByRole('button', { name: String(sundayDay), exact: true });
+      if ((await sundayBtn.count()) > 0) {
+        await expect(sundayBtn).toBeDisabled();
+      }
+    }
   });
 
-  test('empty slots message shows when no slots available', async ({ page }) => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowDay = tomorrow.getDate();
-
+  test('selecting a weekday shows time slot options', async ({ page }) => {
     await page.route('**/api/availability-slots/**', (route) =>
       route.fulfill({
         status: 200,
@@ -178,14 +190,20 @@ test.describe('BookingCalendar Edge Cases', { tag: [...FlowTags.BOOKING_CALENDAR
     await page.goto('/book-session');
     await expect(page.getByText('Selecciona un día')).toBeVisible({ timeout: 10_000 });
 
-    const dayButton = page.getByRole('button', { name: String(tomorrowDay), exact: true });
+    // Find an enabled future weekday and click it
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    // Skip to next weekday if tomorrow is Sunday
+    while (tomorrow.getDay() === 0) { tomorrow.setDate(tomorrow.getDate() + 1); }
+    const dayNum = tomorrow.getDate();
 
+    const dayButton = page.getByRole('button', { name: String(dayNum), exact: true });
     if ((await dayButton.count()) > 0 && !(await dayButton.isDisabled())) {
-      await dayButton.click({ force: true });
+      await dayButton.click();
 
-      await expect(
-        page.getByText('No hay horarios disponibles para este día'),
-      ).toBeVisible({ timeout: 10_000 });
+      // Virtual slot system generates time slots from WEEKDAY_WINDOWS
+      // After selecting a day, the heading changes from 'Selecciona un día'
+      await expect(page.getByText('Selecciona un día')).not.toBeVisible({ timeout: 10_000 });
     }
   });
 

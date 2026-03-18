@@ -7,7 +7,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image as PILImage
 from rest_framework.test import APIClient
 
-from core_app.models import CustomerProfile, MoodEntry, User, WeightEntry
+from core_app.models import MoodEntry, User, WeightEntry
 
 
 def _auth_client(user):

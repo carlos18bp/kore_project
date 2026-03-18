@@ -8,7 +8,6 @@ from django.core.management import call_command
 
 from core_app.models import AvailabilitySlot, Booking, Package, TrainerProfile, User
 
-
 FIXED_NOW = datetime(2026, 3, 4, 12, 0, tzinfo=dt_timezone.utc)  # Wednesday
 
 

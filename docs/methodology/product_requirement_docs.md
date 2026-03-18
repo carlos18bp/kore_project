@@ -88,8 +88,62 @@ The platform operates with **Colombian Pesos (COP)** as the default currency and
 - Event tracking: WhatsApp clicks, package views, bookings created, payments confirmed
 - Session-based tracking with optional user association
 
-### 4.10 Admin Panel
-- Full Django admin with customized ModelAdmin classes for all 13 models
+### 4.10 Diagnostic Engine (Health Assessments)
+A comprehensive health evaluation system with 5 assessment modules, each with auto-computed indices on save:
+
+| Module | Model | Key Data | Computed Indices |
+|--------|-------|----------|------------------|
+| **Anthropometry** | `AnthropometryEvaluation` | Weight, height, waist, hip, perimeters (JSON), skinfolds (JSON) | BMI, waist-hip ratio, waist-height ratio, body fat %, fat/lean mass, asymmetries |
+| **Posturometry** | `PosturometryEvaluation` | 4-view observations (anterior, lateral R/L, posterior) as JSON, photos per view | Global/upper/central/lower indices, segment scores, findings |
+| **Physical Evaluation** | `PhysicalEvaluation` | Squats, pushups, plank, 6min walk, unipodal balance, mobility (hip/shoulder/ankle) | Strength/endurance/mobility/balance/general indices, cross-module alerts |
+| **Nutrition Habits** | `NutritionHabit` | Meals/day, water intake, fruit/vegetable/protein frequency, ultra-processed/sugary drinks frequency, breakfast habit | Habit score (0–10), category, color |
+| **PAR-Q+ Assessment** | `ParqAssessment` | 7 general health questions (yes/no) | Yes count, risk classification (green/yellow/red) |
+
+- **Trainer endpoints**: Create and manage evaluations for their assigned clients
+- **Client endpoints**: Read-only access to their own evaluations
+- **Cooldowns**: Nutrition (1 entry per 7 days), PAR-Q (1 entry per 90 days)
+- **Cross-module integration**: Physical evaluation pulls context from latest anthropometry and posturometry
+- **Recommendations**: Auto-generated per index, editable by trainers
+- **Scientific basis**: Each calculator references peer-reviewed literature (ACSM, WHO, CSEP, Kendall, etc.)
+
+### 4.11 KORE General Index
+- Composite health score (0–100) aggregating all diagnostic modules
+- Weighted contributions: Anthropometry 20%, Metabolic risk 15%, Posture 20%, Physical condition 20%, Wellbeing 10%, Nutrition 15%
+- Classification: Critical (0–39), Needs intervention (40–59), In progress (60–74), Good (75–89), Optimal (90–100)
+- Exposed via the pending assessments endpoint
+
+### 4.12 Customer Profile
+- 1-to-1 with User (role=customer) via `CustomerProfile`
+- Personal data: sex, date of birth, EPS, ID type/number, address, city
+- Fitness goal selection (fat loss, muscle gain, rehab, general health, sports performance)
+- Avatar upload, profile completion tracking
+- Auto-computed `profile_completed` flag based on key fields
+
+### 4.13 Trainer Client Management
+- Trainers can view all their assigned clients (clients with bookings)
+- Client detail: profile info, subscription status, session history
+- Trainer dashboard stats: total clients, active subscriptions, sessions this month
+- Per-client assessment management (anthropometry, posturometry, physical eval, nutrition, PAR-Q)
+
+### 4.14 Mood & Weight Tracking
+- **MoodEntry**: Daily mood log (1–10 scale) with optional notes, one per user per day
+- **WeightEntry**: Daily weight log (kg), one per user per day
+- Full history persisted for trainer review and progress analytics
+
+### 4.15 Password Reset
+- 6-digit verification code sent via email
+- Codes expire after 10 minutes, single-use
+- Previous codes invalidated on new request
+- Forgot password page on frontend
+
+### 4.16 Terms & Conditions Acceptance
+- Versioned terms acceptance tracking
+- Records IP address, user-agent, and timestamp as legal evidence
+- New acceptance required when terms version changes
+- Unique constraint on (user, terms_version)
+
+### 4.17 Admin Panel
+- Full Django admin with 23 Admin classes (22 ModelAdmin + 1 Form) for all 24 models
 - Autocomplete fields, filters, search, readonly fields
 
 ---
@@ -121,6 +175,13 @@ The platform operates with **Colombian Pesos (COP)** as the default currency and
 8. Pre-registered users (pending payment) are created with hashed password stored in PaymentIntent
 9. Trainers are linked 1-to-1 with User (role=trainer) via TrainerProfile
 10. Contact messages are read-only in admin (name, email, phone, message cannot be edited)
+11. Customers are linked 1-to-1 with User (role=customer) via CustomerProfile
+12. **Diagnostic assessment cooldowns**: Nutrition entries max 1 per 7 days; PAR-Q entries max 1 per 90 days
+13. **Trainer–client relationship** derived from bookings — a client is any customer with at least one booking with the trainer
+14. All diagnostic indices are **auto-computed on model save** — never set manually by the client
+15. **Password reset codes** expire after 10 minutes and are single-use; previous codes invalidated on new request
+16. **Terms acceptance** is versioned — new acceptance required when `CURRENT_TERMS_VERSION` changes
+17. **Mood and weight entries** enforce one entry per user per day (unique_together constraint)
 
 ---
 
@@ -135,3 +196,14 @@ The platform operates with **Colombian Pesos (COP)** as the default currency and
 | **PaymentIntent** | A pending Wompi payment attempt, resolved on webhook confirmation |
 | **Payment** | A confirmed financial transaction linked to a booking or subscription |
 | **Notification** | An email notification record with type, status, and delivery metadata |
+| **CustomerProfile** | Extended profile for customers (personal data, fitness goal, ID, avatar) |
+| **AnthropometryEvaluation** | Body measurement record with auto-computed composition indices |
+| **PosturometryEvaluation** | Postural observation record across 4 views with computed regional indices |
+| **PhysicalEvaluation** | Functional fitness test results with computed strength/endurance/mobility indices |
+| **NutritionHabit** | Self-reported dietary habit entry with computed habit score |
+| **ParqAssessment** | PAR-Q+ health screening questionnaire with risk classification |
+| **MoodEntry** | Daily mood log (1–10 scale) for wellbeing tracking |
+| **WeightEntry** | Daily weight log for progress tracking |
+| **PasswordResetCode** | Time-limited 6-digit verification code for password reset |
+| **TermsAcceptance** | Versioned record of user consent to terms & conditions |
+| **KORE Index** | Composite health score (0–100) computed from all diagnostic modules |

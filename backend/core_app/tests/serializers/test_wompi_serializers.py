@@ -20,7 +20,6 @@ from core_app.serializers.wompi_serializers import (
     WompiConfigSerializer,
 )
 
-
 # ----------------------------------------------------------------
 # WompiConfigSerializer
 # ----------------------------------------------------------------

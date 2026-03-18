@@ -170,13 +170,18 @@ All secrets via environment variables (`python-decouple` on backend, `process.en
 
 | Pattern | Where Used |
 |---------|-----------|
-| **Service layer** | `services/` — booking_rules, email_service, ics_generator, subscription_cleanup, wompi_service |
-| **ViewSet + Router** | All CRUD endpoints via DRF DefaultRouter |
-| **Custom permissions** | `IsAdminRole`, `IsAdminOrReadOnly` for role-based access |
+| **Service layer** | `services/` — 12 services: booking_rules, email_service, ics_generator, subscription_cleanup, wompi_service, slot_schedule, + 6 calculators |
+| **Calculator services** | Pure-function calculators for each diagnostic module (anthropometry, posturometry, physical_evaluation, nutrition, parq, kore_index) — no DB access, receive data as args |
+| **ViewSet + Router** | CRUD endpoints via DRF DefaultRouter (11 registered ViewSets) |
+| **APIView for assessments** | Diagnostic module views use `APIView` (not ViewSets) for finer control over trainer vs. client endpoints |
+| **Custom permissions** | `IsAdminRole`, `IsAdminOrReadOnly`, `IsTrainerRole` for role-based access |
 | **Webhook-driven state machine** | PaymentIntent → Payment + Subscription on Wompi webhook |
 | **Abstract base models** | `TimestampedModel` (created_at, updated_at), `SingletonModel` |
+| **Auto-computed on save** | All diagnostic models compute indices in `save()` via their calculator service |
+| **Cross-module integration** | PhysicalEvaluation pulls context from latest AnthropometryEvaluation and PosturometryEvaluation |
+| **Cooldown pattern** | Assessment views enforce time-based limits (nutrition: 7 days, PAR-Q: 90 days) |
 | **Route groups** | Next.js `(public)/` and `(app)/` route groups for layout separation |
-| **Store pattern (Zustand)** | `authStore`, `bookingStore`, `checkoutStore`, `subscriptionStore` |
+| **Store pattern (Zustand)** | 12 stores: auth, booking, checkout, subscription, profile, anthropometry, nutrition, parq, physicalEvaluation, posturometry, pendingAssessments, trainer |
 | **Composables** | `useScrollAnimations` for reusable scroll animation logic |
 
 ---
@@ -188,16 +193,16 @@ kore_project/
 ├── backend/
 │   ├── core_project/          # Django project config (settings, urls, wsgi)
 │   ├── core_app/              # Main Django app
-│   │   ├── models/            # 12 model files (11 domain + 1 base)
-│   │   ├── views/             # 12 view files
-│   │   ├── serializers/       # 11 serializer files
-│   │   ├── services/          # 5 service files
+│   │   ├── models/            # 22 model files (21 domain + 1 base) → 24 models
+│   │   ├── views/             # 20 view files
+│   │   ├── serializers/       # 12 serializer files
+│   │   ├── services/          # 12 service files (5 core + 6 calculators + 1 schedule)
 │   │   ├── urls/              # 4 URL config files
-│   │   ├── management/commands/ # 16 management commands
-│   │   ├── tests/             # 55 test files
+│   │   ├── management/commands/ # 18 management commands
+│   │   ├── tests/             # 72 test files
 │   │   ├── templates/         # Email templates, admin overrides
-│   │   ├── admin.py           # 13 registered ModelAdmin classes
-│   │   ├── permissions.py     # Custom DRF permissions
+│   │   ├── admin.py           # 23 Admin classes (22 ModelAdmin + 1 Form)
+│   │   ├── permissions.py     # Custom DRF permissions (IsAdminRole, IsAdminOrReadOnly, IsTrainerRole)
 │   │   ├── tasks.py           # Huey periodic tasks
 │   │   └── forms.py           # Custom user forms
 │   ├── conftest.py            # Root pytest config
@@ -205,22 +210,23 @@ kore_project/
 │   └── manage.py
 ├── frontend/
 │   ├── app/
-│   │   ├── (public)/          # Public pages (home, programs, checkout, login, register, etc.)
-│   │   ├── (app)/             # Authenticated pages (dashboard, calendar, book-session, etc.)
-│   │   ├── components/        # 30 React components
+│   │   ├── (public)/          # 10 public pages (home, programs, checkout, login, register, faq, contact, kore-brand, terms, forgot-password)
+│   │   ├── (app)/             # 20 authenticated pages (customer dashboard + assessments + trainer views)
+│   │   ├── components/        # 36 React components
 │   │   │   ├── booking/       # 8 booking components
 │   │   │   ├── checkout/      # 5 payment form components
 │   │   │   ├── faq/           # 1 FAQ component
-│   │   │   ├── layouts/       # 5 layout components
-│   │   │   └── subscription/  # 1 subscription component
+│   │   │   ├── layouts/       # 6 layout components (incl. TrainerSidebar)
+│   │   │   ├── profile/       # 4 profile components (MoodCheckIn, PasswordResetModal, ProfileCompletionCTA, ProfileIcons)
+│   │   │   └── subscription/  # 2 subscription components
 │   │   ├── composables/       # 1 composable (useScrollAnimations)
-│   │   ├── __tests__/         # 50 unit/component test files
+│   │   ├── __tests__/         # 66 unit/component test files
 │   │   └── layout.tsx         # Root layout
 │   ├── lib/
-│   │   ├── stores/            # 4 Zustand stores
+│   │   ├── stores/            # 12 Zustand stores
 │   │   ├── services/          # HTTP client (axios)
 │   │   └── constants.ts
-│   ├── e2e/                   # 34 Playwright E2E spec files
+│   ├── e2e/                   # 38 Playwright E2E spec files
 │   ├── package.json
 │   ├── next.config.ts
 │   └── playwright.config.ts

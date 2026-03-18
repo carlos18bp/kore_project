@@ -92,7 +92,7 @@ describe('PSEPaymentForm', () => {
   });
 
   it('calls onSubmit with correctly formatted PSEPaymentData', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<PSEPaymentForm {...defaultProps} />);
 
     await waitFor(() => {
@@ -118,7 +118,7 @@ describe('PSEPaymentForm', () => {
   });
 
   it('allows switching user type to Persona Jurídica', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<PSEPaymentForm {...defaultProps} />);
 
     await waitFor(() => {
@@ -140,7 +140,7 @@ describe('PSEPaymentForm', () => {
   });
 
   it('allows changing document type', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<PSEPaymentForm {...defaultProps} />);
 
     await waitFor(() => {
@@ -216,7 +216,7 @@ describe('PSEPaymentForm', () => {
   });
 
   it('strips non-digit characters from document number input', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<PSEPaymentForm {...defaultProps} />);
 
     await waitFor(() => {
@@ -230,7 +230,7 @@ describe('PSEPaymentForm', () => {
   });
 
   it('limits phone input to 10 digits', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<PSEPaymentForm {...defaultProps} />);
 
     await waitFor(() => {

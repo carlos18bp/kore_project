@@ -44,10 +44,32 @@ export const FlowTags = {
   PUBLIC_FAQ: ['@flow:public-faq', '@module:public', '@priority:P3'],
   PUBLIC_FAQ_ERRORS: ['@flow:public-faq-errors', '@module:public', '@priority:P3'],
   PUBLIC_TERMS: ['@flow:public-terms', '@module:public', '@priority:P3'],
+
+  AUTH_FORGOT_PASSWORD: ['@flow:auth-forgot-password', '@module:auth', '@priority:P1'],
+
+  PROFILE_MANAGEMENT: ['@flow:profile-management', '@module:profile', '@priority:P1'],
+  PROFILE_PASSWORD_CHANGE: ['@flow:profile-password-change', '@module:profile', '@priority:P2'],
+
+  CUSTOMER_DIAGNOSIS: ['@flow:customer-diagnosis', '@module:assessments', '@priority:P2'],
+  CUSTOMER_NUTRITION: ['@flow:customer-nutrition', '@module:assessments', '@priority:P2'],
+  CUSTOMER_PARQ: ['@flow:customer-parq', '@module:assessments', '@priority:P2'],
+  CUSTOMER_PHYSICAL_EVALUATION: ['@flow:customer-physical-evaluation', '@module:assessments', '@priority:P2'],
+  CUSTOMER_POSTUROMETRY: ['@flow:customer-posturometry', '@module:assessments', '@priority:P2'],
+  CUSTOMER_PENDING_ASSESSMENTS: ['@flow:customer-pending-assessments', '@module:assessments', '@priority:P3'],
+
+  TRAINER_DASHBOARD: ['@flow:trainer-dashboard', '@module:trainer', '@priority:P1'],
+  TRAINER_CLIENTS_LIST: ['@flow:trainer-clients-list', '@module:trainer', '@priority:P1'],
+  TRAINER_CLIENT_DETAIL: ['@flow:trainer-client-detail', '@module:trainer', '@priority:P1'],
+  TRAINER_CLIENT_ANTHROPOMETRY: ['@flow:trainer-client-anthropometry', '@module:trainer', '@priority:P2'],
+  TRAINER_CLIENT_NUTRITION: ['@flow:trainer-client-nutrition', '@module:trainer', '@priority:P2'],
+  TRAINER_CLIENT_PARQ: ['@flow:trainer-client-parq', '@module:trainer', '@priority:P2'],
+  TRAINER_CLIENT_PHYSICAL_EVAL: ['@flow:trainer-client-physical-eval', '@module:trainer', '@priority:P2'],
+  TRAINER_CLIENT_POSTUROMETRY: ['@flow:trainer-client-posturometry', '@module:trainer', '@priority:P2'],
 };
 
 export const RoleTags = {
   GUEST: '@role:guest',
   USER: '@role:user',
+  TRAINER: '@role:trainer',
   ADMIN: '@role:admin',
 };

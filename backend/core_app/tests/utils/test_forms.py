@@ -1,6 +1,7 @@
 """Tests for custom user creation form behavior."""
 
 import pytest
+
 from core_app.forms import UserCreationForm
 from core_app.models import User
 

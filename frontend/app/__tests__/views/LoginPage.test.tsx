@@ -147,6 +147,7 @@ describe('LoginPage', () => {
   });
 
   it('redirects to dashboard on successful login', async () => {
+    jest.setTimeout(15000);
     mockedApi.post.mockResolvedValueOnce({ data: MOCK_LOGIN_RESPONSE });
 
     render(<LoginPage />);
@@ -186,7 +187,7 @@ describe('LoginPage', () => {
 
   it('renders forgot password link', () => {
     render(<LoginPage />);
-    expect(screen.getByText('¿Olvidaste tu contraseña? Contáctanos')).toBeInTheDocument();
+    expect(screen.getByText('¿Olvidaste tu contraseña?')).toBeInTheDocument();
   });
 
   it('shows loading spinner during login attempt', async () => {

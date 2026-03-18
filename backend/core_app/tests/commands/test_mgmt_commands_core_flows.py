@@ -1078,7 +1078,7 @@ class TestCreateTrainerWeekdaySlots:
         )
 
         slots = list(AvailabilitySlot.objects.filter(trainer=trainer).order_by('starts_at'))
-        assert slots
+        assert len(slots) >= 1
         assert all((slot.ends_at - slot.starts_at) == timedelta(minutes=60) for slot in slots)
         assert all(slot.starts_at.minute in {0, 15, 30, 45} for slot in slots)
 
@@ -1097,7 +1097,7 @@ class TestCreateTrainerWeekdaySlots:
         )
         TrainerProfile.objects.create(user=user, specialty='Mobility')
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(Exception, match='--slot-step-minutes must be > 0') as exc_info:
             call_command(
                 'create_trainer_weekday_slots',
                 email=user.email,

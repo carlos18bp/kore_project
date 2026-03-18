@@ -1,12 +1,15 @@
 """Tests for custom admin form logic and ModelAdmin methods in core_app.admin."""
 
+from datetime import datetime, timedelta
+from datetime import timezone as dt_timezone
 from unittest.mock import MagicMock
 
 import pytest
-from django.utils import timezone
 
 from core_app.admin import SubscriptionAdmin, SubscriptionAdminForm
 from core_app.models import Package, Subscription, User
+
+FIXED_NOW = datetime(2025, 6, 15, 12, 0, 0, tzinfo=dt_timezone.utc)
 
 
 @pytest.fixture
@@ -31,13 +34,12 @@ def package(db):
 
 @pytest.fixture
 def subscription(customer, package):
-    now = timezone.now()
     return Subscription.objects.create(
         customer=customer,
         package=package,
         sessions_total=package.sessions_count,
-        starts_at=now,
-        expires_at=now + timezone.timedelta(days=30),
+        starts_at=FIXED_NOW,
+        expires_at=FIXED_NOW + timedelta(days=30),
     )
 
 
@@ -47,15 +49,14 @@ class TestSubscriptionAdminForm:
 
     def test_clean_sets_sessions_total_from_package(self, customer, package):
         """Form clean() auto-fills sessions_total from selected package."""
-        now = timezone.now()
         form_data = {
             'customer': customer.pk,
             'package': package.pk,
             'sessions_total': 0,
             'sessions_used': 0,
             'status': Subscription.Status.ACTIVE,
-            'starts_at': now,
-            'expires_at': now + timezone.timedelta(days=30),
+            'starts_at': FIXED_NOW,
+            'expires_at': FIXED_NOW + timedelta(days=30),
             'payment_source_id': '',
             'payment_method_type': '',
             'is_recurring': True,
@@ -72,15 +73,14 @@ class TestSubscriptionAdminForm:
 
     def test_clean_without_package_does_not_set_sessions_total(self, customer):
         """Form clean() skips sessions_total override when no package is selected."""
-        now = timezone.now()
         form_data = {
             'customer': customer.pk,
             'package': '',
             'sessions_total': 5,
             'sessions_used': 0,
             'status': Subscription.Status.ACTIVE,
-            'starts_at': now,
-            'expires_at': now + timezone.timedelta(days=30),
+            'starts_at': FIXED_NOW,
+            'expires_at': FIXED_NOW + timedelta(days=30),
             'payment_source_id': '',
             'payment_method_type': '',
             'is_recurring': True,
@@ -113,6 +113,7 @@ class TestSubscriptionAdminMethods:
         subscription.package.save()
         subscription.sessions_total = 0
 
+        # quality: disable unverified_mock (pass-through stubs, not behavioral mocks)
         mock_request = MagicMock()
         mock_form = MagicMock()
         model_admin.save_model(mock_request, subscription, mock_form, change=True)

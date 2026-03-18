@@ -252,7 +252,7 @@ test.describe('bookingStore extractErrorMessage branches', { tag: [...FlowTags.B
   };
   const mockSlot = {
     id: 601, trainer_id: 1,
-    starts_at: `${dateStr}T10:00:00Z`, ends_at: `${dateStr}T11:00:00Z`,
+    starts_at: `${dateStr}T17:00:00Z`, ends_at: `${dateStr}T18:00:00Z`,
     is_active: true, is_blocked: false,
   };
   const mockSubscription = {
@@ -266,7 +266,7 @@ test.describe('bookingStore extractErrorMessage branches', { tag: [...FlowTags.B
   };
 
   function slotLabel(slot: { starts_at: string; ends_at: string }) {
-    const fmt = (s: string) => new Date(s).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const fmt = (s: string) => new Date(s).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
     return `${fmt(slot.starts_at)} \u2014 ${fmt(slot.ends_at)}`;
   }
 
@@ -287,27 +287,17 @@ test.describe('bookingStore extractErrorMessage branches', { tag: [...FlowTags.B
     });
   }
 
-  async function forceClickDay(page: import('@playwright/test').Page, num: string) {
-    await page.getByText('Lun').waitFor({ state: 'visible', timeout: 10_000 });
-    await page.evaluate((n) => {
-      for (const btn of document.querySelectorAll('button')) {
-        if (btn.textContent?.trim() === n) {
-          const k = Object.keys(btn).find((key) => key.startsWith('__reactProps$'));
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          if (k) { const p = (btn as any)[k]; if (typeof p?.onClick === 'function') p.onClick(); }
-          break;
-        }
-      }
-    }, num);
-  }
-
   async function goToConfirmStep(page: import('@playwright/test').Page) {
     await mockLoginAsTestUser(page);
     await setupBookingMocks(page);
     await page.goto('/book-session');
-    await forceClickDay(page, dayNum);
-    await page.getByRole('button', { name: slotLabel(mockSlot), exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
-    await page.getByRole('button', { name: slotLabel(mockSlot), exact: true }).click();
+    // Click calendar day — virtual slot system enables Mon-Sat automatically
+    const dayBtn = page.getByRole('button', { name: dayNum, exact: true });
+    await dayBtn.click({ timeout: 10_000 });
+    // Select the time slot matching the mock (TimeSlotPicker defaults to 12h)
+    const slotBtn = page.getByRole('button', { name: slotLabel(mockSlot), exact: true });
+    await slotBtn.waitFor({ state: 'visible', timeout: 10_000 });
+    await slotBtn.click();
     await expect(page.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
   }
 

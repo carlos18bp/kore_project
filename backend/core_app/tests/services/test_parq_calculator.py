@@ -1,11 +1,10 @@
 """Tests for the PAR-Q+ risk classification calculator."""
 
-import pytest
 
 from core_app.services.parq_calculator import (
+    PARQ_QUESTION_KEYS,
     classify_risk,
     compute_all,
-    PARQ_QUESTION_KEYS,
 )
 
 

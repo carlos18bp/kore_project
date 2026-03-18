@@ -59,7 +59,7 @@ describe('ContactPage', () => {
 
   it('displays success message after successful submission', async () => {
     mockPost.mockResolvedValueOnce({ data: {} });
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<ContactPage />);
 
     await user.type(screen.getByLabelText(/Nombre/), 'Juan');
@@ -79,7 +79,7 @@ describe('ContactPage', () => {
 
   it('displays error message after failed submission', async () => {
     mockPost.mockRejectedValueOnce(new Error('Server error'));
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<ContactPage />);
 
     await user.type(screen.getByLabelText(/Nombre/), 'Juan');
@@ -94,7 +94,7 @@ describe('ContactPage', () => {
 
   it('renders "Enviar otro mensaje" button after success and returns to form', async () => {
     mockPost.mockResolvedValueOnce({ data: {} });
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<ContactPage />);
 
     await user.type(screen.getByLabelText(/Nombre/), 'Juan');

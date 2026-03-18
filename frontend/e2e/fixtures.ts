@@ -22,6 +22,8 @@ const FAKE_USER_COOKIE = JSON.stringify({
   phone: '',
   role: 'customer',
   name: E2E_USER.fullName,
+  profile_completed: true,
+  avatar_url: null,
 });
 
 /**
@@ -41,6 +43,8 @@ export async function mockLoginApi(page: Page) {
           last_name: E2E_USER.lastName,
           phone: '',
           role: 'customer',
+          profile_completed: true,
+          avatar_url: null,
         },
       }),
     });
@@ -112,6 +116,16 @@ export async function mockAuthProfile(page: Page) {
           last_name: E2E_USER.lastName,
           phone: '',
           role: 'customer',
+          profile_completed: true,
+          avatar_url: null,
+          customer_profile: {
+            profile_completed: true,
+            sex: 'M',
+            date_of_birth: '1990-01-15',
+            city: 'Bogotá',
+            primary_goal: 'health',
+          },
+          today_mood: { score: 7, notes: '', date: new Date().toISOString().slice(0, 10) },
         },
       }),
     });
@@ -195,6 +209,99 @@ export async function setupDefaultApiMocks(page: Page) {
       body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }),
     });
   });
+
+  // New dashboard store endpoints — empty by default
+  await page.route('**/api/my-anthropometry/', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+  });
+  await page.route('**/api/my-posturometry/', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+  });
+  await page.route('**/api/my-physical-evaluation/', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+  });
+  await page.route('**/api/my-nutrition/', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+  });
+  await page.route('**/api/my-parq/', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+  });
+  await page.route('**/api/my-pending-assessments/', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ kore_score: null, kore_color: 'green', kore_category: '', kore_message: '', components: {}, modules_available: 0, modules_total: 6 }),
+    });
+  });
+}
+
+/**
+ * Dedicated E2E trainer-user credentials.
+ * No real backend user is required — all auth is mocked.
+ */
+export const E2E_TRAINER = {
+  email: 'trainer-e2e@kore.com',
+  password: 'trainer123456',
+  firstName: 'Germán',
+  lastName: 'Franco',
+  fullName: 'Germán Franco',
+};
+
+const FAKE_TRAINER_COOKIE = JSON.stringify({
+  id: 100,
+  email: E2E_TRAINER.email,
+  first_name: E2E_TRAINER.firstName,
+  last_name: E2E_TRAINER.lastName,
+  phone: '',
+  role: 'trainer',
+  name: E2E_TRAINER.fullName,
+  profile_completed: true,
+  avatar_url: null,
+});
+
+/**
+ * Mock the auth profile endpoint for trainer hydration.
+ */
+export async function mockTrainerAuthProfile(page: Page) {
+  await page.route('**/api/auth/profile/', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        user: {
+          id: 100,
+          email: E2E_TRAINER.email,
+          first_name: E2E_TRAINER.firstName,
+          last_name: E2E_TRAINER.lastName,
+          phone: '',
+          role: 'trainer',
+          profile_completed: true,
+          avatar_url: null,
+        },
+      }),
+    });
+  });
+}
+
+/**
+ * Inject trainer auth cookies with minimal auth mocks (login API, captcha, trainer profile).
+ */
+export async function injectTrainerAuthCookies(page: Page) {
+  await mockLoginApi(page);
+  await mockCaptchaSiteKey(page);
+  await mockTrainerAuthProfile(page);
+  await page.context().addCookies([
+    { name: 'kore_token', value: FAKE_TOKEN, domain: 'localhost', path: '/' },
+    { name: 'kore_user', value: encodeURIComponent(FAKE_TRAINER_COOKIE), domain: 'localhost', path: '/' },
+  ]);
+}
+
+/**
+ * Inject trainer auth cookies + navigate to /trainer/dashboard.
+ * For tests that only need a trainer-authenticated state.
+ */
+export async function mockLoginAsTrainer(page: Page) {
+  await injectTrainerAuthCookies(page);
 }
 
 /**
