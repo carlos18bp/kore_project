@@ -467,6 +467,128 @@ class TestGetTransactionById:
         mock_get.assert_called_once()
 
 
+class TestExtractResponseDetails:
+    """Covers _extract_response_details edge cases — lines 56, 63-68."""
+
+    def test_returns_none_none_when_exc_has_no_response(self):
+        """Exception without response attribute returns (None, None) — line 56."""
+        from core_app.services.wompi_service import _extract_response_details
+        exc = Exception('no response attr')
+        status_code, response_data = _extract_response_details(exc)
+        assert status_code is None
+        assert response_data is None
+
+    def test_falls_back_to_raw_text_on_value_error(self):
+        """ValueError from response.json() falls back to raw text — lines 63-66."""
+        from core_app.services.wompi_service import _extract_response_details
+        mock_resp = MagicMock()
+        mock_resp.status_code = 500
+        mock_resp.json.side_effect = ValueError('No JSON')
+        mock_resp.text = 'Internal Server Error'
+        exc = Exception('http error')
+        exc.response = mock_resp
+        status_code, response_data = _extract_response_details(exc)
+        assert status_code == 500
+        assert response_data == {'raw': 'Internal Server Error'}
+
+    def test_falls_back_to_none_on_generic_exception(self):
+        """Generic Exception from response.json() sets response_data to None — lines 67-68."""
+        from core_app.services.wompi_service import _extract_response_details
+        mock_resp = MagicMock()
+        mock_resp.status_code = 502
+        mock_resp.json.side_effect = RuntimeError('unexpected')
+        exc = Exception('http error')
+        exc.response = mock_resp
+        status_code, response_data = _extract_response_details(exc)
+        assert status_code == 502
+        assert response_data is None
+
+    def test_falls_back_to_empty_raw_when_text_is_empty(self):
+        """ValueError with empty text leaves response_data as None — line 65 false branch."""
+        from core_app.services.wompi_service import _extract_response_details
+        mock_resp = MagicMock()
+        mock_resp.status_code = 500
+        mock_resp.json.side_effect = ValueError('No JSON')
+        mock_resp.text = ''
+        exc = Exception('http error')
+        exc.response = mock_resp
+        status_code, response_data = _extract_response_details(exc)
+        assert status_code == 500
+        assert response_data is None
+
+
+class TestCreateTransactionNegativeInstallments:
+    """Covers create_transaction installments < 1 normalization — line 202."""
+
+    @override_settings(**WOMPI_SETTINGS)
+    @patch('core_app.services.wompi_service.requests.post')
+    def test_negative_installments_normalized_to_one(self, mock_post):
+        """Negative installments value is clamped to 1 before payload dispatch."""
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status.return_value = None
+        mock_resp.json.return_value = {
+            'data': {'id': 'txn-neg', 'status': 'PENDING'}
+        }
+        mock_post.return_value = mock_resp
+
+        create_transaction(
+            amount_in_cents=1000,
+            currency='COP',
+            customer_email='u@e.com',
+            reference='ref-neg',
+            payment_source_id=1,
+            installments=-5,
+        )
+
+        call_kwargs = mock_post.call_args
+        payload = call_kwargs.kwargs.get('json') or call_kwargs[1].get('json')
+        assert payload['payment_method']['installments'] == 1
+
+
+class TestCreateTransactionWithPaymentMethodErrors:
+    """Covers error paths in create_transaction_with_payment_method — lines 303-316."""
+
+    @override_settings(**WOMPI_SETTINGS)
+    @patch('core_app.services.wompi_service.get_acceptance_token', return_value='tok')
+    @patch('core_app.services.wompi_service.requests.post')
+    def test_raises_wompi_error_on_missing_txn_id(self, mock_post, mock_accept):
+        """Missing transaction ID in response raises WompiError — line 304."""
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status.return_value = None
+        mock_resp.json.return_value = {'data': {}}
+        mock_post.return_value = mock_resp
+
+        with pytest.raises(WompiError, match='No transaction ID'):
+            create_transaction_with_payment_method(
+                amount_in_cents=1000,
+                currency='COP',
+                customer_email='u@e.com',
+                reference='ref-no-id',
+                payment_method={'type': 'NEQUI', 'phone_number': '3001112233'},
+            )
+
+    @override_settings(**WOMPI_SETTINGS)
+    @patch('core_app.services.wompi_service.get_acceptance_token', return_value='tok')
+    @patch('core_app.services.wompi_service.requests.post')
+    def test_request_exception_raises_wompi_error(self, mock_post, mock_accept):
+        """RequestException in payment method flow raises WompiError — lines 306-316."""
+        import requests as req
+        mock_resp = MagicMock()
+        mock_resp.status_code = 503
+        exc = req.HTTPError('service unavailable', response=mock_resp)
+        mock_post.side_effect = exc
+
+        with pytest.raises(WompiError, match='Failed to create transaction') as exc_info:
+            create_transaction_with_payment_method(
+                amount_in_cents=1000,
+                currency='COP',
+                customer_email='u@e.com',
+                reference='ref-exc',
+                payment_method={'type': 'PSE', 'financial_institution_code': '1007'},
+            )
+        assert exc_info.value.status_code == 503
+
+
 class TestResolveWompiBaseUrl:
     """Covers environment-to-base-url mapping for Wompi endpoints."""
 

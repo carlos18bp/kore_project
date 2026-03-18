@@ -266,6 +266,43 @@ describe('bookingStore', () => {
       await useBookingStore.getState().fetchMonthSlots();
       expect(useBookingStore.getState().monthSlots).toEqual([]);
     });
+
+    it('discards success result when a newer request supersedes the current one', async () => {
+      const staleSlots = [MOCK_SLOT];
+      let resolveFirst!: (value: unknown) => void;
+      const firstPromise = new Promise((res) => { resolveFirst = res; });
+      mockedApi.get
+        .mockReturnValueOnce(firstPromise as ReturnType<typeof mockedApi.get>)
+        .mockResolvedValueOnce({ data: [{ ...MOCK_SLOT, id: 99 }] });
+
+      const first = useBookingStore.getState().fetchMonthSlots();
+      const second = useBookingStore.getState().fetchMonthSlots();
+
+      resolveFirst({ data: staleSlots });
+      await first;
+      await second;
+
+      const ids = useBookingStore.getState().monthSlots.map((s) => s.id);
+      expect(ids).toEqual([99]);
+    });
+
+    it('discards error result when a newer request supersedes the current one', async () => {
+      let rejectFirst!: (reason: unknown) => void;
+      const firstPromise = new Promise((_res, rej) => { rejectFirst = rej; });
+      mockedApi.get
+        .mockReturnValueOnce(firstPromise as ReturnType<typeof mockedApi.get>)
+        .mockResolvedValueOnce({ data: [MOCK_SLOT] });
+
+      const first = useBookingStore.getState().fetchMonthSlots();
+      const second = useBookingStore.getState().fetchMonthSlots();
+
+      rejectFirst(new Error('Network'));
+      await first;
+      await second;
+
+      expect(useBookingStore.getState().monthSlots).toHaveLength(1);
+      expect(useBookingStore.getState().monthSlotsLoading).toBe(false);
+    });
   });
 
   // ----------------------------------------------------------------

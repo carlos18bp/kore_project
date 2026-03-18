@@ -127,6 +127,18 @@ describe('Sidebar', () => {
     expect(aside).toHaveClass('-translate-x-full');
   });
 
+  it('closes the mobile menu when a nav item is clicked', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<Sidebar />);
+    const aside = container.querySelector('aside');
+
+    await user.click(screen.getByLabelText('Abrir menú'));
+    expect(aside).toHaveClass('translate-x-0');
+
+    await user.click(screen.getByText('Agendar Sesión'));
+    expect(aside).toHaveClass('-translate-x-full');
+  });
+
   it('closes the mobile menu when the close button is clicked', async () => {
     const user = userEvent.setup();
     const { container } = render(<Sidebar />);
