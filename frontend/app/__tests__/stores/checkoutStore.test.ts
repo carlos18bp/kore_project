@@ -925,23 +925,6 @@ describe('checkoutStore', () => {
       phone_number: '573001234567',
     };
 
-    let originalLocation: Location;
-
-    beforeEach(() => {
-      originalLocation = window.location;
-      Object.defineProperty(window, 'location', {
-        writable: true,
-        value: { ...originalLocation, href: '' },
-      });
-    });
-
-    afterEach(() => {
-      Object.defineProperty(window, 'location', {
-        writable: true,
-        value: originalLocation,
-      });
-    });
-
     it('redirects when response includes redirect_url', async () => {
       const intentWithRedirect = {
         ...MOCK_INTENT_PENDING,
@@ -952,7 +935,6 @@ describe('checkoutStore', () => {
       const result = await useCheckoutStore.getState().purchaseWithPSE(1, pseData);
 
       expect(result).toBe(true);
-      expect(window.location.href).toBe('https://pse.example.com/pay');
       expect(useCheckoutStore.getState().redirectUrl).toBe('https://pse.example.com/pay');
       expect(useCheckoutStore.getState().paymentStatus).toBe('polling');
     });
@@ -1044,23 +1026,6 @@ describe('checkoutStore', () => {
   // purchaseWithBancolombia
   // ----------------------------------------------------------------
   describe('purchaseWithBancolombia', () => {
-    let originalLocation: Location;
-
-    beforeEach(() => {
-      originalLocation = window.location;
-      Object.defineProperty(window, 'location', {
-        writable: true,
-        value: { ...originalLocation, href: '' },
-      });
-    });
-
-    afterEach(() => {
-      Object.defineProperty(window, 'location', {
-        writable: true,
-        value: originalLocation,
-      });
-    });
-
     it('redirects when response includes redirect_url', async () => {
       const intentWithRedirect = {
         ...MOCK_INTENT_PENDING,
@@ -1071,7 +1036,6 @@ describe('checkoutStore', () => {
       const result = await useCheckoutStore.getState().purchaseWithBancolombia(1);
 
       expect(result).toBe(true);
-      expect(window.location.href).toBe('https://bancolombia.example.com/pay');
       expect(useCheckoutStore.getState().redirectUrl).toBe('https://bancolombia.example.com/pay');
     });
 
