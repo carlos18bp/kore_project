@@ -52,14 +52,14 @@
 | Category | Test Files | Coverage Area |
 |----------|-----------|---------------|
 | Models | 12 | All 14 models |
-| Views | 15 | All 12 view modules + extended + admin |
+| Views | 16 | All 12 view modules + extended + admin + admin forms |
 | Serializers | 11 | All 11 serializer modules |
 | Services | 5 | All 5 services |
 | Tasks | 2 | Recurring billing + expiry reminders |
 | Commands | 7 | Management commands |
 | Permissions | 1 | Custom permissions (is_admin_user, IsAdminRole, IsAdminOrReadOnly) |
 | Utils | 2 | Forms + test suite runner |
-| **Total** | **59 files** | |
+| **Total** | **60 files** | |
 
 ### Frontend Unit (Jest)
 
@@ -83,7 +83,7 @@
 | Public | 13 | Home, programs, checkout, contact, FAQ, register, navbar, terms, brand, payment polling |
 | **Total** | **38 files** | |
 
-### Grand Total: 154 test files
+### Grand Total: 155 test files
 ### Flow Definitions: 38 flows (34 original + 4 new)
 
 ---

@@ -112,7 +112,7 @@ test.describe('Subscription Cancel Flow', { tag: [...FlowTags.SUBSCRIPTION_CANCE
     await loginAsTestUser(page);
     await page.goto('/subscription');
 
-    await expect(page.getByText('Expirada', { exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('Expirada', { exact: true }).first()).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('Esta suscripción está inactiva')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Cancelar suscripción' })).not.toBeVisible();
   });
@@ -124,7 +124,7 @@ test.describe('Subscription Cancel Flow', { tag: [...FlowTags.SUBSCRIPTION_CANCE
     await loginAsTestUser(page);
     await page.goto('/subscription');
 
-    await expect(page.getByText('Cancelada', { exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('Cancelada', { exact: true }).first()).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole('button', { name: 'Cancelar suscripción' })).not.toBeVisible();
   });
 });
