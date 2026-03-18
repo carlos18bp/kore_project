@@ -41,9 +41,9 @@ function BookingRow({ booking, onClick }: { booking: BookingData; onClick: () =>
           })}
         </p>
         <p className="text-xs text-kore-gray-dark/50 mt-0.5">
-          {slotStart.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+          {slotStart.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
           {' — '}
-          {new Date(booking.slot.ends_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+          {new Date(booking.slot.ends_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
           {booking.trainer && (
             <span> · {booking.trainer.first_name} {booking.trainer.last_name}</span>
           )}
@@ -140,7 +140,7 @@ function ProgramDetailContent() {
 
   return (
     <section ref={sectionRef} className="min-h-screen bg-kore-cream">
-      <div className="w-full px-6 md:px-10 lg:px-16 pt-20 lg:pt-8 pb-16">
+      <div className="w-full px-6 md:px-10 lg:px-16 pt-20 xl:pt-8 pb-16">
         {/* Breadcrumb */}
         <div data-hero="badge" className="mb-8">
           <div className="flex items-center gap-2 text-xs text-kore-gray-dark/40 mb-2">

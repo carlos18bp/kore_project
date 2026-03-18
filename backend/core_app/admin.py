@@ -3,20 +3,29 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 
 from core_app.forms import UserChangeForm, UserCreationForm
+from core_app.models.posturometry import PosturometryEvaluation
+from core_app.models.physical_evaluation import PhysicalEvaluation
+from core_app.models.nutrition_habit import NutritionHabit
+from core_app.models.parq_assessment import ParqAssessment
 from core_app.models import (
     AnalyticsEvent,
+    AnthropometryEvaluation,
     AvailabilitySlot,
     Booking,
     ContactMessage,
+    CustomerProfile,
     FAQCategory,
     FAQItem,
+    MoodEntry,
     Notification,
     Package,
     Payment,
     SiteSettings,
     Subscription,
+    TermsAcceptance,
     TrainerProfile,
     User,
+    WeightEntry,
 )
 
 
@@ -179,8 +188,102 @@ class SubscriptionAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
+@admin.register(CustomerProfile)
+class CustomerProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'sex', 'city', 'primary_goal', 'profile_completed')
+    list_filter = ('sex', 'primary_goal', 'profile_completed')
+    search_fields = ('user__email', 'user__first_name', 'user__last_name', 'city')
+    autocomplete_fields = ('user',)
+    readonly_fields = ('profile_completed', 'kore_start_date')
+
+
+@admin.register(MoodEntry)
+class MoodEntryAdmin(admin.ModelAdmin):
+    list_display = ('user', 'score', 'date', 'created_at')
+    list_filter = ('score', 'date')
+    search_fields = ('user__email',)
+    autocomplete_fields = ('user',)
+
+
+@admin.register(WeightEntry)
+class WeightEntryAdmin(admin.ModelAdmin):
+    list_display = ('user', 'weight_kg', 'date', 'created_at')
+    list_filter = ('date',)
+    search_fields = ('user__email',)
+    autocomplete_fields = ('user',)
+
+
 @admin.register(AnalyticsEvent)
 class AnalyticsEventAdmin(admin.ModelAdmin):
     list_display = ('event_type', 'user', 'path', 'created_at')
     list_filter = ('event_type',)
     search_fields = ('user__email', 'path', 'referrer', 'session_id')
+
+
+@admin.register(TermsAcceptance)
+class TermsAcceptanceAdmin(admin.ModelAdmin):
+    list_display = ('user', 'terms_version', 'ip_address', 'accepted_at', 'created_at')
+    list_filter = ('terms_version',)
+    search_fields = ('user__email', 'ip_address')
+    readonly_fields = ('user', 'terms_version', 'ip_address', 'user_agent', 'accepted_at', 'created_at')
+
+
+@admin.register(AnthropometryEvaluation)
+class AnthropometryEvaluationAdmin(admin.ModelAdmin):
+    list_display = ('customer', 'trainer', 'evaluation_date', 'bmi', 'bmi_category', 'body_fat_pct', 'created_at')
+    list_filter = ('bmi_color', 'bf_color', 'created_at')
+    search_fields = ('customer__email', 'customer__first_name')
+    readonly_fields = (
+        'age_at_evaluation', 'bmi', 'bmi_category', 'bmi_color',
+        'waist_hip_ratio', 'whr_risk', 'whr_color',
+        'waist_height_ratio', 'whe_risk', 'whe_color',
+        'body_fat_pct', 'bf_category', 'bf_color',
+        'fat_mass_kg', 'lean_mass_kg', 'waist_risk', 'waist_risk_color',
+    )
+
+
+@admin.register(PosturometryEvaluation)
+class PosturometryEvaluationAdmin(admin.ModelAdmin):
+    list_display = ('customer', 'trainer', 'evaluation_date', 'global_index', 'global_category', 'created_at')
+    list_filter = ('global_color', 'created_at')
+    search_fields = ('customer__email', 'customer__first_name')
+    readonly_fields = (
+        'global_index', 'global_category', 'global_color',
+        'upper_index', 'upper_category', 'upper_color',
+        'central_index', 'central_category', 'central_color',
+        'lower_index', 'lower_category', 'lower_color',
+        'segment_scores', 'findings',
+    )
+
+
+@admin.register(PhysicalEvaluation)
+class PhysicalEvaluationAdmin(admin.ModelAdmin):
+    list_display = ('customer', 'trainer', 'evaluation_date', 'general_index', 'general_category', 'created_at')
+    list_filter = ('general_color', 'created_at')
+    search_fields = ('customer__email', 'customer__first_name')
+    readonly_fields = (
+        'age_at_evaluation', 'sex_at_evaluation',
+        'squats_score', 'pushups_score', 'plank_score', 'walk_score', 'unipodal_score',
+        'strength_index', 'strength_category', 'strength_color',
+        'endurance_index', 'endurance_category', 'endurance_color',
+        'mobility_index', 'mobility_category', 'mobility_color',
+        'balance_index', 'balance_category', 'balance_color',
+        'general_index', 'general_category', 'general_color',
+        'cross_module_alerts',
+    )
+
+
+@admin.register(NutritionHabit)
+class NutritionHabitAdmin(admin.ModelAdmin):
+    list_display = ('customer', 'habit_score', 'habit_category', 'created_at')
+    list_filter = ('habit_color', 'created_at')
+    search_fields = ('customer__email', 'customer__first_name')
+    readonly_fields = ('habit_score', 'habit_category', 'habit_color')
+
+
+@admin.register(ParqAssessment)
+class ParqAssessmentAdmin(admin.ModelAdmin):
+    list_display = ('customer', 'yes_count', 'risk_label', 'risk_color', 'created_at')
+    list_filter = ('risk_color', 'created_at')
+    search_fields = ('customer__email', 'customer__first_name')
+    readonly_fields = ('yes_count', 'risk_classification', 'risk_label', 'risk_color')

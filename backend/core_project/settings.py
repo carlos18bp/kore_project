@@ -161,6 +161,12 @@ STORAGES = {
     'staticfiles': {
         'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
     },
+    'dbbackup': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        'OPTIONS': {
+            'location': config('BACKUP_STORAGE_PATH', default='/var/backups/kore_project'),
+        },
+    },
 }
 
 
@@ -264,23 +270,17 @@ HUEY = {
 }
 
 
-# Google reCAPTCHA configuration
-RECAPTCHA_SITE_KEY = config('RECAPTCHA_SITE_KEY', default='')
-RECAPTCHA_SECRET_KEY = config('RECAPTCHA_SECRET_KEY', default='')
-
-
 # ---------------------------------------------------------------------------
 # Backups (django-dbbackup)
 # ---------------------------------------------------------------------------
-DBBACKUP_STORAGE = 'django.core.files.storage.FileSystemStorage'
-DBBACKUP_STORAGE_OPTIONS = {
-    'location': config('BACKUP_STORAGE_PATH', default='/var/backups/kore_project'),
-}
-DBBACKUP_FILENAME_TEMPLATE = '{datetime}.sql'
-DBBACKUP_MEDIA_FILENAME_TEMPLATE = '{datetime}.tar'
+# Storage is configured via STORAGES['dbbackup'] above (new-style API).
 DBBACKUP_COMPRESS = True
-DBBACKUP_CLEANUP_KEEP = 5
-DBBACKUP_CLEANUP_KEEP_MEDIA = 5
+DBBACKUP_CLEANUP_KEEP = 4
+DBBACKUP_CLEANUP_KEEP_MEDIA = 4
+
+# Google reCAPTCHA configuration
+RECAPTCHA_SITE_KEY = config('RECAPTCHA_SITE_KEY', default='')
+RECAPTCHA_SECRET_KEY = config('RECAPTCHA_SECRET_KEY', default='')
 
 
 # ---------------------------------------------------------------------------
@@ -317,6 +317,7 @@ if ENABLE_SILK:
 
     SILKY_MAX_REQUEST_BODY_SIZE = 0
     SILKY_MAX_RESPONSE_BODY_SIZE = 0
+    SILKY_INTERCEPT_PERCENT = 50
 
     SLOW_QUERY_THRESHOLD_MS = 500
     N_PLUS_ONE_THRESHOLD = 10
@@ -345,14 +346,18 @@ LOGGING = {
         },
         'backup_file': {
             'level': 'INFO',
-            'class': 'logging.FileHandler',
+            'class': 'logging.handlers.RotatingFileHandler',
             'filename': BASE_DIR / 'logs' / 'backups.log',
+            'maxBytes': 5 * 1024 * 1024,
+            'backupCount': 3,
             'formatter': 'verbose',
         },
         'silk_monitor_file': {
             'level': 'INFO',
-            'class': 'logging.FileHandler',
+            'class': 'logging.handlers.RotatingFileHandler',
             'filename': BASE_DIR / 'logs' / 'silk-monitor.log',
+            'maxBytes': 5 * 1024 * 1024,
+            'backupCount': 3,
             'formatter': 'verbose',
         },
     },

@@ -11,6 +11,8 @@ export type User = {
   phone: string;
   role: string;
   name: string;
+  profile_completed: boolean;
+  avatar_url: string | null;
 };
 
 type RegisterParams = {
@@ -52,7 +54,23 @@ type LoginResponse = {
 };
 
 type ProfileResponse = {
-  user: LoginResponse['user'];
+  user: LoginResponse['user'] & {
+    customer_profile?: {
+      avatar_url: string | null;
+      sex: string;
+      date_of_birth: string | null;
+      eps: string;
+      id_type: string;
+      id_number: string;
+      id_expedition_date: string | null;
+      address: string;
+      city: string;
+      primary_goal: string;
+      kore_start_date: string | null;
+      profile_completed: boolean;
+    } | null;
+    today_mood?: { score: number; notes: string; date: string } | null;
+  };
 };
 
 function clearAuthCookies() {
@@ -61,7 +79,7 @@ function clearAuthCookies() {
   Cookies.remove('kore_user');
 }
 
-function mapUser(raw: LoginResponse['user']): User {
+function mapUser(raw: LoginResponse['user'], extra?: { profile_completed?: boolean; avatar_url?: string | null }): User {
   const first = raw.first_name || '';
   const last = raw.last_name || '';
   return {
@@ -72,6 +90,8 @@ function mapUser(raw: LoginResponse['user']): User {
     phone: raw.phone || '',
     role: raw.role,
     name: [first, last].filter(Boolean).join(' ') || raw.email,
+    profile_completed: extra?.profile_completed ?? false,
+    avatar_url: extra?.avatar_url ?? null,
   };
 }
 
@@ -181,7 +201,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(({ data }) => {
-        const user = mapUser(data.user);
+        const cp = data.user.customer_profile;
+        const user = mapUser(data.user, {
+          profile_completed: cp?.profile_completed ?? false,
+          avatar_url: cp?.avatar_url ?? null,
+        });
         Cookies.set('kore_user', JSON.stringify(user), { expires: 7 });
         set({ user, accessToken: token, isAuthenticated: true, hydrated: true });
       })

@@ -6,7 +6,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 import { useAuthStore } from '@/lib/stores/authStore';
-import { useCheckoutStore, type PSEPaymentData } from '@/lib/stores/checkoutStore';
+import { useCheckoutStore, type PSEPaymentData, type PackageDetail } from '@/lib/stores/checkoutStore';
+import { api } from '@/lib/services/http';
 import PaymentMethodSelector, { type PaymentMethod } from '@/app/components/checkout/PaymentMethodSelector';
 import CardPaymentForm, { type CardData } from '@/app/components/checkout/CardPaymentForm';
 import NequiPaymentForm from '@/app/components/checkout/NequiPaymentForm';
@@ -41,6 +42,8 @@ export default function CheckoutClient() {
     paymentStatus,
     intentResult,
     error,
+    termsAccepted,
+    termsLoading,
     fetchPackage,
     fetchWompiConfig,
     prepareCheckout,
@@ -51,10 +54,16 @@ export default function CheckoutClient() {
     purchaseWithPSE,
     purchaseWithBancolombia,
     pollIntentStatus,
+    fetchTermsStatus,
+    acceptTerms,
     reset,
   } = useCheckoutStore();
 
+  const [termsCheckbox, setTermsCheckbox] = useState(false);
+
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
+  const [allPackages, setAllPackages] = useState<PackageDetail[]>([]);
+  const [showPackageSelector, setShowPackageSelector] = useState(false);
 
   const prevPaymentStatusRef = useRef<string | null>(null);
   const [widgetLoaded, setWidgetLoaded] = useState(false);
@@ -119,8 +128,31 @@ export default function CheckoutClient() {
       reset();
       fetchPackage(packageId);
       fetchWompiConfig();
+      if (isAuthenticated) {
+        fetchTermsStatus();
+      }
     }
-  }, [packageId, hasCheckoutAccess, fetchPackage, fetchWompiConfig, reset]);
+  }, [packageId, hasCheckoutAccess, isAuthenticated, fetchPackage, fetchWompiConfig, fetchTermsStatus, reset]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !hasCheckoutAccess) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.get('/packages/');
+        if (cancelled) return;
+        const list: PackageDetail[] = Array.isArray(data) ? data : (data.results ?? []);
+        setAllPackages(list.filter((p) => p.is_active));
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [isAuthenticated, hasCheckoutAccess]);
+
+  const handleSwitchPackage = useCallback((newPkgId: number) => {
+    router.replace(`/checkout?package=${newPkgId}`);
+    setShowPackageSelector(false);
+    setSelectedMethod(null);
+  }, [router]);
 
   // Load Wompi widget script (programmatic mode — no data-public-key needed)
   useEffect(() => {
@@ -187,8 +219,11 @@ export default function CheckoutClient() {
     };
   }, []);
 
+  const needsTermsAcceptance = isAuthenticated && !termsAccepted && !termsLoading;
+
   const handleCardPayment = useCallback(async (cardData: CardData) => {
     if (!pkg) return;
+    if (needsTermsAcceptance) { await acceptTerms(); }
 
     useCheckoutStore.setState({ paymentStatus: 'processing', error: '' });
 
@@ -207,7 +242,7 @@ export default function CheckoutClient() {
       token,
       isAuthenticated ? undefined : (registrationToken || undefined),
     );
-  }, [pkg, tokenizeCard, purchaseSubscription, isAuthenticated, registrationToken]);
+  }, [pkg, tokenizeCard, purchaseSubscription, isAuthenticated, registrationToken, needsTermsAcceptance, acceptTerms]);
 
   const handleWidgetCheckout = useCallback(async () => {
     if (!wompiConfig || !pkg || !window.WidgetCheckout) return;
@@ -267,29 +302,32 @@ export default function CheckoutClient() {
 
   const handleNequiPayment = useCallback(async (phoneNumber: string) => {
     if (!pkg) return;
+    if (needsTermsAcceptance) { await acceptTerms(); }
     await purchaseWithNequi(
       pkg.id,
       phoneNumber,
       isAuthenticated ? undefined : (registrationToken || undefined),
     );
-  }, [pkg, purchaseWithNequi, isAuthenticated, registrationToken]);
+  }, [pkg, purchaseWithNequi, isAuthenticated, registrationToken, needsTermsAcceptance, acceptTerms]);
 
   const handlePSEPayment = useCallback(async (pseData: PSEPaymentData) => {
     if (!pkg) return;
+    if (needsTermsAcceptance) { await acceptTerms(); }
     await purchaseWithPSE(
       pkg.id,
       pseData,
       isAuthenticated ? undefined : (registrationToken || undefined),
     );
-  }, [pkg, purchaseWithPSE, isAuthenticated, registrationToken]);
+  }, [pkg, purchaseWithPSE, isAuthenticated, registrationToken, needsTermsAcceptance, acceptTerms]);
 
   const handleBancolombiaPayment = useCallback(async () => {
     if (!pkg) return;
+    if (needsTermsAcceptance) { await acceptTerms(); }
     await purchaseWithBancolombia(
       pkg.id,
       isAuthenticated ? undefined : (registrationToken || undefined),
     );
-  }, [pkg, purchaseWithBancolombia, isAuthenticated, registrationToken]);
+  }, [pkg, purchaseWithBancolombia, isAuthenticated, registrationToken, needsTermsAcceptance, acceptTerms]);
 
   const formatPrice = (price: string) => {
     return new Intl.NumberFormat('en-US', {
@@ -301,6 +339,7 @@ export default function CheckoutClient() {
   };
 
   const isProcessing = paymentStatus === 'processing' || paymentStatus === 'polling' || openingCheckout;
+  const paymentBlocked = isProcessing || (needsTermsAcceptance && !termsCheckbox);
 
   // Suppress unused variable warnings for widget functionality kept for fallback
   void widgetLoaded;
@@ -430,9 +469,53 @@ export default function CheckoutClient() {
             <div className="space-y-6">
               {/* Package summary */}
               <div>
-                <h2 className="font-heading text-xl font-semibold text-kore-gray-dark mb-4">
-                  Resumen del programa
-                </h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-heading text-xl font-semibold text-kore-gray-dark">
+                    Resumen del programa
+                  </h2>
+                  {isAuthenticated && allPackages.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowPackageSelector(!showPackageSelector)}
+                      className="text-xs text-kore-red hover:text-kore-red-dark font-medium transition-colors cursor-pointer"
+                    >
+                      {showPackageSelector ? 'Cerrar' : 'Cambiar programa'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Package selector dropdown */}
+                {showPackageSelector && (
+                  <div className="mb-4 bg-kore-cream/60 rounded-xl p-3 border border-kore-gray-light/40 max-h-60 overflow-y-auto space-y-2">
+                    {allPackages.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handleSwitchPackage(p.id)}
+                        className={`w-full text-left px-3 py-2.5 rounded-lg transition-all text-sm cursor-pointer ${
+                          p.id === pkg.id
+                            ? 'bg-white border border-kore-red/30 shadow-sm'
+                            : 'hover:bg-white/80 border border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className={`font-medium ${p.id === pkg.id ? 'text-kore-red' : 'text-kore-gray-dark'}`}>
+                              {p.title}
+                            </span>
+                            <span className="text-xs text-kore-gray-dark/50 ml-2">
+                              {p.sessions_count} sesiones
+                            </span>
+                          </div>
+                          <span className="text-xs font-medium text-kore-gray-dark/70">
+                            {formatPrice(p.price)}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-kore-gray-dark/60">Programa</span>
@@ -464,6 +547,32 @@ export default function CheckoutClient() {
                 </div>
               )}
 
+              {/* Terms & Conditions Checkbox */}
+              {needsTermsAcceptance && (
+                <div className="border-t border-kore-gray-light/40 pt-6">
+                  <label className="flex items-start gap-3 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={termsCheckbox}
+                      onChange={(e) => setTermsCheckbox(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded border-kore-gray-light text-kore-red focus:ring-kore-red/30 cursor-pointer accent-kore-red"
+                    />
+                    <span className="text-xs text-kore-gray-dark/70 leading-relaxed">
+                      He leído y acepto los{' '}
+                      <a
+                        href="/terms"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-kore-red hover:text-kore-red-dark underline font-medium"
+                      >
+                        Términos y Condiciones
+                      </a>{' '}
+                      y el documento de exoneración de responsabilidad de KÓRE.
+                    </span>
+                  </label>
+                </div>
+              )}
+
               {/* Payment Method Selection */}
               <div className="border-t border-kore-gray-light/40 pt-6">
                 <PaymentMethodSelector
@@ -481,7 +590,7 @@ export default function CheckoutClient() {
                       onSubmit={handleCardPayment}
                       isProcessing={isProcessing}
                       amount={formatPrice(pkg.price)}
-                      disabled={isProcessing}
+                      disabled={paymentBlocked}
                     />
                   )}
 
@@ -490,7 +599,7 @@ export default function CheckoutClient() {
                       onSubmit={handleNequiPayment}
                       isProcessing={isProcessing}
                       amount={formatPrice(pkg.price)}
-                      disabled={isProcessing}
+                      disabled={paymentBlocked}
                     />
                   )}
 
@@ -500,7 +609,7 @@ export default function CheckoutClient() {
                       onFetchBanks={fetchPSEBanks}
                       isProcessing={isProcessing}
                       amount={formatPrice(pkg.price)}
-                      disabled={isProcessing}
+                      disabled={paymentBlocked}
                     />
                   )}
 
@@ -510,7 +619,7 @@ export default function CheckoutClient() {
                       isProcessing={isProcessing}
                       amount={formatPrice(pkg.price)}
                       packageTitle={pkg.title}
-                      disabled={isProcessing}
+                      disabled={paymentBlocked}
                     />
                   )}
                 </div>

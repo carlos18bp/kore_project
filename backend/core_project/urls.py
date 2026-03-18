@@ -39,6 +39,9 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
+if getattr(settings, 'ENABLE_SILK', False):
+    urlpatterns += [path('silk/', include('silk.urls', namespace='silk'))]
+
 # Next.js RSC payload files (.txt) — must be before catch-all
 urlpatterns += [
     re_path(r'^(?P<path>(?:.+/)?__next\..+\.txt)$', serve_nextjs_rsc, name='nextjs-rsc'),

@@ -12,6 +12,15 @@ from .notification_serializers import NotificationSerializer
 from .package_serializers import PackageSerializer
 from .payment_serializers import PaymentSerializer
 from .subscription_serializers import SubscriptionSerializer
+from .profile_serializers import (
+    AvatarUploadSerializer,
+    ChangePasswordSerializer,
+    CustomerProfileSerializer,
+    MoodEntrySerializer,
+    ProfileResponseSerializer,
+    UpdateProfileSerializer,
+    WeightEntrySerializer,
+)
 from .trainer_profile_serializers import TrainerProfileSerializer
 from .wompi_serializers import (
     IntegritySignatureRequestSerializer,
@@ -42,4 +51,11 @@ __all__ = [
     'SubscriptionPaymentHistorySerializer',
     'SubscriptionPurchaseSerializer',
     'WompiConfigSerializer',
+    'AvatarUploadSerializer',
+    'ChangePasswordSerializer',
+    'CustomerProfileSerializer',
+    'MoodEntrySerializer',
+    'ProfileResponseSerializer',
+    'UpdateProfileSerializer',
+    'WeightEntrySerializer',
 ]

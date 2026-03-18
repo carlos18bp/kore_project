@@ -387,6 +387,26 @@ class TestRescheduleAction:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert 'siguiente sesión' in response.data['detail']
 
+    def test_reschedule_beyond_30_day_horizon_rejected(self, api_client, customer, package, trainer_profile):
+        """Reschedule rejects new slots beyond the 30-day booking horizon."""
+        old_slot = _make_slot(trainer_profile, hours_ahead=48)
+        old_slot.is_blocked = True
+        old_slot.save()
+        booking = _make_booking(customer, package, old_slot, trainer_profile)
+
+        far_slot = AvailabilitySlot.objects.create(
+            starts_at=FIXED_NOW + timedelta(days=31),
+            ends_at=FIXED_NOW + timedelta(days=31, hours=1),
+            trainer=trainer_profile,
+        )
+
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-reschedule', args=[booking.pk])
+        response = api_client.post(url, {'new_slot_id': far_slot.pk}, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert '30 días' in response.data['detail']
+
     def test_reschedule_after_last_session_success(self, api_client, customer, package, trainer_profile, subscription):
         """Reschedule succeeds when there is no next session constraint."""
         now = FIXED_NOW
@@ -481,6 +501,173 @@ class TestOnlyNextSessionValidation:
         slot2.refresh_from_db()
         assert slot1.is_blocked is True
         assert slot2.is_blocked is True
+
+
+# ----------------------------------------------------------------
+# Occupied-day endpoint
+# ----------------------------------------------------------------
+
+@pytest.mark.django_db
+class TestOccupiedDayEndpoint:
+    """Validates daily booked-session payload used for frontend availability."""
+
+    def test_requires_authentication(self, api_client):
+        """occupied-day endpoint requires authentication."""
+        url = reverse('booking-occupied-day')
+        response = api_client.get(url, {'trainer': 1, 'date': '2026-01-17'})
+
+        assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
+
+    def test_returns_only_active_bookings_for_trainer_and_day(self, api_client, customer, package, trainer_profile):
+        """Includes pending/confirmed bookings for the selected trainer/day only."""
+        other_trainer_user = User.objects.create_user(
+            email='occupied_other_trainer@example.com', password='p', role=User.Role.TRAINER,
+        )
+        other_trainer = TrainerProfile.objects.create(
+            user=other_trainer_user, specialty='Other', location='Remote',
+        )
+
+        target_day = (FIXED_NOW + timedelta(days=2)).date()
+        target_start = datetime(
+            target_day.year,
+            target_day.month,
+            target_day.day,
+            7,
+            0,
+            tzinfo=dt_timezone.utc,
+        )
+
+        included_slot = AvailabilitySlot.objects.create(
+            starts_at=target_start,
+            ends_at=target_start + timedelta(hours=1),
+            trainer=trainer_profile,
+            is_blocked=True,
+        )
+        included_booking = Booking.objects.create(
+            customer=customer,
+            package=package,
+            slot=included_slot,
+            trainer=trainer_profile,
+            status=Booking.Status.CONFIRMED,
+        )
+
+        canceled_slot = AvailabilitySlot.objects.create(
+            starts_at=target_start + timedelta(hours=2),
+            ends_at=target_start + timedelta(hours=3),
+            trainer=trainer_profile,
+            is_blocked=False,
+        )
+        Booking.objects.create(
+            customer=customer,
+            package=package,
+            slot=canceled_slot,
+            trainer=trainer_profile,
+            status=Booking.Status.CANCELED,
+        )
+
+        other_day_slot = AvailabilitySlot.objects.create(
+            starts_at=target_start + timedelta(days=1),
+            ends_at=target_start + timedelta(days=1, hours=1),
+            trainer=trainer_profile,
+            is_blocked=True,
+        )
+        Booking.objects.create(
+            customer=customer,
+            package=package,
+            slot=other_day_slot,
+            trainer=trainer_profile,
+            status=Booking.Status.PENDING,
+        )
+
+        other_trainer_slot = AvailabilitySlot.objects.create(
+            starts_at=target_start + timedelta(hours=4),
+            ends_at=target_start + timedelta(hours=5),
+            trainer=other_trainer,
+            is_blocked=True,
+        )
+        Booking.objects.create(
+            customer=customer,
+            package=package,
+            slot=other_trainer_slot,
+            trainer=other_trainer,
+            status=Booking.Status.CONFIRMED,
+        )
+
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-occupied-day')
+        response = api_client.get(
+            url,
+            {'trainer': trainer_profile.pk, 'date': target_day.strftime('%Y-%m-%d')},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) == 1
+        assert response.data[0]['slot_id'] == included_booking.slot_id
+        assert response.data[0]['trainer_id'] == trainer_profile.pk
+
+    def test_validates_required_query_params(self, api_client, customer):
+        """Returns 400 when required trainer/date params are missing or invalid."""
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-occupied-day')
+
+        missing_trainer = api_client.get(url, {'date': '2026-01-17'})
+        assert missing_trainer.status_code == status.HTTP_400_BAD_REQUEST
+
+        missing_date = api_client.get(url, {'trainer': 1})
+        assert missing_date.status_code == status.HTTP_400_BAD_REQUEST
+
+        invalid_trainer = api_client.get(url, {'trainer': 'abc', 'date': '2026-01-17'})
+        assert invalid_trainer.status_code == status.HTTP_400_BAD_REQUEST
+
+        invalid_date = api_client.get(url, {'trainer': 1, 'date': '17-01-2026'})
+        assert invalid_date.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_filters_occupied_slots_by_bogota_local_day(self, api_client, customer, package, trainer_profile):
+        """occupied-day date filter follows local day boundaries in America/Bogota."""
+        # 2026-01-17 00:30 UTC == 2026-01-16 19:30 America/Bogota
+        slot_prev_local_day = AvailabilitySlot.objects.create(
+            starts_at=datetime(2026, 1, 17, 0, 30, tzinfo=dt_timezone.utc),
+            ends_at=datetime(2026, 1, 17, 1, 30, tzinfo=dt_timezone.utc),
+            trainer=trainer_profile,
+            is_blocked=True,
+        )
+        booking_prev_local_day = Booking.objects.create(
+            customer=customer,
+            package=package,
+            slot=slot_prev_local_day,
+            trainer=trainer_profile,
+            status=Booking.Status.CONFIRMED,
+        )
+
+        # 2026-01-17 05:30 UTC == 2026-01-17 00:30 America/Bogota
+        slot_same_local_day = AvailabilitySlot.objects.create(
+            starts_at=datetime(2026, 1, 17, 5, 30, tzinfo=dt_timezone.utc),
+            ends_at=datetime(2026, 1, 17, 6, 30, tzinfo=dt_timezone.utc),
+            trainer=trainer_profile,
+            is_blocked=True,
+        )
+        booking_same_local_day = Booking.objects.create(
+            customer=customer,
+            package=package,
+            slot=slot_same_local_day,
+            trainer=trainer_profile,
+            status=Booking.Status.PENDING,
+        )
+
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-occupied-day')
+
+        response_prev_day = api_client.get(url, {'trainer': trainer_profile.pk, 'date': '2026-01-16'})
+        assert response_prev_day.status_code == status.HTTP_200_OK
+        prev_day_slot_ids = {item['slot_id'] for item in response_prev_day.data}
+        assert booking_prev_local_day.slot_id in prev_day_slot_ids
+        assert booking_same_local_day.slot_id not in prev_day_slot_ids
+
+        response_same_day = api_client.get(url, {'trainer': trainer_profile.pk, 'date': '2026-01-17'})
+        assert response_same_day.status_code == status.HTTP_200_OK
+        same_day_slot_ids = {item['slot_id'] for item in response_same_day.data}
+        assert booking_prev_local_day.slot_id not in same_day_slot_ids
+        assert booking_same_local_day.slot_id in same_day_slot_ids
 
 
 # ----------------------------------------------------------------

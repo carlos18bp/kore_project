@@ -1,3 +1,5 @@
+{% load tz %}
+{% timezone "America/Bogota" %}
 <h2 style="color:#c8102e; margin-top:0;">Tu sesión ha sido cancelada</h2>
 
 <p>Hola <strong>{{ customer_name }}</strong>,</p>
@@ -11,7 +13,7 @@
   </tr>
   <tr>
     <td style="padding:8px 12px; font-weight:bold;">Cuándo</td>
-    <td style="padding:8px 12px;">{{ slot_start|date:"l, d M Y" }} — {{ slot_start|time:"H:i" }} a {{ slot_end|time:"H:i" }}</td>
+    <td style="padding:8px 12px;">{{ slot_start|date:"l, d M Y" }} — {{ slot_start|time:"h:i A" }} a {{ slot_end|time:"h:i A" }}</td>
   </tr>
   <tr style="background-color:#f5f0eb;">
     <td style="padding:8px 12px; font-weight:bold;">Entrenador</td>
@@ -28,3 +30,4 @@
 <p>Si deseas agendar una nueva sesión, puedes hacerlo desde tu panel en KÓRE.</p>
 
 <p>¡Te esperamos!</p>
+{% endtimezone %}

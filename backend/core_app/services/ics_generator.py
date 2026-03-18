@@ -8,8 +8,12 @@ calendar app can import the session automatically.
 from email.utils import parseaddr
 from datetime import datetime, timezone as dt_tz
 from uuid import uuid4
+import pytz
 
 from django.conf import settings
+
+# Timezone for display in ICS
+BOGOTA_TZ = pytz.timezone('America/Bogota')
 
 
 def generate_ics(booking):
@@ -60,9 +64,9 @@ def generate_ics(booking):
         seen_attendees.add(normalized_email)
         attendee_lines.append(f'ATTENDEE;CN={attendee_name}:mailto:{attendee_email}')
 
-    dtstart = _format_dt(slot.starts_at)
-    dtend = _format_dt(slot.ends_at)
-    dtstamp = _format_dt(datetime.now(dt_tz.utc))
+    dtstart = _format_dt_bogota(slot.starts_at)
+    dtend = _format_dt_bogota(slot.ends_at)
+    dtstamp = _format_dt_utc(datetime.now(dt_tz.utc))
     uid = f'{uuid4()}@korehealths.com'
 
     lines = [
@@ -71,11 +75,19 @@ def generate_ics(booking):
         'PRODID:-//KÓRE//Booking//EN',
         'CALSCALE:GREGORIAN',
         'METHOD:REQUEST',
+        'BEGIN:VTIMEZONE',
+        'TZID:America/Bogota',
+        'BEGIN:STANDARD',
+        'DTSTART:19700101T000000',
+        'TZOFFSETFROM:-0500',
+        'TZOFFSETTO:-0500',
+        'END:STANDARD',
+        'END:VTIMEZONE',
         'BEGIN:VEVENT',
         f'UID:{uid}',
         f'DTSTAMP:{dtstamp}',
-        f'DTSTART:{dtstart}',
-        f'DTEND:{dtend}',
+        f'DTSTART;TZID=America/Bogota:{dtstart}',
+        f'DTEND;TZID=America/Bogota:{dtend}',
         f'SUMMARY:{summary}',
         f'DESCRIPTION:{description}',
         f'LOCATION:{location}',
@@ -89,7 +101,7 @@ def generate_ics(booking):
     return '\r\n'.join(lines).encode('utf-8')
 
 
-def _format_dt(dt):
+def _format_dt_utc(dt):
     """Format a datetime to iCalendar UTC format (``YYYYMMDDTHHMMSSZ``).
 
     Args:
@@ -99,6 +111,24 @@ def _format_dt(dt):
         str: Formatted datetime string.
     """
     return dt.strftime('%Y%m%dT%H%M%SZ')
+
+
+def _format_dt_bogota(dt):
+    """Format a datetime to iCalendar local format for Bogotá timezone.
+
+    Converts UTC datetime to America/Bogota and formats as ``YYYYMMDDTHHMMSS``.
+
+    Args:
+        dt: A ``datetime`` instance (aware, typically UTC).
+
+    Returns:
+        str: Formatted datetime string in Bogotá local time.
+    """
+    if dt.tzinfo is not None:
+        bogota_dt = dt.astimezone(BOGOTA_TZ)
+    else:
+        bogota_dt = BOGOTA_TZ.localize(dt)
+    return bogota_dt.strftime('%Y%m%dT%H%M%S')
 
 
 def _resolve_default_organizer():

@@ -144,7 +144,7 @@ export default function SubscriptionPage() {
 
   return (
     <section ref={sectionRef} className="min-h-screen bg-kore-cream">
-      <div className="w-full px-6 md:px-10 lg:px-16 pt-20 lg:pt-8 pb-16">
+      <div className="w-full px-6 md:px-10 lg:px-16 pt-20 xl:pt-8 pb-16">
         {/* Header */}
         <div data-hero="badge" className="mb-12">
           <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-1">Mi cuenta</p>
@@ -310,9 +310,81 @@ export default function SubscriptionPage() {
                     <div className="space-y-3">
                       {detailSubscription.status === 'active' && (
                         <>
+                          {/* Renew button - billing failed: always enabled */}
+                          {detailSubscription.billing_failed_at && (
+                            <Link
+                              href={`/checkout?package=${detailSubscription.package.id}`}
+                              className="w-full flex items-center justify-center gap-2 bg-kore-red hover:bg-kore-red-dark text-white font-medium py-3 rounded-lg transition-colors text-sm"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                              </svg>
+                              Actualizar pago
+                            </Link>
+                          )}
+
+                          {/* Renew button - non-recurring: enabled only 7 days before expiry */}
+                          {!detailSubscription.is_recurring && !detailSubscription.billing_failed_at && (() => {
+                            const expiresAt = new Date(detailSubscription.expires_at);
+                            const now = new Date();
+                            const daysLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                            const canRenew = daysLeft <= 7;
+                            const renewUrl = `/checkout?package=${detailSubscription.package.id}`;
+
+                            if (canRenew) {
+                              return (
+                                <Link
+                                  href={renewUrl}
+                                  className="w-full flex items-center justify-center gap-2 bg-kore-red hover:bg-kore-red-dark text-white font-medium py-3 rounded-lg transition-colors text-sm"
+                                >
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                                  </svg>
+                                  Renovar suscripción
+                                </Link>
+                              );
+                            }
+
+                            return (
+                              <div className="relative group">
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="w-full flex items-center justify-center gap-2 bg-kore-gray-light/60 text-kore-gray-dark/40 font-medium py-3 rounded-lg text-sm cursor-not-allowed"
+                                >
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                                  </svg>
+                                  Renovar suscripción
+                                </button>
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-kore-gray-dark text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg">
+                                  Se habilitará 7 días antes del vencimiento (faltan {daysLeft} días)
+                                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-kore-gray-dark" />
+                                </div>
+                              </div>
+                            );
+                          })()}
+
+                          {/* Billing failed alert */}
+                          {detailSubscription.billing_failed_at && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                              <p className="text-xs text-red-700">
+                                No pudimos procesar tu último cobro automático. Actualiza tu método de pago para mantener tu suscripción.
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Auto-renewal info */}
+                          {detailSubscription.is_recurring && !detailSubscription.billing_failed_at && detailSubscription.next_billing_date && (
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                              <p className="text-xs text-green-700">
+                                Tu suscripción se renovará automáticamente el {formatDate(detailSubscription.next_billing_date)}.
+                              </p>
+                            </div>
+                          )}
+
                           {!showCancelConfirm ? (
                             <button
-                              disabled={true}
                               onClick={() => setShowCancelConfirm(true)}
                               className="w-full flex items-center justify-center gap-2 bg-kore-red/5 hover:bg-kore-red/10 text-kore-red font-medium py-3 rounded-lg transition-colors text-sm cursor-pointer"
                             >
@@ -327,7 +399,10 @@ export default function SubscriptionPage() {
                                 ¿Seguro que deseas cancelar?
                               </p>
                               <p className="text-xs text-kore-gray-dark/50">
-                                Se detendrán los cobros recurrentes. Las sesiones restantes se mantendrán hasta el vencimiento.
+                                {detailSubscription.is_recurring
+                                  ? 'Se detendrán los cobros automáticos. Podrás usar tus sesiones restantes hasta el vencimiento.'
+                                  : `Podrás seguir usando tus ${detailSubscription.sessions_remaining} sesiones restantes hasta el ${formatDate(detailSubscription.expires_at)}.`
+                                }
                               </p>
                               <div className="flex gap-2">
                                 <button
@@ -352,9 +427,20 @@ export default function SubscriptionPage() {
                         </>
                       )}
                       {detailSubscription.status !== 'active' && (
-                        <p className="text-sm text-kore-gray-dark/50">
-                          Esta suscripción está inactiva, por lo que no requiere acciones.
-                        </p>
+                        <>
+                          <Link
+                            href={`/checkout?package=${detailSubscription.package.id}`}
+                            className="w-full flex items-center justify-center gap-2 bg-kore-red hover:bg-kore-red-dark text-white font-medium py-3 rounded-lg transition-colors text-sm"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                            </svg>
+                            Renovar este programa
+                          </Link>
+                          <p className="text-xs text-kore-gray-dark/50 text-center">
+                            O explora otros programas en nuestra <Link href="/programs" className="text-kore-red hover:underline">página de programas</Link>.
+                          </p>
+                        </>
                       )}
                     </div>
                   </div>

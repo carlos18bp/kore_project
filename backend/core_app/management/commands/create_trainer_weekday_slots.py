@@ -1,15 +1,15 @@
-from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 from core_app.models import AvailabilitySlot, TrainerProfile
+from core_app.services.slot_schedule import generate_slots_for_trainer
 
 
 class Command(BaseCommand):
-    help = "Create weekday availability slots for a specific trainer email.\n\n" \
-           "Generates slots Monday to Friday in two windows: 05:00\x1313:00 and 16:00\x1320:00,\n" \
+    help = "Create availability slots for a specific trainer email.\n\n" \
+           "Generates slots Mon-Fri 05:00-13:00 & 16:00-21:00, Sat 06:00-13:00,\n" \
            "using 60-minute sessions with 15-minute start increments by default."
 
     def add_arguments(self, parser):
@@ -76,67 +76,13 @@ class Command(BaseCommand):
         except TrainerProfile.DoesNotExist:
             raise CommandError(f"No TrainerProfile found for email '{email}'")
 
-        slot_duration = timedelta(minutes=slot_minutes)
-        slot_step = timedelta(minutes=slot_step_minutes)
-
-        now = timezone.now().astimezone(tz)
-        start_date = now.date()
-
-        created = 0
-        windows = [
-            (5, 13),   # 05:0001:00
-            (16, 20),  # 16:0020:00
-        ]
-
-        for day_offset in range(days):
-            current_date = start_date + timedelta(days=day_offset)
-
-            # Monday=0, Sunday=6 -> only MondayFriday
-            if current_date.weekday() >= 5:
-                continue
-
-            for start_hour, end_hour in windows:
-                day_start = datetime.combine(
-                    current_date,
-                    time(hour=start_hour, minute=0, second=0),
-                    tzinfo=tz,
-                )
-                day_end = datetime.combine(
-                    current_date,
-                    time(hour=end_hour, minute=0, second=0),
-                    tzinfo=tz,
-                )
-
-                current_start = day_start
-                while current_start < day_end:
-                    starts_at = current_start
-                    ends_at = current_start + slot_duration
-
-                    if ends_at > day_end:
-                        break
-
-                    # Skip slots that would end in the past relative to "now"
-                    if ends_at <= now:
-                        current_start = current_start + slot_step
-                        continue
-
-                    # UniqueConstraint is on (starts_at, ends_at), so we match
-                    # existing behavior from create_fake_slots and only use
-                    # trainer/defaults on creation.
-                    _, was_created = AvailabilitySlot.objects.get_or_create(
-                        starts_at=starts_at,
-                        ends_at=ends_at,
-                        defaults={
-                            "trainer": trainer,
-                            "is_active": True,
-                            "is_blocked": False,
-                            "blocked_reason": "",
-                        },
-                    )
-                    if was_created:
-                        created += 1
-
-                    current_start = current_start + slot_step
+        created = generate_slots_for_trainer(
+            trainer=trainer,
+            days=days,
+            tz=tz,
+            slot_minutes=slot_minutes,
+            slot_step_minutes=slot_step_minutes,
+        )
 
         total_for_trainer = AvailabilitySlot.objects.filter(trainer=trainer).count()
 

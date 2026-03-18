@@ -21,6 +21,7 @@ from core_app.services.email_service import (
     send_payment_receipt,
     send_subscription_expiry_reminder,
 )
+from core_app.services.slot_schedule import MAX_ROLLOVER_SESSIONS
 from core_app.services.wompi_service import create_transaction, generate_reference
 
 logger = logging.getLogger(__name__)
@@ -59,8 +60,13 @@ def process_recurring_billing():
         try:
             _bill_subscription(sub)
             succeeded += 1
+            if sub.billing_failed_at:
+                sub.billing_failed_at = None
+                sub.save(update_fields=['billing_failed_at', 'updated_at'])
         except Exception:
             failed += 1
+            sub.billing_failed_at = timezone.now()
+            sub.save(update_fields=['billing_failed_at', 'updated_at'])
             logger.exception(
                 'Failed to bill subscription %s for customer %s',
                 sub.id,
@@ -112,11 +118,13 @@ def _bill_subscription(sub):
         )
 
         if txn_status == 'APPROVED':
+            leftover = max(sub.sessions_total - sub.sessions_used, 0)
+            rollover = min(leftover, MAX_ROLLOVER_SESSIONS)
             sub.next_billing_date = sub.next_billing_date + timedelta(
                 days=package.validity_days
             )
+            sub.sessions_total = package.sessions_count + rollover
             sub.sessions_used = 0
-            sub.sessions_total = package.sessions_count
             sub.expires_at = timezone.now() + timedelta(days=package.validity_days)
             sub.save(
                 update_fields=[
@@ -185,3 +193,163 @@ def send_expiring_subscription_reminders():
     summary = {'processed': processed, 'sent': sent}
     logger.info('Expiry reminders completed: %s', summary)
     return summary
+
+
+@db_periodic_task(crontab(minute='*/15'))
+def auto_complete_past_bookings():
+    """Mark pending bookings as confirmed once their slot has ended.
+
+    Runs every 15 minutes to catch sessions that just finished.
+
+    Returns:
+        dict: Summary with 'completed' count.
+    """
+    from core_app.models import Booking
+    now = timezone.now()
+    past_pending_bookings = Booking.objects.filter(
+        status=Booking.Status.PENDING,
+        slot__ends_at__lte=now,
+    )
+    completed = past_pending_bookings.update(status=Booking.Status.CONFIRMED)
+    if completed:
+        logger.info('Auto-completed %d past pending bookings', completed)
+    return {'completed': completed}
+
+
+@db_periodic_task(crontab(minute=0, hour=9, day_of_week='1'))
+def send_nutrition_reminders():
+    """Send weekly nutrition habit reminders to active clients.
+
+    Runs Monday 9am. Targets customers with active subscriptions whose
+    last NutritionHabit entry is older than 7 days (or never submitted).
+
+    Returns:
+        dict: Summary with 'processed' and 'sent' counts.
+    """
+    from core_app.models.nutrition_habit import NutritionHabit
+    from core_app.services.email_service import send_template_email
+
+    now = timezone.now()
+    cutoff = now - timedelta(days=7)
+
+    active_customers = Subscription.objects.filter(
+        status=Subscription.Status.ACTIVE,
+    ).values_list('customer_id', flat=True).distinct()
+
+    from core_app.models import User
+    customers = User.objects.filter(
+        id__in=active_customers,
+        role=User.Role.CUSTOMER,
+    )
+
+    processed = 0
+    sent = 0
+
+    for customer in customers:
+        latest = NutritionHabit.objects.filter(
+            customer=customer,
+        ).order_by('-created_at').first()
+
+        if latest and latest.created_at > cutoff:
+            continue
+
+        processed += 1
+        customer_name = f'{customer.first_name} {customer.last_name}'.strip() or customer.email
+
+        success = send_template_email(
+            template_name='nutrition_reminder',
+            subject='Es hora de registrar tus hábitos alimentarios — KÓRE',
+            to_emails=[customer.email],
+            context={'customer_name': customer_name},
+        )
+
+        Notification.objects.create(
+            notification_type=Notification.Type.NUTRITION_REMINDER,
+            status=Notification.Status.SENT if success else Notification.Status.FAILED,
+            sent_to=customer.email,
+            payload={'customer_id': customer.id},
+        )
+
+        if success:
+            sent += 1
+
+    summary = {'processed': processed, 'sent': sent}
+    logger.info('Nutrition reminders completed: %s', summary)
+    return summary
+
+
+@db_periodic_task(crontab(minute=0, hour=9, day='1'))
+def send_parq_reminders():
+    """Send quarterly PAR-Q reminders to active clients.
+
+    Runs on the 1st of each month at 9am. Targets customers with active
+    subscriptions whose last ParqAssessment is older than 90 days (or never).
+
+    Returns:
+        dict: Summary with 'processed' and 'sent' counts.
+    """
+    from core_app.models.parq_assessment import ParqAssessment
+    from core_app.services.email_service import send_template_email
+
+    now = timezone.now()
+    cutoff = now - timedelta(days=90)
+
+    active_customers = Subscription.objects.filter(
+        status=Subscription.Status.ACTIVE,
+    ).values_list('customer_id', flat=True).distinct()
+
+    from core_app.models import User
+    customers = User.objects.filter(
+        id__in=active_customers,
+        role=User.Role.CUSTOMER,
+    )
+
+    processed = 0
+    sent = 0
+
+    for customer in customers:
+        latest = ParqAssessment.objects.filter(
+            customer=customer,
+        ).order_by('-created_at').first()
+
+        if latest and latest.created_at > cutoff:
+            continue
+
+        processed += 1
+        customer_name = f'{customer.first_name} {customer.last_name}'.strip() or customer.email
+
+        success = send_template_email(
+            template_name='parq_reminder',
+            subject='Actualiza tu cuestionario PAR-Q — KÓRE',
+            to_emails=[customer.email],
+            context={'customer_name': customer_name},
+        )
+
+        Notification.objects.create(
+            notification_type=Notification.Type.PARQ_REMINDER,
+            status=Notification.Status.SENT if success else Notification.Status.FAILED,
+            sent_to=customer.email,
+            payload={'customer_id': customer.id},
+        )
+
+        if success:
+            sent += 1
+
+    summary = {'processed': processed, 'sent': sent}
+    logger.info('PAR-Q reminders completed: %s', summary)
+    return summary
+
+
+@db_periodic_task(crontab(minute=30, hour=2))
+def maintain_availability_slots():
+    """Daily slot maintenance: prune free past slots, fill future window.
+
+    Delegates to the ``maintain_slots`` management command so the logic
+    is shared with the ad-hoc CLI invocation.
+
+    Returns:
+        None
+    """
+    from django.core.management import call_command
+    call_command('maintain_slots', timezone='America/Bogota')
+    logger.info('maintain_availability_slots task completed')

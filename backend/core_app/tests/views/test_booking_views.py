@@ -39,7 +39,7 @@ def test_booking_create_blocks_slot_and_prevents_double_booking(api_client, exis
 
     package = Package.objects.create(title='P1', is_active=True)
     now = FIXED_NOW
-    slot = AvailabilitySlot.objects.create(starts_at=now + timedelta(hours=1), ends_at=now + timedelta(hours=2))
+    slot = AvailabilitySlot.objects.create(starts_at=now + timedelta(hours=26), ends_at=now + timedelta(hours=27))
 
     url = reverse('booking-list')
     response = api_client.post(url, {'package_id': package.id, 'slot_id': slot.id}, format='json')

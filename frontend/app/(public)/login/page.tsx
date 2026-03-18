@@ -21,7 +21,7 @@ export default function LoginPage() {
   const recaptchaRef = useRef<ReCAPTCHA>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const router = useRouter();
-  const { login, isAuthenticated, hydrate, hydrated } = useAuthStore();
+  const { login, user, isAuthenticated, hydrate, hydrated } = useAuthStore();
 
   useHeroAnimation(sectionRef);
 
@@ -31,9 +31,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (hydrated && isAuthenticated) {
-      router.push('/dashboard');
+      router.push(user?.role === 'trainer' ? '/trainer/dashboard' : '/dashboard');
     }
-  }, [hydrated, isAuthenticated, router]);
+  }, [hydrated, isAuthenticated, user, router]);
 
   useEffect(() => {
     api.get('/google-captcha/site-key/')
@@ -60,7 +60,8 @@ export default function LoginPage() {
     const result = await login(email, password, captchaToken ?? undefined);
 
     if (result.success) {
-      router.push('/dashboard');
+      const currentUser = useAuthStore.getState().user;
+      router.push(currentUser?.role === 'trainer' ? '/trainer/dashboard' : '/dashboard');
     } else {
       setError(result.error || 'Error al iniciar sesión');
       setIsLoading(false);
@@ -163,14 +164,12 @@ export default function LoginPage() {
 
             {/* Forgot password */}
             <div className="flex justify-end">
-              <a
-                href={WHATSAPP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                href="/forgot-password"
                 className="text-xs text-kore-gray-dark/40 hover:text-kore-red transition-colors"
               >
-                ¿Olvidaste tu contraseña? Contáctanos
-              </a>
+                ¿Olvidaste tu contraseña?
+              </Link>
             </div>
 
             {/* reCAPTCHA */}

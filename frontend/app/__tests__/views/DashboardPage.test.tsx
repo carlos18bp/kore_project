@@ -38,6 +38,8 @@ const mockUser = {
   phone: '',
   role: 'customer',
   name: 'Customer10 Kore',
+  profile_completed: false,
+  avatar_url: '',
 };
 
 describe('DashboardPage', () => {
@@ -57,10 +59,10 @@ describe('DashboardPage', () => {
     expect(screen.getAllByText(/Customer10/).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders program info card', () => {
+  it('renders program info inside profile card', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
     render(<DashboardPage />);
-    expect(screen.getByText('Tu programa')).toBeInTheDocument();
+    expect(screen.getAllByText('Programa').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Sin programa activo').length).toBeGreaterThanOrEqual(1);
   });
 
@@ -77,35 +79,30 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Tu siguiente paso')).toBeInTheDocument();
   });
 
-  it('renders quick action buttons', () => {
+  it('renders upcoming sessions section', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
     render(<DashboardPage />);
-    expect(screen.getByText('Acciones rápidas')).toBeInTheDocument();
-    expect(screen.getByText('Mi suscripción')).toBeInTheDocument();
-    expect(screen.getByText('Mis programas')).toBeInTheDocument();
-    expect(screen.getByText('Soporte')).toBeInTheDocument();
+    expect(screen.getByText('Próximas sesiones')).toBeInTheDocument();
   });
 
   it('renders activity history', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
     render(<DashboardPage />);
-    expect(screen.getByText('Tu historial')).toBeInTheDocument();
-    expect(screen.getByText('Tu historial aparecerá aquí')).toBeInTheDocument();
+    expect(screen.getByText('Historial reciente')).toBeInTheDocument();
+    expect(screen.getByText('Sin sesiones completadas')).toBeInTheDocument();
   });
 
   it('renders profile card with user info', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
     render(<DashboardPage />);
-    expect(screen.getByText('Tu perfil')).toBeInTheDocument();
     expect(screen.getAllByText('Customer10 Kore').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('customer10@kore.com').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders Soporte quick action linking to WhatsApp', () => {
+  it('renders estado de hoy section inside progress card', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
     render(<DashboardPage />);
-    const supportLink = screen.getByText('Soporte').closest('a');
-    expect(supportLink).toBeInTheDocument();
+    expect(screen.getAllByText('Estado de hoy').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders session progress bar', () => {

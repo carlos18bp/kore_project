@@ -1,10 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/authStore';
+import { useProfileStore } from '@/lib/stores/profileStore';
 import { WHATSAPP_URL } from '@/lib/constants';
+import { GOAL_OPTIONS } from '@/app/components/profile/ProfileIcons';
+import { usePendingAssessmentsStore } from '@/lib/stores/pendingAssessmentsStore';
 
 const navItems = [
   {
@@ -22,6 +26,60 @@ const navItems = [
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Mi Diagnóstico',
+    href: '/my-diagnosis',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Evaluación Postural',
+    href: '/my-posturometry',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Evaluación Física',
+    href: '/my-physical-evaluation',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Mi Nutrición',
+    href: '/my-nutrition',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8.25v-1.5m0 1.5c-1.355 0-2.697.056-4.024.166C6.845 8.51 6 9.473 6 10.608v2.513m6-4.871c1.355 0 2.697.056 4.024.166C17.155 8.51 18 9.473 18 10.608v2.513M15 8.25v-1.5m-6 1.5v-1.5m12 9.75l-1.5.75a3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0L3 16.5m15-3.379a48.474 48.474 0 00-6-.371c-2.032 0-4.034.126-6 .371m12 0c.39.049.777.102 1.163.16 1.07.16 1.837 1.094 1.837 2.175v5.169c0 .621-.504 1.125-1.125 1.125H4.125A1.125 1.125 0 013 20.625v-5.17c0-1.08.768-2.014 1.837-2.174A47.78 47.78 0 016 13.12M12.265 3.11a.375.375 0 11-.53 0L12 2.845l.265.265zm-3 0a.375.375 0 11-.53 0L9 2.845l.265.265zm6 0a.375.375 0 11-.53 0L15 2.845l.265.265z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'PAR-Q',
+    href: '/my-parq',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.25 2.25 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.9-4.414c.376.023.75.05 1.124.08 1.131.094 1.976 1.057 1.976 2.192V16.5A2.25 2.25 0 0118 18.75h-2.25m-7.5-10.5H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V18.75m-7.5-10.5h6.375c.621 0 1.125.504 1.125 1.125v9.375m-8.25-3l1.5 1.5 3-3.75" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Mi Perfil',
+    href: '/profile',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
       </svg>
     ),
   },
@@ -49,11 +107,26 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  const { profile } = useProfileStore();
+  const userGoal = profile?.customer_profile?.primary_goal;
+  const goalLabel = GOAL_OPTIONS.find((g) => g.value === userGoal)?.label;
   const [isOpen, setIsOpen] = useState(false);
+  const {
+    nutritionDue, parqDue,
+    anthropometryUnseen, posturometryUnseen, physicalEvalUnseen,
+    profileIncomplete, subscriptionExpiring,
+    loaded: pendingLoaded, fetchPending, markSeen,
+  } = usePendingAssessmentsStore();
 
   useEffect(() => {
     setIsOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (user && !pendingLoaded) {
+      fetchPending();
+    }
+  }, [user, pendingLoaded, fetchPending]);
 
   const handleLogout = () => {
     logout();
@@ -65,7 +138,7 @@ export default function Sidebar() {
       {/* Mobile hamburger button */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed top-4 left-4 z-50 lg:hidden p-2 rounded-xl bg-white/80 backdrop-blur-sm border border-kore-gray-light/40 text-kore-gray-dark/60 hover:text-kore-gray-dark transition-colors"
+        className="fixed top-4 left-4 z-50 xl:hidden p-2 rounded-xl bg-white/80 backdrop-blur-sm border border-kore-gray-light/40 text-kore-gray-dark/60 hover:text-kore-gray-dark transition-colors"
         aria-label="Abrir menú"
       >
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -76,24 +149,24 @@ export default function Sidebar() {
       {/* Backdrop overlay for mobile */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 lg:hidden cursor-pointer"
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 xl:hidden cursor-pointer"
           onClick={() => setIsOpen(false)}
         />
       )}
 
       <aside className={`fixed left-0 top-0 h-dvh w-64 bg-white border-r border-kore-gray-light/40 flex flex-col z-50 transition-transform duration-300 ease-in-out ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
-      } lg:translate-x-0`}>
+      } xl:translate-x-0`}>
       {/* Logo */}
       <div className="px-6 pt-8 pb-6 flex items-center justify-between">
-        <Link href="/dashboard">
+        <Link href="/dashboard" prefetch={false}>
           <span className="font-heading text-2xl font-semibold text-kore-gray-dark tracking-tight">
             KÓRE
           </span>
         </Link>
         <button
           onClick={() => setIsOpen(false)}
-          className="lg:hidden p-1 rounded-lg text-kore-gray-dark/40 hover:text-kore-gray-dark transition-colors"
+          className="xl:hidden p-1 rounded-lg text-kore-gray-dark/40 hover:text-kore-gray-dark transition-colors"
           aria-label="Cerrar menú"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -106,14 +179,22 @@ export default function Sidebar() {
       {user && (
         <div className="px-6 pb-6 mb-2">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-kore-red/20 to-kore-burgundy/10 flex items-center justify-center flex-shrink-0 ring-2 ring-white shadow-sm">
-              <span className="font-heading text-sm font-semibold text-kore-red">
-                {user.name.charAt(0)}
-              </span>
+            <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-kore-red/20 to-kore-burgundy/10 flex items-center justify-center flex-shrink-0 ring-2 ring-white shadow-sm overflow-hidden">
+              {user.avatar_url ? (
+                <Image src={user.avatar_url} alt="Avatar" fill className="object-cover" />
+              ) : (
+                <span className="font-heading text-sm font-semibold text-kore-red">
+                  {user.name.charAt(0)}
+                </span>
+              )}
             </div>
             <div className="min-w-0">
               <p className="text-sm font-medium text-kore-gray-dark truncate">{user.name}</p>
-              <p className="text-xs text-kore-gray-dark/40 truncate">{user.email}</p>
+              {goalLabel ? (
+                <p className="text-xs text-kore-red/70 truncate font-medium">{goalLabel}</p>
+              ) : (
+                <p className="text-xs text-kore-gray-dark/40 truncate">{user.email}</p>
+              )}
             </div>
           </div>
         </div>
@@ -128,7 +209,13 @@ export default function Sidebar() {
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  onClick={() => setIsOpen(false)}
+                  prefetch={false}
+                  onClick={() => {
+                    setIsOpen(false);
+                    if (item.href === '/my-diagnosis') markSeen('anthropometry');
+                    if (item.href === '/my-posturometry') markSeen('posturometry');
+                    if (item.href === '/my-physical-evaluation') markSeen('physical_eval');
+                  }}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                     isActive
                       ? 'bg-kore-red/10 text-kore-red'
@@ -137,6 +224,27 @@ export default function Sidebar() {
                 >
                   {item.icon}
                   {item.label}
+                  {item.href === '/my-nutrition' && nutritionDue && (
+                    <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
+                  )}
+                  {item.href === '/my-parq' && parqDue && (
+                    <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
+                  )}
+                  {item.href === '/my-diagnosis' && anthropometryUnseen && (
+                    <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
+                  )}
+                  {item.href === '/my-posturometry' && posturometryUnseen && (
+                    <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
+                  )}
+                  {item.href === '/my-physical-evaluation' && physicalEvalUnseen && (
+                    <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
+                  )}
+                  {item.href === '/profile' && profileIncomplete && (
+                    <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
+                  )}
+                  {item.href === '/subscription' && subscriptionExpiring && (
+                    <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
+                  )}
                 </Link>
               </li>
             );

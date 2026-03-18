@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.db import models as db_models, transaction
 from django.utils import timezone
 from rest_framework import serializers
@@ -7,6 +9,7 @@ from core_app.serializers.availability_serializers import AvailabilitySlotSerial
 from core_app.serializers.package_serializers import PackageSerializer
 from core_app.serializers.trainer_profile_serializers import TrainerProfileSerializer
 from core_app.services.booking_rules import has_trainer_travel_buffer_conflict
+from core_app.services.slot_schedule import BOOKING_HORIZON_DAYS
 
 
 class BookingSerializer(serializers.ModelSerializer):
@@ -140,6 +143,16 @@ class BookingSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({'slot_id': 'El horario está bloqueado.'})
         if slot.ends_at <= timezone.now():
             raise serializers.ValidationError({'slot_id': 'El horario ya pasó.'})
+        min_advance = timezone.now() + timedelta(hours=16)
+        if slot.starts_at < min_advance:
+            raise serializers.ValidationError(
+                {'slot_id': 'Debes agendar con al menos 16 horas de anticipación.'}
+            )
+        horizon = timezone.now() + timedelta(days=BOOKING_HORIZON_DAYS)
+        if slot.starts_at >= horizon:
+            raise serializers.ValidationError(
+                {'slot_id': 'No se puede agendar con más de 30 días de anticipación.'}
+            )
         if Booking.objects.filter(slot=slot).exclude(status=Booking.Status.CANCELED).exists():
             raise serializers.ValidationError({'slot_id': 'El horario ya está reservado.'})
 

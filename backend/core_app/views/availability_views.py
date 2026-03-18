@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 from django.db.models import Q
 from django.utils import timezone
@@ -11,6 +12,15 @@ from core_app.services.booking_rules import (
     ACTIVE_BOOKING_STATUSES,
     build_trainer_buffer_slot_conflict_q,
 )
+from core_app.services.slot_schedule import BOOKING_HORIZON_DAYS
+
+BUSINESS_TIMEZONE = ZoneInfo('America/Bogota')
+
+
+def _local_day_bounds(day):
+    day_start = datetime.combine(day, time.min, tzinfo=BUSINESS_TIMEZONE)
+    day_end = day_start + timedelta(days=1)
+    return day_start, day_end
 
 
 class AvailabilitySlotViewSet(viewsets.ModelViewSet):
@@ -35,6 +45,12 @@ class AvailabilitySlotViewSet(viewsets.ModelViewSet):
     serializer_class = AvailabilitySlotSerializer
     permission_classes = [IsAdminOrReadOnly]
 
+    @property
+    def paginator(self):
+        if self.request.query_params.get('date'):
+            return None
+        return super().paginator
+
     def get_queryset(self):
         """Return availability slots with optional filtering.
 
@@ -53,10 +69,13 @@ class AvailabilitySlotViewSet(viewsets.ModelViewSet):
                 status__in=ACTIVE_BOOKING_STATUSES,
             ).values_list('slot_id', flat=True)
 
+            now = timezone.now()
+            horizon = now + timedelta(days=BOOKING_HORIZON_DAYS)
             qs = qs.filter(
                 is_active=True,
                 is_blocked=False,
-                ends_at__gt=timezone.now(),
+                ends_at__gt=now,
+                starts_at__lt=horizon,
             ).exclude(id__in=booked_slot_ids)
 
         # Filter by specific date (YYYY-MM-DD)
@@ -64,7 +83,8 @@ class AvailabilitySlotViewSet(viewsets.ModelViewSet):
         if date_param:
             try:
                 day = datetime.strptime(date_param, '%Y-%m-%d').date()
-                qs = qs.filter(starts_at__date=day)
+                day_start, day_end = _local_day_bounds(day)
+                qs = qs.filter(starts_at__gte=day_start, starts_at__lt=day_end)
             except ValueError:
                 pass  # Ignore malformed date param
 

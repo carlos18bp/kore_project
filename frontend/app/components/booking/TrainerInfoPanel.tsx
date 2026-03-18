@@ -20,12 +20,12 @@ export default function TrainerInfoPanel({ trainer, selectedSlot, timezone }: Pr
             {trainer ? trainer.first_name.charAt(0) : 'K'}
           </span>
         </div>
-        <div>
-          <h2 className="font-heading text-lg font-semibold text-kore-gray-dark">
+        <div className="min-w-0 flex-1">
+          <h2 className="font-heading text-lg font-semibold text-kore-gray-dark break-words">
             {trainer ? `${trainer.first_name} ${trainer.last_name}` : 'KÓRE'}
           </h2>
           {trainer?.specialty && (
-            <p className="text-sm text-kore-gray-dark/50">{trainer.specialty}</p>
+            <p className="text-sm text-kore-gray-dark/50 break-words">{trainer.specialty}</p>
           )}
         </div>
       </div>

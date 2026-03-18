@@ -10,7 +10,7 @@ type Props = {
 };
 
 export default function TimeSlotPicker({ slots, selectedSlot, onSelectSlot }: Props) {
-  const [use24h, setUse24h] = useState(true);
+  const [use24h, setUse24h] = useState(false);
 
   function formatTime(isoString: string) {
     const d = new Date(isoString);

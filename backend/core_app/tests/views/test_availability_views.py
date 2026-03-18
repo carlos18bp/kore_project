@@ -1,6 +1,7 @@
 """Tests for availability slot API views."""
 
 from datetime import datetime, timedelta
+from datetime import timezone as dt_timezone
 
 import pytest
 from django.urls import reverse
@@ -11,6 +12,12 @@ from core_app.models import AvailabilitySlot, Booking, Package, TrainerProfile, 
 from core_app.tests.helpers import get_results
 
 FIXED_NOW = timezone.make_aware(datetime(2100, 2, 3, 10, 0, 0), timezone.get_current_timezone())
+
+
+@pytest.fixture(autouse=True)
+def freeze_now(monkeypatch):
+    """Freeze timezone.now so horizon filtering uses a deterministic reference."""
+    monkeypatch.setattr('django.utils.timezone.now', lambda: FIXED_NOW)
 
 
 def _fixed_now() -> datetime:
@@ -85,9 +92,14 @@ def test_availability_slot_list_filters_by_valid_date(api_client, admin_user):
     """Valid date param filters slots by date (line 60-61)."""
     now = _fixed_now()
     target_date = (now + timedelta(days=1)).date()
-    target_start = timezone.make_aware(
-        datetime.combine(target_date, datetime.min.time()),
-        timezone.get_current_timezone(),
+    # Use midday UTC to avoid crossing local-day boundaries in America/Bogota.
+    target_start = datetime(
+        target_date.year,
+        target_date.month,
+        target_date.day,
+        12,
+        0,
+        tzinfo=dt_timezone.utc,
     )
     AvailabilitySlot.objects.create(
         starts_at=target_start,
@@ -107,6 +119,40 @@ def test_availability_slot_list_filters_by_valid_date(api_client, admin_user):
     assert response.status_code == status.HTTP_200_OK
     results = get_results(response.data)
     assert len(results) == 1
+
+
+@pytest.mark.django_db
+def test_availability_slot_list_filters_by_bogota_local_day(api_client, admin_user):
+    """Date filter uses America/Bogota local day boundaries instead of UTC date."""
+    # 2026-01-17 00:30 UTC == 2026-01-16 19:30 America/Bogota
+    slot_prev_local_day = AvailabilitySlot.objects.create(
+        starts_at=datetime(2026, 1, 17, 0, 30, tzinfo=dt_timezone.utc),
+        ends_at=datetime(2026, 1, 17, 1, 30, tzinfo=dt_timezone.utc),
+        is_active=True,
+        is_blocked=False,
+    )
+    # 2026-01-17 05:30 UTC == 2026-01-17 00:30 America/Bogota
+    slot_same_local_day = AvailabilitySlot.objects.create(
+        starts_at=datetime(2026, 1, 17, 5, 30, tzinfo=dt_timezone.utc),
+        ends_at=datetime(2026, 1, 17, 6, 30, tzinfo=dt_timezone.utc),
+        is_active=True,
+        is_blocked=False,
+    )
+
+    api_client.force_authenticate(user=admin_user)
+    url = reverse('availability-slot-list')
+
+    response_prev_day = api_client.get(url, {'date': '2026-01-16'})
+    assert response_prev_day.status_code == status.HTTP_200_OK
+    prev_day_ids = {item['id'] for item in get_results(response_prev_day.data)}
+    assert slot_prev_local_day.id in prev_day_ids
+    assert slot_same_local_day.id not in prev_day_ids
+
+    response_same_day = api_client.get(url, {'date': '2026-01-17'})
+    assert response_same_day.status_code == status.HTTP_200_OK
+    same_day_ids = {item['id'] for item in get_results(response_same_day.data)}
+    assert slot_prev_local_day.id not in same_day_ids
+    assert slot_same_local_day.id in same_day_ids
 
 
 @pytest.mark.django_db

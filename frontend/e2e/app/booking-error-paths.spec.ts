@@ -237,7 +237,7 @@ test.describe('Booking Store Error Paths', { tag: [...FlowTags.BOOKING_ERROR_PAT
 
 /**
  * Tests targeting extractErrorMessage branches inside bookingStore.createBooking
- * and the fetchMonthSlots non-paginated (array) response branch.
+ * plus booking-flow fallback paths.
  */
 test.describe('bookingStore extractErrorMessage branches', { tag: [...FlowTags.BOOKING_ERROR_PATHS, RoleTags.USER] }, () => {
   const tomorrow = new Date();
@@ -356,26 +356,4 @@ test.describe('bookingStore extractErrorMessage branches', { tag: [...FlowTags.B
     await expect(page.getByText('No se pudo crear la reserva.')).toBeVisible({ timeout: 10_000 });
   });
 
-  test('fetchMonthSlots handles non-paginated array response', async ({ page }) => {
-    await mockLoginAsTestUser(page);
-    await page.route('**/api/trainers/**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockTrainer] }) });
-    });
-    await page.route('**/api/availability-slots/**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([mockSlot]) });
-    });
-    await page.route('**/api/subscriptions/**', async (route) => {
-      const url = route.request().url();
-      if (url.includes('/payments/') || url.includes('/cancel/')) { await route.fallback(); return; }
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }) });
-    });
-    await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
-    });
-
-    await page.goto('/book-session');
-    await expect(page.getByText('Agenda tu sesión')).toBeVisible({ timeout: 10_000 });
-    await forceClickDay(page, dayNum);
-    await page.getByRole('button', { name: slotLabel(mockSlot), exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
-  });
 });

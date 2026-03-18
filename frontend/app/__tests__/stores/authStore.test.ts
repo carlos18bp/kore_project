@@ -226,6 +226,8 @@ describe('authStore', () => {
           phone: '',
           role: 'customer',
           name: 'Customer10 Kore',
+          profile_completed: false,
+          avatar_url: null,
         },
         accessToken: 'token-123',
         isAuthenticated: true,
@@ -281,6 +283,8 @@ describe('authStore', () => {
           phone: '',
           role: 'customer',
           name: 'Customer10 Kore',
+          profile_completed: false,
+          avatar_url: null,
         });
       });
 

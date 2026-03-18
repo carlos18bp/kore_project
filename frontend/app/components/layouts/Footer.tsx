@@ -27,6 +27,7 @@ export default function Footer() {
               <li key={link.href}>
                 <Link
                   href={link.href}
+                  prefetch={false}
                   className="text-sm text-kore-gray-dark/50 hover:text-kore-red transition-colors"
                 >
                   {link.label}
@@ -54,7 +55,7 @@ export default function Footer() {
       {/* Terms note */}
       <p className="text-[10px] text-kore-gray-dark/40 text-right px-6 md:px-10 lg:px-16 mt-6">
         Al reservar cualquier programa, aceptas nuestros{' '}
-        <a href="/terms" className="underline hover:text-kore-red transition-colors">Términos y Condiciones</a>.
+        <Link href="/terms" prefetch={false} className="underline hover:text-kore-red transition-colors">Términos y Condiciones</Link>.
       </p>
 
       {/* KÓRE giant - stuck to bottom */}

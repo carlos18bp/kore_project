@@ -1,4 +1,16 @@
-from .auth_views import get_user_profile, login_user, pre_register_user, register_user
+from .auth_views import (
+    change_password,
+    get_user_profile,
+    login_user,
+    mood_view,
+    pre_register_user,
+    register_user,
+    request_password_reset_code,
+    reset_password_with_code,
+    upload_avatar,
+    verify_password_reset_code,
+    weight_view,
+)
 from .analytics_views import AnalyticsEventViewSet
 from .availability_views import AvailabilitySlotViewSet
 from .booking_views import BookingViewSet
@@ -21,13 +33,20 @@ __all__ = [
     'ContactMessageViewSet',
     'FAQCategoryViewSet',
     'FAQItemViewSet',
+    'change_password',
     'get_user_profile',
     'login_user',
+    'mood_view',
     'NotificationViewSet',
     'PackageViewSet',
     'PaymentViewSet',
     'pre_register_user',
     'register_user',
+    'upload_avatar',
+    'weight_view',
+    'request_password_reset_code',
+    'verify_password_reset_code',
+    'reset_password_with_code',
     'SiteSettingsView',
     'SubscriptionViewSet',
     'TrainerProfileViewSet',
