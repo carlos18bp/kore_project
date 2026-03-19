@@ -1,4 +1,4 @@
-import { test, expect, mockCaptchaSiteKey } from '../fixtures';
+import { test, expect } from '../fixtures';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**

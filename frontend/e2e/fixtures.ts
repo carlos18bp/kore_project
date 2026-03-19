@@ -136,7 +136,7 @@ export async function mockAuthProfile(page: Page) {
  * Setup default API mocks for common endpoints so tests don't hit the real backend.
  * Individual tests can override specific routes after calling this.
  */
-export async function setupDefaultApiMocks(page: Page) {
+export async function setupDefaultApiMocks(page: Page, exclude: string[] = []) {
   await mockCaptchaSiteKey(page);
   await mockAuthProfile(page);
 
@@ -211,28 +211,49 @@ export async function setupDefaultApiMocks(page: Page) {
   });
 
   // New dashboard store endpoints — empty by default
-  await page.route('**/api/my-anthropometry/', async (route) => {
-    await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
-  });
-  await page.route('**/api/my-posturometry/', async (route) => {
-    await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
-  });
-  await page.route('**/api/my-physical-evaluation/', async (route) => {
-    await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
-  });
-  await page.route('**/api/my-nutrition/', async (route) => {
-    await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
-  });
-  await page.route('**/api/my-parq/', async (route) => {
-    await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
-  });
-  await page.route('**/api/my-pending-assessments/', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ kore_score: null, kore_color: 'green', kore_category: '', kore_message: '', components: {}, modules_available: 0, modules_total: 6 }),
+  if (!exclude.includes('my-anthropometry')) {
+    await page.route('**/api/my-anthropometry/', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
     });
-  });
+  }
+  if (!exclude.includes('my-posturometry')) {
+    await page.route('**/api/my-posturometry/', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    });
+  }
+  if (!exclude.includes('my-physical-evaluation')) {
+    await page.route('**/api/my-physical-evaluation/', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    });
+  }
+  if (!exclude.includes('my-nutrition')) {
+    await page.route('**/api/my-nutrition/', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    });
+  }
+  if (!exclude.includes('my-parq')) {
+    await page.route('**/api/my-parq/', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    });
+  }
+  if (!exclude.includes('my-pending-assessments')) {
+    await page.route('**/api/my-pending-assessments/', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          nutrition_due: false,
+          parq_due: false,
+          latest_anthropometry_at: null,
+          latest_posturometry_at: null,
+          latest_physical_eval_at: null,
+          profile_incomplete: false,
+          subscription_expiring: false,
+          kore_index: null,
+        }),
+      });
+    });
+  }
 }
 
 /**

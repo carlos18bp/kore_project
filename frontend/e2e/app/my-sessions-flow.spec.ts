@@ -1,4 +1,4 @@
-import { test, expect } from '../fixtures';
+import { test, expect, setupDefaultApiMocks, injectAuthCookies } from '../fixtures';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 test.describe('My Programs Flow — Program Detail & Session Detail (mocked)', { tag: [...FlowTags.MY_PROGRAMS_DETAIL, RoleTags.USER] }, () => {
@@ -20,26 +20,17 @@ test.describe('My Programs Flow — Program Detail & Session Detail (mocked)', {
     page: import('@playwright/test').Page,
     bookings: Record<string, unknown>[] = [],
   ) {
-    const cookieUser = encodeURIComponent(JSON.stringify({ id: 999, email: 'e2e@kore.com', first_name: 'Usuario', last_name: 'Prueba', phone: '', role: 'customer', name: 'Usuario Prueba' }));
-    await page.context().addCookies([
-      { name: 'kore_token', value: 'fake-e2e-jwt-token-for-testing', domain: 'localhost', path: '/' },
-      { name: 'kore_user', value: cookieUser, domain: 'localhost', path: '/' },
-    ]);
-    await page.route('**/api/auth/profile/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ user: { id: 999, email: 'e2e@kore.com', first_name: 'Usuario', last_name: 'Prueba', phone: '', role: 'customer' } }) }));
-    await page.route('**/api/google-captcha/site-key/', (r) => r.fulfill({ status: 404, body: '' }));
-    await page.route('**/api/subscriptions/expiry-reminder/**', (r) => r.fulfill({ status: 204 }));
-    await page.route('**/api/subscriptions/**', async (route) => {
-      const url = route.request().url();
-      if (url.includes('/expiry-reminder') || url.includes('/cancel') || url.includes('/payments')) { await route.fallback(); return; }
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 1, next: null, previous: null, results: [navMockSub] }) });
-    });
+    await injectAuthCookies(page);
+    await setupDefaultApiMocks(page);
+
+    // Override with test-specific mocks (LIFO: last registered wins)
+    await page.route('**/api/subscriptions/', (r) => r.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ count: 1, next: null, previous: null, results: [navMockSub] }),
+    }));
     await page.route('**/api/bookings/**', async (route) => {
       const url = route.request().url();
-      if (url.includes('/upcoming-reminder')) {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
-        return;
-      }
-      if (url.includes('/cancel') || url.includes('/reschedule')) { await route.fallback(); return; }
+      if (url.includes('/upcoming-reminder') || url.includes('/cancel') || url.includes('/reschedule')) { await route.fallback(); return; }
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: bookings.length, next: null, previous: null, results: bookings }) });
     });
   }
@@ -153,19 +144,14 @@ test.describe('Program Detail Page — mocked data branches', { tag: [...FlowTag
     bookings: typeof upcomingBooking[],
     count = bookings.length,
   ) {
-    const cookieUser = encodeURIComponent(JSON.stringify({ id: 999, email: 'e2e@kore.com', first_name: 'Usuario', last_name: 'Prueba', phone: '', role: 'customer', name: 'Usuario Prueba' }));
-    await page.context().addCookies([
-      { name: 'kore_token', value: 'fake-e2e-jwt-token-for-testing', domain: 'localhost', path: '/' },
-      { name: 'kore_user', value: cookieUser, domain: 'localhost', path: '/' },
-    ]);
-    await page.route('**/api/auth/profile/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ user: { id: 999, email: 'e2e@kore.com', first_name: 'Usuario', last_name: 'Prueba', phone: '', role: 'customer' } }) }));
-    await page.route('**/api/google-captcha/site-key/', (r) => r.fulfill({ status: 404, body: '' }));
-    await page.route('**/api/subscriptions/expiry-reminder/**', (r) => r.fulfill({ status: 204 }));
-    await page.route('**/api/subscriptions/**', async (route) => {
-      const url = route.request().url();
-      if (url.includes('/expiry-reminder') || url.includes('/cancel') || url.includes('/payments')) { await route.fallback(); return; }
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockSub] }) });
-    });
+    await injectAuthCookies(page);
+    await setupDefaultApiMocks(page);
+
+    // Override with test-specific mocks (LIFO: last registered wins)
+    await page.route('**/api/subscriptions/', (r) => r.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockSub] }),
+    }));
     await page.route('**/api/bookings/**', async (route) => {
       const url = route.request().url();
       if (url.includes('/upcoming-reminder') || url.includes('/cancel') || url.includes('/reschedule')) { await route.fallback(); return; }

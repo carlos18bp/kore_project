@@ -79,6 +79,9 @@ test.describe('Checkout Payment Status Polling', { tag: [...FlowTags.CHECKOUT_PA
           body: `window.WidgetCheckout = class { constructor() {} open() {} };`,
         });
       }),
+      page.route('**/api/terms-acceptance/status/**', async (route) => {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ accepted: true }) });
+      }),
     ]);
   }
 

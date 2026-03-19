@@ -86,6 +86,9 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
           await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'Config error' }) });
         }
       }),
+      page.route('**/api/terms-acceptance/status/**', async (route) => {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ accepted: true }) });
+      }),
     ]);
   }
 
@@ -521,6 +524,10 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
     await page.route('**/api/google-captcha/site-key/', (r) => r.fulfill({ status: 404, body: '' }));
     await page.route('**/api/packages/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockPackage) }));
     await page.route('**/api/wompi/config/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockWompiConfig) }));
+    await page.route('**/api/subscriptions/prepare-checkout/**', (r) => r.fulfill({
+      status: 201, contentType: 'application/json',
+      body: JSON.stringify(mockCheckoutPreparation),
+    }));
     await page.route('**/api/subscriptions/purchase/**', (r) => r.fulfill({
       status: 201, contentType: 'application/json',
       body: JSON.stringify({ ...buildIntent(99, 'pending', 'tok_test_e2e_card'), checkout_access_token: 'guest-access-token' }),

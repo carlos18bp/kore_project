@@ -1,4 +1,4 @@
-import { test, expect, E2E_TRAINER, injectTrainerAuthCookies } from '../fixtures';
+import { test, expect, injectTrainerAuthCookies } from '../fixtures';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
@@ -93,7 +93,7 @@ test.describe('Trainer Client Detail Page', { tag: [...FlowTags.TRAINER_CLIENT_D
     await expect(page.getByRole('link', { name: 'Volver a clientes' })).toBeVisible();
   });
 
-  test('renders personal info card with profile details', async ({ page }) => {
+  test('renders personal info card with contact details', async ({ page }) => {
     await injectTrainerAuthCookies(page);
     await setupClientDetailMocks(page);
     await page.goto('/trainer/clients/client?id=1');
@@ -105,6 +105,16 @@ test.describe('Trainer Client Detail Page', { tag: [...FlowTags.TRAINER_CLIENT_D
     await expect(infoCard.getByText('maria@example.com')).toBeVisible();
     await expect(infoCard.getByText('3009876543')).toBeVisible();
     await expect(infoCard.getByText('Femenino')).toBeVisible();
+  });
+
+  test('renders personal info card with health profile details', async ({ page }) => {
+    await injectTrainerAuthCookies(page);
+    await setupClientDetailMocks(page);
+    await page.goto('/trainer/clients/client?id=1');
+
+    const infoHeading = page.getByRole('heading', { name: 'Información personal' });
+    await expect(infoHeading).toBeVisible({ timeout: 15_000 });
+    const infoCard = infoHeading.locator('..');
     await expect(infoCard.getByText('Medellín')).toBeVisible();
     await expect(infoCard.getByText('Compensar')).toBeVisible();
     await expect(infoCard.getByText('Perder grasa')).toBeVisible();
@@ -188,7 +198,8 @@ test.describe('Trainer Client Detail Page', { tag: [...FlowTags.TRAINER_CLIENT_D
     await page.goto('/trainer/clients/client?id=1');
 
     await expect(page.getByRole('heading', { level: 1, name: 'María López' })).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('span').filter({ hasText: /^M$/ }).first()).toBeVisible();
+    const profileCard = page.getByRole('heading', { name: 'Información personal' }).locator('..');
+    await expect(profileCard.locator('span').filter({ hasText: /^M$/ })).toBeVisible();
   });
 
   test('next session badge renders when client has upcoming session', async ({ page }) => {

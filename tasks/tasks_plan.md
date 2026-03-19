@@ -98,20 +98,21 @@
 | App (authenticated) | 22 | Dashboard, calendar, booking, subscription, sessions, cancel flows, profile |
 | Auth | 4 | Login, logout, persistence, protected routes |
 | Public | 14 | Home, programs, checkout, contact, FAQ, register, navbar, terms, brand, payment polling, forgot-password |
-| Trainer | 2 | Trainer clients list, trainer client detail |
-| **Total** | **42 files** | |
+| Trainer | 8 | Trainer dashboard, clients list, client detail, anthropometry, nutrition, parq, physical-eval, posturometry |
+| **Total** | **55 files** | |
 
 ### Grand Total: 180 test files
-### Flow Definitions: 55 flows (12 uncovered, 43 covered by existing specs)
+### Flow Definitions: 55 flows (0 uncovered, 55 covered by existing specs)
 
-### E2E Coverage Gaps (16 uncovered flows)
+### E2E Coverage Gaps (0 uncovered flows — all waves complete)
 
 | Wave | Priority | Flows | Status |
 |------|----------|-------|--------|
-| Wave 1 | P1 | auth-forgot-password, profile-management, trainer-clients-list, trainer-client-detail | ✅ Complete (42 tests) |
-| Wave 2 | P2 | profile-password-change, customer-diagnosis, customer-nutrition, customer-parq, customer-physical-evaluation, customer-posturometry | ❌ No spec |
-| Wave 3 | P2 | trainer-client-anthropometry, trainer-client-nutrition, trainer-client-physical-eval, trainer-client-posturometry, trainer-client-parq | ❌ No spec |
-| Wave 4 | P3 | customer-pending-assessments | ❌ No spec |
+| Wave 1 | P1 | auth-forgot-password, profile-management, trainer-clients-list, trainer-client-detail | ✅ Complete |
+| Wave 1.5 | P1 | trainer-dashboard | ✅ Complete (8 tests) |
+| Wave 2 | P2 | profile-password-change, customer-diagnosis, customer-nutrition, customer-parq, customer-physical-evaluation, customer-posturometry | ✅ Complete (38 tests) |
+| Wave 3 | P2 | trainer-client-anthropometry, trainer-client-nutrition, trainer-client-physical-eval, trainer-client-posturometry, trainer-client-parq | ✅ Complete (25 tests) |
+| Wave 4 | P3 | customer-pending-assessments | ✅ Complete (4 tests) |
 
 ---
 
@@ -136,10 +137,10 @@
 
 | Priority | Improvement | Impact |
 |----------|-------------|--------|
-| **Critical** | **Write E2E specs for 12 remaining uncovered flows** (Wave 1 done, see §3 gaps table) | Test coverage |
+| ~~Critical~~ | ~~Write E2E specs for 13 remaining uncovered flows~~ | ✅ Done — all 55 flows covered |
 | High | Add API rate limiting (django-ratelimit or DRF throttling) | Security |
-| High | E2E tests for diagnostic engine (anthropometry, posturometry, physical eval, nutrition, PAR-Q) | Test coverage |
-| High | E2E tests for trainer client management flows | Test coverage |
+| ~~High~~ | ~~E2E tests for diagnostic engine (anthropometry, posturometry, physical eval, nutrition, PAR-Q)~~ | ✅ Done (Wave 2) |
+| ~~High~~ | ~~E2E tests for trainer client management flows~~ | ✅ Done (Wave 3) |
 | Medium | Complete i18n with next-intl (Spanish/English) | Market reach |
 | Medium | Add CI/CD pipeline for automated deployment | DevOps efficiency |
 | Medium | Migrate dev database to MySQL for parity with production | Reliability |

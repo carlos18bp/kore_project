@@ -153,26 +153,27 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
 
     const detailsCard = page.getByRole('main').getByText('Detalles').locator('..').locator('..');
     await expect(detailsCard.getByText('Expirada', { exact: true })).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('Esta suscripción está inactiva, por lo que no requiere acciones.')).toBeVisible();
+    await expect(page.getByText('Renovar este programa')).toBeVisible();
+    await expect(page.getByText('página de programas')).toBeVisible();
   });
 
-  test('active subscription renders cancel action as disabled', async ({ page }) => {
+  test('active subscription renders cancel action as enabled', async ({ page }) => {
     await injectAuthCookies(page);
     await setupSubscriptionMock(page, mockSubscription);
     await page.goto('/subscription');
 
     const cancelButton = page.getByRole('button', { name: 'Cancelar suscripción' });
     await expect(cancelButton).toBeVisible({ timeout: 10_000 });
-    await expect(cancelButton).toBeDisabled();
+    await expect(cancelButton).toBeEnabled();
   });
 
-  test('disabled cancel action keeps confirmation dialog hidden', async ({ page }) => {
+  test('cancel action keeps confirmation dialog hidden until clicked', async ({ page }) => {
     await injectAuthCookies(page);
     await setupSubscriptionMock(page, mockSubscription);
     await page.goto('/subscription');
 
     const cancelButton = page.getByRole('button', { name: 'Cancelar suscripción' });
-    await expect(cancelButton).toBeDisabled({ timeout: 10_000 });
+    await expect(cancelButton).toBeEnabled({ timeout: 10_000 });
     await expect(page.getByText('¿Seguro que deseas cancelar?')).not.toBeVisible();
   });
 
@@ -212,7 +213,7 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
     await page.goto('/subscription');
 
     const cancelButton = page.getByRole('button', { name: 'Cancelar suscripción' });
-    await expect(cancelButton).toBeDisabled({ timeout: 10_000 });
+    await expect(cancelButton).toBeEnabled({ timeout: 10_000 });
     await expect(page.getByText('No se pudo cancelar la suscripción.')).not.toBeVisible();
   });
 

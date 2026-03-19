@@ -10,21 +10,32 @@ The KÓRE platform is **fully functional in production** at `korehealths.com`. A
 - **Account**: Password reset (6-digit code), terms acceptance tracking, profile completion
 - **Backend**: Django 6 + DRF + Huey + 12 services (incl. 6 calculators) + MySQL (prod)
 - **Frontend**: Next.js 16 (static export) + 12 Zustand stores + 30 pages + 36 components
-- **Testing**: 180 test files (72 backend + 66 frontend unit + 42 E2E)
+- **Testing**: 193 test files (72 backend + 66 frontend unit + 55 E2E)
 - **Deployment**: Gunicorn + Nginx + systemd on Ubuntu
 
 ---
 
 ## 2. Recent Focus Areas
 
-- **Wave 1 E2E specs — 4 new spec files, 42 new tests** (latest):
-  - Added `FAKE_TRAINER_COOKIE`, `mockTrainerAuthProfile`, `injectTrainerAuthCookies`, `mockLoginAsTrainer` to `fixtures.ts`
-  - `forgot-password.spec.ts`: 12 tests — multi-step password reset flow (request code → verify → reset)
-  - `profile.spec.ts`: 10 tests — personal info, goal selector, mood card, security, summary, debounced save
-  - `trainer-clients.spec.ts`: 9 tests — client list rendering, search/filter, empty states, avatars
-  - `trainer-client-detail.spec.ts`: 11 tests — personal info card, subscription, stats, sessions, modules
-  - All 42 tests pass with `--workers=1 --retries=1`
-  - Key patterns: direct navigation with LIFO mock override for profile; scoped assertions (`.locator('..')`) to avoid strict-mode violations
+- **E2E 34-failure fix — 115 tests across 16 files, all passing** (latest):
+  - RC1: Checkout T&C guard — added `terms-acceptance/status` mock to `setupCheckoutMocks` + `setupBaseMocks` + `setupGuestAutoLoginMocks`; fixed `reset()` race in `CheckoutClient.tsx` (auto_login sets `isAuthenticated=true` → useEffect re-fires `reset()` wiping success state)
+  - RC2: Subscription cancel button — tests incorrectly expected disabled; updated to expect enabled + confirmation dialog
+  - RC3: Trainer selector mismatches — `article`→`div` card locator; avatar `span` scoped to profile card section
+  - RC4: Assessment strict mode + mock shape — `.first()` / `{ exact: true }` for duplicate text; `my-pending-assessments` mock restructured with `kore_index` wrapper; `setupDefaultApiMocks` enhanced with `exclude: string[]` parameter
+  - RC5: Profile password change — heading locator for code dialog; `Enviando código...` button text for loading state
+  - RC6: Trainer dashboard + client specs — `{ exact: true }` for `Clientes`/`8`/`3`; `Índice Global` label fix; `IMC`/`General`/`Fuerza` strict mode fixes
+- **E2E coverage audit — all 55 flows now covered** (previous):
+  - Wave 1.5: `trainer-dashboard.spec.ts` (8 tests) — greeting, stats cards, quick action, upcoming sessions, empty/loading states
+  - Wave 2: 6 specs (38 tests) — profile-password-change, customer-diagnosis, customer-nutrition, customer-parq, customer-physical-evaluation, customer-posturometry
+  - Wave 3: 5 specs (25 tests) — trainer-client-anthropometry, trainer-client-nutrition, trainer-client-parq, trainer-client-physical-eval, trainer-client-posturometry
+  - Wave 4: `customer-pending-assessments.spec.ts` (4 tests) — KÓRE score, module breakdown, empty state
+  - Quality gate fixes: 4 fragile locators fixed, 3 unused imports removed, 1 test split for too-many-assertions
+  - Quality gate result: 100/100, 0 errors, 0 warnings
+- **Wave 1 E2E specs — 4 spec files, 42 tests** (previous):
+  - `forgot-password.spec.ts`: 12 tests — multi-step password reset flow
+  - `profile.spec.ts`: 10 tests — personal info, goal selector, mood card, security
+  - `trainer-clients.spec.ts`: 9 tests — client list rendering, search/filter, empty states
+  - `trainer-client-detail.spec.ts`: 11 tests — personal info card, subscription, stats, modules
 - **E2E test fix — 27 timeouts across 9 spec files** (previous):
   - Root causes: ProfileCompletionCTA overlay, MoodCheckIn modal, outdated UI assertions, 24h→12h slot label mismatch, forceClickCalendarDay hacks, 16h buffer filtering, LIFO route conflicts
   - Fixed `fixtures.ts`: added `profile_completed`, `customer_profile`, `today_mood` to auth mocks; added 6 new dashboard API endpoint mocks
@@ -72,20 +83,17 @@ The KÓRE platform is **fully functional in production** at `korehealths.com`. A
 | Database (SQLite dev) | ✅ Available |
 | Redis (Huey broker) | ⚠️ Optional in dev (`HUEY_IMMEDIATE=true`) |
 | Fake data commands | ✅ Available (18 management commands) |
-| Testing tools | ✅ pytest (72 files), Jest (66 files), Playwright (38 files) |
+| Testing tools | ✅ pytest (72 files), Jest (66 files), Playwright (55 files) |
 
 ---
 
 ## 5. Next Steps
 
-1. **E2E coverage gaps**: 12 uncovered flows remain (Wave 1 complete — see tasks_plan.md §3 gaps table)
-   - ~~Wave 1 (P1): auth-forgot-password, profile-management, trainer-clients-list, trainer-client-detail~~ ✅ Done (42 tests)
-   - Wave 2 (P2): customer diagnostic flows (diagnosis, nutrition, parq, physical-evaluation, posturometry, password-change)
-   - Wave 3 (P2): trainer-side assessment flows (anthropometry, nutrition, physical-eval, posturometry, parq)
-   - Wave 4 (P3): customer-pending-assessments
-2. **API rate limiting**: No throttling in place — security concern (TD-05)
-3. **Complete i18n**: Finish Spanish/English translation implementation with next-intl (TD-07)
-4. **CI/CD automation**: Deployment still manual (TD-08)
+1. ~~**E2E coverage gaps**~~ ✅ **All 55 flows covered** — 0 uncovered flows remaining
+2. **Quality gate info-level fixes** (69 remaining): missing docstrings (7), inline payloads (4), test-too-long (1), test-too-short (57)
+3. **API rate limiting**: No throttling in place — security concern (TD-05)
+4. **Complete i18n**: Finish Spanish/English translation implementation with next-intl (TD-07)
+5. **CI/CD automation**: Deployment still manual (TD-08)
 
 ---
 
@@ -105,5 +113,5 @@ The KÓRE platform is **fully functional in production** at `korehealths.com`. A
 | Zustand stores | 12 |
 | Backend test files | 72 |
 | Frontend unit test files | 66 |
-| E2E spec files | 42 |
-| **Total test files** | **180** |
+| E2E spec files | 55 |
+| **Total test files** | **193** |

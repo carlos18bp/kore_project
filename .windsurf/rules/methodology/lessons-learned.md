@@ -125,6 +125,13 @@ This file captures important patterns, preferences, and project intelligence tha
 - **Quality gate `unverified_mock` rule** — every `MagicMock()` must have either `assert_called*()` verification or a `# quality: disable unverified_mock (reason)` comment
 - **Quality gate `test_too_long` rule (>50 lines)** — extract setup helpers to module-level functions/classes to keep test functions concise
 
+### Playwright E2E Mock Patterns
+- **LIFO route conflicts**: When tests override `setupDefaultApiMocks` endpoints, use the `exclude: string[]` parameter to prevent the default handler from being registered. LIFO means last-registered handler wins.
+- **Mock response shape must match store expectations**: Always verify the store's `fetchX` method to see which field it reads (e.g., `data.kore_index` not top-level `kore_score`).
+- **Strict mode violations**: When `getByText('X')` matches multiple elements (hero card + history section, sidebar link + stat label), use `.first()` or `{ exact: true }`. Always check the page snapshot for duplicate text.
+- **Button text changes during loading**: When a button's label changes (e.g., "Cambiar contraseña" → "Enviando código..."), the original locator stops matching. Use the loading-state text or a more stable locator.
+- **useEffect dependency arrays + Zustand cross-store updates**: When one store update triggers a React re-render that fires a useEffect with `reset()`, it can wipe state set by another store. Guard `reset()` calls with a status check.
+
 ### User Navigation Flow Registration
 - **Every new user navigation flow must be registered** in:
   - `docs/USER_FLOW_MAP.md`

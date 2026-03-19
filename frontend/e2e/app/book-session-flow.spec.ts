@@ -1,4 +1,4 @@
-import { test, expect, mockLoginAsTestUser } from '../fixtures';
+import { test, expect, mockLoginAsTestUser, setupDefaultApiMocks, injectAuthCookies } from '../fixtures';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 test.describe('Book Session Flow', { tag: [...FlowTags.BOOKING_SESSION_FLOW, RoleTags.USER] }, () => {
@@ -268,20 +268,20 @@ test.describe('Book Session — Reschedule No Availability', { tag: [...FlowTags
     next_billing_date: null,
   };
 
+  // Pick a target date 2 days from now (skip Sunday)
+  const targetDay = new Date();
+  targetDay.setDate(targetDay.getDate() + 2);
+  if (targetDay.getDay() === 0) targetDay.setDate(targetDay.getDate() + 1);
+  // Use LOCAL date components (matching calendar display and WEEKDAY_WINDOWS generation)
+  const targetDateStr = `${targetDay.getFullYear()}-${String(targetDay.getMonth() + 1).padStart(2, '0')}-${String(targetDay.getDate()).padStart(2, '0')}`;
+  const targetDayNum = targetDay.getDate().toString();
+
   async function setupRescheduleNoAvailabilityMocks(page: import('@playwright/test').Page) {
-    const cookieUser = encodeURIComponent(JSON.stringify({
-      id: 999, email: 'e2e@kore.com', first_name: 'Usuario', last_name: 'Prueba',
-      phone: '', role: 'customer', name: 'Usuario Prueba',
-    }));
-    await page.context().addCookies([
-      { name: 'kore_token', value: 'fake-e2e-jwt-token-for-testing', domain: 'localhost', path: '/' },
-      { name: 'kore_user', value: cookieUser, domain: 'localhost', path: '/' },
-    ]);
-    await page.route('**/api/auth/profile/**', (r) => r.fulfill({
-      status: 200, contentType: 'application/json',
-      body: JSON.stringify({ user: { id: 999, email: 'e2e@kore.com', first_name: 'Usuario', last_name: 'Prueba', phone: '', role: 'customer' } }),
-    }));
-    await page.route('**/api/google-captcha/site-key/', (r) => r.fulfill({ status: 404, body: '' }));
+    // Use standard base mocks (auth, captcha, pending-assessments, expiry-reminder, etc.)
+    await injectAuthCookies(page);
+    await setupDefaultApiMocks(page);
+
+    // Override with reschedule-specific mocks (LIFO: last registered wins)
     await page.route('**/api/trainers/**', (r) => r.fulfill({
       status: 200, contentType: 'application/json',
       body: JSON.stringify({ count: 1, next: null, previous: null, results: [rescheduleBooking.trainer] }),
@@ -290,20 +290,26 @@ test.describe('Book Session — Reschedule No Availability', { tag: [...FlowTags
       status: 200, contentType: 'application/json',
       body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }),
     }));
-    await page.route('**/api/subscriptions/**', async (route) => {
-      const url = route.request().url();
-      if (url.includes('/payments/') || url.includes('/cancel/') || url.includes('/expiry-reminder')) {
-        return route.fallback();
-      }
-      return route.fulfill({
-        status: 200, contentType: 'application/json',
-        body: JSON.stringify({ count: 1, next: null, previous: null, results: [rescheduleSubscription] }),
-      });
-    });
+    // Return a full-day occupied slot so travel buffer blocks ALL virtual slots
+    await page.route('**/api/bookings/occupied-day/**', (r) => r.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify([{
+        slot_id: 9999, trainer_id: 1,
+        starts_at: `${targetDateStr}T03:00:00Z`,
+        ends_at: `${targetDateStr}T23:00:00Z`,
+      }]),
+    }));
+    await page.route('**/api/subscriptions/', (r) => r.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ count: 1, next: null, previous: null, results: [rescheduleSubscription] }),
+    }));
     await page.route('**/api/bookings/**', async (route) => {
       const url = route.request().url();
       if (url.includes('/upcoming-reminder')) {
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
+      }
+      if (url.includes('/occupied-day')) {
+        return route.fallback();
       }
       return route.fulfill({
         status: 200, contentType: 'application/json',
@@ -313,13 +319,20 @@ test.describe('Book Session — Reschedule No Availability', { tag: [...FlowTags
   }
 
   test('reschedule with no available slots shows no-availability message', async ({ page }) => {
-    // Exercise book-session/page.tsx:209-213 — showRescheduleNoAvailability=true
+    // Exercise book-session/page.tsx showRescheduleNoAvailability=true
     // renders the "no disponibilidad" block with the WhatsApp contact link.
+    // Requires: selectedDate set + slotsForDate empty (occupied-day mock blocks all).
     await setupRescheduleNoAvailabilityMocks(page);
 
     await page.goto('/book-session?reschedule=800&subscription=11');
 
     await expect(page.getByText('Agenda tu sesión')).toBeVisible({ timeout: 10_000 });
+
+    // Click the target weekday on the calendar to set selectedDate
+    await page.getByText('Lun').waitFor({ state: 'visible', timeout: 10_000 });
+    const calendarGrid = page.locator('.grid.grid-cols-7').last();
+    await calendarGrid.getByRole('button', { name: targetDayNum, exact: true }).click();
+
     await expect(page.getByText('Por el momento no hay disponibilidad horaria.')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole('link', { name: '+57 301 4645272' })).toBeVisible();
   });

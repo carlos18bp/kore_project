@@ -1,4 +1,4 @@
-import { test, expect } from '../fixtures';
+import { test, expect, setupDefaultApiMocks, injectAuthCookies } from '../fixtures';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
@@ -47,19 +47,25 @@ test.describe('authStore hydrate error branches', { tag: [...FlowTags.APP_STORE_
 });
 
 test.describe('bookingStore rescheduleBooking error branch', { tag: [...FlowTags.APP_STORE_ERROR_PATHS, RoleTags.USER] }, () => {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const dateIso = tomorrow.toISOString().split('T')[0];
-  const dayNum = tomorrow.getDate().toString();
+  const targetDay = new Date();
+  targetDay.setDate(targetDay.getDate() + 2);
+  // Skip Sunday (0) — shift to Monday
+  if (targetDay.getDay() === 0) targetDay.setDate(targetDay.getDate() + 1);
+  const tomorrow = targetDay; // keep variable name for downstream references
+  // Use LOCAL date components (matching calendar display and WEEKDAY_WINDOWS generation)
+  const dateIso = `${targetDay.getFullYear()}-${String(targetDay.getMonth() + 1).padStart(2, '0')}-${String(targetDay.getDate()).padStart(2, '0')}`;
+  const dayNum = targetDay.getDate().toString();
 
   const mockTrainer = {
     id: 1, user_id: 1, first_name: 'Germán', last_name: 'Franco',
     email: 'g@kore.com', specialty: 'Funcional', bio: '', location: 'Bogotá',
     session_duration_minutes: 60,
   };
+  // Build mock slot in LOCAL time (matching WEEKDAY_WINDOWS virtual slot generation)
   const mockSlot = {
     id: 601, trainer_id: 1,
-    starts_at: `${dateIso}T10:00:00Z`, ends_at: `${dateIso}T11:00:00Z`,
+    starts_at: new Date(`${dateIso}T10:00:00`).toISOString(),
+    ends_at: new Date(`${dateIso}T11:00:00`).toISOString(),
     is_active: true, is_blocked: false,
   };
   const mockSubscription = {
@@ -73,30 +79,23 @@ test.describe('bookingStore rescheduleBooking error branch', { tag: [...FlowTags
   const mockBooking = {
     id: 800, customer_id: 1,
     package: mockSubscription.package,
-    slot: { id: 900, trainer_id: 1, starts_at: `${dateIso}T08:00:00Z`, ends_at: `${dateIso}T09:00:00Z`, is_active: true, is_blocked: false },
+    slot: { id: 900, trainer_id: 1, starts_at: new Date(`${dateIso}T08:00:00`).toISOString(), ends_at: new Date(`${dateIso}T09:00:00`).toISOString(), is_active: true, is_blocked: false },
     trainer: mockTrainer, subscription_id_display: 11, status: 'confirmed',
     notes: '', canceled_reason: '', created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
   };
 
   function slotLabel(slot: { starts_at: string; ends_at: string }) {
-    const fmt = (s: string) => new Date(s).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+    // TimeSlotPicker defaults to 12h format (hour12: true)
+    const fmt = (s: string) => new Date(s).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
     return `${fmt(slot.starts_at)} \u2014 ${fmt(slot.ends_at)}`;
   }
 
   async function setupRescheduleMocks(page: import('@playwright/test').Page) {
-    const cookieUser = encodeURIComponent(JSON.stringify({
-      id: 999, email: 'e2e@kore.com', first_name: 'Usuario', last_name: 'Prueba',
-      phone: '', role: 'customer', name: 'Usuario Prueba',
-    }));
-    await page.context().addCookies([
-      { name: 'kore_token', value: 'fake-e2e-jwt-token-for-testing', domain: 'localhost', path: '/' },
-      { name: 'kore_user', value: cookieUser, domain: 'localhost', path: '/' },
-    ]);
-    await page.route('**/api/auth/profile/**', (r) => r.fulfill({
-      status: 200, contentType: 'application/json',
-      body: JSON.stringify({ user: { id: 999, email: 'e2e@kore.com', first_name: 'Usuario', last_name: 'Prueba', phone: '', role: 'customer' } }),
-    }));
-    await page.route('**/api/google-captcha/site-key/', (r) => r.fulfill({ status: 404, body: '' }));
+    // Use standard base mocks (auth, captcha, pending-assessments, expiry-reminder, etc.)
+    await injectAuthCookies(page);
+    await setupDefaultApiMocks(page);
+
+    // Override with reschedule-specific mocks (LIFO: last registered wins)
     await page.route('**/api/trainers/**', (r) => r.fulfill({
       status: 200, contentType: 'application/json',
       body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockTrainer] }),
@@ -105,17 +104,10 @@ test.describe('bookingStore rescheduleBooking error branch', { tag: [...FlowTags
       status: 200, contentType: 'application/json',
       body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockSlot] }),
     }));
-    await page.route('**/api/subscriptions/**', async (route) => {
-      const url = route.request().url();
-      if (url.includes('/payments/') || url.includes('/cancel/') || url.includes('/expiry-reminder')) {
-        await route.fallback();
-        return;
-      }
-      await route.fulfill({
-        status: 200, contentType: 'application/json',
-        body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockSubscription] }),
-      });
-    });
+    await page.route('**/api/subscriptions/', (r) => r.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockSubscription] }),
+    }));
     await page.route('**/api/bookings/**', async (route) => {
       const url = route.request().url();
       if (url.includes('/upcoming-reminder')) {

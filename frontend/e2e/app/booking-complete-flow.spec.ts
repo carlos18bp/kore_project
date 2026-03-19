@@ -22,23 +22,34 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
     location: 'Bogotá, Colombia',
   };
 
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const dateStr = tomorrow.toISOString().split('T')[0]; // YYYY-MM-DD
+  const targetDay = new Date();
+  targetDay.setDate(targetDay.getDate() + 2);
+  // Skip Sunday (0) — shift to Monday
+  if (targetDay.getDay() === 0) targetDay.setDate(targetDay.getDate() + 1);
+  const tomorrow = targetDay; // keep variable name for downstream references
+  // Use LOCAL date components (matching calendar display and WEEKDAY_WINDOWS generation)
+  const dateStr = `${targetDay.getFullYear()}-${String(targetDay.getMonth() + 1).padStart(2, '0')}-${String(targetDay.getDate()).padStart(2, '0')}`;
+
+  // Build mock slot times in LOCAL time (matching WEEKDAY_WINDOWS virtual slot generation)
+  // then convert to ISO so slotLabelFor produces labels matching the virtual slot buttons.
+  const slot1Start = new Date(`${dateStr}T10:00:00`);
+  const slot1End   = new Date(`${dateStr}T11:00:00`);
+  const slot2Start = new Date(`${dateStr}T17:00:00`);
+  const slot2End   = new Date(`${dateStr}T18:00:00`);
 
   const mockSlots = [
     {
       id: 501,
-      starts_at: `${dateStr}T10:00:00Z`,
-      ends_at: `${dateStr}T11:00:00Z`,
+      starts_at: slot1Start.toISOString(),
+      ends_at: slot1End.toISOString(),
       is_blocked: false,
       is_active: true,
       trainer_id: mockTrainer.id,
     },
     {
       id: 502,
-      starts_at: `${dateStr}T14:00:00Z`,
-      ends_at: `${dateStr}T15:00:00Z`,
+      starts_at: slot2Start.toISOString(),
+      ends_at: slot2End.toISOString(),
       is_blocked: false,
       is_active: true,
       trainer_id: mockTrainer.id,
@@ -66,8 +77,9 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
   };
 
   function slotLabelFor(slot: { starts_at: string; ends_at: string }) {
+    // TimeSlotPicker defaults to 12h format (hour12: true)
     const formatTime = (isoString: string) => (
-      new Date(isoString).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+      new Date(isoString).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
     );
     return `${formatTime(slot.starts_at)} — ${formatTime(slot.ends_at)}`;
   }

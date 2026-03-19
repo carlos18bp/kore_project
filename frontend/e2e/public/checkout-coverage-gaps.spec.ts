@@ -42,6 +42,9 @@ test.describe('Checkout Page — Coverage Gaps', { tag: [...FlowTags.CHECKOUT_CO
       page.route('**/api/bookings/upcoming-reminder/**', (r) => r.fulfill({
         status: 200, contentType: 'application/json', body: JSON.stringify(null),
       })),
+      page.route('**/api/terms-acceptance/status/**', (r) => r.fulfill({
+        status: 200, contentType: 'application/json', body: JSON.stringify({ accepted: true }),
+      })),
     ]);
   }
 

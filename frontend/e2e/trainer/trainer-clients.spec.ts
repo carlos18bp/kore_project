@@ -1,4 +1,4 @@
-import { test, expect, E2E_TRAINER, injectTrainerAuthCookies } from '../fixtures';
+import { test, expect, injectTrainerAuthCookies } from '../fixtures';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
@@ -93,11 +93,9 @@ test.describe('Trainer Clients Page', { tag: [...FlowTags.TRAINER_CLIENTS_LIST, 
 
     await expect(page.getByText('María López')).toBeVisible({ timeout: 15_000 });
 
-    const fichaLinks = page.getByRole('link', { name: 'Ficha' });
-    await expect(fichaLinks.first()).toBeVisible();
-
-    const anthropoLinks = page.getByRole('link', { name: 'Antropometría' });
-    await expect(anthropoLinks.first()).toBeVisible();
+    const mariaCard = page.locator('div.grid > div', { hasText: 'María López' }).first();
+    await expect(mariaCard.getByRole('link', { name: 'Ficha' })).toBeVisible();
+    await expect(mariaCard.getByRole('link', { name: 'Antropometría' })).toBeVisible();
   });
 
   test('search filters clients by name', async ({ page }) => {
@@ -154,6 +152,7 @@ test.describe('Trainer Clients Page', { tag: [...FlowTags.TRAINER_CLIENTS_LIST, 
     await page.goto('/trainer/clients');
 
     await expect(page.getByText('María López')).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('span').filter({ hasText: /^M$/ }).first()).toBeVisible();
+    const mariaCard = page.locator('div.grid > div', { hasText: 'María López' }).first();
+    await expect(mariaCard.locator('span').filter({ hasText: /^M$/ })).toBeVisible();
   });
 });

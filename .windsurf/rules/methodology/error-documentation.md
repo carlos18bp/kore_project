@@ -24,7 +24,26 @@ This file tracks known errors, their context, and resolutions. When a reusable f
 
 ## Known Issues
 
-_None currently open._
+### [ERROR-001] CheckoutClient reset() race condition with auto_login
+- **Date**: 2025-03-19
+- **Context**: Guest checkout flow — `applyAutoLoginSession` sets `isAuthenticated=true` after approved polling
+- **Root Cause**: The useEffect at line 126 of `CheckoutClient.tsx` has `isAuthenticated` in its dependency array. When auto_login changes `isAuthenticated` from false→true, the effect re-fires and calls `reset()`, wiping `paymentStatus: 'success'` before the success screen renders.
+- **Resolution**: Guard `reset()` with a payment status check: `if (ps !== 'processing' && ps !== 'polling' && ps !== 'success') { reset(); }`
+- **Files Affected**: `frontend/app/(public)/checkout/CheckoutClient.tsx`
+
+### [ERROR-002] Playwright strict mode violations in assessment/dashboard pages
+- **Date**: 2025-03-19
+- **Context**: E2E tests using `getByText('...')` match multiple elements (hero cards + history cards, sidebar links + stat labels)
+- **Root Cause**: Components render the same text in multiple locations (e.g., `habit_category` in ScoreCard AND HistoryCard). Playwright strict mode requires exactly one match.
+- **Resolution**: Use `.first()` to target the first (hero/primary) instance, or `{ exact: true }` when substring matching causes ambiguity.
+- **Files Affected**: Multiple E2E spec files across customer assessments and trainer modules
+
+### [ERROR-003] setupDefaultApiMocks LIFO conflicts with test-specific mocks
+- **Date**: 2025-03-19
+- **Context**: Tests that override default API mocks for endpoints like `my-nutrition`, `my-parq`, `my-pending-assessments`
+- **Root Cause**: Playwright route handlers follow LIFO order. If `setupDefaultApiMocks` registers a handler AFTER the test's custom handler, the default handler wins. Additionally, the `my-pending-assessments` mock had the wrong response shape (flat fields vs. nested `kore_index` wrapper).
+- **Resolution**: Added `exclude: string[]` parameter to `setupDefaultApiMocks` to skip default handlers for endpoints the test overrides. Fixed mock response shape to match store expectations (`data.kore_index`).
+- **Files Affected**: `frontend/e2e/fixtures.ts`, all customer assessment spec files
 
 ---
 

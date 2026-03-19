@@ -207,7 +207,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Route: /forgot-password
 - Roles: guest
 - Description: 3-step password reset: request code by email, verify 6-digit code, set new password.
-- E2E Coverage: None
+- E2E Coverage: Covered (frontend/e2e/public/forgot-password.spec.ts)
 
 **Steps**
 1. Open /forgot-password.
@@ -709,7 +709,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Route: /profile
 - Roles: user
 - Description: View and edit personal information, upload avatar, select primary goal, and view mood check-in.
-- E2E Coverage: None
+- E2E Coverage: Covered (frontend/e2e/app/profile.spec.ts)
 
 **Steps**
 1. Open /profile after login.
@@ -735,7 +735,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Route: /profile
 - Roles: user
 - Description: Request verification code and change password from the profile security section.
-- E2E Coverage: None
+- E2E Coverage: Covered (frontend/e2e/app/profile-password-change.spec.ts)
 
 **Steps**
 1. Scroll to the Security card on /profile.
@@ -756,7 +756,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Route: /my-diagnosis
 - Roles: user
 - Description: View anthropometry/body composition diagnosis with educational indicators and progress timeline.
-- E2E Coverage: None
+- E2E Coverage: Covered (frontend/e2e/app/customer-diagnosis.spec.ts)
 
 **Steps**
 1. Open /my-diagnosis after login.
@@ -778,7 +778,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Route: /my-nutrition
 - Roles: user
 - Description: Complete and view nutrition assessment form with habit tracking and scoring.
-- E2E Coverage: None
+- E2E Coverage: Covered (frontend/e2e/app/customer-nutrition.spec.ts)
 
 **Steps**
 1. Open /my-nutrition after login.
@@ -797,7 +797,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Route: /my-parq
 - Roles: user
 - Description: Complete and view PAR-Q physical activity readiness questionnaire.
-- E2E Coverage: None
+- E2E Coverage: Covered (frontend/e2e/app/customer-parq.spec.ts)
 
 **Steps**
 1. Open /my-parq after login.
@@ -818,7 +818,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Route: /my-physical-evaluation
 - Roles: user
 - Description: View physical evaluation results with fitness indicators and progress tracking.
-- E2E Coverage: None
+- E2E Coverage: Covered (frontend/e2e/app/customer-physical-evaluation.spec.ts)
 
 **Steps**
 1. Open /my-physical-evaluation after login.
@@ -838,7 +838,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Route: /my-posturometry
 - Roles: user
 - Description: View posturometry evaluation results with regional indicators and recommendations.
-- E2E Coverage: None
+- E2E Coverage: Covered (frontend/e2e/app/customer-posturometry.spec.ts)
 
 **Steps**
 1. Open /my-posturometry after login.
@@ -858,7 +858,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Route: /dashboard
 - Roles: user
 - Description: View KORE score and pending assessment modules on the dashboard.
-- E2E Coverage: None
+- E2E Coverage: Covered (frontend/e2e/app/customer-pending-assessments.spec.ts)
 
 **Steps**
 1. Load /dashboard.
@@ -877,7 +877,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Route: /trainer/dashboard
 - Roles: trainer
 - Description: View trainer stats (total clients, today sessions) and upcoming session list.
-- E2E Coverage: None
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-dashboard.spec.ts)
 
 **Steps**
 1. Open /trainer/dashboard after login as trainer.
@@ -898,7 +898,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Route: /trainer/clients
 - Roles: trainer
 - Description: Search and browse assigned client list with stats and quick action links.
-- E2E Coverage: None
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-clients.spec.ts)
 
 **Steps**
 1. Open /trainer/clients after login as trainer.
@@ -920,7 +920,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Route: /trainer/clients/client?id=X
 - Roles: trainer
 - Description: View individual client profile, session history, and access assessment module links.
-- E2E Coverage: None
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-client-detail.spec.ts)
 
 **Steps**
 1. Navigate from client list to /trainer/clients/client?id=X.
@@ -940,7 +940,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Route: /trainer/clients/client/anthropometry?id=X
 - Roles: trainer
 - Description: Create and view client anthropometry evaluations with body composition data.
-- E2E Coverage: None
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-client-anthropometry.spec.ts)
 
 **Steps**
 1. Navigate to /trainer/clients/client/anthropometry?id=X.
@@ -960,7 +960,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Route: /trainer/clients/client/nutrition?id=X
 - Roles: trainer
 - Description: View client nutrition assessment results and history.
-- E2E Coverage: None
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-client-nutrition.spec.ts)
 
 **Steps**
 1. Navigate to /trainer/clients/client/nutrition?id=X.
@@ -977,7 +977,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Route: /trainer/clients/client/parq?id=X
 - Roles: trainer
 - Description: View client PAR-Q assessment results and risk indicators.
-- E2E Coverage: None
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-client-parq.spec.ts)
 
 **Steps**
 1. Navigate to /trainer/clients/client/parq?id=X.
@@ -994,7 +994,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Route: /trainer/clients/client/physical-evaluation?id=X
 - Roles: trainer
 - Description: Create and view client physical evaluation results with fitness indicators.
-- E2E Coverage: None
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-client-physical-eval.spec.ts)
 
 **Steps**
 1. Navigate to /trainer/clients/client/physical-evaluation?id=X.
@@ -1013,7 +1013,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Route: /trainer/clients/client/posturometry?id=X
 - Roles: trainer
 - Description: Create and view client posturometry evaluations with regional analysis.
-- E2E Coverage: None
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-client-posturometry.spec.ts)
 
 **Steps**
 1. Navigate to /trainer/clients/client/posturometry?id=X.
@@ -1089,20 +1089,20 @@ These elements are present across multiple routes and affect the user experience
 | public-faq | guest | P3 | Covered | frontend/e2e/public/faq.spec.ts |
 | public-faq-errors | guest | P3 | Covered | frontend/e2e/public/faq-error-states.spec.ts |
 | public-terms | guest | P3 | Covered | frontend/e2e/public/terms.spec.ts |
-| auth-forgot-password | guest | P1 | None | — |
-| profile-management | user | P1 | None | — |
-| profile-password-change | user | P2 | None | — |
-| customer-diagnosis | user | P2 | None | — |
-| customer-nutrition | user | P2 | None | — |
-| customer-parq | user | P2 | None | — |
-| customer-physical-evaluation | user | P2 | None | — |
-| customer-posturometry | user | P2 | None | — |
-| customer-pending-assessments | user | P3 | None | — |
-| trainer-dashboard | trainer | P1 | None | — |
-| trainer-clients-list | trainer | P1 | None | — |
-| trainer-client-detail | trainer | P1 | None | — |
-| trainer-client-anthropometry | trainer | P2 | None | — |
-| trainer-client-nutrition | trainer | P2 | None | — |
-| trainer-client-parq | trainer | P2 | None | — |
-| trainer-client-physical-eval | trainer | P2 | None | — |
-| trainer-client-posturometry | trainer | P2 | None | — |
+| auth-forgot-password | guest | P1 | Covered | frontend/e2e/public/forgot-password.spec.ts |
+| profile-management | user | P1 | Covered | frontend/e2e/app/profile.spec.ts |
+| profile-password-change | user | P2 | Covered | frontend/e2e/app/profile-password-change.spec.ts |
+| customer-diagnosis | user | P2 | Covered | frontend/e2e/app/customer-diagnosis.spec.ts |
+| customer-nutrition | user | P2 | Covered | frontend/e2e/app/customer-nutrition.spec.ts |
+| customer-parq | user | P2 | Covered | frontend/e2e/app/customer-parq.spec.ts |
+| customer-physical-evaluation | user | P2 | Covered | frontend/e2e/app/customer-physical-evaluation.spec.ts |
+| customer-posturometry | user | P2 | Covered | frontend/e2e/app/customer-posturometry.spec.ts |
+| customer-pending-assessments | user | P3 | Covered | frontend/e2e/app/customer-pending-assessments.spec.ts |
+| trainer-dashboard | trainer | P1 | Covered | frontend/e2e/trainer/trainer-dashboard.spec.ts |
+| trainer-clients-list | trainer | P1 | Covered | frontend/e2e/trainer/trainer-clients.spec.ts |
+| trainer-client-detail | trainer | P1 | Covered | frontend/e2e/trainer/trainer-client-detail.spec.ts |
+| trainer-client-anthropometry | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-anthropometry.spec.ts |
+| trainer-client-nutrition | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-nutrition.spec.ts |
+| trainer-client-parq | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-parq.spec.ts |
+| trainer-client-physical-eval | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-physical-eval.spec.ts |
+| trainer-client-posturometry | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-posturometry.spec.ts |
