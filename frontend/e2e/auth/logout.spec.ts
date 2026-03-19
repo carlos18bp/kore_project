@@ -1,9 +1,9 @@
-import { test, expect, loginAsTestUser } from '../fixtures';
+import { test, expect, mockLoginAsTestUser } from '../fixtures';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 test.describe('Logout Flow', { tag: [...FlowTags.AUTH_LOGOUT, RoleTags.USER] }, () => {
   test('logout from sidebar redirects to home', async ({ page }) => {
-    await loginAsTestUser(page);
+    await mockLoginAsTestUser(page);
 
     // Click logout in sidebar
     await page.getByRole('button', { name: 'Cerrar sesión' }).click();

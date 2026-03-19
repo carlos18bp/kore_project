@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-02-23",
+  "lastUpdated": "2026-07-14",
   "flows": {
     "auth-login": {
       "name": "Login",
@@ -239,6 +239,153 @@
       "priority": "P3",
       "roles": ["guest"],
       "description": "View the terms and conditions page and navigate back to programs."
+    },
+    "booking-cancel-flow": {
+      "name": "Booking Cancel Flow",
+      "module": "booking",
+      "priority": "P1",
+      "roles": ["user"],
+      "description": "Full cancel journey: open session detail → enter reason → confirm → verify status change."
+    },
+    "checkout-payment-status-polling": {
+      "name": "Checkout Payment Status Polling",
+      "module": "checkout",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "End-to-end polling cycle: submit → processing indicator → approved/failed resolution."
+    },
+    "subscription-cancel-flow": {
+      "name": "Subscription Cancel Flow",
+      "module": "subscription",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "Cancel subscription from subscription page and verify status change."
+    },
+    "auth-protected-routes": {
+      "name": "Auth Protected Routes",
+      "module": "auth",
+      "priority": "P2",
+      "roles": ["guest"],
+      "description": "Systematic test of authenticated routes redirecting to /login when unauthenticated."
+    },
+    "auth-forgot-password": {
+      "name": "Forgot Password",
+      "module": "auth",
+      "priority": "P1",
+      "roles": ["guest"],
+      "description": "3-step password reset: request code by email, verify 6-digit code, set new password."
+    },
+    "profile-management": {
+      "name": "Profile Management",
+      "module": "profile",
+      "priority": "P1",
+      "roles": ["user"],
+      "description": "View and edit personal information, upload avatar, select primary goal, and view mood check-in."
+    },
+    "profile-password-change": {
+      "name": "Profile Password Change",
+      "module": "profile",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "Request verification code and change password from the profile security section."
+    },
+    "customer-diagnosis": {
+      "name": "Customer Diagnosis",
+      "module": "assessments",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "View anthropometry/body composition diagnosis with educational indicators and progress timeline."
+    },
+    "customer-nutrition": {
+      "name": "Customer Nutrition Assessment",
+      "module": "assessments",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "Complete and view nutrition assessment form with habit tracking and scoring."
+    },
+    "customer-parq": {
+      "name": "Customer PAR-Q",
+      "module": "assessments",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "Complete and view PAR-Q physical activity readiness questionnaire."
+    },
+    "customer-physical-evaluation": {
+      "name": "Customer Physical Evaluation",
+      "module": "assessments",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "View physical evaluation results with fitness indicators and progress tracking."
+    },
+    "customer-posturometry": {
+      "name": "Customer Posturometry",
+      "module": "assessments",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "View posturometry evaluation results with regional indicators and recommendations."
+    },
+    "customer-pending-assessments": {
+      "name": "Pending Assessments",
+      "module": "assessments",
+      "priority": "P3",
+      "roles": ["user"],
+      "description": "View KORE score and pending assessment modules on the dashboard."
+    },
+    "trainer-dashboard": {
+      "name": "Trainer Dashboard",
+      "module": "trainer",
+      "priority": "P1",
+      "roles": ["trainer"],
+      "description": "View trainer stats (total clients, today sessions) and upcoming session list."
+    },
+    "trainer-clients-list": {
+      "name": "Trainer Client List",
+      "module": "trainer",
+      "priority": "P1",
+      "roles": ["trainer"],
+      "description": "Search and browse assigned client list with stats and quick action links."
+    },
+    "trainer-client-detail": {
+      "name": "Trainer Client Detail",
+      "module": "trainer",
+      "priority": "P1",
+      "roles": ["trainer"],
+      "description": "View individual client profile, session history, and access assessment module links."
+    },
+    "trainer-client-anthropometry": {
+      "name": "Trainer Client Anthropometry",
+      "module": "trainer",
+      "priority": "P2",
+      "roles": ["trainer"],
+      "description": "Create and view client anthropometry evaluations with body composition data."
+    },
+    "trainer-client-nutrition": {
+      "name": "Trainer Client Nutrition",
+      "module": "trainer",
+      "priority": "P2",
+      "roles": ["trainer"],
+      "description": "View client nutrition assessment results and history."
+    },
+    "trainer-client-parq": {
+      "name": "Trainer Client PAR-Q",
+      "module": "trainer",
+      "priority": "P2",
+      "roles": ["trainer"],
+      "description": "View client PAR-Q assessment results and risk indicators."
+    },
+    "trainer-client-physical-eval": {
+      "name": "Trainer Client Physical Eval",
+      "module": "trainer",
+      "priority": "P2",
+      "roles": ["trainer"],
+      "description": "Create and view client physical evaluation results with fitness indicators."
+    },
+    "trainer-client-posturometry": {
+      "name": "Trainer Client Posturometry",
+      "module": "trainer",
+      "priority": "P2",
+      "roles": ["trainer"],
+      "description": "Create and view client posturometry evaluations with regional analysis."
     }
   }
 }

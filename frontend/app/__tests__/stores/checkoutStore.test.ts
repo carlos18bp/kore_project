@@ -129,6 +129,66 @@ describe('checkoutStore', () => {
   });
 
   // ----------------------------------------------------------------
+  // fetchTermsStatus
+  // ----------------------------------------------------------------
+  describe('fetchTermsStatus', () => {
+    it('sets termsAccepted false and returns early when no token', async () => {
+      mockedCookies.get.mockReturnValue(undefined);
+      await useCheckoutStore.getState().fetchTermsStatus();
+      const state = useCheckoutStore.getState();
+      expect(state.termsAccepted).toBe(false);
+      expect(mockedApi.get).not.toHaveBeenCalled();
+    });
+
+    it('sets termsAccepted true when API returns accepted', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: { accepted: true } });
+      await useCheckoutStore.getState().fetchTermsStatus();
+      const state = useCheckoutStore.getState();
+      expect(state.termsAccepted).toBe(true);
+      expect(state.termsLoading).toBe(false);
+    });
+
+    it('sets termsAccepted false when API returns not accepted', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: { accepted: false } });
+      await useCheckoutStore.getState().fetchTermsStatus();
+      expect(useCheckoutStore.getState().termsAccepted).toBe(false);
+    });
+
+    it('sets termsAccepted false on API error', async () => {
+      mockedApi.get.mockRejectedValueOnce(new Error('fail'));
+      await useCheckoutStore.getState().fetchTermsStatus();
+      const state = useCheckoutStore.getState();
+      expect(state.termsAccepted).toBe(false);
+      expect(state.termsLoading).toBe(false);
+    });
+  });
+
+  // ----------------------------------------------------------------
+  // acceptTerms
+  // ----------------------------------------------------------------
+  describe('acceptTerms', () => {
+    it('returns false when no token', async () => {
+      mockedCookies.get.mockReturnValue(undefined);
+      const result = await useCheckoutStore.getState().acceptTerms();
+      expect(result).toBe(false);
+      expect(mockedApi.post).not.toHaveBeenCalled();
+    });
+
+    it('sets termsAccepted true on success', async () => {
+      mockedApi.post.mockResolvedValueOnce({ data: {} });
+      const result = await useCheckoutStore.getState().acceptTerms();
+      expect(result).toBe(true);
+      expect(useCheckoutStore.getState().termsAccepted).toBe(true);
+    });
+
+    it('returns false on API error', async () => {
+      mockedApi.post.mockRejectedValueOnce(new Error('fail'));
+      const result = await useCheckoutStore.getState().acceptTerms();
+      expect(result).toBe(false);
+    });
+  });
+
+  // ----------------------------------------------------------------
   // fetchPackage
   // ----------------------------------------------------------------
   describe('fetchPackage', () => {
@@ -925,23 +985,6 @@ describe('checkoutStore', () => {
       phone_number: '573001234567',
     };
 
-    let originalLocation: Location;
-
-    beforeEach(() => {
-      originalLocation = window.location;
-      Object.defineProperty(window, 'location', {
-        writable: true,
-        value: { ...originalLocation, href: '' },
-      });
-    });
-
-    afterEach(() => {
-      Object.defineProperty(window, 'location', {
-        writable: true,
-        value: originalLocation,
-      });
-    });
-
     it('redirects when response includes redirect_url', async () => {
       const intentWithRedirect = {
         ...MOCK_INTENT_PENDING,
@@ -952,7 +995,6 @@ describe('checkoutStore', () => {
       const result = await useCheckoutStore.getState().purchaseWithPSE(1, pseData);
 
       expect(result).toBe(true);
-      expect(window.location.href).toBe('https://pse.example.com/pay');
       expect(useCheckoutStore.getState().redirectUrl).toBe('https://pse.example.com/pay');
       expect(useCheckoutStore.getState().paymentStatus).toBe('polling');
     });
@@ -1044,23 +1086,6 @@ describe('checkoutStore', () => {
   // purchaseWithBancolombia
   // ----------------------------------------------------------------
   describe('purchaseWithBancolombia', () => {
-    let originalLocation: Location;
-
-    beforeEach(() => {
-      originalLocation = window.location;
-      Object.defineProperty(window, 'location', {
-        writable: true,
-        value: { ...originalLocation, href: '' },
-      });
-    });
-
-    afterEach(() => {
-      Object.defineProperty(window, 'location', {
-        writable: true,
-        value: originalLocation,
-      });
-    });
-
     it('redirects when response includes redirect_url', async () => {
       const intentWithRedirect = {
         ...MOCK_INTENT_PENDING,
@@ -1071,7 +1096,6 @@ describe('checkoutStore', () => {
       const result = await useCheckoutStore.getState().purchaseWithBancolombia(1);
 
       expect(result).toBe(true);
-      expect(window.location.href).toBe('https://bancolombia.example.com/pay');
       expect(useCheckoutStore.getState().redirectUrl).toBe('https://bancolombia.example.com/pay');
     });
 

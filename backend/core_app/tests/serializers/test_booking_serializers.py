@@ -7,7 +7,14 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIRequestFactory
 
-from core_app.models import AvailabilitySlot, Booking, Package, Subscription, TrainerProfile, User
+from core_app.models import (
+    AvailabilitySlot,
+    Booking,
+    Package,
+    Subscription,
+    TrainerProfile,
+    User,
+)
 from core_app.serializers import BookingSerializer
 
 FIXED_NOW = timezone.make_aware(datetime(2025, 1, 15, 10, 0, 0))

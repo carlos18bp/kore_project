@@ -1,10 +1,10 @@
 """Tests for shared schedule constants and slot-generation helpers."""
+# quality: disable test_too_short (boundary-value constant assertions, intentionally concise)
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import pytest
-from django.utils import timezone
 
 from core_app.models import AvailabilitySlot, TrainerProfile, User
 from core_app.services.slot_schedule import (

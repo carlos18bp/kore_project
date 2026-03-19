@@ -2,6 +2,8 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Sidebar from '@/app/components/layouts/Sidebar';
 import { useAuthStore } from '@/lib/stores/authStore';
+import { useProfileStore } from '@/lib/stores/profileStore';
+import { usePendingAssessmentsStore } from '@/lib/stores/pendingAssessmentsStore';
 
 const mockPush = jest.fn();
 let mockPathname = '/dashboard';
@@ -32,6 +34,8 @@ const mockUser = {
   phone: '',
   role: 'customer',
   name: 'Customer10 Kore',
+  profile_completed: false,
+  avatar_url: null as string | null,
 };
 
 describe('Sidebar', () => {
@@ -127,6 +131,18 @@ describe('Sidebar', () => {
     expect(aside).toHaveClass('-translate-x-full');
   });
 
+  it('closes the mobile menu when a nav item is clicked', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<Sidebar />);
+    const aside = container.querySelector('aside');
+
+    await user.click(screen.getByLabelText('Abrir menú'));
+    expect(aside).toHaveClass('translate-x-0');
+
+    await user.click(screen.getByText('Agendar Sesión'));
+    expect(aside).toHaveClass('-translate-x-full');
+  });
+
   it('closes the mobile menu when the close button is clicked', async () => {
     const user = userEvent.setup();
     const { container } = render(<Sidebar />);
@@ -137,5 +153,86 @@ describe('Sidebar', () => {
 
     await user.click(screen.getByLabelText('Cerrar menú'));
     expect(aside).toHaveClass('-translate-x-full');
+  });
+
+  it('renders avatar image when user has avatar_url', () => {
+    useAuthStore.setState({
+      user: { ...mockUser, avatar_url: 'https://cdn.kore.com/avatar.jpg' },
+      isAuthenticated: true,
+      accessToken: 'token',
+    });
+    render(<Sidebar />);
+    const img = screen.getByAltText('Avatar');
+    expect(img).toBeInTheDocument();
+  });
+
+  it('displays goal label instead of email when profile has primary_goal', () => {
+    useProfileStore.setState({
+      profile: {
+        id: 22,
+        email: 'customer10@kore.com',
+        first_name: 'Customer10',
+        last_name: 'Kore',
+        phone: '',
+        role: 'customer',
+        customer_profile: {
+          avatar_url: null,
+          sex: 'M',
+          date_of_birth: null,
+          eps: '',
+          id_type: 'CC',
+          id_number: '',
+          id_expedition_date: null,
+          address: '',
+          city: '',
+          primary_goal: 'fat_loss',
+          kore_start_date: null,
+          profile_completed: true,
+        },
+        today_mood: null,
+      } as import('@/lib/stores/profileStore').ProfileData,
+    });
+    render(<Sidebar />);
+    expect(screen.getByText('Perder grasa')).toBeInTheDocument();
+    expect(screen.queryByText('customer10@kore.com')).not.toBeInTheDocument();
+  });
+
+  it('calls markSeen for anthropometry when Mi Diagnóstico is clicked', async () => {
+    const markSeenSpy = jest.fn();
+    usePendingAssessmentsStore.setState({
+      anthropometryUnseen: true,
+      loaded: true,
+      markSeen: markSeenSpy,
+    });
+    const user = userEvent.setup();
+    render(<Sidebar />);
+    await user.click(screen.getByText('Mi Diagnóstico'));
+    expect(markSeenSpy).toHaveBeenCalledWith('anthropometry');
+  });
+
+  it('calls markSeen for posturometry when Evaluación Postural is clicked', async () => {
+    const markSeenSpy = jest.fn();
+    usePendingAssessmentsStore.setState({
+      posturometryUnseen: true,
+      loaded: true,
+      markSeen: markSeenSpy,
+    });
+    const user = userEvent.setup();
+    render(<Sidebar />);
+    await user.click(screen.getByText('Evaluación Postural'));
+    expect(markSeenSpy).toHaveBeenCalledWith('posturometry');
+  });
+
+  it('calls markSeen for physical_eval when Evaluación Física is clicked', async () => {
+    const markSeenSpy = jest.fn();
+    usePendingAssessmentsStore.setState({
+      physicalEvalUnseen: true,
+      loaded: true,
+      markSeen: markSeenSpy,
+    });
+    const user = userEvent.setup();
+    render(<Sidebar />);
+    await user.click(screen.getByText('Evaluación Física'));
+    expect(markSeenSpy).toHaveBeenCalledWith('physical_eval');
   });
 });

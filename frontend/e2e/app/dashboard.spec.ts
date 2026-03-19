@@ -1,10 +1,9 @@
-import { test, expect, E2E_USER, loginAsTestUser, setupDefaultApiMocks } from '../fixtures';
+import { test, expect, E2E_USER, mockLoginAsTestUser } from '../fixtures';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags.USER] }, () => {
   test.beforeEach(async ({ page }) => {
-    await setupDefaultApiMocks(page);
-    await loginAsTestUser(page);
+    await mockLoginAsTestUser(page);
     await expect(page).toHaveURL(/\/dashboard$/);
   });
 
@@ -12,10 +11,9 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
     await expect(page.getByRole('heading', { level: 1, name: new RegExp(E2E_USER.firstName) })).toBeVisible();
   });
 
-  test('renders program info card', async ({ page }) => {
-    await expect(page.getByText('Tu programa', { exact: true })).toBeVisible();
-    // Dashboard currently shows hardcoded placeholder
-    await expect(page.getByText('Sin programa activo').first()).toBeVisible();
+  test('renders progress card', async ({ page }) => {
+    await expect(page.getByText('Tu progreso', { exact: true })).toBeVisible();
+    await expect(page.getByText(/completadas de \d+/)).toBeVisible();
   });
 
   test('renders sessions remaining', async ({ page }) => {
@@ -26,21 +24,19 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
     await expect(page.getByText('Tu siguiente paso')).toBeVisible();
   });
 
-  test('renders quick action buttons', async ({ page }) => {
-    await expect(page.getByText('Acciones rápidas')).toBeVisible();
-    const main = page.locator('main');
-    await expect(main.getByRole('link', { name: /Agendar sesión/i })).toBeVisible();
-    await expect(main.getByRole('link', { name: /Mi suscripción/i })).toBeVisible();
-    await expect(main.getByRole('link', { name: /Mis programas/i })).toBeVisible();
+  test('renders sidebar quick action links', async ({ page }) => {
+    const sidebar = page.locator('aside');
+    await expect(sidebar.getByRole('link', { name: 'Agendar Sesión' })).toBeVisible();
+    await expect(sidebar.getByRole('link', { name: 'Mis Programas' })).toBeVisible();
+    await expect(sidebar.getByRole('link', { name: 'Mi Suscripción' })).toBeVisible();
   });
 
   test('renders recent activity section', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: 'Tu historial' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Historial reciente' })).toBeVisible();
   });
 
-  test('renders user profile card', async ({ page }) => {
-    await expect(page.getByText('Tu perfil')).toBeVisible();
-    await expect(page.getByText(E2E_USER.fullName).first()).toBeVisible();
+  test('renders member since label', async ({ page }) => {
+    await expect(page.getByText('Miembro desde')).toBeVisible();
   });
 
   test('sidebar is visible with navigation', async ({ page }) => {
@@ -84,12 +80,12 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
   ];
 
   async function setupDashboardMocks(page: import('@playwright/test').Page) {
-    const cookieUser = encodeURIComponent(JSON.stringify({ id: 999, email: 'e2e@kore.com', first_name: 'Usuario', last_name: 'Prueba', phone: '', role: 'customer', name: 'Usuario Prueba' }));
+    const cookieUser = encodeURIComponent(JSON.stringify({ id: 999, email: 'e2e@kore.com', first_name: 'Usuario', last_name: 'Prueba', phone: '', role: 'customer', name: 'Usuario Prueba', profile_completed: true, avatar_url: null }));
     await page.context().addCookies([
       { name: 'kore_token', value: 'fake-e2e-jwt-token-for-testing', domain: 'localhost', path: '/' },
       { name: 'kore_user', value: cookieUser, domain: 'localhost', path: '/' },
     ]);
-    await page.route('**/api/auth/profile/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ user: { id: 999, email: 'e2e@kore.com', first_name: 'Usuario', last_name: 'Prueba', phone: '', role: 'customer' } }) }));
+    await page.route('**/api/auth/profile/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ user: { id: 999, email: 'e2e@kore.com', first_name: 'Usuario', last_name: 'Prueba', phone: '', role: 'customer', profile_completed: true, avatar_url: null, customer_profile: { profile_completed: true, sex: 'M', date_of_birth: '1990-01-15', city: 'Bogotá', primary_goal: 'health' }, today_mood: { score: 7, notes: '', date: new Date().toISOString().slice(0, 10) } } }) }));
     await page.route('**/api/google-captcha/site-key/', (r) => r.fulfill({ status: 404, body: '' }));
     await page.route('**/api/subscriptions/expiry-reminder/**', (r) => r.fulfill({ status: 204 }));
     await page.route('**/api/trainers/', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0, results: [] }) }));
@@ -111,9 +107,8 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
 
     await page.goto('/dashboard');
     const main = page.locator('main');
-    await expect(main.getByText('Plan Elite').first()).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('3 sesiones')).toBeVisible({ timeout: 10_000 });
     await expect(main.getByText('completadas de 10')).toBeVisible();
-    await expect(main.getByText('3 sesiones')).toBeVisible();
   });
 
   test('upcoming session shows formatted date in Proxima sesion card', async ({ page }) => {
@@ -157,9 +152,7 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
 
     await page.goto('/dashboard');
     const main = page.locator('main');
-    await expect(main.getByText('Sesión completada').first()).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('Sesión cancelada')).toBeVisible();
-    await expect(main.getByText('Sesión agendada')).toBeVisible();
-    await expect(main.getByText('Tu historial aparecerá aquí')).not.toBeVisible();
+    await expect(main.getByText('Historial reciente')).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('Plan Elite').first()).toBeVisible();
   });
 });

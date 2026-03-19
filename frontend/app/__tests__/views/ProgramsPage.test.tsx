@@ -83,7 +83,7 @@ describe('ProgramsPage', () => {
       expect(screen.getByText('Sesión Individual')).toBeInTheDocument();
     });
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const semiButton = screen.getAllByText('Semi-personalizado')[0];
     await user.click(semiButton.closest('button')!);
 
@@ -100,7 +100,7 @@ describe('ProgramsPage', () => {
       expect(screen.getByText('Sesión Individual')).toBeInTheDocument();
     });
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const terapeuticoButton = screen.getAllByText('Terapéutico')[0];
     await user.click(terapeuticoButton.closest('button')!);
 
@@ -109,7 +109,7 @@ describe('ProgramsPage', () => {
   });
 
   it('navigates to register with numeric package ID when unauthenticated', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<ProgramsPage />);
     await waitFor(() => {
       expect(screen.getByText('Sesión Individual')).toBeInTheDocument();
@@ -141,7 +141,7 @@ describe('ProgramsPage', () => {
       hydrated: true,
     });
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<ProgramsPage />);
     await waitFor(() => {
       expect(screen.getByText('Sesión Individual')).toBeInTheDocument();
@@ -163,7 +163,7 @@ describe('ProgramsPage', () => {
       expect(screen.getByText('Sesión Individual')).toBeInTheDocument();
     });
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     await user.click(screen.getByText('Sesión Individual').closest('button')!);
     expect(screen.getByText(/Reservar Sesión Individual/)).toBeInTheDocument();
 

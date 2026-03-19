@@ -1,6 +1,5 @@
 import Cookies from 'js-cookie';
 import { useProfileStore } from '@/lib/stores/profileStore';
-import { useAuthStore } from '@/lib/stores/authStore';
 import { api } from '@/lib/services/http';
 
 jest.mock('js-cookie', () => ({
@@ -165,13 +164,13 @@ describe('profileStore', () => {
   describe('submitMood', () => {
     it('posts mood and updates todayMood', async () => {
       mockedApi.post.mockResolvedValueOnce({
-        data: { mood: 'motivated', date: '2025-03-07' },
+        data: { score: 5, notes: '', date: '2025-03-07' },
       });
 
-      const result = await useProfileStore.getState().submitMood('motivated');
+      const result = await useProfileStore.getState().submitMood(5);
 
       expect(result.success).toBe(true);
-      expect(useProfileStore.getState().todayMood?.mood).toBe('motivated');
+      expect(useProfileStore.getState().todayMood?.score).toBe(5);
     });
   });
 
@@ -188,6 +187,145 @@ describe('profileStore', () => {
         { weight_kg: 72.5 },
         expect.any(Object),
       );
+    });
+
+    it('returns error on failure', async () => {
+      mockedApi.post.mockRejectedValueOnce(new Error('fail'));
+      const result = await useProfileStore.getState().submitWeight(80);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('peso');
+      expect(useProfileStore.getState().saving).toBe(false);
+    });
+  });
+
+  describe('uploadAvatar', () => {
+    it('returns error on failure', async () => {
+      mockedApi.post.mockRejectedValueOnce(new Error('fail'));
+      const file = new File(['test'], 'avatar.png', { type: 'image/png' });
+      const result = await useProfileStore.getState().uploadAvatar(file);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('imagen');
+      expect(useProfileStore.getState().saving).toBe(false);
+    });
+  });
+
+  describe('submitMood', () => {
+    it('includes notes when provided', async () => {
+      mockedApi.post.mockResolvedValueOnce({
+        data: { score: 4, notes: 'Feeling great', date: '2025-03-07' },
+      });
+      useProfileStore.setState({ profile: MOCK_PROFILE_RESPONSE.user as never });
+
+      const result = await useProfileStore.getState().submitMood(4, 'Feeling great');
+
+      expect(result.success).toBe(true);
+      expect(mockedApi.post).toHaveBeenCalledWith(
+        '/auth/mood/',
+        { score: 4, notes: 'Feeling great' },
+        expect.any(Object),
+      );
+      expect(useProfileStore.getState().todayMood?.notes).toBe('Feeling great');
+    });
+
+    it('returns error on failure', async () => {
+      mockedApi.post.mockRejectedValueOnce(new Error('fail'));
+      const result = await useProfileStore.getState().submitMood(3);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('anímico');
+    });
+  });
+
+  describe('changePassword', () => {
+    it('extracts string error value from response', async () => {
+      mockedApi.post.mockRejectedValueOnce({
+        response: { data: { detail: 'Token expired' } },
+      });
+      const result = await useProfileStore.getState().changePassword({
+        current_password: 'old',
+        new_password: 'new',
+        new_password_confirm: 'new',
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Token expired');
+    });
+
+    it('uses fallback error when response data is empty', async () => {
+      mockedApi.post.mockRejectedValueOnce(new Error('Network'));
+      const result = await useProfileStore.getState().changePassword({
+        current_password: 'old',
+        new_password: 'new',
+        new_password_confirm: 'new',
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Error al cambiar la contraseña.');
+    });
+  });
+
+  describe('syncAuthStoreUser - null customer_profile', () => {
+    it('syncs auth store with profile_completed false and avatar null when customer_profile is null', async () => {
+      const profileNoCP = {
+        user: {
+          ...MOCK_PROFILE_RESPONSE.user,
+          customer_profile: null,
+        },
+      };
+      mockedApi.get.mockResolvedValueOnce({ data: profileNoCP });
+      await useProfileStore.getState().fetchProfile();
+      const state = useProfileStore.getState();
+      expect(state.profile?.customer_profile).toBeNull();
+    });
+  });
+
+  describe('syncAuthStoreUser - empty name fields', () => {
+    it('falls back to email for display name when first_name and last_name are empty', async () => {
+      const profileEmptyNames = {
+        user: {
+          ...MOCK_PROFILE_RESPONSE.user,
+          first_name: '',
+          last_name: '',
+          phone: '',
+        },
+      };
+      mockedApi.get.mockResolvedValueOnce({ data: profileEmptyNames });
+      await useProfileStore.getState().fetchProfile();
+      const state = useProfileStore.getState();
+      expect(state.profile?.first_name).toBe('');
+      expect(state.profile?.last_name).toBe('');
+    });
+  });
+
+  describe('authHeaders - no token', () => {
+    it('sends empty headers when no token cookie exists', async () => {
+      (mockedCookies.get as jest.Mock).mockReturnValue(undefined);
+      mockedApi.get.mockResolvedValueOnce({ data: MOCK_PROFILE_RESPONSE });
+      await useProfileStore.getState().fetchProfile();
+      expect(mockedApi.get).toHaveBeenCalledWith('/auth/profile/', {
+        headers: {},
+      });
+    });
+  });
+
+  describe('clearMessages', () => {
+    it('clears error and success message', () => {
+      useProfileStore.setState({ error: 'Some error', successMessage: 'Some success' });
+      useProfileStore.getState().clearMessages();
+      const state = useProfileStore.getState();
+      expect(state.error).toBe('');
+      expect(state.successMessage).toBe('');
+    });
+  });
+
+  describe('syncAuthStoreUser', () => {
+    it('skips auth store update when data is unchanged', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: MOCK_PROFILE_RESPONSE });
+      await useProfileStore.getState().fetchProfile();
+
+      const setCookieCalls = (Cookies.set as jest.Mock).mock.calls.length;
+
+      mockedApi.get.mockResolvedValueOnce({ data: MOCK_PROFILE_RESPONSE });
+      await useProfileStore.getState().fetchProfile();
+
+      expect((Cookies.set as jest.Mock).mock.calls.length).toBe(setCookieCalls);
     });
   });
 });

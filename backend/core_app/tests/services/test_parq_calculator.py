@@ -1,11 +1,11 @@
 """Tests for the PAR-Q+ risk classification calculator."""
+# quality: disable test_too_short (boundary-value calculator assertions, intentionally concise)
 
-import pytest
 
 from core_app.services.parq_calculator import (
+    PARQ_QUESTION_KEYS,
     classify_risk,
     compute_all,
-    PARQ_QUESTION_KEYS,
 )
 
 

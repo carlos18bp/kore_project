@@ -78,6 +78,20 @@ describe('subscriptionStore', () => {
   });
 
   // ----------------------------------------------------------------
+  // authHeaders - no token
+  // ----------------------------------------------------------------
+  describe('authHeaders - no token', () => {
+    it('sends empty headers when no token cookie exists', async () => {
+      (mockedCookies.get as jest.Mock).mockReturnValue(undefined);
+      mockedApi.get.mockResolvedValueOnce({ data: [MOCK_SUBSCRIPTION] });
+      await useSubscriptionStore.getState().fetchSubscriptions();
+      expect(mockedApi.get).toHaveBeenCalledWith('/subscriptions/', {
+        headers: {},
+      });
+    });
+  });
+
+  // ----------------------------------------------------------------
   // fetchSubscriptions
   // ----------------------------------------------------------------
   describe('fetchSubscriptions', () => {

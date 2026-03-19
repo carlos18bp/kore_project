@@ -1,16 +1,16 @@
 """Tests for the nutrition habits score calculator."""
+# quality: disable test_too_short (boundary-value calculator assertions, intentionally concise)
 
-import pytest
 
 from core_app.services.nutrition_calculator import (
-    _score_meals,
-    _score_water,
-    _score_fruit,
-    _score_vegetable,
-    _score_protein,
-    _score_ultraprocessed,
-    _score_sugary_drinks,
     _score_breakfast,
+    _score_fruit,
+    _score_meals,
+    _score_protein,
+    _score_sugary_drinks,
+    _score_ultraprocessed,
+    _score_vegetable,
+    _score_water,
     classify_score,
     compute_all,
 )

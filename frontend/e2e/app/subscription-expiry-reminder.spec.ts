@@ -48,7 +48,6 @@ test.describe('Subscription Expiry Reminder (mocked)', { tag: [...FlowTags.SUBSC
     });
 
     await loginAsTestUser(page);
-
     await expect(page.getByText('Tu suscripción está por vencer')).toBeVisible({ timeout: 10_000 });
     const ackResponse = page.waitForResponse(
       `**/api/subscriptions/${reminderSubscription.id}/expiry-reminder/ack/**`,
@@ -79,7 +78,6 @@ test.describe('Subscription Expiry Reminder (mocked)', { tag: [...FlowTags.SUBSC
     });
 
     await loginAsTestUser(page);
-
     await expect(page.getByText('Tu suscripción está por vencer')).toBeVisible({ timeout: 10_000 });
     const ackResponse = page.waitForResponse(
       `**/api/subscriptions/${reminderSubscription.id}/expiry-reminder/ack/**`,

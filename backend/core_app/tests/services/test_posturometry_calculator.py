@@ -1,6 +1,6 @@
 """Tests for the posturometry calculation engine."""
+# quality: disable test_too_short (boundary-value calculator assertions, intentionally concise)
 
-import pytest
 from core_app.services.posturometry_calculator import (
     SEGMENT_REGISTRY,
     classify_index,
@@ -10,7 +10,6 @@ from core_app.services.posturometry_calculator import (
     generate_default_recommendations,
     generate_findings,
 )
-
 
 # ── Helpers ──
 
@@ -29,6 +28,38 @@ def _normal():
 
 def _altered(severity=1, sub_fields=None):
     return _seg(is_normal=False, severity=severity, sub_fields=sub_fields)
+
+
+def _all_normal_views():
+    """Build anterior, lat_r, lat_l, posterior dicts with all segments normal."""
+    anterior = {
+        'cabeza': _normal(), 'cuello': _normal(), 'hombros': _normal(),
+        'claviculas': _normal(), 'altura_tetillas': _normal(),
+        'pliegue_inguinal': _normal(), 'rodillas': _normal(), 'pie': _normal(),
+    }
+    lat = {
+        'cabeza': _normal(), 'escapulas': _normal(),
+        'columna_vertebral': _normal(), 'codos_angulo': _normal(),
+        'abdomen_prominente': _normal(), 'cadera': _normal(),
+        'rodillas': _normal(), 'pies': _normal(),
+    }
+    posterior = {
+        'cabeza': _normal(), 'hombros': _normal(), 'escapulas': _normal(),
+        'codos_flexionados': _normal(), 'espacios_brazo_tronco': _normal(),
+        'columna_vertebral': _normal(), 'pliegues_laterales': _normal(),
+        'altura_cresta_inguinales': _normal(), 'gluteos': _normal(),
+        'pliegues_popliteos': _normal(), 'rodillas': _normal(), 'pies': _normal(),
+    }
+    return anterior, dict(lat), dict(lat), posterior
+
+
+COMPUTE_ALL_REQUIRED_KEYS = [
+    'global_index', 'global_category', 'global_color',
+    'upper_index', 'upper_category', 'upper_color',
+    'central_index', 'central_category', 'central_color',
+    'lower_index', 'lower_category', 'lower_color',
+    'segment_scores', 'findings',
+]
 
 
 # ── classify_index ──
@@ -59,25 +90,7 @@ class TestClassifyIndex:
 class TestComputeSegmentScores:
     def test_all_normal_returns_zero_scores(self):
         """All segments marked normal → all scores 0."""
-        anterior = {
-            'cabeza': _normal(), 'cuello': _normal(), 'hombros': _normal(),
-            'claviculas': _normal(), 'altura_tetillas': _normal(),
-            'pliegue_inguinal': _normal(), 'rodillas': _normal(), 'pie': _normal(),
-        }
-        lat_r = {
-            'cabeza': _normal(), 'escapulas': _normal(),
-            'columna_vertebral': _normal(), 'codos_angulo': _normal(),
-            'abdomen_prominente': _normal(), 'cadera': _normal(),
-            'rodillas': _normal(), 'pies': _normal(),
-        }
-        lat_l = dict(lat_r)
-        posterior = {
-            'cabeza': _normal(), 'hombros': _normal(), 'escapulas': _normal(),
-            'codos_flexionados': _normal(), 'espacios_brazo_tronco': _normal(),
-            'columna_vertebral': _normal(), 'pliegues_laterales': _normal(),
-            'altura_cresta_inguinales': _normal(), 'gluteos': _normal(),
-            'pliegues_popliteos': _normal(), 'rodillas': _normal(), 'pies': _normal(),
-        }
+        anterior, lat_r, lat_l, posterior = _all_normal_views()
         scores = compute_segment_scores(anterior, lat_r, lat_l, posterior)
         for seg_key, seg_data in scores.items():
             assert seg_data['score'] == 0.0, f"{seg_key} should be 0"
@@ -257,14 +270,7 @@ class TestGenerateFindings:
 class TestComputeAll:
     def test_returns_all_required_keys(self):
         result = compute_all({}, {}, {}, {})
-        required = [
-            'global_index', 'global_category', 'global_color',
-            'upper_index', 'upper_category', 'upper_color',
-            'central_index', 'central_category', 'central_color',
-            'lower_index', 'lower_category', 'lower_color',
-            'segment_scores', 'findings',
-        ]
-        for key in required:
+        for key in COMPUTE_ALL_REQUIRED_KEYS:
             assert key in result, f"Missing key: {key}"
 
     def test_segment_scores_has_19_entries(self):

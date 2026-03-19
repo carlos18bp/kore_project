@@ -1,4 +1,4 @@
-import { test, expect, loginAsTestUser, E2E_USER } from '../fixtures';
+import { test, expect, injectAuthCookies, E2E_USER } from '../fixtures';
 import type { Page } from '@playwright/test';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
@@ -55,7 +55,11 @@ async function mockBookingCreationFlowRoutes(
       });
       return;
     }
-    await route.continue();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }),
+    });
   });
 }
 
@@ -77,14 +81,14 @@ test.describe('Edge-case branch coverage', { tag: [...FlowTags.APP_EDGE_CASE_BRA
     session_duration_minutes: 60, location: 'Bogotá', email: 'g@kore.com', bio: '', user_id: 1,
   };
   const mockSlots = [
-    { id: 501, starts_at: `${dateStr}T10:00:00Z`, ends_at: `${dateStr}T11:00:00Z`, is_blocked: false, is_active: true, trainer_id: 1 },
+    { id: 501, starts_at: `${dateStr}T17:00:00Z`, ends_at: `${dateStr}T18:00:00Z`, is_blocked: false, is_active: true, trainer_id: 1 },
   ];
 
   function slotLabelFor(slot: { starts_at: string; ends_at: string }) {
     const formatTime = (isoString: string) => (
-      new Date(isoString).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+      new Date(isoString).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
     );
-    return `${formatTime(slot.starts_at)} — ${formatTime(slot.ends_at)}`;
+    return `${formatTime(slot.starts_at)} \u2014 ${formatTime(slot.ends_at)}`;
   }
 
   const primarySlotLabel = slotLabelFor(mockSlots[0]);
@@ -95,35 +99,22 @@ test.describe('Edge-case branch coverage', { tag: [...FlowTags.APP_EDGE_CASE_BRA
     await primarySlotButton.click();
   }
 
-  async function forceClickCalendarDay(page: import('@playwright/test').Page, dayNum: string) {
-    await page.getByText('Lun').waitFor({ state: 'visible', timeout: 10_000 });
-    await page.evaluate((num) => {
-      const buttons = document.querySelectorAll('button');
-      for (const btn of buttons) {
-        if (btn.textContent?.trim() === num) {
-          const propsKey = Object.keys(btn).find(k => k.startsWith('__reactProps$'));
-          if (propsKey) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const props = (btn as unknown as Record<string, any>)[propsKey];
-            if (typeof props?.onClick === 'function') props.onClick();
-          }
-          break;
-        }
-      }
-    }, dayNum);
+  async function clickCalendarDay(page: import('@playwright/test').Page, dayNum: string) {
+    const dayBtn = page.getByRole('button', { name: dayNum, exact: true });
+    await dayBtn.click({ timeout: 10_000 });
   }
 
   test('booking success with trainer=null shows "—" fallback', async ({ page }) => {
     const mockSub = buildProgramSubscription();
+    await injectAuthCookies(page);
     await mockBookingCreationFlowRoutes(page, mockTrainer, mockSlots, mockSub);
 
-    await loginAsTestUser(page);
     await page.goto('/book-session');
     await expect(page.getByText('Agenda tu sesión')).toBeVisible();
 
     // Force-click date, select slot
     const dayNum = tomorrow.getDate().toString();
-    await forceClickCalendarDay(page, dayNum);
+    await clickCalendarDay(page, dayNum);
     await selectPrimarySlot(page);
 
     // Confirmation screen — subscription=null means no "Programa" section

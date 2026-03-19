@@ -328,6 +328,8 @@ if ENABLE_SILK:
 # ---------------------------------------------------------------------------
 LOG_LEVEL = config('DJANGO_LOG_LEVEL', default='INFO')
 
+(BASE_DIR / 'logs').mkdir(parents=True, exist_ok=True)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,

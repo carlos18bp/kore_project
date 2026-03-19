@@ -86,4 +86,68 @@ describe('PricingTable', () => {
     render(<PricingTable />);
     expect(screen.getByText(/Programas con contrato mensual/)).toBeInTheDocument();
   });
+
+  it('fetches paginated API response across multiple pages', async () => {
+    mockedApi.get.mockReset();
+    mockedApi.get
+      .mockResolvedValueOnce({
+        data: {
+          results: [FAKE_PACKAGES[0], FAKE_PACKAGES[1]],
+          next: 'http://api/packages/?page=2',
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          results: [FAKE_PACKAGES[2]],
+          next: null,
+        },
+      });
+
+    render(<PricingTable />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Sesión Individual')).toBeInTheDocument();
+      expect(screen.getByText('Programa Integral')).toBeInTheDocument();
+    });
+
+    expect(mockedApi.get).toHaveBeenCalledTimes(2);
+    expect(mockedApi.get).toHaveBeenCalledWith('/packages/');
+    expect(mockedApi.get).toHaveBeenCalledWith('/packages/?page=2');
+  });
+
+  it('handles packages with sessions_count of zero', async () => {
+    mockedApi.get.mockReset();
+    const zeroPkg = { ...FAKE_PACKAGES[0], sessions_count: 0, price: '50000.00' };
+    mockedApi.get.mockResolvedValue({ data: [zeroPkg] });
+
+    render(<PricingTable />);
+    await waitFor(() => {
+      expect(screen.getByText('Sesión Individual')).toBeInTheDocument();
+    });
+  });
+
+  it('handles paginated response with undefined results', async () => {
+    mockedApi.get.mockReset();
+    mockedApi.get.mockResolvedValueOnce({
+      data: { results: undefined, next: null },
+    });
+
+    render(<PricingTable />);
+    await waitFor(() => {
+      expect(screen.getByText('Invierte en tu salud')).toBeInTheDocument();
+    });
+  });
+
+  it('stops fetching when API call throws an error', async () => {
+    mockedApi.get.mockReset();
+    mockedApi.get.mockRejectedValue(new Error('Network'));
+
+    render(<PricingTable />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Invierte en tu salud')).toBeInTheDocument();
+    });
+
+    expect(mockedApi.get).toHaveBeenCalledTimes(1);
+  });
 });

@@ -338,8 +338,8 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
   const _bkdateStr = _bktomorrow.toISOString().split('T')[0];
   const _bkSlot = {
     id: 601,
-    starts_at: `${_bkdateStr}T10:00:00Z`,
-    ends_at: `${_bkdateStr}T11:00:00Z`,
+    starts_at: `${_bkdateStr}T17:00:00Z`,
+    ends_at: `${_bkdateStr}T18:00:00Z`,
     is_blocked: false,
     is_active: true,
     trainer_id: 1,
@@ -357,8 +357,8 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
     next_billing_date: null,
   };
   const _bkSlotLabel = (() => {
-    const fmt = (iso: string) => new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-    return `${fmt(_bkSlot.starts_at)} — ${fmt(_bkSlot.ends_at)}`;
+    const fmt = (iso: string) => new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    return `${fmt(_bkSlot.starts_at)} \u2014 ${fmt(_bkSlot.ends_at)}`;
   })();
 
   async function setupBookSessionMocksForError(page: Page) {
@@ -389,24 +389,12 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
 
   async function goToBookSessionConfirmStep(page: Page) {
     await page.goto('/book-session');
-    await page.getByText('Lun').waitFor({ state: 'visible', timeout: 10_000 });
     const dayNum = _bktomorrow.getDate().toString();
-    await page.evaluate((num) => {
-      const buttons = document.querySelectorAll('button');
-      for (const btn of buttons) {
-        if (btn.textContent?.trim() === num) {
-          const propsKey = Object.keys(btn).find(k => k.startsWith('__reactProps$'));
-          if (propsKey) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const props = (btn as unknown as Record<string, any>)[propsKey];
-            if (typeof props?.onClick === 'function') { props.onClick(); }
-          }
-          break;
-        }
-      }
-    }, dayNum);
-    await page.getByRole('button', { name: _bkSlotLabel, exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
-    await page.getByRole('button', { name: _bkSlotLabel, exact: true }).click();
+    const dayBtn = page.getByRole('button', { name: dayNum, exact: true });
+    await dayBtn.click({ timeout: 10_000 });
+    const slotBtn = page.getByRole('button', { name: _bkSlotLabel, exact: true });
+    await slotBtn.waitFor({ state: 'visible', timeout: 10_000 });
+    await slotBtn.click();
     await expect(page.getByRole('main').getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
   }
 
@@ -448,7 +436,7 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
   // TimeSlotPicker.tsx lines 10-15 — use24h=false branch of formatTime
   // Exercised by clicking the '12h' toggle button when slots are rendered.
   // ─────────────────────────────────────────────────────────────────────────
-  test('TimeSlotPicker 12h toggle changes slot time format to AM/PM', async ({ page }) => {
+  test('TimeSlotPicker 24h toggle changes slot time format to 24h', async ({ page }) => {
     await mockLoginAsTestUser(page);
     await setupBookSessionMocksForError(page);
     await page.route('**/api/bookings/', async (route) => {
@@ -460,31 +448,23 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
     });
 
     await page.goto('/book-session');
-    await page.getByText('Lun').waitFor({ state: 'visible', timeout: 10_000 });
-
     const dayNum = _bktomorrow.getDate().toString();
-    await page.evaluate((n) => {
-      for (const btn of document.querySelectorAll('button')) {
-        if (btn.textContent?.trim() === n && !(btn as HTMLButtonElement).disabled) {
-          const k = Object.keys(btn).find((key) => key.startsWith('__reactProps$'));
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          if (k) { const p = (btn as any)[k]; if (typeof p?.onClick === 'function') p.onClick(); }
-          break;
-        }
-      }
-    }, dayNum);
+    const dayBtn = page.getByRole('button', { name: dayNum, exact: true });
+    await dayBtn.click({ timeout: 10_000 });
 
-    // Slot should appear in 24h format initially
+    // Slot should appear in 12h (AM/PM) format initially (TimeSlotPicker default)
     await page.getByRole('button', { name: _bkSlotLabel, exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
 
-    // Click 12h toggle — exercises TimeSlotPicker.tsx use24h=false branch
-    await page.getByRole('button', { name: '12h' }).click();
-
-    // Slot button should now show AM/PM format
-    await expect(page.getByRole('button', { name: /AM|PM/i }).first()).toBeVisible({ timeout: 5_000 });
-
-    // Toggle back to 24h
+    // Click 24h toggle — exercises TimeSlotPicker.tsx use24h=true branch
     await page.getByRole('button', { name: '24h' }).click();
+
+    // Slot button should now show 24h format (no AM/PM)
+    const fmt24 = (iso: string) => new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const label24h = `${fmt24(_bkSlot.starts_at)} \u2014 ${fmt24(_bkSlot.ends_at)}`;
+    await expect(page.getByRole('button', { name: label24h, exact: true })).toBeVisible({ timeout: 5_000 });
+
+    // Toggle back to 12h
+    await page.getByRole('button', { name: '12h' }).click();
     await expect(page.getByRole('button', { name: _bkSlotLabel, exact: true })).toBeVisible({ timeout: 5_000 });
   });
 });

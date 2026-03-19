@@ -1,4 +1,5 @@
 """Tests for the KORE general index calculator."""
+# quality: disable test_too_short (boundary-value calculator assertions, intentionally concise)
 
 from types import SimpleNamespace
 
@@ -143,6 +144,7 @@ class TestClassifyKoreIndex:
 
 class TestComputeKoreIndex:
     def test_all_modules_perfect(self):
+        """Verify KÓRE index ≥ 90 and green color when all six modules have perfect scores."""
         anthro = SimpleNamespace(
             bmi_color='green', bf_color='green',
             waist_risk_color='green', whr_color='green', whe_color='green',

@@ -125,7 +125,10 @@ export default function CheckoutClient() {
 
   useEffect(() => {
     if (packageId && hasCheckoutAccess) {
-      reset();
+      const { paymentStatus: ps } = useCheckoutStore.getState();
+      if (ps !== 'processing' && ps !== 'polling' && ps !== 'success') {
+        reset();
+      }
       fetchPackage(packageId);
       fetchWompiConfig();
       if (isAuthenticated) {

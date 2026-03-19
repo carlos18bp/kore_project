@@ -1,3 +1,4 @@
+// quality: disable test_too_long (hydration integration test requires full cookie+API mock setup and state verification)
 import Cookies from 'js-cookie';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { api } from '@/lib/services/http';

@@ -15,6 +15,7 @@ from core_app.models import (
     User,
 )
 from core_app.models.trainer_profile import TrainerProfile
+from core_app.views.physical_evaluation_views import PhysicalEvaluationSerializer
 
 
 def _make_booking(customer, trainer_profile):
@@ -250,3 +251,175 @@ class TestClientPhysicalEvalViews(TestCase):
     def test_client_detail_not_found(self):
         resp = self.client.get('/api/my-physical-evaluation/99999/')
         self.assertEqual(resp.status_code, 404)
+
+
+@pytest.mark.django_db
+class TestTrainerPhysicalEvalNoProfile(TestCase):
+    """Cover no-trainer-profile branches on list/create and detail views."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.trainer_user = User.objects.create_user(
+            email='noprofile_pe@test.com', password='pass1234', role='trainer',
+        )
+        self.client.force_authenticate(user=self.trainer_user)
+
+    def test_get_list_returns_404_when_no_trainer_profile(self):
+        """GET list returns 404 when user has no TrainerProfile."""
+        resp = self.client.get('/api/trainer/my-clients/1/physical-evaluation/')
+        self.assertEqual(resp.status_code, 404)
+        self.assertIn('No trainer profile', resp.json()['detail'])
+
+    def test_post_returns_404_when_no_trainer_profile(self):
+        """POST returns 404 when user has no TrainerProfile."""
+        resp = self.client.post(
+            '/api/trainer/my-clients/1/physical-evaluation/',
+            SAMPLE_DATA, format='json',
+        )
+        self.assertEqual(resp.status_code, 404)
+
+    def test_get_detail_returns_404_when_no_trainer_profile(self):
+        """GET detail returns 404 when user has no TrainerProfile."""
+        resp = self.client.get('/api/trainer/my-clients/1/physical-evaluation/1/')
+        self.assertEqual(resp.status_code, 404)
+
+    def test_put_returns_404_when_no_trainer_profile(self):
+        """PUT returns 404 when user has no TrainerProfile."""
+        resp = self.client.put('/api/trainer/my-clients/1/physical-evaluation/1/', {}, format='json')
+        self.assertEqual(resp.status_code, 404)
+
+    def test_patch_returns_404_when_no_trainer_profile(self):
+        """PATCH returns 404 when user has no TrainerProfile."""
+        resp = self.client.patch('/api/trainer/my-clients/1/physical-evaluation/1/', {}, format='json')
+        self.assertEqual(resp.status_code, 404)
+
+    def test_delete_returns_404_when_no_trainer_profile(self):
+        """DELETE returns 404 when user has no TrainerProfile."""
+        resp = self.client.delete('/api/trainer/my-clients/1/physical-evaluation/1/')
+        self.assertEqual(resp.status_code, 404)
+
+
+@pytest.mark.django_db
+class TestTrainerPhysicalEvalCustomerDoesNotExist(TestCase):
+    """Cover User.DoesNotExist branch when user exists but has wrong role."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.trainer_user = User.objects.create_user(
+            email='dne_pe_trainer@test.com', password='pass1234', role='trainer',
+        )
+        self.trainer_profile = TrainerProfile.objects.create(user=self.trainer_user, bio='t')
+        self.non_customer = User.objects.create_user(
+            email='dne_pe_noncust@test.com', password='pass1234', role='trainer',
+        )
+        _make_booking(self.non_customer, self.trainer_profile)
+        self.client.force_authenticate(user=self.trainer_user)
+
+    def test_post_returns_404_when_user_not_customer_role(self):
+        """POST returns 404 when customer_id user exists but has non-customer role."""
+        resp = self.client.post(
+            f'/api/trainer/my-clients/{self.non_customer.id}/physical-evaluation/',
+            SAMPLE_DATA, format='json',
+        )
+        self.assertEqual(resp.status_code, 404)
+
+
+@pytest.mark.django_db
+class TestPhysicalEvalApplyUpdateEdgeCases(TestCase):
+    """Cover _apply_update edge cases: bool-as-string, evaluation_date, non-dict recommendations."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.trainer_user = User.objects.create_user(
+            email='update_pe_trainer@test.com', password='pass1234', role='trainer',
+        )
+        self.trainer_profile = TrainerProfile.objects.create(user=self.trainer_user, bio='t')
+        self.customer = User.objects.create_user(
+            email='update_pe_cust@test.com', password='pass1234', role='customer',
+        )
+        cp = self.customer.customer_profile
+        cp.sex = 'masculino'
+        cp.date_of_birth = '1990-01-01'
+        cp.save()
+        _make_booking(self.customer, self.trainer_profile)
+        self.client.force_authenticate(user=self.trainer_user)
+        resp = self.client.post(
+            f'/api/trainer/my-clients/{self.customer.id}/physical-evaluation/',
+            SAMPLE_DATA, format='json',
+        )
+        self.eval_id = resp.json()['id']
+
+    def test_patch_bool_field_as_actual_bool(self):
+        """PATCH with bool field as actual boolean sets the value directly."""
+        resp = self.client.patch(
+            f'/api/trainer/my-clients/{self.customer.id}/physical-evaluation/{self.eval_id}/',
+            {'squats_pain': True}, format='json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()['squats_pain'])
+
+    def test_patch_bool_field_as_string_true(self):
+        """PATCH with bool field as string 'true' converts to True."""
+        resp = self.client.patch(
+            f'/api/trainer/my-clients/{self.customer.id}/physical-evaluation/{self.eval_id}/',
+            {'squats_pain': 'true'}, format='json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()['squats_pain'])
+
+    def test_patch_bool_field_as_string_one(self):
+        """PATCH with bool field as string '1' converts to True."""
+        resp = self.client.patch(
+            f'/api/trainer/my-clients/{self.customer.id}/physical-evaluation/{self.eval_id}/',
+            {'pushups_pain': '1'}, format='json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()['pushups_pain'])
+
+    def test_patch_evaluation_date(self):
+        """PATCH updates evaluation_date field."""
+        resp = self.client.patch(
+            f'/api/trainer/my-clients/{self.customer.id}/physical-evaluation/{self.eval_id}/',
+            {'evaluation_date': '2026-06-15'}, format='json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['evaluation_date'], '2026-06-15')
+
+    def test_patch_recommendations_non_dict_discards_value(self):
+        """PATCH with non-dict recommendations discards the invalid value."""
+        resp = self.client.patch(
+            f'/api/trainer/my-clients/{self.customer.id}/physical-evaluation/{self.eval_id}/',
+            {'recommendations': 'not-a-dict'}, format='json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsInstance(resp.json()['recommendations'], dict)
+
+    def test_patch_numeric_field_with_null(self):
+        """PATCH with numeric field set to null clears the value."""
+        resp = self.client.patch(
+            f'/api/trainer/my-clients/{self.customer.id}/physical-evaluation/{self.eval_id}/',
+            {'squats_reps': None}, format='json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsNone(resp.json()['squats_reps'])
+
+    def test_patch_numeric_field_with_empty_string(self):
+        """PATCH with numeric field set to empty string clears the value."""
+        resp = self.client.patch(
+            f'/api/trainer/my-clients/{self.customer.id}/physical-evaluation/{self.eval_id}/',
+            {'pushups_reps': ''}, format='json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsNone(resp.json()['pushups_reps'])
+
+
+@pytest.mark.django_db
+class TestPhysicalEvalSerializerTrainerName(TestCase):
+    """Cover get_trainer_name returning empty string when trainer is None."""
+
+    def test_trainer_name_empty_when_no_trainer(self):
+        """Serializer returns empty trainer_name when evaluation has no trainer."""
+        customer = User.objects.create_user(email='ser_pe@test.com', password='p', role='customer')
+        ev = PhysicalEvaluation.objects.create(customer=customer, trainer=None)
+        serializer = PhysicalEvaluationSerializer(ev)
+        self.assertEqual(serializer.data['trainer_name'], '')

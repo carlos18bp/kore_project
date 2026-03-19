@@ -157,7 +157,7 @@ describe('SessionDetailModal', () => {
   });
 
   it('passes typed cancel reason to cancelBooking', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     mockCancelBooking.mockResolvedValue(true);
     setupStore();
     render(<SessionDetailModal booking={buildBooking(48)} subscriptionId={2} onClose={onClose} onCanceled={onCanceled} />);

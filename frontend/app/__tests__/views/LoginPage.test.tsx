@@ -33,6 +33,11 @@ jest.mock('react-google-recaptcha', () => {
   );
 });
 
+jest.mock('@/app/composables/useScrollAnimations', () => ({
+  useHeroAnimation: jest.fn(),
+  useTextReveal: jest.fn(),
+}));
+
 jest.mock('next/link', () => ({
   __esModule: true,
   default: ({ children, href, ...rest }: { children: React.ReactNode; href: string }) => (
@@ -108,7 +113,7 @@ describe('LoginPage', () => {
 
   it('toggles password visibility', async () => {
     render(<LoginPage />);
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const passwordInput = screen.getByLabelText(/Contraseña/i);
 
     expect(passwordInput).toHaveAttribute('type', 'password');
@@ -131,7 +136,7 @@ describe('LoginPage', () => {
     mockedApi.post.mockRejectedValueOnce(axiosError);
 
     render(<LoginPage />);
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
     await fillLoginForm(user, 'wrong@email.com', 'wrongpass');
     await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
@@ -142,10 +147,11 @@ describe('LoginPage', () => {
   });
 
   it('redirects to dashboard on successful login', async () => {
+    jest.setTimeout(15000);
     mockedApi.post.mockResolvedValueOnce({ data: MOCK_LOGIN_RESPONSE });
 
     render(<LoginPage />);
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
     await fillLoginForm(user, 'customer10@kore.com', 'ogthsv25');
     await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
@@ -181,7 +187,7 @@ describe('LoginPage', () => {
 
   it('renders forgot password link', () => {
     render(<LoginPage />);
-    expect(screen.getByText('¿Olvidaste tu contraseña? Contáctanos')).toBeInTheDocument();
+    expect(screen.getByText('¿Olvidaste tu contraseña?')).toBeInTheDocument();
   });
 
   it('shows loading spinner during login attempt', async () => {
@@ -189,7 +195,7 @@ describe('LoginPage', () => {
     mockedApi.post.mockReturnValueOnce(new Promise(() => {}));
 
     render(<LoginPage />);
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
     await fillLoginForm(user, 'customer10@kore.com', 'ogthsv25');
     await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));

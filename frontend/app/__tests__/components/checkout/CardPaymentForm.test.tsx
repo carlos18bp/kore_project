@@ -28,7 +28,7 @@ describe('CardPaymentForm', () => {
   });
 
   it('formats card number into groups of four', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<CardPaymentForm {...defaultProps} />);
 
     const input = screen.getByLabelText('Número de tarjeta');
@@ -38,7 +38,7 @@ describe('CardPaymentForm', () => {
   });
 
   it('formats expiry with slash separator', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<CardPaymentForm {...defaultProps} />);
 
     const input = screen.getByLabelText('Vencimiento');
@@ -48,7 +48,7 @@ describe('CardPaymentForm', () => {
   });
 
   it('limits CVV to 4 digits', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<CardPaymentForm {...defaultProps} />);
 
     const input = screen.getByLabelText('CVV');
@@ -58,7 +58,7 @@ describe('CardPaymentForm', () => {
   });
 
   it('shows visa brand for card starting with 4', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<CardPaymentForm {...defaultProps} />);
 
     await user.type(screen.getByLabelText('Número de tarjeta'), '4111');
@@ -67,7 +67,7 @@ describe('CardPaymentForm', () => {
   });
 
   it('shows mastercard brand for card starting with 51', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<CardPaymentForm {...defaultProps} />);
 
     await user.type(screen.getByLabelText('Número de tarjeta'), '5111');
@@ -76,7 +76,7 @@ describe('CardPaymentForm', () => {
   });
 
   it('shows mastercard brand for card starting with 22', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<CardPaymentForm {...defaultProps} />);
 
     await user.type(screen.getByLabelText('Número de tarjeta'), '2211');
@@ -85,7 +85,7 @@ describe('CardPaymentForm', () => {
   });
 
   it('shows amex brand for card starting with 34', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<CardPaymentForm {...defaultProps} />);
 
     await user.type(screen.getByLabelText('Número de tarjeta'), '3411');
@@ -94,7 +94,7 @@ describe('CardPaymentForm', () => {
   });
 
   it('does not show brand for unrecognized card number', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<CardPaymentForm {...defaultProps} />);
 
     await user.type(screen.getByLabelText('Número de tarjeta'), '9999');
@@ -105,7 +105,7 @@ describe('CardPaymentForm', () => {
   });
 
   it('shows validation error for invalid card number on blur', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<CardPaymentForm {...defaultProps} />);
 
     const input = screen.getByLabelText('Número de tarjeta');
@@ -117,7 +117,7 @@ describe('CardPaymentForm', () => {
   });
 
   it('shows validation error for expired card', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<CardPaymentForm {...defaultProps} />);
 
     await user.type(screen.getByLabelText('Número de tarjeta'), '4111111111111111');
@@ -130,7 +130,7 @@ describe('CardPaymentForm', () => {
   });
 
   it('shows validation error for invalid expiry month', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<CardPaymentForm {...defaultProps} />);
 
     await user.type(screen.getByLabelText('Número de tarjeta'), '4111111111111111');
@@ -143,7 +143,7 @@ describe('CardPaymentForm', () => {
   });
 
   it('shows validation error for invalid CVV', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<CardPaymentForm {...defaultProps} />);
 
     await user.type(screen.getByLabelText('Número de tarjeta'), '4111111111111111');
@@ -156,7 +156,7 @@ describe('CardPaymentForm', () => {
   });
 
   it('shows validation error for short cardholder name', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<CardPaymentForm {...defaultProps} />);
 
     await user.type(screen.getByLabelText('Número de tarjeta'), '4111111111111111');
@@ -169,7 +169,7 @@ describe('CardPaymentForm', () => {
   });
 
   it('does not call onSubmit when validation fails', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<CardPaymentForm {...defaultProps} />);
 
     await user.click(screen.getByRole('button', { name: `Pagar ${defaultProps.amount}` }));
@@ -178,7 +178,7 @@ describe('CardPaymentForm', () => {
   });
 
   it('calls onSubmit with formatted card data on valid submission', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<CardPaymentForm {...defaultProps} />);
 
     await user.type(screen.getByLabelText('Número de tarjeta'), '4111111111111111');
@@ -228,7 +228,7 @@ describe('CardPaymentForm', () => {
   });
 
   it('formats empty card number to empty string', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<CardPaymentForm {...defaultProps} />);
 
     const input = screen.getByLabelText('Número de tarjeta');
@@ -238,7 +238,7 @@ describe('CardPaymentForm', () => {
   });
 
   it('shows expired error for card in current year but past month', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<CardPaymentForm {...defaultProps} />);
 
     const now = new Date();
@@ -255,7 +255,7 @@ describe('CardPaymentForm', () => {
   });
 
   it('shows expiry error only after field is touched and submit attempted', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<CardPaymentForm {...defaultProps} />);
 
     expect(screen.queryByText('Fecha inválida')).not.toBeInTheDocument();

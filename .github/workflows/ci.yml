@@ -1,0 +1,283 @@
+name: CI — Tests
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ───────────────────────────────────────────
+  # Backend — pytest (Django + SQLite)
+  # ───────────────────────────────────────────
+  backend-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq pkg-config default-libmysqlclient-dev
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run migrations
+        run: python manage.py migrate --no-input
+
+      - name: Run pytest with coverage
+        run: pytest -v --tb=short --cov-report=json:coverage.json --junitxml=pytest-results.xml
+
+      - name: Upload backend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-backend
+          path: backend/coverage.json
+          retention-days: 5
+
+      - name: Upload backend test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-backend
+          path: backend/pytest-results.xml
+          retention-days: 5
+
+  # ───────────────────────────────────────────
+  # Frontend — Jest unit & component tests
+  # ───────────────────────────────────────────
+  frontend-unit-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      - name: Run Jest tests with coverage
+        run: npm run test:coverage -- --ci --forceExit --json --outputFile=test-results.json
+
+      - name: Upload frontend unit coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-frontend-unit
+          path: frontend/coverage/coverage-summary.json
+          retention-days: 5
+
+      - name: Upload frontend unit test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-frontend-unit
+          path: frontend/test-results.json
+          retention-days: 5
+
+  # ───────────────────────────────────────────
+  # Frontend — Playwright E2E tests (sharded)
+  # ───────────────────────────────────────────
+  frontend-e2e-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ["1/4", "2/4", "3/4", "4/4"]
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      - name: Install Playwright browsers with system deps
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright E2E tests (shard ${{ matrix.shard }})
+        run: npx playwright test --shard=${{ matrix.shard }} --reporter=blob
+        env:
+          CI: 'true'
+
+      - name: Upload blob report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-blob-${{ strategy.job-index }}
+          path: frontend/blob-report/
+          retention-days: 1
+
+      - name: Upload test traces (failures only)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces-${{ strategy.job-index }}
+          path: frontend/test-results/
+          retention-days: 7
+
+  # ───────────────────────────────────────────
+  # E2E — Merge sharded results + flow coverage
+  # ───────────────────────────────────────────
+  e2e-merge:
+    if: always()
+    needs: [frontend-e2e-tests]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      - name: Download all blob reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: playwright-blob-*
+          path: frontend/all-blob-reports
+          merge-multiple: true
+
+      - name: Merge into HTML + JSON report
+        run: npx playwright merge-reports --reporter='json,./e2e/reporters/flow-coverage-reporter.mjs' all-blob-reports
+        env:
+          CI: 'true'
+
+      - name: Upload E2E flow coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-frontend-e2e
+          path: frontend/e2e-results/flow-coverage.json
+          retention-days: 5
+
+  # ───────────────────────────────────────────
+  # Coverage Summary — aggregates all reports
+  # ───────────────────────────────────────────
+  coverage-summary:
+    if: always()
+    needs: [backend-tests, frontend-unit-tests, e2e-merge]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Download backend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-backend
+          path: coverage-artifacts/backend
+        continue-on-error: true
+
+      - name: Download frontend-unit coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-frontend-unit
+          path: coverage-artifacts/frontend-unit
+        continue-on-error: true
+
+      - name: Download frontend-e2e coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-frontend-e2e
+          path: coverage-artifacts/frontend-e2e
+        continue-on-error: true
+
+      - name: Download backend test results
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results-backend
+          path: coverage-artifacts/test-results-backend
+        continue-on-error: true
+
+      - name: Download frontend unit test results
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results-frontend-unit
+          path: coverage-artifacts/test-results-frontend-unit
+        continue-on-error: true
+
+      - name: Generate coverage summary
+        run: node scripts/ci-coverage-summary.mjs
+
+      - name: Write Job Summary
+        run: cat coverage-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post PR comment
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: coverage-report.md
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage-report.md
+          retention-days: 30
+

@@ -1,13 +1,14 @@
 # User Flow Map
 
-Version: 1.1
-Last Updated: 2026-02-25
+Version: 1.2
+Last Updated: 2026-03-18
 Description: End-to-end user flows for the Kore frontend, grouped by role with branches for form variants and alternate outcomes.
 Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, frontend/e2e specs, frontend/app routes.
 
 ## System Roles
 - Guest: Unauthenticated visitor.
 - User: Authenticated customer.
+- Trainer: Fitness/health professional who manages clients and assessments.
 - Admin: No dedicated frontend flows found in the current app or E2E suite.
 
 ## Shared Flows (Public or Guest + User)
@@ -199,6 +200,33 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Authenticated users are redirected to /dashboard (or /checkout?package=ID if package param present).
 - Package query string is preserved on redirect to /checkout.
 - reCAPTCHA resets after a failed submission attempt.
+
+### auth-forgot-password: Forgot Password
+- Module: auth
+- Priority: P1
+- Route: /forgot-password
+- Roles: guest
+- Description: 3-step password reset: request code by email, verify 6-digit code, set new password.
+- E2E Coverage: Covered (frontend/e2e/public/forgot-password.spec.ts)
+
+**Steps**
+1. Open /forgot-password.
+2. Enter email address and submit to request a reset code.
+3. Check email for 6-digit verification code.
+4. Enter the code and verify.
+5. Set a new password (minimum 8 characters) and confirm.
+6. On success, redirect to /login after 2 seconds.
+
+**Branches / Variations**
+- Invalid or non-existent email still shows success message (security: no email enumeration).
+- Request code API failure shows an error message.
+- Invalid or expired code shows error and allows retry.
+- "Volver a enviar código" resets to email step for re-sending.
+- Passwords must match; mismatch shows validation error.
+- Password under 8 characters shows validation error.
+- Reset API failure shows server error detail or generic message.
+- Step indicator shows progress (1→2→3) with visual state.
+- "Volver a iniciar sesión" link returns to /login.
 
 ### public-home: Public Home
 - Module: public
@@ -673,6 +701,331 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Corrupted auth cookies clear auth state and redirect to login.
 - Reschedule API error shows an error message on the booking modal.
 
+## Profile Flows
+
+### profile-management: Profile Management
+- Module: profile
+- Priority: P1
+- Route: /profile
+- Roles: user
+- Description: View and edit personal information, upload avatar, select primary goal, and view mood check-in.
+- E2E Coverage: Covered (frontend/e2e/app/profile.spec.ts)
+
+**Steps**
+1. Open /profile after login.
+2. View avatar, name, email, and member-since date in the sidebar card.
+3. Edit personal fields (name, last name, phone, sex, address, city, DOB, EPS, ID type/number/expedition date).
+4. Fields auto-save after 1.2s debounce; toast shows "Guardando..." then "Guardado".
+5. Select a primary goal from the goal cards.
+6. View mood check-in status (today's score or prompt).
+7. View quick stats summary card.
+
+**Branches / Variations**
+- Avatar click opens file picker; upload replaces avatar preview immediately.
+- Invalid file types or upload failure show error state.
+- Field save failure hides the toast and shows error via store.
+- Empty profile shows "Completa tu perfil para ver tu resumen" placeholder.
+- Goal selection triggers immediate save (no debounce).
+- Mood already set shows score with color-coded badge (green/amber/red).
+- Loading state shows spinner while profile fetches.
+
+### profile-password-change: Profile Password Change
+- Module: profile
+- Priority: P2
+- Route: /profile
+- Roles: user
+- Description: Request verification code and change password from the profile security section.
+- E2E Coverage: Covered (frontend/e2e/app/profile-password-change.spec.ts)
+
+**Steps**
+1. Scroll to the Security card on /profile.
+2. Click "Cambiar contraseña" to request a reset code via email.
+3. Password reset modal opens on success.
+4. Enter code + new password in the modal to complete the change.
+
+**Branches / Variations**
+- Request code API failure shows inline error message.
+- Loading state disables button and shows "Enviando código..." spinner.
+- Modal close returns to profile without completing reset.
+
+## Assessment Flows
+
+### customer-diagnosis: Customer Diagnosis
+- Module: assessments
+- Priority: P2
+- Route: /my-diagnosis
+- Roles: user
+- Description: View anthropometry/body composition diagnosis with educational indicators and progress timeline.
+- E2E Coverage: Covered (frontend/e2e/app/customer-diagnosis.spec.ts)
+
+**Steps**
+1. Open /my-diagnosis after login.
+2. View hero summary cards (weight, body fat %, lean mass) with animated count-up numbers.
+3. View trainer notes if available.
+4. Expand index cards (body fat, mass composition, BMI, waist, waist-hip ratio) for educational content.
+5. View progress timeline comparing evaluations over time.
+
+**Branches / Variations**
+- No evaluations shows "Tu diagnóstico está en camino" empty state.
+- Diff badges show improvement/regression vs previous and first evaluations.
+- Accordion cards toggle with GSAP animation.
+- Each index card shows: what it means, your result (color-coded), what you can do, and scientific formula.
+- Custom trainer recommendations override default text when available.
+
+### customer-nutrition: Customer Nutrition Assessment
+- Module: assessments
+- Priority: P2
+- Route: /my-nutrition
+- Roles: user
+- Description: Complete and view nutrition assessment form with habit tracking and scoring.
+- E2E Coverage: Covered (frontend/e2e/app/customer-nutrition.spec.ts)
+
+**Steps**
+1. Open /my-nutrition after login.
+2. Complete nutrition habit questionnaire (protein, hydration, etc.).
+3. Submit the form.
+4. View scoring results with color-coded indicators.
+
+**Branches / Variations**
+- No previous assessment shows the form for first-time completion.
+- Existing assessment shows results with option to update.
+- Color-coded scores (red/yellow/green) indicate habit quality.
+
+### customer-parq: Customer PAR-Q
+- Module: assessments
+- Priority: P2
+- Route: /my-parq
+- Roles: user
+- Description: Complete and view PAR-Q physical activity readiness questionnaire.
+- E2E Coverage: Covered (frontend/e2e/app/customer-parq.spec.ts)
+
+**Steps**
+1. Open /my-parq after login.
+2. Answer 7 standard PAR-Q health screening questions (yes/no).
+3. Optionally add additional notes.
+4. Submit the questionnaire.
+5. View risk assessment results.
+
+**Branches / Variations**
+- No previous PAR-Q shows the questionnaire form.
+- Existing PAR-Q shows results with color-coded risk indicator.
+- Any "yes" answer raises the risk flag; details explain each question.
+- Loading and error states handled.
+
+### customer-physical-evaluation: Customer Physical Evaluation
+- Module: assessments
+- Priority: P2
+- Route: /my-physical-evaluation
+- Roles: user
+- Description: View physical evaluation results with fitness indicators and progress tracking.
+- E2E Coverage: Covered (frontend/e2e/app/customer-physical-evaluation.spec.ts)
+
+**Steps**
+1. Open /my-physical-evaluation after login.
+2. View latest evaluation results with fitness index cards.
+3. Expand cards for educational content (what it means, your result, recommendations).
+4. View progress timeline if multiple evaluations exist.
+
+**Branches / Variations**
+- No evaluations shows empty state with pending message.
+- Index cards use GSAP accordion animations.
+- Color-coded indicators (green/yellow/red) per fitness metric.
+- Diff badges show changes from previous evaluation.
+
+### customer-posturometry: Customer Posturometry
+- Module: assessments
+- Priority: P2
+- Route: /my-posturometry
+- Roles: user
+- Description: View posturometry evaluation results with regional indicators and recommendations.
+- E2E Coverage: Covered (frontend/e2e/app/customer-posturometry.spec.ts)
+
+**Steps**
+1. Open /my-posturometry after login.
+2. View global posture score and regional breakdowns (head, shoulders, spine, pelvis, lower limbs).
+3. Expand region cards for educational content and recommendations.
+4. View progress timeline if multiple evaluations exist.
+
+**Branches / Variations**
+- No evaluations shows empty state.
+- Color-coded indicators include orange in addition to green/yellow/red.
+- Regional cards with GSAP accordion animations.
+- Trainer recommendations override defaults when available.
+
+### customer-pending-assessments: Pending Assessments
+- Module: assessments
+- Priority: P3
+- Route: /dashboard
+- Roles: user
+- Description: View KORE score and pending assessment modules on the dashboard.
+- E2E Coverage: Covered (frontend/e2e/app/customer-pending-assessments.spec.ts)
+
+**Steps**
+1. Load /dashboard.
+2. Pending assessments widget shows KORE score, color, and category.
+3. View module availability count (e.g., 3/6 modules completed).
+
+**Branches / Variations**
+- Null KORE score shows default/empty state.
+- Modules available count reflects completed vs total assessments.
+
+## Trainer Flows
+
+### trainer-dashboard: Trainer Dashboard
+- Module: trainer
+- Priority: P1
+- Route: /trainer/dashboard
+- Roles: trainer
+- Description: View trainer stats (total clients, today sessions) and upcoming session list.
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-dashboard.spec.ts)
+
+**Steps**
+1. Open /trainer/dashboard after login as trainer.
+2. View greeting with trainer name and time-of-day context.
+3. View stats cards: total active clients, today's scheduled sessions.
+4. Quick action card links to /trainer/clients.
+5. View upcoming sessions list with client name, package, date/time.
+
+**Branches / Variations**
+- Loading state shows dashes for stats and spinner for session list.
+- Empty upcoming sessions shows calendar placeholder and "No hay sesiones próximas".
+- Session rows link to client detail page.
+- Greeting changes based on hour (Buenos días/tardes/noches).
+
+### trainer-clients-list: Trainer Client List
+- Module: trainer
+- Priority: P1
+- Route: /trainer/clients
+- Roles: trainer
+- Description: Search and browse assigned client list with stats and quick action links.
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-clients.spec.ts)
+
+**Steps**
+1. Open /trainer/clients after login as trainer.
+2. View client cards in a responsive grid.
+3. Use search input to filter by name or email.
+4. View client stats: active package, completed sessions, sessions remaining.
+5. Use quick actions to navigate to client detail or anthropometry pages.
+
+**Branches / Variations**
+- Loading state shows spinner.
+- Empty client list shows "Aún no tienes clientes asignados." placeholder.
+- Search with no results shows "No se encontraron clientes con esa búsqueda."
+- Client avatar shows image or first-letter initial fallback.
+- Goal labels map to Spanish display text.
+
+### trainer-client-detail: Trainer Client Detail
+- Module: trainer
+- Priority: P1
+- Route: /trainer/clients/client?id=X
+- Roles: trainer
+- Description: View individual client profile, session history, and access assessment module links.
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-client-detail.spec.ts)
+
+**Steps**
+1. Navigate from client list to /trainer/clients/client?id=X.
+2. View client profile card (avatar, name, email, phone, goal, DOB, city, EPS, member since).
+3. View session history with status badges.
+4. Access assessment module links (anthropometry, posturometry, physical evaluation, nutrition, PAR-Q).
+
+**Branches / Variations**
+- Loading state shows spinner.
+- Client not found shows error state.
+- Missing profile fields show fallback values.
+- Session history shows confirmed/canceled/pending status badges.
+
+### trainer-client-anthropometry: Trainer Client Anthropometry
+- Module: trainer
+- Priority: P2
+- Route: /trainer/clients/client/anthropometry?id=X
+- Roles: trainer
+- Description: Create and view client anthropometry evaluations with body composition data.
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-client-anthropometry.spec.ts)
+
+**Steps**
+1. Navigate to /trainer/clients/client/anthropometry?id=X.
+2. View existing evaluation history.
+3. Create a new evaluation with body composition measurements.
+4. View calculated indices (BMI, body fat %, waist-hip ratio, etc.).
+
+**Branches / Variations**
+- No evaluations shows empty state with create button.
+- Form validates required fields before submission.
+- Calculated fields update based on input measurements.
+- API failure shows error message.
+
+### trainer-client-nutrition: Trainer Client Nutrition
+- Module: trainer
+- Priority: P2
+- Route: /trainer/clients/client/nutrition?id=X
+- Roles: trainer
+- Description: View client nutrition assessment results and history.
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-client-nutrition.spec.ts)
+
+**Steps**
+1. Navigate to /trainer/clients/client/nutrition?id=X.
+2. View client's nutrition assessment results.
+3. Review habit scores and recommendations.
+
+**Branches / Variations**
+- No assessments shows empty state.
+- Color-coded scores per habit category.
+
+### trainer-client-parq: Trainer Client PAR-Q
+- Module: trainer
+- Priority: P2
+- Route: /trainer/clients/client/parq?id=X
+- Roles: trainer
+- Description: View client PAR-Q assessment results and risk indicators.
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-client-parq.spec.ts)
+
+**Steps**
+1. Navigate to /trainer/clients/client/parq?id=X.
+2. View client's PAR-Q responses and risk assessment.
+3. Review flagged questions and additional notes.
+
+**Branches / Variations**
+- No assessments shows empty state.
+- Flagged questions highlighted with risk indicator.
+
+### trainer-client-physical-eval: Trainer Client Physical Eval
+- Module: trainer
+- Priority: P2
+- Route: /trainer/clients/client/physical-evaluation?id=X
+- Roles: trainer
+- Description: Create and view client physical evaluation results with fitness indicators.
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-client-physical-eval.spec.ts)
+
+**Steps**
+1. Navigate to /trainer/clients/client/physical-evaluation?id=X.
+2. View existing evaluation history.
+3. Create a new evaluation with fitness test measurements.
+4. View calculated fitness indicators.
+
+**Branches / Variations**
+- No evaluations shows empty state with create button.
+- Form validates required fields before submission.
+- API failure shows error message.
+
+### trainer-client-posturometry: Trainer Client Posturometry
+- Module: trainer
+- Priority: P2
+- Route: /trainer/clients/client/posturometry?id=X
+- Roles: trainer
+- Description: Create and view client posturometry evaluations with regional analysis.
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-client-posturometry.spec.ts)
+
+**Steps**
+1. Navigate to /trainer/clients/client/posturometry?id=X.
+2. View existing evaluation history.
+3. Create a new evaluation with postural observations per region.
+4. View regional scores and global assessment.
+
+**Branches / Variations**
+- No evaluations shows empty state with create button.
+- Form covers multiple body regions (head, shoulders, spine, pelvis, lower limbs).
+- API failure shows error message.
+
 ## Admin Flows
 - No admin-specific frontend flows mapped in the current codebase or E2E suite.
 
@@ -702,6 +1055,7 @@ These elements are present across multiple routes and affect the user experience
 | auth-logout | user | P2 | Covered | frontend/e2e/auth/logout.spec.ts |
 | auth-session-persistence | user | P2 | Covered | frontend/e2e/auth/auth-persistence.spec.ts |
 | auth-register | guest | P1 | Covered | frontend/e2e/public/register.spec.ts |
+| auth-protected-routes | guest | P2 | Covered | frontend/e2e/auth/auth-protected-routes.spec.ts |
 | booking-session-page | guest, user | P1 | Covered | frontend/e2e/app/book-session.spec.ts |
 | booking-session-flow | user | P1 | Covered | frontend/e2e/app/book-session-flow.spec.ts |
 | booking-complete-flow | user | P1 | Covered | frontend/e2e/app/booking-complete-flow.spec.ts |
@@ -711,6 +1065,7 @@ These elements are present across multiple routes and affect the user experience
 | booking-calendar-edge-cases | user | P3 | Covered | frontend/e2e/app/calendar-edge-cases.spec.ts |
 | booking-no-sessions | user | P2 | Covered | frontend/e2e/app/no-sessions-modal.spec.ts |
 | booking-session-detail | user | P2 | Covered | frontend/e2e/app/session-detail.spec.ts |
+| booking-cancel-flow | user | P1 | Covered | frontend/e2e/app/booking-cancel-flow.spec.ts |
 | app-coverage-gaps | user | P3 | Covered | frontend/e2e/app/coverage-gaps.spec.ts |
 | app-edge-case-branches | user | P3 | Covered | frontend/e2e/app/edge-case-branches.spec.ts |
 | app-store-error-paths | user | P3 | Covered | frontend/e2e/app/store-error-paths.spec.ts |
@@ -721,9 +1076,11 @@ These elements are present across multiple routes and affect the user experience
 | my-programs-detail | user | P2 | Covered | frontend/e2e/app/my-sessions-flow.spec.ts |
 | subscription-page | user | P1 | Covered | frontend/e2e/app/subscription.spec.ts |
 | subscription-expiry-reminder | user | P2 | Covered | frontend/e2e/app/subscription-expiry-reminder.spec.ts |
+| subscription-cancel-flow | user | P2 | Covered | frontend/e2e/app/subscription-cancel-flow.spec.ts |
 | checkout-flow | guest, user | P1 | Covered | frontend/e2e/public/checkout.spec.ts |
 | checkout-guest-redirect | guest | P2 | Covered | frontend/e2e/public/checkout-widget-errors.spec.ts |
 | checkout-coverage-gaps | guest, user | P3 | Covered | frontend/e2e/public/checkout-coverage-gaps.spec.ts |
+| checkout-payment-status-polling | user | P2 | Covered | frontend/e2e/public/checkout-payment-status-polling.spec.ts |
 | public-home | guest | P2 | Covered | frontend/e2e/public/home.spec.ts |
 | public-navbar | guest | P3 | Covered | frontend/e2e/public/navbar.spec.ts |
 | public-brand | guest | P3 | Covered | frontend/e2e/public/kore-brand.spec.ts |
@@ -732,3 +1089,20 @@ These elements are present across multiple routes and affect the user experience
 | public-faq | guest | P3 | Covered | frontend/e2e/public/faq.spec.ts |
 | public-faq-errors | guest | P3 | Covered | frontend/e2e/public/faq-error-states.spec.ts |
 | public-terms | guest | P3 | Covered | frontend/e2e/public/terms.spec.ts |
+| auth-forgot-password | guest | P1 | Covered | frontend/e2e/public/forgot-password.spec.ts |
+| profile-management | user | P1 | Covered | frontend/e2e/app/profile.spec.ts |
+| profile-password-change | user | P2 | Covered | frontend/e2e/app/profile-password-change.spec.ts |
+| customer-diagnosis | user | P2 | Covered | frontend/e2e/app/customer-diagnosis.spec.ts |
+| customer-nutrition | user | P2 | Covered | frontend/e2e/app/customer-nutrition.spec.ts |
+| customer-parq | user | P2 | Covered | frontend/e2e/app/customer-parq.spec.ts |
+| customer-physical-evaluation | user | P2 | Covered | frontend/e2e/app/customer-physical-evaluation.spec.ts |
+| customer-posturometry | user | P2 | Covered | frontend/e2e/app/customer-posturometry.spec.ts |
+| customer-pending-assessments | user | P3 | Covered | frontend/e2e/app/customer-pending-assessments.spec.ts |
+| trainer-dashboard | trainer | P1 | Covered | frontend/e2e/trainer/trainer-dashboard.spec.ts |
+| trainer-clients-list | trainer | P1 | Covered | frontend/e2e/trainer/trainer-clients.spec.ts |
+| trainer-client-detail | trainer | P1 | Covered | frontend/e2e/trainer/trainer-client-detail.spec.ts |
+| trainer-client-anthropometry | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-anthropometry.spec.ts |
+| trainer-client-nutrition | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-nutrition.spec.ts |
+| trainer-client-parq | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-parq.spec.ts |
+| trainer-client-physical-eval | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-physical-eval.spec.ts |
+| trainer-client-posturometry | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-posturometry.spec.ts |

@@ -1,4 +1,4 @@
-import { test, expect, loginAsTestUser } from '../fixtures';
+import { test, expect, mockLoginAsTestUser } from '../fixtures';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 test.describe('Sidebar — Navigation & Active States', { tag: [...FlowTags.APP_SIDEBAR_NAVIGATION, RoleTags.USER] }, () => {
@@ -7,7 +7,7 @@ test.describe('Sidebar — Navigation & Active States', { tag: [...FlowTags.APP_
   test('mobile sidebar opens with hamburger and closes with backdrop click', async ({ page }) => {
     // Set mobile viewport to test mobile-specific sidebar behavior (lines 77-85)
     await page.setViewportSize({ width: 375, height: 667 });
-    await loginAsTestUser(page);
+    await mockLoginAsTestUser(page);
 
     const sidebar = page.locator('aside');
 
@@ -35,7 +35,7 @@ test.describe('Sidebar — Navigation & Active States', { tag: [...FlowTags.APP_
   test('mobile sidebar closes with close button', async ({ page }) => {
     // Set mobile viewport
     await page.setViewportSize({ width: 375, height: 667 });
-    await loginAsTestUser(page);
+    await mockLoginAsTestUser(page);
 
     const sidebar = page.locator('aside');
 
@@ -44,14 +44,16 @@ test.describe('Sidebar — Navigation & Active States', { tag: [...FlowTags.APP_
     await expect(sidebar).toHaveClass(/translate-x-0/);
 
     // Click close button inside sidebar (exercises line 95)
-    await page.getByRole('button', { name: 'Cerrar menú' }).click();
+    const closeBtn = page.getByRole('button', { name: 'Cerrar menú' });
+    await expect(closeBtn).toBeVisible({ timeout: 5_000 });
+    await closeBtn.click();
 
     // Sidebar should be hidden
     await expect(sidebar).toHaveClass(/-translate-x-full/);
   });
 
   test('sidebar shows user info, logo, soporte, and active link highlighting', async ({ page }) => {
-    await loginAsTestUser(page);
+    await mockLoginAsTestUser(page);
     const sidebar = page.locator('aside');
 
     // User name and KÓRE logo

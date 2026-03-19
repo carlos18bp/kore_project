@@ -1,7 +1,7 @@
 """Model tests for CustomerProfile, MoodEntry, and WeightEntry."""
 
 import pytest
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from core_app.models import CustomerProfile, MoodEntry, User, WeightEntry
@@ -74,7 +74,9 @@ class TestMoodEntry:
         user = User.objects.create_user(email='u@example.com', password='p')
         MoodEntry.objects.create(user=user, score=9)
         with pytest.raises(IntegrityError):
-            MoodEntry.objects.create(user=user, score=3)
+            with transaction.atomic():
+                MoodEntry.objects.create(user=user, score=3)
+        assert MoodEntry.objects.filter(user=user).count() == 1
 
 
 @pytest.mark.django_db
@@ -93,7 +95,9 @@ class TestWeightEntry:
         user = User.objects.create_user(email='u@example.com', password='p')
         WeightEntry.objects.create(user=user, weight_kg=72)
         with pytest.raises(IntegrityError):
-            WeightEntry.objects.create(user=user, weight_kg=73)
+            with transaction.atomic():
+                WeightEntry.objects.create(user=user, weight_kg=73)
+        assert WeightEntry.objects.filter(user=user).count() == 1
 
     def test_weight_entry_created_without_error(self):
         """Creating a WeightEntry succeeds without syncing to profile."""

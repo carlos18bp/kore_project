@@ -1,4 +1,4 @@
-import { test, expect, loginAsTestUser, setupDefaultApiMocks } from '../fixtures';
+import { test, expect, injectAuthCookies } from '../fixtures';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
@@ -10,7 +10,6 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
   test.describe.configure({ mode: 'serial' });
 
   test.beforeEach(async ({ page }) => {
-    await setupDefaultApiMocks(page);
     await expect(page).toHaveURL('about:blank');
   });
 
@@ -96,8 +95,8 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
   }
 
   test('no active subscription shows empty state with link to programas', async ({ page }) => {
+    await injectAuthCookies(page);
     await setupSubscriptionMock(page, null);
-    await loginAsTestUser(page);
     await page.goto('/subscription');
 
     await expect(page.getByText('Sin suscripción activa')).toBeVisible({ timeout: 10_000 });
@@ -105,8 +104,8 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
   });
 
   test('active subscription renders details card', async ({ page }) => {
+    await injectAuthCookies(page);
     await setupSubscriptionMock(page, mockSubscription);
-    await loginAsTestUser(page);
     await page.goto('/subscription');
 
     const main = page.getByRole('main');
@@ -120,8 +119,8 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
   });
 
   test('active subscription does not show paused actions', async ({ page }) => {
+    await injectAuthCookies(page);
     await setupSubscriptionMock(page, mockSubscription);
-    await loginAsTestUser(page);
     await page.goto('/subscription');
 
     await expect(page.getByText('Pausada', { exact: true })).not.toBeVisible();
@@ -130,8 +129,8 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
   });
 
   test('active subscription renders payment history', async ({ page }) => {
+    await injectAuthCookies(page);
     await setupSubscriptionMock(page, mockSubscription, mockPayments);
-    await loginAsTestUser(page);
     await page.goto('/subscription');
 
     await expect(page.getByText('Historial de pagos')).toBeVisible({ timeout: 10_000 });
@@ -148,38 +147,39 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
       sessions_remaining: 0,
       next_billing_date: null,
     };
+    await injectAuthCookies(page);
     await setupSubscriptionMock(page, expiredSub);
-    await loginAsTestUser(page);
     await page.goto('/subscription');
 
     const detailsCard = page.getByRole('main').getByText('Detalles').locator('..').locator('..');
     await expect(detailsCard.getByText('Expirada', { exact: true })).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('Esta suscripción está inactiva, por lo que no requiere acciones.')).toBeVisible();
+    await expect(page.getByText('Renovar este programa')).toBeVisible();
+    await expect(page.getByText('página de programas')).toBeVisible();
   });
 
-  test('active subscription renders cancel action as disabled', async ({ page }) => {
+  test('active subscription renders cancel action as enabled', async ({ page }) => {
+    await injectAuthCookies(page);
     await setupSubscriptionMock(page, mockSubscription);
-    await loginAsTestUser(page);
     await page.goto('/subscription');
 
     const cancelButton = page.getByRole('button', { name: 'Cancelar suscripción' });
     await expect(cancelButton).toBeVisible({ timeout: 10_000 });
-    await expect(cancelButton).toBeDisabled();
+    await expect(cancelButton).toBeEnabled();
   });
 
-  test('disabled cancel action keeps confirmation dialog hidden', async ({ page }) => {
+  test('cancel action keeps confirmation dialog hidden until clicked', async ({ page }) => {
+    await injectAuthCookies(page);
     await setupSubscriptionMock(page, mockSubscription);
-    await loginAsTestUser(page);
     await page.goto('/subscription');
 
     const cancelButton = page.getByRole('button', { name: 'Cancelar suscripción' });
-    await expect(cancelButton).toBeDisabled({ timeout: 10_000 });
+    await expect(cancelButton).toBeEnabled({ timeout: 10_000 });
     await expect(page.getByText('¿Seguro que deseas cancelar?')).not.toBeVisible();
   });
 
   test('empty payment history shows placeholder', async ({ page }) => {
+    await injectAuthCookies(page);
     await setupSubscriptionMock(page, mockSubscription, []);
-    await loginAsTestUser(page);
     await page.goto('/subscription');
 
     await expect(page.getByText('Historial de pagos')).toBeVisible({ timeout: 10_000 });
@@ -187,6 +187,7 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
   });
 
   test('disabled cancel action does not surface cancellation error', async ({ page }) => {
+    await injectAuthCookies(page);
     await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
     });
@@ -209,15 +210,15 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
       });
     });
 
-    await loginAsTestUser(page);
     await page.goto('/subscription');
 
     const cancelButton = page.getByRole('button', { name: 'Cancelar suscripción' });
-    await expect(cancelButton).toBeDisabled({ timeout: 10_000 });
+    await expect(cancelButton).toBeEnabled({ timeout: 10_000 });
     await expect(page.getByText('No se pudo cancelar la suscripción.')).not.toBeVisible();
   });
 
   test('fetchPaymentHistory error shows error message', async ({ page }) => {
+    await injectAuthCookies(page);
     await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
     });
@@ -237,7 +238,6 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
       });
     });
 
-    await loginAsTestUser(page);
     await page.goto('/subscription');
 
     await expect(page.getByText('No se pudo cargar el historial de pagos.')).toBeVisible({ timeout: 10_000 });
@@ -256,6 +256,7 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
       next_billing_date: null,
     };
 
+    await injectAuthCookies(page);
     await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
     });
@@ -274,7 +275,6 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
       });
     });
 
-    await loginAsTestUser(page);
     await page.goto('/subscription');
 
     const main = page.getByRole('main');

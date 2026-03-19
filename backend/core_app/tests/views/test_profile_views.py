@@ -7,7 +7,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image as PILImage
 from rest_framework.test import APIClient
 
-from core_app.models import CustomerProfile, MoodEntry, User, WeightEntry
+from core_app.models import MoodEntry, User, WeightEntry
 
 
 def _auth_client(user):
@@ -73,6 +73,7 @@ class TestGetProfile:
 class TestUpdateProfile:
 
     def test_update_user_and_profile_fields(self, customer):
+        """PATCH profile with user and customer_profile fields updates both models and sets profile_completed."""
         client = _auth_client(customer)
         resp = client.patch('/api/auth/profile/', {
             'first_name': 'Nuevo',
