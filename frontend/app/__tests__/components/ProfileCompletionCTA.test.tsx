@@ -181,6 +181,18 @@ describe('ProfileCompletionCTA', () => {
     expect(screen.queryByText('Queremos conocerte mejor')).not.toBeInTheDocument();
   });
 
+  it('hides modal when pathname changes to /profile', () => {
+    setupStores();
+    const { rerender } = render(<ProfileCompletionCTA />);
+
+    expect(screen.getByText('Queremos conocerte mejor')).toBeInTheDocument();
+
+    mockPathname = '/profile';
+    rerender(<ProfileCompletionCTA />);
+
+    expect(screen.queryByText('Queremos conocerte mejor')).not.toBeInTheDocument();
+  });
+
   it('calls fetchProfile on mount', () => {
     const { mockFetchProfile } = setupStores();
     render(<ProfileCompletionCTA />);

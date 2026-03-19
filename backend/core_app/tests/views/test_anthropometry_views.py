@@ -280,3 +280,99 @@ class TestClientAnthropometryViews:
         response = api_client.get(reverse('client-anthropometry-list'))
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+class TestAnthropometrySerializerTrainerName:
+    """Cover get_trainer_name returning empty string when trainer is None."""
+
+    def test_trainer_name_empty_when_no_trainer(self, db):
+        from core_app.views.anthropometry_views import AnthropometrySerializer
+        customer = User.objects.create_user(
+            email='anthro-ser@test.com', password='p', role=User.Role.CUSTOMER,
+        )
+        cp = customer.customer_profile
+        cp.sex = 'masculino'
+        cp.date_of_birth = date(1990, 1, 1)
+        cp.save()
+        ev = AnthropometryEvaluation.objects.create(
+            customer=customer, trainer=None, weight_kg=70, height_cm=170,
+        )
+        serializer = AnthropometrySerializer(ev)
+        assert serializer.data['trainer_name'] == ''
+
+
+@pytest.mark.django_db
+class TestAnthropometryNoTrainerProfilePost:
+    """Cover POST no-trainer-profile branch."""
+
+    def test_post_returns_404_when_no_trainer_profile(self, api_client, db):
+        user = User.objects.create_user(
+            email='no-tp-anthro-post@test.com', password='pass', role=User.Role.TRAINER,
+        )
+        api_client.force_authenticate(user=user)
+        url = reverse('trainer-anthropometry-list-create', args=[1])
+        response = api_client.post(url, {'weight_kg': 80, 'height_cm': 180}, format='json')
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+class TestAnthropometryCustomerDoesNotExist:
+    """Cover User.DoesNotExist branch when user exists but has non-customer role."""
+
+    def test_post_returns_404_when_user_not_customer_role(self, api_client, trainer, package):
+        non_customer = User.objects.create_user(
+            email='anthro-noncust@test.com', password='pass', role=User.Role.TRAINER,
+        )
+        future = FIXED_NOW + timedelta(days=3)
+        slot = AvailabilitySlot.objects.create(
+            starts_at=future, ends_at=future + timedelta(hours=1),
+            is_active=True, is_blocked=True,
+        )
+        Booking.objects.create(
+            customer=non_customer, trainer=trainer,
+            package=package, slot=slot, status=Booking.Status.CONFIRMED,
+        )
+        api_client.force_authenticate(user=trainer.user)
+        url = reverse('trainer-anthropometry-list-create', args=[non_customer.id])
+        response = api_client.post(url, {'weight_kg': 80, 'height_cm': 180}, format='json')
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+class TestAnthropometryDetailEdgeCases:
+    """Cover PUT/PATCH/DELETE error returns and _apply_update edge cases."""
+
+    def test_put_returns_404_for_nonexistent_eval(self, api_client, trainer, customer_with_profile):
+        api_client.force_authenticate(user=trainer.user)
+        url = reverse('trainer-anthropometry-detail', args=[customer_with_profile.id, 99999])
+        response = api_client.put(url, {'weight_kg': 80}, format='json')
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_patch_returns_404_for_nonexistent_eval(self, api_client, trainer, customer_with_profile):
+        api_client.force_authenticate(user=trainer.user)
+        url = reverse('trainer-anthropometry-detail', args=[customer_with_profile.id, 99999])
+        response = api_client.patch(url, {'notes': 'x'}, format='json')
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_delete_returns_404_for_nonexistent_eval(self, api_client, trainer, customer_with_profile):
+        api_client.force_authenticate(user=trainer.user)
+        url = reverse('trainer-anthropometry-detail', args=[customer_with_profile.id, 99999])
+        response = api_client.delete(url)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_patch_evaluation_date(self, api_client, trainer, customer_with_profile, evaluation):
+        """PATCH updates evaluation_date field."""
+        api_client.force_authenticate(user=trainer.user)
+        url = reverse('trainer-anthropometry-detail', args=[customer_with_profile.id, evaluation.id])
+        response = api_client.patch(url, {'evaluation_date': '2026-06-15'}, format='json')
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['evaluation_date'] == '2026-06-15'
+
+    def test_patch_json_field_non_dict_sets_empty(self, api_client, trainer, customer_with_profile, evaluation):
+        """PATCH with non-dict JSON field sets empty dict."""
+        api_client.force_authenticate(user=trainer.user)
+        url = reverse('trainer-anthropometry-detail', args=[customer_with_profile.id, evaluation.id])
+        response = api_client.patch(url, {'perimeters': 'not-a-dict'}, format='json')
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['perimeters'] == {}

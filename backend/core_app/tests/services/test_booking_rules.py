@@ -151,3 +151,62 @@ def test_build_trainer_buffer_slot_conflict_q_excludes_conflicting_slots_only():
     assert conflict_slot.id not in available_ids
     assert boundary_slot.id in available_ids
     assert other_trainer_slot.id in available_ids
+
+
+@pytest.mark.django_db
+def test_resolve_effective_trainer_id_falls_back_to_trainer_arg():
+    """When slot has no trainer, falls back to explicit trainer argument."""
+    trainer = _make_trainer('fallback-only@example.com')
+    slot = AvailabilitySlot.objects.create(
+        starts_at=FIXED_NOW + timedelta(hours=1),
+        ends_at=FIXED_NOW + timedelta(hours=2),
+        trainer=None,
+    )
+    assert resolve_effective_trainer_id(slot, trainer=trainer) == trainer.pk
+
+
+@pytest.mark.django_db
+def test_resolve_effective_trainer_id_returns_none_when_both_missing():
+    """Returns None when neither slot nor explicit trainer is provided."""
+    slot = AvailabilitySlot.objects.create(
+        starts_at=FIXED_NOW + timedelta(hours=1),
+        ends_at=FIXED_NOW + timedelta(hours=2),
+        trainer=None,
+    )
+    assert resolve_effective_trainer_id(slot) is None
+
+
+@pytest.mark.django_db
+def test_has_conflict_returns_false_when_no_trainer_id():
+    """Returns False when no trainer can be resolved for the slot."""
+    slot = AvailabilitySlot.objects.create(
+        starts_at=FIXED_NOW + timedelta(hours=1),
+        ends_at=FIXED_NOW + timedelta(hours=2),
+        trainer=None,
+    )
+    assert has_trainer_travel_buffer_conflict(slot) is False
+
+
+@pytest.mark.django_db
+def test_build_conflict_q_skips_booking_without_trainer():
+    """Bookings with no trainer on slot or booking are skipped."""
+    customer = _make_customer('skip-cust@example.com')
+    package = Package.objects.create(title='Skip Package')
+
+    slot_no_trainer = AvailabilitySlot.objects.create(
+        starts_at=FIXED_NOW + timedelta(hours=2),
+        ends_at=FIXED_NOW + timedelta(hours=3),
+        trainer=None,
+    )
+    Booking.objects.create(
+        customer=customer,
+        package=package,
+        slot=slot_no_trainer,
+        trainer=None,
+        status=Booking.Status.CONFIRMED,
+    )
+
+    conflict_q = build_trainer_buffer_slot_conflict_q(
+        Booking.objects.filter(slot=slot_no_trainer).select_related('slot'),
+    )
+    assert not conflict_q

@@ -208,6 +208,68 @@ describe('SubscriptionDashboardToast', () => {
     expect(screen.queryByText(/tu suscripción/i)).not.toBeInTheDocument();
   });
 
+  it('renders expiry toast with /programs link when no package id', () => {
+    mockStore({
+      activeSubscription: {
+        status: 'active',
+        billing_failed_at: null,
+        is_recurring: false,
+        expires_at: futureDays(3),
+        package: null,
+      },
+    });
+    render(<SubscriptionDashboardToast />);
+
+    expect(screen.getByText('Renovar ahora')).toHaveAttribute('href', '/programs');
+  });
+
+  it('dismisses billing failed toast via close icon button', () => {
+    mockStore({
+      activeSubscription: {
+        status: 'active',
+        billing_failed_at: '2024-01-01T00:00:00Z',
+        is_recurring: true,
+        package: { id: 1 },
+      },
+    });
+    render(<SubscriptionDashboardToast />);
+
+    expect(screen.getByText('No pudimos procesar tu pago')).toBeInTheDocument();
+
+    const closeButtons = screen.getAllByRole('button');
+    const closeIconBtn = closeButtons.find(
+      (btn) => btn.textContent === '' || !btn.textContent?.includes('Más tarde'),
+    );
+    expect(closeIconBtn).toBeTruthy();
+    fireEvent.click(closeIconBtn!);
+
+    expect(screen.queryByText('No pudimos procesar tu pago')).not.toBeInTheDocument();
+  });
+
+  it('dismisses expiry toast via close icon button', () => {
+    mockStore({
+      activeSubscription: {
+        status: 'active',
+        billing_failed_at: null,
+        is_recurring: false,
+        expires_at: futureDays(5),
+        package: { id: 2 },
+      },
+    });
+    render(<SubscriptionDashboardToast />);
+
+    expect(screen.getByText(/tu suscripción/i)).toBeInTheDocument();
+
+    const closeButtons = screen.getAllByRole('button');
+    const closeIconBtn = closeButtons.find(
+      (btn) => btn.textContent === '' || !btn.textContent?.includes('Más tarde'),
+    );
+    expect(closeIconBtn).toBeTruthy();
+    fireEvent.click(closeIconBtn!);
+
+    expect(screen.queryByText(/tu suscripción/i)).not.toBeInTheDocument();
+  });
+
   it('calls fetchSubscriptions on mount', () => {
     const mockFetch = jest.fn();
     mockedUseSubscriptionStore.mockReturnValue({

@@ -225,6 +225,125 @@ describe('anthropometryStore', () => {
     });
   });
 
+  describe('authHeaders branch - no token', () => {
+    it('sends empty headers when no token cookie exists', async () => {
+      (Cookies.get as jest.Mock).mockReturnValue(undefined);
+      mockedApi.get.mockResolvedValueOnce({ data: [] });
+      await useAnthropometryStore.getState().fetchEvaluations(10);
+      expect(mockedApi.get).toHaveBeenCalledWith('/trainer/my-clients/10/anthropometry/', {
+        headers: {},
+      });
+    });
+  });
+
+  describe('createEvaluation branch coverage', () => {
+    it('falls back waist_cm from perimeters.cintura when top-level waist_cm is empty', async () => {
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_EVALUATION });
+      const form = { ...MOCK_FORM_DATA, waist_cm: '', hip_cm: '', perimeters: { cintura: '85', gluteos: '100' }, skinfolds: {} };
+      await useAnthropometryStore.getState().createEvaluation(10, form);
+      expect(mockedApi.post).toHaveBeenCalledWith(
+        '/trainer/my-clients/10/anthropometry/',
+        expect.objectContaining({ waist_cm: 85, hip_cm: 100 }),
+        expect.anything(),
+      );
+    });
+
+    it('omits waist_cm and hip_cm when both are zero or empty', async () => {
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_EVALUATION });
+      const form = { ...MOCK_FORM_DATA, waist_cm: '', hip_cm: '', perimeters: {}, skinfolds: {} };
+      await useAnthropometryStore.getState().createEvaluation(10, form);
+      const payload = mockedApi.post.mock.calls[0][1] as Record<string, unknown>;
+      expect(payload).not.toHaveProperty('waist_cm');
+      expect(payload).not.toHaveProperty('hip_cm');
+    });
+
+    it('sends evaluation_date as undefined when empty', async () => {
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_EVALUATION });
+      const form = { ...MOCK_FORM_DATA, evaluation_date: '' };
+      await useAnthropometryStore.getState().createEvaluation(10, form);
+      const payload = mockedApi.post.mock.calls[0][1] as Record<string, unknown>;
+      expect(payload.evaluation_date).toBeUndefined();
+    });
+
+    it('uses empty fallback when perimeters, skinfolds, and notes are undefined', async () => {
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_EVALUATION });
+      const form = {
+        evaluation_date: '2025-01-15',
+        weight_kg: '75.0',
+        height_cm: '175.0',
+        waist_cm: '80.0',
+        hip_cm: '95.0',
+        perimeters: undefined as unknown as Record<string, string>,
+        skinfolds: undefined as unknown as Record<string, string>,
+        notes: undefined as unknown as string,
+      };
+      await useAnthropometryStore.getState().createEvaluation(10, form);
+      const payload = mockedApi.post.mock.calls[0][1] as Record<string, unknown>;
+      expect(payload.notes).toBe('');
+      expect(payload.perimeters).toEqual({});
+      expect(payload.skinfolds).toEqual({});
+    });
+  });
+
+  describe('fullUpdateEvaluation branch coverage', () => {
+    it('falls back waist/hip from perimeters when top-level empty', async () => {
+      useAnthropometryStore.setState({ evaluations: [MOCK_EVALUATION] });
+      mockedApi.put.mockResolvedValueOnce({ data: MOCK_EVALUATION });
+      const form = { ...MOCK_FORM_DATA, waist_cm: '', hip_cm: '', perimeters: { cintura: '85', gluteos: '100' }, skinfolds: {} };
+      await useAnthropometryStore.getState().fullUpdateEvaluation(10, 1, form);
+      expect(mockedApi.put).toHaveBeenCalledWith(
+        '/trainer/my-clients/10/anthropometry/1/',
+        expect.objectContaining({ waist_cm: 85, hip_cm: 100 }),
+        expect.anything(),
+      );
+    });
+
+    it('omits waist/hip when all sources are empty', async () => {
+      useAnthropometryStore.setState({ evaluations: [MOCK_EVALUATION] });
+      mockedApi.put.mockResolvedValueOnce({ data: MOCK_EVALUATION });
+      const form = { ...MOCK_FORM_DATA, waist_cm: '', hip_cm: '', perimeters: {}, skinfolds: {} };
+      await useAnthropometryStore.getState().fullUpdateEvaluation(10, 1, form);
+      const payload = mockedApi.put.mock.calls[0][1] as Record<string, unknown>;
+      expect(payload).not.toHaveProperty('waist_cm');
+      expect(payload).not.toHaveProperty('hip_cm');
+    });
+
+    it('uses empty fallback when perimeters, skinfolds, and notes are undefined in fullUpdate', async () => {
+      useAnthropometryStore.setState({ evaluations: [MOCK_EVALUATION] });
+      mockedApi.put.mockResolvedValueOnce({ data: MOCK_EVALUATION });
+      const form = {
+        evaluation_date: '2025-01-15',
+        weight_kg: '75.0',
+        height_cm: '175.0',
+        waist_cm: '80.0',
+        hip_cm: '95.0',
+        perimeters: undefined as unknown as Record<string, string>,
+        skinfolds: undefined as unknown as Record<string, string>,
+        notes: undefined as unknown as string,
+      };
+      await useAnthropometryStore.getState().fullUpdateEvaluation(10, 1, form);
+      const payload = mockedApi.put.mock.calls[0][1] as Record<string, unknown>;
+      expect(payload.notes).toBe('');
+      expect(payload.perimeters).toEqual({});
+      expect(payload.skinfolds).toEqual({});
+    });
+
+    it('skips empty skinfold and perimeter values in fullUpdate', async () => {
+      useAnthropometryStore.setState({ evaluations: [MOCK_EVALUATION] });
+      mockedApi.put.mockResolvedValueOnce({ data: MOCK_EVALUATION });
+      const form = { ...MOCK_FORM_DATA, perimeters: { cintura: '', brazo: '30' }, skinfolds: { triceps: '', biceps: '8' } };
+      await useAnthropometryStore.getState().fullUpdateEvaluation(10, 1, form);
+      expect(mockedApi.put).toHaveBeenCalledWith(
+        '/trainer/my-clients/10/anthropometry/1/',
+        expect.objectContaining({
+          perimeters: { brazo: 30 },
+          skinfolds: { biceps: 8 },
+        }),
+        expect.anything(),
+      );
+    });
+  });
+
   describe('fetchMyEvaluations', () => {
     it('populates evaluations from customer endpoint', async () => {
       mockedApi.get.mockResolvedValueOnce({ data: [MOCK_EVALUATION] });

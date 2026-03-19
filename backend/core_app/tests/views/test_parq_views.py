@@ -173,3 +173,44 @@ class TestTrainerParqViews:
 
         resp = client.get(f'/api/trainer/my-clients/{customer.id}/parq/')
         assert resp.status_code == 404
+
+    def test_trainer_list_no_trainer_profile_returns_404(self):
+        """Trainer user without TrainerProfile gets 404 on list endpoint."""
+        customer = User.objects.create_user(email='parq_ntp@test.com', password='pass', role='customer')
+        trainer_user = User.objects.create_user(email='parq_ntp2@test.com', password='pass', role='trainer')
+        client = APIClient()
+        _auth(client, trainer_user)
+
+        resp = client.get(f'/api/trainer/my-clients/{customer.id}/parq/')
+        assert resp.status_code == 404
+        assert resp.data['detail'] == 'No trainer profile.'
+
+    def test_trainer_detail_no_trainer_profile_returns_404(self):
+        """Trainer user without TrainerProfile gets 404 on detail endpoint."""
+        trainer_user = User.objects.create_user(email='parq_ntp3@test.com', password='pass', role='trainer')
+        client = APIClient()
+        _auth(client, trainer_user)
+
+        resp = client.get('/api/trainer/my-clients/1/parq/1/')
+        assert resp.status_code == 404
+        assert resp.data['detail'] == 'No trainer profile.'
+
+    def test_trainer_detail_no_booking_returns_404(self):
+        """Trainer with profile but no booking for customer gets 404 on detail."""
+        customer = User.objects.create_user(email='parq_dnb@test.com', password='pass', role='customer')
+        trainer_user = User.objects.create_user(email='parq_dnb2@test.com', password='pass', role='trainer')
+        TrainerProfile.objects.create(user=trainer_user, specialty='S', location='L')
+        client = APIClient()
+        _auth(client, trainer_user)
+
+        resp = client.get(f'/api/trainer/my-clients/{customer.id}/parq/999/')
+        assert resp.status_code == 404
+
+    def test_trainer_detail_entry_not_found(self):
+        """Trainer gets 404 when parq entry does not exist."""
+        customer, trainer_user, entry = self._setup()
+        client = APIClient()
+        _auth(client, trainer_user)
+
+        resp = client.get(f'/api/trainer/my-clients/{customer.id}/parq/99999/')
+        assert resp.status_code == 404

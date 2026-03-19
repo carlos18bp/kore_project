@@ -203,6 +203,31 @@ describe('physicalEvaluationStore', () => {
     });
   });
 
+  describe('authHeaders branch - no token', () => {
+    it('sends empty headers when no token cookie exists', async () => {
+      (Cookies.get as jest.Mock).mockReturnValue(undefined);
+      mockedApi.get.mockResolvedValueOnce({ data: [] });
+      await usePhysicalEvaluationStore.getState().fetchEvaluations(10);
+      expect(mockedApi.get).toHaveBeenCalledWith('/trainer/my-clients/10/physical-evaluation/', {
+        headers: {},
+      });
+    });
+  });
+
+  describe('updateEvaluation - map branch for non-matching id', () => {
+    it('preserves other evaluations when updating by id', async () => {
+      const other = { ...MOCK_EVALUATION, id: 99, notes: 'other' };
+      usePhysicalEvaluationStore.setState({ evaluations: [MOCK_EVALUATION, other] });
+      const updated = { ...MOCK_EVALUATION, notes: 'Changed' };
+      mockedApi.patch.mockResolvedValueOnce({ data: updated });
+      await usePhysicalEvaluationStore.getState().updateEvaluation(10, 1, { notes: 'Changed' });
+      const state = usePhysicalEvaluationStore.getState();
+      expect(state.evaluations).toHaveLength(2);
+      expect(state.evaluations[0].notes).toBe('Changed');
+      expect(state.evaluations[1].notes).toBe('other');
+    });
+  });
+
   describe('fetchMyEvaluations', () => {
     it('populates evaluations from customer endpoint', async () => {
       mockedApi.get.mockResolvedValueOnce({ data: [MOCK_EVALUATION] });

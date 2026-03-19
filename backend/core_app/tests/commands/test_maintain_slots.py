@@ -144,3 +144,25 @@ class TestCombinedExecution:
         assert AvailabilitySlot.objects.filter(
             trainer=trainer, ends_at__gt=FIXED_NOW,
         ).count() > 0
+
+
+@pytest.mark.django_db
+class TestMaintainSlotsTimezoneAndEmailFilter:
+    """Cover timezone argument parsing and _resolve_trainers email filter."""
+
+    def test_fill_with_explicit_timezone(self, trainer):
+        """Fill phase works with an explicit timezone argument."""
+        call_command('maintain_slots', fill_only=True, days=2, timezone='America/Bogota')
+        assert AvailabilitySlot.objects.filter(trainer=trainer).count() > 0
+
+    def test_resolve_trainers_with_valid_email(self, trainer):
+        """Fill phase filters by trainer email when provided."""
+        call_command('maintain_slots', fill_only=True, days=2, trainer_email=trainer.user.email)
+        assert AvailabilitySlot.objects.filter(trainer=trainer).count() > 0
+
+    def test_resolve_trainers_with_invalid_email_raises_error(self, trainer):
+        """Fill phase raises CommandError for non-existent trainer email."""
+        from django.core.management.base import CommandError
+        with pytest.raises(CommandError, match='No TrainerProfile found') as exc_info:
+            call_command('maintain_slots', fill_only=True, days=2, trainer_email='nobody@test.com')
+        assert 'nobody@test.com' in str(exc_info.value)

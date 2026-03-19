@@ -240,6 +240,29 @@ describe('useScrollAnimations', () => {
       Object.defineProperty(window, 'innerWidth', { writable: true, value: originalInnerWidth });
     });
 
+    it('skips missing hero elements on mobile path', () => {
+      const originalInnerWidth = window.innerWidth;
+      Object.defineProperty(window, 'innerWidth', { writable: true, value: 500 });
+
+      const container = document.createElement('div');
+
+      const ref = { current: container };
+
+      let contextCallback: (() => void) | null = null;
+      (gsap.context as jest.Mock).mockImplementationOnce((cb: () => void) => {
+        contextCallback = cb;
+        return { revert: jest.fn() };
+      });
+
+      renderHook(() => useHeroAnimation(ref));
+      contextCallback!();
+
+      const timeline = (gsap.timeline as jest.Mock).mock.results[0].value;
+      expect(timeline.from).not.toHaveBeenCalled();
+
+      Object.defineProperty(window, 'innerWidth', { writable: true, value: originalInnerWidth });
+    });
+
     it('omits position offset when heading renders without badge', () => {
       const container = document.createElement('div');
       const heading = document.createElement('div');

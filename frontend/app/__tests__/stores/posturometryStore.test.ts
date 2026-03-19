@@ -222,6 +222,101 @@ describe('posturometryStore', () => {
     });
   });
 
+  describe('authHeaders branch - no token', () => {
+    it('sends empty headers when no token cookie exists', async () => {
+      (Cookies.get as jest.Mock).mockReturnValue(undefined);
+      mockedApi.get.mockResolvedValueOnce({ data: [] });
+      await usePosturometryStore.getState().fetchEvaluations(10);
+      expect(mockedApi.get).toHaveBeenCalledWith('/trainer/my-clients/10/posturometry/', {
+        headers: {},
+      });
+    });
+  });
+
+  describe('createEvaluation - photo append branches', () => {
+    it('appends photo files to FormData when provided', async () => {
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_EVALUATION });
+      const fakeFile = new File(['img'], 'photo.jpg', { type: 'image/jpeg' });
+      const formWithPhotos = {
+        ...MOCK_FORM_DATA,
+        anterior_photo: fakeFile,
+        lateral_right_photo: fakeFile,
+        lateral_left_photo: fakeFile,
+        posterior_photo: fakeFile,
+      };
+      await usePosturometryStore.getState().createEvaluation(10, formWithPhotos);
+      const fd = mockedApi.post.mock.calls[0][1] as FormData;
+      expect(fd.get('anterior_photo')).toBeTruthy();
+      expect(fd.get('lateral_right_photo')).toBeTruthy();
+      expect(fd.get('lateral_left_photo')).toBeTruthy();
+      expect(fd.get('posterior_photo')).toBeTruthy();
+    });
+
+    it('skips evaluation_date in FormData when empty', async () => {
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_EVALUATION });
+      const formNoDate = { ...MOCK_FORM_DATA, evaluation_date: '' };
+      await usePosturometryStore.getState().createEvaluation(10, formNoDate);
+      const fd = mockedApi.post.mock.calls[0][1] as FormData;
+      expect(fd.get('evaluation_date')).toBeNull();
+    });
+  });
+
+  describe('fullUpdateEvaluation - photo append branches', () => {
+    it('appends photo files to FormData when provided', async () => {
+      usePosturometryStore.setState({ evaluations: [MOCK_EVALUATION] });
+      mockedApi.put.mockResolvedValueOnce({ data: MOCK_EVALUATION });
+      const fakeFile = new File(['img'], 'photo.jpg', { type: 'image/jpeg' });
+      const formWithPhotos = {
+        ...MOCK_FORM_DATA,
+        anterior_photo: fakeFile,
+        lateral_right_photo: fakeFile,
+        lateral_left_photo: fakeFile,
+        posterior_photo: fakeFile,
+      };
+      await usePosturometryStore.getState().fullUpdateEvaluation(10, 1, formWithPhotos);
+      const fd = mockedApi.put.mock.calls[0][1] as FormData;
+      expect(fd.get('anterior_photo')).toBeTruthy();
+      expect(fd.get('lateral_right_photo')).toBeTruthy();
+      expect(fd.get('lateral_left_photo')).toBeTruthy();
+      expect(fd.get('posterior_photo')).toBeTruthy();
+    });
+
+    it('skips evaluation_date in fullUpdate FormData when empty', async () => {
+      usePosturometryStore.setState({ evaluations: [MOCK_EVALUATION] });
+      mockedApi.put.mockResolvedValueOnce({ data: MOCK_EVALUATION });
+      const formNoDate = { ...MOCK_FORM_DATA, evaluation_date: '' };
+      await usePosturometryStore.getState().fullUpdateEvaluation(10, 1, formNoDate);
+      const fd = mockedApi.put.mock.calls[0][1] as FormData;
+      expect(fd.get('evaluation_date')).toBeNull();
+    });
+
+    it('preserves non-matching evaluations in map callback', async () => {
+      const other = { ...MOCK_EVALUATION, id: 99 };
+      usePosturometryStore.setState({ evaluations: [MOCK_EVALUATION, other] });
+      const updated = { ...MOCK_EVALUATION, global_index: '95.0' };
+      mockedApi.put.mockResolvedValueOnce({ data: updated });
+      await usePosturometryStore.getState().fullUpdateEvaluation(10, 1, MOCK_FORM_DATA);
+      const state = usePosturometryStore.getState();
+      expect(state.evaluations).toHaveLength(2);
+      expect(state.evaluations[0].global_index).toBe('95.0');
+      expect(state.evaluations[1].id).toBe(99);
+    });
+  });
+
+  describe('updateEvaluation - map branch for non-matching id', () => {
+    it('preserves other evaluations when updating by id', async () => {
+      const other = { ...MOCK_EVALUATION, id: 99 };
+      usePosturometryStore.setState({ evaluations: [MOCK_EVALUATION, other] });
+      const updated = { ...MOCK_EVALUATION, notes: 'Changed' };
+      mockedApi.patch.mockResolvedValueOnce({ data: updated });
+      await usePosturometryStore.getState().updateEvaluation(10, 1, { notes: 'Changed' });
+      const state = usePosturometryStore.getState();
+      expect(state.evaluations).toHaveLength(2);
+      expect(state.evaluations[0].notes).toBe('Changed');
+      expect(state.evaluations[1].id).toBe(99);
+    });
+  });
+
   describe('fetchMyEvaluations', () => {
     it('populates evaluations from customer endpoint', async () => {
       mockedApi.get.mockResolvedValueOnce({ data: [MOCK_EVALUATION] });

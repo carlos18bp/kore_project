@@ -236,6 +236,12 @@ describe('bookingStore', () => {
       expect(mockedApi.get).not.toHaveBeenCalled();
     });
 
+    it('sets dayBookedSlots to empty array for non-array response', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: {} });
+      await useBookingStore.getState().fetchTrainerDayBookings('2025-03-01', 1);
+      expect(useBookingStore.getState().dayBookedSlots).toEqual([]);
+    });
+
     it('sets error on failure and clears dayBookedSlots', async () => {
       useBookingStore.setState({ dayBookedSlots: [MOCK_OCCUPIED_DAY_SLOT] });
       mockedApi.get.mockRejectedValueOnce(new Error('err'));

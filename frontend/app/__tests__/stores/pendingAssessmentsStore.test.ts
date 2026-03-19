@@ -139,6 +139,17 @@ describe('pendingAssessmentsStore', () => {
     });
   });
 
+  describe('authHeaders branch - no token', () => {
+    it('sends empty headers when no token cookie exists', async () => {
+      (Cookies.get as jest.Mock).mockReturnValue(undefined);
+      mockedApi.get.mockResolvedValueOnce({ data: MOCK_PENDING_RESPONSE });
+      await usePendingAssessmentsStore.getState().fetchPending();
+      expect(mockedApi.get).toHaveBeenCalledWith('/my-pending-assessments/', {
+        headers: {},
+      });
+    });
+  });
+
   describe('markSeen', () => {
     it('marks anthropometry as seen and sets localStorage', () => {
       usePendingAssessmentsStore.setState({ anthropometryUnseen: true });

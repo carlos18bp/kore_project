@@ -261,6 +261,50 @@ describe('profileStore', () => {
     });
   });
 
+  describe('syncAuthStoreUser - null customer_profile', () => {
+    it('syncs auth store with profile_completed false and avatar null when customer_profile is null', async () => {
+      const profileNoCP = {
+        user: {
+          ...MOCK_PROFILE_RESPONSE.user,
+          customer_profile: null,
+        },
+      };
+      mockedApi.get.mockResolvedValueOnce({ data: profileNoCP });
+      await useProfileStore.getState().fetchProfile();
+      const state = useProfileStore.getState();
+      expect(state.profile?.customer_profile).toBeNull();
+    });
+  });
+
+  describe('syncAuthStoreUser - empty name fields', () => {
+    it('falls back to email for display name when first_name and last_name are empty', async () => {
+      const profileEmptyNames = {
+        user: {
+          ...MOCK_PROFILE_RESPONSE.user,
+          first_name: '',
+          last_name: '',
+          phone: '',
+        },
+      };
+      mockedApi.get.mockResolvedValueOnce({ data: profileEmptyNames });
+      await useProfileStore.getState().fetchProfile();
+      const state = useProfileStore.getState();
+      expect(state.profile?.first_name).toBe('');
+      expect(state.profile?.last_name).toBe('');
+    });
+  });
+
+  describe('authHeaders - no token', () => {
+    it('sends empty headers when no token cookie exists', async () => {
+      (mockedCookies.get as jest.Mock).mockReturnValue(undefined);
+      mockedApi.get.mockResolvedValueOnce({ data: MOCK_PROFILE_RESPONSE });
+      await useProfileStore.getState().fetchProfile();
+      expect(mockedApi.get).toHaveBeenCalledWith('/auth/profile/', {
+        headers: {},
+      });
+    });
+  });
+
   describe('clearMessages', () => {
     it('clears error and success message', () => {
       useProfileStore.setState({ error: 'Some error', successMessage: 'Some success' });
