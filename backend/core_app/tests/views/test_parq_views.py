@@ -48,6 +48,7 @@ class TestClientParqListCreate:
         assert resp.data['risk_color'] == 'yellow'
 
     def test_create_all_false_apto(self):
+        """All seven PAR-Q answers false yields yes_count=0, classification 'apto', and green color."""
         client = APIClient()
         customer = User.objects.create_user(email='parq2@test.com', password='pass', role='customer')
         _auth(client, customer)

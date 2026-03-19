@@ -44,7 +44,9 @@ test.describe('Sidebar — Navigation & Active States', { tag: [...FlowTags.APP_
     await expect(sidebar).toHaveClass(/translate-x-0/);
 
     // Click close button inside sidebar (exercises line 95)
-    await page.getByRole('button', { name: 'Cerrar menú' }).click();
+    const closeBtn = page.getByRole('button', { name: 'Cerrar menú' });
+    await expect(closeBtn).toBeVisible({ timeout: 5_000 });
+    await closeBtn.click();
 
     // Sidebar should be hidden
     await expect(sidebar).toHaveClass(/-translate-x-full/);

@@ -51,7 +51,6 @@ test.describe('bookingStore rescheduleBooking error branch', { tag: [...FlowTags
   targetDay.setDate(targetDay.getDate() + 2);
   // Skip Sunday (0) — shift to Monday
   if (targetDay.getDay() === 0) targetDay.setDate(targetDay.getDate() + 1);
-  const tomorrow = targetDay; // keep variable name for downstream references
   // Use LOCAL date components (matching calendar display and WEEKDAY_WINDOWS generation)
   const dateIso = `${targetDay.getFullYear()}-${String(targetDay.getMonth() + 1).padStart(2, '0')}-${String(targetDay.getDate()).padStart(2, '0')}`;
   const dayNum = targetDay.getDate().toString();

@@ -43,7 +43,7 @@ jobs:
         run: python manage.py migrate --no-input
 
       - name: Run pytest with coverage
-        run: pytest -v --tb=short --cov-report=json:coverage.json
+        run: pytest -v --tb=short --cov-report=json:coverage.json --junitxml=pytest-results.xml
 
       - name: Upload backend coverage
         if: always()
@@ -51,6 +51,14 @@ jobs:
         with:
           name: coverage-backend
           path: backend/coverage.json
+          retention-days: 5
+
+      - name: Upload backend test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-backend
+          path: backend/pytest-results.xml
           retention-days: 5
 
   # ───────────────────────────────────────────
@@ -79,7 +87,7 @@ jobs:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
 
       - name: Run Jest tests with coverage
-        run: npm run test:coverage -- --ci --forceExit
+        run: npm run test:coverage -- --ci --forceExit --json --outputFile=test-results.json
 
       - name: Upload frontend unit coverage
         if: always()
@@ -87,6 +95,14 @@ jobs:
         with:
           name: coverage-frontend-unit
           path: frontend/coverage/coverage-summary.json
+          retention-days: 5
+
+      - name: Upload frontend unit test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-frontend-unit
+          path: frontend/test-results.json
           retention-days: 5
 
   # ───────────────────────────────────────────
@@ -98,7 +114,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: ["1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8"]
+        shard: ["1/4", "2/4", "3/4", "4/4"]
     defaults:
       run:
         working-directory: frontend
@@ -229,6 +245,20 @@ jobs:
         with:
           name: coverage-frontend-e2e
           path: coverage-artifacts/frontend-e2e
+        continue-on-error: true
+
+      - name: Download backend test results
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results-backend
+          path: coverage-artifacts/test-results-backend
+        continue-on-error: true
+
+      - name: Download frontend unit test results
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results-frontend-unit
+          path: coverage-artifacts/test-results-frontend-unit
         continue-on-error: true
 
       - name: Generate coverage summary

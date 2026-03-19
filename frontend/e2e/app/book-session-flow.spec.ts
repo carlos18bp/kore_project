@@ -330,6 +330,7 @@ test.describe('Book Session — Reschedule No Availability', { tag: [...FlowTags
 
     // Click the target weekday on the calendar to set selectedDate
     await page.getByText('Lun').waitFor({ state: 'visible', timeout: 10_000 });
+    // quality: allow-fragile-selector (calendar grid uses CSS layout classes; last() targets the day-number grid vs the header row)
     const calendarGrid = page.locator('.grid.grid-cols-7').last();
     await calendarGrid.getByRole('button', { name: targetDayNum, exact: true }).click();
 

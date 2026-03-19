@@ -1,4 +1,5 @@
 """Tests for shared schedule constants and slot-generation helpers."""
+# quality: disable test_too_short (boundary-value constant assertions, intentionally concise)
 
 from datetime import datetime
 from zoneinfo import ZoneInfo

@@ -55,7 +55,7 @@
 | TD-06 | ~~No password reset flow implemented~~ | Medium | ✅ Resolved — 6-digit code flow + forgot-password page |
 | TD-07 | next-intl installed but translations not fully implemented | Low | Open |
 | TD-08 | No automated CI deployment (manual git pull + restart) | Low | Open |
-| TD-09 | Diagnostic assessment E2E tests not yet implemented | Medium | Open |
+| TD-09 | ~~Diagnostic assessment E2E tests not yet implemented~~ | Medium | ✅ Resolved — Wave 2+3 cover all 5 assessment modules |
 | TD-10 | ~~Trainer client management E2E tests not yet implemented~~ | Medium | ✅ Resolved — trainer-clients-list (9 tests) + trainer-client-detail (11 tests) |
 
 ---

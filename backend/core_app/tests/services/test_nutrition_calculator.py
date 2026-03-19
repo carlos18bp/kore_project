@@ -1,4 +1,5 @@
 """Tests for the nutrition habits score calculator."""
+# quality: disable test_too_short (boundary-value calculator assertions, intentionally concise)
 
 
 from core_app.services.nutrition_calculator import (

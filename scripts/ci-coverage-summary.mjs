@@ -24,6 +24,8 @@ const PATHS = {
   backend: 'coverage-artifacts/backend/coverage.json',
   unit: 'coverage-artifacts/frontend-unit/coverage-summary.json',
   e2e: 'coverage-artifacts/frontend-e2e/flow-coverage.json',
+  backendResults: 'coverage-artifacts/test-results-backend/pytest-results.xml',
+  unitResults: 'coverage-artifacts/test-results-frontend-unit/test-results.json',
 };
 const OUTPUT = 'coverage-report.md';
 
@@ -36,6 +38,53 @@ function readJSON(filepath) {
   } catch {
     return null;
   }
+}
+
+function readText(filepath) {
+  if (!filepath || !existsSync(filepath)) return null;
+  try {
+    return readFileSync(filepath, 'utf8');
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Parse pytest JUnit XML for test counts.
+ * Extracts tests/failures/errors/skipped from the root <testsuite> element.
+ */
+function parsePytestResults(xml) {
+  if (!xml) return null;
+  const match = xml.match(/<testsuite\s[^>]*>/);
+  if (!match) return null;
+  const tag = match[0];
+  const attr = (name) => {
+    const m = tag.match(new RegExp(`${name}="(\\d+)"`));
+    return m ? parseInt(m[1], 10) : 0;
+  };
+  const tests = attr('tests');
+  const failures = attr('failures');
+  const errors = attr('errors');
+  const skipped = attr('skipped');
+  return {
+    passed: tests - failures - errors - skipped,
+    failed: failures + errors,
+    skipped,
+    total: tests,
+  };
+}
+
+/**
+ * Parse Jest JSON output for test counts.
+ */
+function parseJestResults(data) {
+  if (!data) return null;
+  return {
+    passed: data.numPassedTests ?? 0,
+    failed: data.numFailedTests ?? 0,
+    skipped: data.numPendingTests ?? 0,
+    total: data.numTotalTests ?? 0,
+  };
 }
 
 function dot(pct) {
@@ -173,7 +222,7 @@ function extractE2EFlows(data) {
 
 // ── Build markdown ──
 
-function build(be, fe, e2e, beFiles, feFiles, e2eFlows) {
+function build(be, fe, e2e, beFiles, feFiles, e2eFlows, beResults, feResults) {
   const lines = [];
 
   lines.push('## 📊 Coverage Report', '');
@@ -186,14 +235,24 @@ function build(be, fe, e2e, beFiles, feFiles, e2eFlows) {
     e2eSkipped += f.tests.skipped ?? 0;
     e2eTotal += f.tests.total ?? 0;
   }
-  const hasAnyFailure = e2eFailed > 0;
-  const resultEmoji = hasAnyFailure ? '⚠️' : '✅';
-  const totalStr = e2eTotal > 0 ? ` — ${e2ePassed}/${e2eTotal} passed` : '';
+
+  const allPassed = (beResults?.passed ?? 0) + (feResults?.passed ?? 0) + e2ePassed;
+  const allTotal = (beResults?.total ?? 0) + (feResults?.total ?? 0) + e2eTotal;
+  const anyFailed = (beResults?.failed ?? 0) + (feResults?.failed ?? 0) + e2eFailed;
+  const resultEmoji = anyFailed > 0 ? '⚠️' : '✅';
+  const totalStr = allTotal > 0 ? ` — ${allPassed}/${allTotal} passed` : '';
   lines.push(`### ${resultEmoji} Test Results${totalStr}`, '');
   lines.push('| Suite | Passed | Failed | Skipped | Total |');
   lines.push('|-------|--------|--------|---------|-------|');
-  lines.push('| Backend (pytest) | — | — | — | — |');
-  lines.push('| Frontend Unit (Jest) | — | — | — | — |');
+
+  const fmtRow = (label, r) => {
+    if (r) {
+      return `| ${label} | ${r.passed} | ${r.failed} | ${r.skipped} | ${r.total} |`;
+    }
+    return `| ${label} | — | — | — | — |`;
+  };
+  lines.push(fmtRow('Backend (pytest)', beResults));
+  lines.push(fmtRow('Frontend Unit (Jest)', feResults));
   if (e2eTotal > 0) {
     lines.push(`| Frontend E2E (Playwright) | ${e2ePassed} | ${e2eFailed} | ${e2eSkipped} | ${e2eTotal} |`);
   } else {
@@ -231,7 +290,7 @@ function build(be, fe, e2e, beFiles, feFiles, e2eFlows) {
 
   // ── Backend Details ──
   lines.push('<details>');
-  lines.push('<summary>▼ 🐍 Backend Details</summary>');
+  lines.push('<summary>🐍 Backend Details</summary>');
   lines.push('');
   if (be) {
     lines.push('| Metric | Covered | Total | % |');
@@ -269,7 +328,7 @@ function build(be, fe, e2e, beFiles, feFiles, e2eFlows) {
 
   // ── Frontend Unit Details ──
   lines.push('<details>');
-  lines.push('<summary>▼ 🧪 Frontend Unit Details</summary>');
+  lines.push('<summary>🧪 Frontend Unit Details</summary>');
   lines.push('');
   if (fe) {
     lines.push('| Metric | Covered | Total | % |');
@@ -307,7 +366,7 @@ function build(be, fe, e2e, beFiles, feFiles, e2eFlows) {
 
   // ── Frontend E2E Flow Details ──
   lines.push('<details>');
-  lines.push('<summary>▼ 🎭 Frontend E2E Flow Details</summary>');
+  lines.push('<summary>🎭 Frontend E2E Flow Details</summary>');
   lines.push('');
   if (e2e) {
     lines.push('| Status | Count |');
@@ -398,7 +457,10 @@ function main() {
   const feFiles = extractUnitFiles(unitData);
   const e2eFlows = extractE2EFlows(e2eData);
 
-  const md = build(be, fe, e2e, beFiles, feFiles, e2eFlows);
+  const beResults = parsePytestResults(readText(PATHS.backendResults));
+  const feResults = parseJestResults(readJSON(PATHS.unitResults));
+
+  const md = build(be, fe, e2e, beFiles, feFiles, e2eFlows, beResults, feResults);
 
   writeFileSync(OUTPUT, md, 'utf8');
   console.log(`Coverage report written to ${OUTPUT}`);

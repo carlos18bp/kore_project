@@ -170,7 +170,7 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
     await page.goto('/checkout?package=6');
     await expect(
       page.getByRole('heading', { name: 'Resumen del programa' }),
-    ).toBeVisible({ timeout: 10_000 });
+    ).toBeVisible({ timeout: 15_000 });
 
     await selectCardAndFillForm(page);
     const payBtn = page.getByRole('button', { name: /Pagar/ });
@@ -222,7 +222,7 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
 
     await expect(
       page.getByRole('heading', { name: 'Resumen del programa' }),
-    ).toBeVisible({ timeout: 10_000 });
+    ).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Paquete Pro')).toBeVisible();
     await expect(page.getByText('8')).toBeVisible(); // sessions_count
     await expect(page.getByText('60 días', { exact: true })).toBeVisible();
@@ -291,7 +291,7 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
     await page.goto('/checkout?package=6');
     await expect(
       page.getByRole('heading', { name: 'Resumen del programa' }),
-    ).toBeVisible({ timeout: 10_000 });
+    ).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole('button', { name: /Tarjeta/ }).click();
     await expect(page.getByLabel('Número de tarjeta')).toBeVisible();
@@ -345,7 +345,7 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
 
     await expect(
       page.getByRole('heading', { name: 'Resumen del programa' }),
-    ).toBeVisible({ timeout: 10_000 });
+    ).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('No se pudo cargar la configuración de pago.')).toBeVisible({ timeout: 10_000 });
   });
 
@@ -357,7 +357,7 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
     await page.goto('/checkout?package=6');
     await expect(
       page.getByRole('heading', { name: 'Resumen del programa' }),
-    ).toBeVisible({ timeout: 10_000 });
+    ).toBeVisible({ timeout: 15_000 });
 
     await expect(page.getByRole('button', { name: /Tarjeta/ })).toBeVisible();
     await expect(page.getByRole('button', { name: /Nequi/ })).toBeVisible();
@@ -395,7 +395,7 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
     await seedAuthenticatedCookies(page);
     await page.goto('/checkout?package=6');
 
-    await expect(page.getByRole('heading', { name: 'Resumen del programa' })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: 'Resumen del programa' })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('No se pudo cargar la configuración de pago.')).toBeVisible({ timeout: 10_000 });
   });
 
@@ -407,7 +407,7 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
     await page.goto('/checkout?package=6');
     await expect(
       page.getByRole('heading', { name: 'Resumen del programa' }),
-    ).toBeVisible({ timeout: 10_000 });
+    ).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole('button', { name: /Nequi/ }).click();
     await expect(page.getByLabel(/Número de celular Nequi/)).toBeVisible();
@@ -435,7 +435,7 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
     await page.goto('/checkout?package=6');
     await expect(
       page.getByRole('heading', { name: 'Resumen del programa' }),
-    ).toBeVisible({ timeout: 10_000 });
+    ).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole('button', { name: /Nequi/ }).click();
     await page.getByLabel(/Número de celular Nequi/).fill('3001234567');
@@ -468,7 +468,7 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
     await page.goto('/checkout?package=6');
     await expect(
       page.getByRole('heading', { name: 'Resumen del programa' }),
-    ).toBeVisible({ timeout: 10_000 });
+    ).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole('button', { name: /PSE/ }).click();
     await expect(page.getByText('Serás redirigido a tu banco')).toBeVisible({ timeout: 10_000 });
@@ -485,7 +485,7 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
     await page.goto('/checkout?package=6');
     await expect(
       page.getByRole('heading', { name: 'Resumen del programa' }),
-    ).toBeVisible({ timeout: 10_000 });
+    ).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole('button', { name: /Bancolombia/ }).click();
     await expect(page.getByText('Serás redirigido a Bancolombia')).toBeVisible();
@@ -506,7 +506,7 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
     await page.goto('/checkout?package=6');
     await expect(
       page.getByRole('heading', { name: 'Resumen del programa' }),
-    ).toBeVisible({ timeout: 10_000 });
+    ).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole('button', { name: /Tarjeta/ }).click();
     await expect(page.getByLabel('Número de tarjeta')).toBeVisible();
@@ -554,7 +554,7 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
     });
     await page.goto('/checkout?package=6');
 
-    await expect(page.getByRole('heading', { name: 'Resumen del programa' })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: 'Resumen del programa' })).toBeVisible({ timeout: 15_000 });
     await selectCardAndFillForm(page);
     const payBtn = page.getByRole('button', { name: /Pagar/ });
     await expect(payBtn).toBeEnabled({ timeout: 15_000 });

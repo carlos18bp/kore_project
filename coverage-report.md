@@ -15,21 +15,21 @@
 | Frontend E2E (Playwright) | ⚪ N/A | | *data unavailable* |
 
 <details>
-<summary>▼ 🐍 Backend Details</summary>
+<summary>🐍 Backend Details</summary>
 
 > ⚠️ Backend coverage data not available (job may have failed).
 
 </details>
 
 <details>
-<summary>▼ 🧪 Frontend Unit Details</summary>
+<summary>🧪 Frontend Unit Details</summary>
 
 > ⚠️ Frontend unit coverage data not available (job may have failed).
 
 </details>
 
 <details>
-<summary>▼ 🎭 Frontend E2E Flow Details</summary>
+<summary>🎭 Frontend E2E Flow Details</summary>
 
 > ⚠️ E2E flow coverage data not available (job may have failed).
 

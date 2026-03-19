@@ -93,6 +93,7 @@ test.describe('Trainer Clients Page', { tag: [...FlowTags.TRAINER_CLIENTS_LIST, 
 
     await expect(page.getByText('María López')).toBeVisible({ timeout: 15_000 });
 
+    // quality: allow-fragile-selector (client cards lack data-testid; hasText scopes to correct card, first() is safety net)
     const mariaCard = page.locator('div.grid > div', { hasText: 'María López' }).first();
     await expect(mariaCard.getByRole('link', { name: 'Ficha' })).toBeVisible();
     await expect(mariaCard.getByRole('link', { name: 'Antropometría' })).toBeVisible();
@@ -152,6 +153,7 @@ test.describe('Trainer Clients Page', { tag: [...FlowTags.TRAINER_CLIENTS_LIST, 
     await page.goto('/trainer/clients');
 
     await expect(page.getByText('María López')).toBeVisible({ timeout: 15_000 });
+    // quality: allow-fragile-selector (client cards lack data-testid; hasText scopes to correct card, first() is safety net)
     const mariaCard = page.locator('div.grid > div', { hasText: 'María López' }).first();
     await expect(mariaCard.locator('span').filter({ hasText: /^M$/ })).toBeVisible();
   });

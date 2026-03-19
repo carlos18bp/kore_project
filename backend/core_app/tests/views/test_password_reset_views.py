@@ -149,6 +149,7 @@ class TestResetPasswordWithCode:
 
     @pytest.mark.django_db
     def test_successful_password_reset(self, api_client, customer_user):
+        """Valid token with matching passwords returns 200 and persists the new password."""
         token = self._get_valid_token(customer_user)
         resp = api_client.post(
             self.url,
@@ -241,6 +242,7 @@ class TestPasswordResetFullFlow:
 
     @patch('core_app.services.email_service.send_password_reset_code', return_value=True)
     def test_complete_flow(self, mock_send, api_client, customer_user):
+        """Full password-reset journey: request code → verify code → reset password with new credentials."""
         # Step 1: Request code
         resp1 = api_client.post(
             reverse('password-reset-request-code'),

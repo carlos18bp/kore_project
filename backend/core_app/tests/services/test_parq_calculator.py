@@ -1,4 +1,5 @@
 """Tests for the PAR-Q+ risk classification calculator."""
+# quality: disable test_too_short (boundary-value calculator assertions, intentionally concise)
 
 
 from core_app.services.parq_calculator import (

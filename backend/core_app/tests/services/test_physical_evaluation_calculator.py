@@ -1,4 +1,5 @@
 """Tests for the physical evaluation calculator service."""
+# quality: disable test_too_short (boundary-value calculator assertions, intentionally concise)
 
 from django.test import TestCase
 

@@ -12,6 +12,28 @@ from core_app.models import Package, Subscription, User
 FIXED_NOW = datetime(2025, 6, 15, 12, 0, 0, tzinfo=dt_timezone.utc)
 
 
+def _build_subscription_form_data(customer_pk, package_pk='', sessions_total=0, **overrides):
+    """Build a default form_data dict for SubscriptionAdminForm."""
+    data = {
+        'customer': customer_pk,
+        'package': package_pk,
+        'sessions_total': sessions_total,
+        'sessions_used': 0,
+        'status': Subscription.Status.ACTIVE,
+        'starts_at': FIXED_NOW,
+        'expires_at': FIXED_NOW + timedelta(days=30),
+        'payment_source_id': '',
+        'payment_method_type': '',
+        'is_recurring': True,
+        'wompi_transaction_id': '',
+        'next_billing_date': None,
+        'expiry_email_sent_at': None,
+        'expiry_ui_sent_at': None,
+    }
+    data.update(overrides)
+    return data
+
+
 @pytest.fixture
 def customer(db):
     return User.objects.create_user(
@@ -49,22 +71,7 @@ class TestSubscriptionAdminForm:
 
     def test_clean_sets_sessions_total_from_package(self, customer, package):
         """Form clean() auto-fills sessions_total from selected package."""
-        form_data = {
-            'customer': customer.pk,
-            'package': package.pk,
-            'sessions_total': 0,
-            'sessions_used': 0,
-            'status': Subscription.Status.ACTIVE,
-            'starts_at': FIXED_NOW,
-            'expires_at': FIXED_NOW + timedelta(days=30),
-            'payment_source_id': '',
-            'payment_method_type': '',
-            'is_recurring': True,
-            'wompi_transaction_id': '',
-            'next_billing_date': None,
-            'expiry_email_sent_at': None,
-            'expiry_ui_sent_at': None,
-        }
+        form_data = _build_subscription_form_data(customer.pk, package_pk=package.pk)
         form = SubscriptionAdminForm(data=form_data)
         assert form.is_valid(), form.errors
         cleaned = form.cleaned_data
@@ -73,22 +80,7 @@ class TestSubscriptionAdminForm:
 
     def test_clean_without_package_does_not_set_sessions_total(self, customer):
         """Form clean() skips sessions_total override when no package is selected."""
-        form_data = {
-            'customer': customer.pk,
-            'package': '',
-            'sessions_total': 5,
-            'sessions_used': 0,
-            'status': Subscription.Status.ACTIVE,
-            'starts_at': FIXED_NOW,
-            'expires_at': FIXED_NOW + timedelta(days=30),
-            'payment_source_id': '',
-            'payment_method_type': '',
-            'is_recurring': True,
-            'wompi_transaction_id': '',
-            'next_billing_date': None,
-            'expiry_email_sent_at': None,
-            'expiry_ui_sent_at': None,
-        }
+        form_data = _build_subscription_form_data(customer.pk, sessions_total=5)
         form = SubscriptionAdminForm(data=form_data)
         # package is required, so the form may not be valid, but clean() still runs
         form.is_valid()

@@ -83,6 +83,7 @@ class TestTrainerPosturometryListCreate(TestCase):
         self.client.force_authenticate(user=self.trainer_user)
 
     def test_create_evaluation_success(self):
+        """Trainer creates posturometry evaluation; response includes computed global_index, segment_scores, and auto-generated recommendations."""
         resp = self.client.post(
             f'/api/trainer/my-clients/{self.customer.id}/posturometry/',
             data={

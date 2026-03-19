@@ -79,6 +79,7 @@ class TestClientNutritionListCreate:
         assert 'una vez por semana' in resp.data['detail']
 
     def test_rate_limit_allows_after_week(self, monkeypatch):
+        """Submitting a new nutrition habit succeeds when the previous one is older than 7 days."""
         monkeypatch.setattr('django.utils.timezone.now', lambda: FIXED_NOW)
         client = APIClient()
         customer = User.objects.create_user(email='nutri4@test.com', password='pass', role='customer')
