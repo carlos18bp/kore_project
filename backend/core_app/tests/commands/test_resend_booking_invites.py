@@ -1,15 +1,24 @@
 """Tests for the resend_booking_invites management command."""
 
 from datetime import datetime, timedelta
+from datetime import timezone as dt_tz
 from io import StringIO
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.utils import timezone
 
 from core_app.models import AvailabilitySlot, Booking, Package, User
+
+FIXED_NOW = datetime(2026, 3, 1, 10, 0, tzinfo=dt_tz.utc)
+BEFORE_CUTOFF = (FIXED_NOW + timedelta(days=1)).strftime('%Y-%m-%d')
+
+
+@pytest.fixture(autouse=True)
+def freeze_now(monkeypatch):
+    """Freeze timezone.now so all time-based assertions are deterministic."""
+    monkeypatch.setattr('django.utils.timezone.now', lambda: FIXED_NOW)
 
 
 def _create_trainer():
@@ -53,7 +62,7 @@ def _create_booking(*, customer_email, trainer_profile, status, starts_at, packa
 def test_no_bookings_found_shows_warning():
     """Command outputs warning when no bookings match criteria."""
     out = StringIO()
-    call_command('resend_booking_invites', '--dry-run', stdout=out)
+    call_command('resend_booking_invites', '--dry-run', f'--before={BEFORE_CUTOFF}', stdout=out)
     assert 'No bookings found' in out.getvalue()
 
 
@@ -61,7 +70,7 @@ def test_no_bookings_found_shows_warning():
 def test_dry_run_does_not_send_emails():
     """Dry run lists bookings but does not actually send emails."""
     trainer = _create_trainer()
-    future = timezone.now() + timedelta(days=5)
+    future = FIXED_NOW + timedelta(days=5)
     _create_booking(
         customer_email='client1@test.com',
         trainer_profile=trainer,
@@ -70,7 +79,7 @@ def test_dry_run_does_not_send_emails():
     )
 
     out = StringIO()
-    call_command('resend_booking_invites', '--dry-run', stdout=out)
+    call_command('resend_booking_invites', '--dry-run', f'--before={BEFORE_CUTOFF}', stdout=out)
     output = out.getvalue()
     assert 'DRY RUN' in output
     assert 'client1@test.com' in output or 'Client Test' in output
@@ -81,7 +90,7 @@ def test_dry_run_does_not_send_emails():
 def test_specific_booking_id_filters_correctly():
     """Command with --booking-id only processes that specific booking."""
     trainer = _create_trainer()
-    future = timezone.now() + timedelta(days=5)
+    future = FIXED_NOW + timedelta(days=5)
     b1 = _create_booking(
         customer_email='client-a@test.com',
         trainer_profile=trainer,
@@ -105,7 +114,7 @@ def test_specific_booking_id_filters_correctly():
 def test_before_date_filter():
     """Command with --before filters bookings created before the given date."""
     trainer = _create_trainer()
-    future = timezone.now() + timedelta(days=10)
+    future = FIXED_NOW + timedelta(days=10)
     _create_booking(
         customer_email='old@test.com',
         trainer_profile=trainer,
@@ -114,7 +123,7 @@ def test_before_date_filter():
     )
 
     out = StringIO()
-    tomorrow = (timezone.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+    tomorrow = (FIXED_NOW + timedelta(days=1)).strftime('%Y-%m-%d')
     call_command('resend_booking_invites', '--dry-run', f'--before={tomorrow}', stdout=out)
     output = out.getvalue()
     assert 'Found 1 booking' in output
@@ -123,15 +132,16 @@ def test_before_date_filter():
 @pytest.mark.django_db
 def test_invalid_date_format_raises_error():
     """Command raises CommandError for invalid --before date format."""
-    with pytest.raises(CommandError, match='Invalid date format'):
+    with pytest.raises(CommandError) as exc_info:
         call_command('resend_booking_invites', '--before=not-a-date')
+    assert 'Invalid date format' in str(exc_info.value)
 
 
 @pytest.mark.django_db
 def test_excludes_past_bookings():
     """Command only includes future bookings, not past ones."""
     trainer = _create_trainer()
-    past = timezone.now() - timedelta(days=5)
+    past = FIXED_NOW - timedelta(days=5)
     _create_booking(
         customer_email='past@test.com',
         trainer_profile=trainer,
@@ -140,7 +150,7 @@ def test_excludes_past_bookings():
     )
 
     out = StringIO()
-    call_command('resend_booking_invites', '--dry-run', stdout=out)
+    call_command('resend_booking_invites', '--dry-run', f'--before={BEFORE_CUTOFF}', stdout=out)
     assert 'No bookings found' in out.getvalue()
 
 
@@ -148,7 +158,7 @@ def test_excludes_past_bookings():
 def test_excludes_canceled_bookings():
     """Command excludes bookings with canceled status."""
     trainer = _create_trainer()
-    future = timezone.now() + timedelta(days=5)
+    future = FIXED_NOW + timedelta(days=5)
     _create_booking(
         customer_email='canceled@test.com',
         trainer_profile=trainer,
@@ -157,7 +167,7 @@ def test_excludes_canceled_bookings():
     )
 
     out = StringIO()
-    call_command('resend_booking_invites', '--dry-run', stdout=out)
+    call_command('resend_booking_invites', '--dry-run', f'--before={BEFORE_CUTOFF}', stdout=out)
     assert 'No bookings found' in out.getvalue()
 
 
@@ -167,7 +177,7 @@ def test_excludes_canceled_bookings():
 def test_successful_send(mock_ics, mock_email):
     """Command sends email and ICS attachment on successful execution."""
     trainer = _create_trainer()
-    future = timezone.now() + timedelta(days=5)
+    future = FIXED_NOW + timedelta(days=5)
     _create_booking(
         customer_email='success@test.com',
         trainer_profile=trainer,
@@ -176,7 +186,7 @@ def test_successful_send(mock_ics, mock_email):
     )
 
     out = StringIO()
-    call_command('resend_booking_invites', stdout=out)
+    call_command('resend_booking_invites', f'--before={BEFORE_CUTOFF}', stdout=out)
     output = out.getvalue()
     assert '1 sent' in output
     assert '0 errors' in output
@@ -196,7 +206,7 @@ def test_successful_send(mock_ics, mock_email):
 def test_failed_send_counted_as_error(mock_ics, mock_email):
     """Command counts failed email sends in the error tally."""
     trainer = _create_trainer()
-    future = timezone.now() + timedelta(days=5)
+    future = FIXED_NOW + timedelta(days=5)
     _create_booking(
         customer_email='fail@test.com',
         trainer_profile=trainer,
@@ -205,7 +215,7 @@ def test_failed_send_counted_as_error(mock_ics, mock_email):
     )
 
     out = StringIO()
-    call_command('resend_booking_invites', stdout=out)
+    call_command('resend_booking_invites', f'--before={BEFORE_CUTOFF}', stdout=out)
     output = out.getvalue()
     assert '0 sent' in output
     assert '1 errors' in output
@@ -216,7 +226,7 @@ def test_failed_send_counted_as_error(mock_ics, mock_email):
 def test_exception_during_send_counted_as_error(mock_ics):
     """Command catches exceptions during processing and counts as error."""
     trainer = _create_trainer()
-    future = timezone.now() + timedelta(days=5)
+    future = FIXED_NOW + timedelta(days=5)
     _create_booking(
         customer_email='exception@test.com',
         trainer_profile=trainer,
@@ -225,7 +235,7 @@ def test_exception_during_send_counted_as_error(mock_ics):
     )
 
     out = StringIO()
-    call_command('resend_booking_invites', stdout=out)
+    call_command('resend_booking_invites', f'--before={BEFORE_CUTOFF}', stdout=out)
     output = out.getvalue()
     assert '0 sent' in output
     assert '1 errors' in output
@@ -238,7 +248,7 @@ def test_exception_during_send_counted_as_error(mock_ics):
 def test_sends_to_both_customer_and_trainer(mock_ics, mock_email):
     """Command includes trainer email in recipients when available."""
     trainer = _create_trainer()
-    future = timezone.now() + timedelta(days=5)
+    future = FIXED_NOW + timedelta(days=5)
     _create_booking(
         customer_email='both@test.com',
         trainer_profile=trainer,
@@ -247,7 +257,7 @@ def test_sends_to_both_customer_and_trainer(mock_ics, mock_email):
     )
 
     out = StringIO()
-    call_command('resend_booking_invites', stdout=out)
+    call_command('resend_booking_invites', f'--before={BEFORE_CUTOFF}', stdout=out)
 
     call_args = mock_email.call_args
     recipients = call_args.kwargs['to_emails']
@@ -267,7 +277,7 @@ def test_sends_only_to_customer_when_no_trainer(mock_ics, mock_email):
     package = Package.objects.create(
         title='Pkg', sessions_count=4, validity_days=30, price='100000.00',
     )
-    future = timezone.now() + timedelta(days=5)
+    future = FIXED_NOW + timedelta(days=5)
     slot = AvailabilitySlot.objects.create(
         starts_at=future, ends_at=future + timedelta(hours=1),
         is_active=True, is_blocked=True,
@@ -278,7 +288,7 @@ def test_sends_only_to_customer_when_no_trainer(mock_ics, mock_email):
     )
 
     out = StringIO()
-    call_command('resend_booking_invites', stdout=out)
+    call_command('resend_booking_invites', f'--before={BEFORE_CUTOFF}', stdout=out)
 
     call_args = mock_email.call_args
     recipients = call_args.kwargs['to_emails']

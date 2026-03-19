@@ -4,11 +4,11 @@ Covers nutrition/parq due flags, latest evaluation timestamps,
 profile_incomplete, subscription_expiring, and kore_index.
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from datetime import timezone as dt_tz
 
 import pytest
 from django.urls import reverse
-from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -16,6 +16,14 @@ from core_app.models import Package, Subscription, TrainerProfile, User
 from core_app.models.anthropometry import AnthropometryEvaluation
 from core_app.models.nutrition_habit import NutritionHabit
 from core_app.models.parq_assessment import ParqAssessment
+
+FIXED_NOW = datetime(2026, 3, 1, 10, 0, tzinfo=dt_tz.utc)
+
+
+@pytest.fixture(autouse=True)
+def freeze_now(monkeypatch):
+    """Freeze timezone.now so time-based assertions are deterministic."""
+    monkeypatch.setattr('django.utils.timezone.now', lambda: FIXED_NOW)
 
 
 @pytest.fixture
@@ -137,8 +145,8 @@ class TestPendingAssessmentsView:
             customer=customer, package=package,
             sessions_total=4, sessions_used=0,
             status=Subscription.Status.ACTIVE,
-            starts_at=timezone.now() - timedelta(days=25),
-            expires_at=timezone.now() + timedelta(days=5),
+            starts_at=FIXED_NOW - timedelta(days=25),
+            expires_at=FIXED_NOW + timedelta(days=5),
         )
         api_client.force_authenticate(user=customer)
         response = api_client.get(reverse(URL))
@@ -155,8 +163,8 @@ class TestPendingAssessmentsView:
             customer=customer, package=package,
             sessions_total=4, sessions_used=0,
             status=Subscription.Status.ACTIVE,
-            starts_at=timezone.now() - timedelta(days=5),
-            expires_at=timezone.now() + timedelta(days=25),
+            starts_at=FIXED_NOW - timedelta(days=5),
+            expires_at=FIXED_NOW + timedelta(days=25),
         )
         api_client.force_authenticate(user=customer)
         response = api_client.get(reverse(URL))

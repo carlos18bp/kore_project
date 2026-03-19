@@ -6,10 +6,7 @@ asymmetries, compute_all, and generate_default_recommendations.
 """
 # quality: disable test_too_short (boundary-value calculator assertions, intentionally concise)
 
-from decimal import Decimal
 from types import SimpleNamespace
-
-import pytest
 
 from core_app.services.anthropometry_calculator import (
     calculate_asymmetries,
@@ -24,6 +21,26 @@ from core_app.services.anthropometry_calculator import (
     compute_all,
     generate_default_recommendations,
 )
+
+MALE_SKINFOLDS = {
+    'triceps_d': 10, 'triceps_i': 12,
+    'pecho': 8,
+    'subescapular_d': 14, 'subescapular_i': 13,
+    'supraespinal': 10,
+    'abdominal': 15,
+    'muslo_d': 12, 'muslo_i': 14,
+    'pantorrilla_d': 8, 'pantorrilla_i': 9,
+}
+
+FEMALE_SKINFOLDS = {
+    'triceps_d': 15, 'triceps_i': 16,
+    'pecho': 10,
+    'subescapular_d': 18, 'subescapular_i': 17,
+    'supraespinal': 14,
+    'abdominal': 20,
+    'muslo_d': 18, 'muslo_i': 19,
+    'pantorrilla_d': 10, 'pantorrilla_i': 11,
+}
 
 
 # ── calculate_bmi ──
@@ -40,7 +57,7 @@ class TestCalculateBmi:
         result = calculate_bmi(70, 175)
         assert result['category'] == 'Peso saludable'
         assert result['color'] == 'green'
-        assert 18.5 <= result['value'] < 25.0
+        assert result['value'] == 22.86
 
     def test_overweight_returns_yellow(self):
         result = calculate_bmi(85, 175)
@@ -235,16 +252,8 @@ class TestCalculateBodyFatJacksonPollock:
         assert result is None
 
     def test_male_with_sufficient_sites(self):
-        skinfolds = {
-            'triceps_d': 10, 'triceps_i': 12,
-            'pecho': 8,
-            'subescapular_d': 14, 'subescapular_i': 13,
-            'supraespinal': 10,
-            'abdominal': 15,
-            'muslo_d': 12, 'muslo_i': 14,
-            'pantorrilla_d': 8, 'pantorrilla_i': 9,
-        }
-        result = calculate_body_fat_jackson_pollock(skinfolds, 30, 'masculino')
+        """Return body fat result when all required male skinfold sites are present."""
+        result = calculate_body_fat_jackson_pollock(MALE_SKINFOLDS, 30, 'masculino')
         assert result is not None
         assert 'value' in result
         assert 'category' in result
@@ -252,16 +261,7 @@ class TestCalculateBodyFatJacksonPollock:
         assert 'sum_skinfolds' in result
 
     def test_female_with_sufficient_sites(self):
-        skinfolds = {
-            'triceps_d': 15, 'triceps_i': 16,
-            'pecho': 10,
-            'subescapular_d': 18, 'subescapular_i': 17,
-            'supraespinal': 14,
-            'abdominal': 20,
-            'muslo_d': 18, 'muslo_i': 19,
-            'pantorrilla_d': 10, 'pantorrilla_i': 11,
-        }
-        result = calculate_body_fat_jackson_pollock(skinfolds, 30, 'femenino')
+        result = calculate_body_fat_jackson_pollock(FEMALE_SKINFOLDS, 30, 'femenino')
         assert result is not None
         assert result['value'] > 0
 
@@ -417,20 +417,12 @@ class TestComputeAll:
         assert result['waist_risk'] != ''
 
     def test_jackson_pollock_method_when_skinfolds_sufficient(self):
-        skinfolds = {
-            'triceps_d': 10, 'triceps_i': 12,
-            'pecho': 8,
-            'subescapular_d': 14, 'subescapular_i': 13,
-            'supraespinal': 10,
-            'abdominal': 15,
-            'muslo_d': 12, 'muslo_i': 14,
-            'pantorrilla_d': 8, 'pantorrilla_i': 9,
-        }
+        """Use Jackson-Pollock method when all skinfold sites are provided."""
         result = compute_all(
             weight_kg=80, height_cm=180,
             waist_cm=85, hip_cm=100,
             age=30, sex='masculino',
-            skinfolds=skinfolds,
+            skinfolds=MALE_SKINFOLDS,
         )
         assert result['bf_method'] == 'jackson_pollock'
         assert result['sum_skinfolds'] is not None

@@ -1,14 +1,22 @@
 """Tests for the send_nutrition_reminders Huey task."""
 
-from datetime import timedelta
+from datetime import datetime, timedelta
+from datetime import timezone as dt_tz
 from unittest.mock import patch
 
 import pytest
-from django.utils import timezone
 
 from core_app.models import Notification, Package, Subscription, User
 from core_app.models.nutrition_habit import NutritionHabit
 from core_app.tasks import send_nutrition_reminders
+
+FIXED_NOW = datetime(2026, 3, 1, 10, 0, tzinfo=dt_tz.utc)
+
+
+@pytest.fixture(autouse=True)
+def freeze_now(monkeypatch):
+    """Freeze timezone.now so time-based assertions are deterministic."""
+    monkeypatch.setattr('django.utils.timezone.now', lambda: FIXED_NOW)
 
 
 @pytest.fixture
@@ -28,8 +36,8 @@ def active_subscription(customer, db):
         customer=customer, package=package,
         sessions_total=4, sessions_used=0,
         status=Subscription.Status.ACTIVE,
-        starts_at=timezone.now() - timedelta(days=5),
-        expires_at=timezone.now() + timedelta(days=25),
+        starts_at=FIXED_NOW - timedelta(days=5),
+        expires_at=FIXED_NOW + timedelta(days=25),
     )
 
 
@@ -59,7 +67,7 @@ def test_sends_reminder_when_entry_is_old(mock_email, customer, active_subscript
         ultraprocessed_weekly=2, sugary_drinks_weekly=1, eats_breakfast=True,
     )
     NutritionHabit.objects.filter(pk=habit.pk).update(
-        created_at=timezone.now() - timedelta(days=10),
+        created_at=FIXED_NOW - timedelta(days=10),
     )
 
     result = send_nutrition_reminders.call_local()

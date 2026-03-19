@@ -4,11 +4,11 @@ Covers TrainerClientListView, TrainerClientDetailView,
 TrainerClientSessionsView, and TrainerDashboardStatsView.
 """
 
-from datetime import timedelta
+from datetime import datetime, timedelta
+from datetime import timezone as dt_tz
 
 import pytest
 from django.urls import reverse
-from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -16,11 +16,18 @@ from core_app.models import (
     AvailabilitySlot,
     Booking,
     Package,
-    Payment,
     Subscription,
     TrainerProfile,
     User,
 )
+
+FIXED_NOW = datetime(2026, 3, 1, 10, 0, tzinfo=dt_tz.utc)
+
+
+@pytest.fixture(autouse=True)
+def freeze_now(monkeypatch):
+    """Freeze timezone.now so time-based assertions are deterministic."""
+    monkeypatch.setattr('django.utils.timezone.now', lambda: FIXED_NOW)
 
 
 @pytest.fixture
@@ -57,7 +64,7 @@ def package(db):
 @pytest.fixture
 def booking_with_slot(trainer, customer, package):
     """Create a confirmed booking linking trainer and customer."""
-    future = timezone.now() + timedelta(days=3)
+    future = FIXED_NOW + timedelta(days=3)
     slot = AvailabilitySlot.objects.create(
         starts_at=future, ends_at=future + timedelta(hours=1),
         is_active=True, is_blocked=True,
@@ -123,8 +130,8 @@ class TestTrainerClientListView:
             customer=customer, package=package,
             sessions_total=8, sessions_used=2,
             status=Subscription.Status.ACTIVE,
-            starts_at=timezone.now() - timedelta(days=5),
-            expires_at=timezone.now() + timedelta(days=25),
+            starts_at=FIXED_NOW - timedelta(days=5),
+            expires_at=FIXED_NOW + timedelta(days=25),
         )
         api_client.force_authenticate(user=trainer.user)
         response = api_client.get(reverse('trainer-client-list'))
@@ -172,12 +179,12 @@ class TestTrainerClientDetailView:
 
     def test_includes_subscription_and_next_session(self, api_client, trainer, customer, package, booking_with_slot):
         """Include subscription details and next session in detail response."""
-        sub = Subscription.objects.create(
+        Subscription.objects.create(
             customer=customer, package=package,
             sessions_total=8, sessions_used=3,
             status=Subscription.Status.ACTIVE,
-            starts_at=timezone.now() - timedelta(days=5),
-            expires_at=timezone.now() + timedelta(days=25),
+            starts_at=FIXED_NOW - timedelta(days=5),
+            expires_at=FIXED_NOW + timedelta(days=25),
         )
         api_client.force_authenticate(user=trainer.user)
         url = reverse('trainer-client-detail', args=[customer.id])

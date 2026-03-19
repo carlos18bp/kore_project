@@ -3,11 +3,11 @@
 Covers trainer CRUD endpoints and client read-only endpoints.
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from datetime import timezone as dt_tz
 
 import pytest
 from django.urls import reverse
-from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -19,7 +19,14 @@ from core_app.models import (
     User,
 )
 from core_app.models.anthropometry import AnthropometryEvaluation
-from core_app.models.customer_profile import CustomerProfile
+
+FIXED_NOW = datetime(2026, 3, 1, 10, 0, tzinfo=dt_tz.utc)
+
+
+@pytest.fixture(autouse=True)
+def freeze_now(monkeypatch):
+    """Freeze timezone.now so time-based assertions are deterministic."""
+    monkeypatch.setattr('django.utils.timezone.now', lambda: FIXED_NOW)
 
 
 @pytest.fixture
@@ -72,7 +79,7 @@ def package(db):
 @pytest.fixture
 def booking_link(trainer, customer_with_profile, package):
     """Create a booking linking trainer and customer."""
-    future = timezone.now() + timedelta(days=3)
+    future = FIXED_NOW + timedelta(days=3)
     slot = AvailabilitySlot.objects.create(
         starts_at=future, ends_at=future + timedelta(hours=1),
         is_active=True, is_blocked=True,
@@ -134,7 +141,7 @@ class TestTrainerAnthropometryListCreate:
 
     def test_create_returns_400_when_profile_incomplete(self, api_client, trainer, customer_no_profile, package):
         """Return 400 when client profile missing sex/dob."""
-        future = timezone.now() + timedelta(days=3)
+        future = FIXED_NOW + timedelta(days=3)
         slot = AvailabilitySlot.objects.create(
             starts_at=future, ends_at=future + timedelta(hours=1),
             is_active=True, is_blocked=True,

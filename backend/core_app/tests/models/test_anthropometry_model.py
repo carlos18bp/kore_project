@@ -9,7 +9,6 @@ import pytest
 
 from core_app.models import TrainerProfile, User
 from core_app.models.anthropometry import AnthropometryEvaluation
-from core_app.models.customer_profile import CustomerProfile
 
 
 @pytest.fixture

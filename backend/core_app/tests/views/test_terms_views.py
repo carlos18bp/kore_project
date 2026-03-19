@@ -3,14 +3,24 @@
 Covers TermsAcceptanceStatusView and TermsAcceptanceCreateView.
 """
 
+from datetime import datetime
+from datetime import timezone as dt_tz
+
 import pytest
 from django.urls import reverse
-from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from core_app.models import User
 from core_app.models.terms_acceptance import CURRENT_TERMS_VERSION, TermsAcceptance
+
+FIXED_NOW = datetime(2026, 3, 1, 10, 0, tzinfo=dt_tz.utc)
+
+
+@pytest.fixture(autouse=True)
+def freeze_now(monkeypatch):
+    """Freeze timezone.now so time-based assertions are deterministic."""
+    monkeypatch.setattr('django.utils.timezone.now', lambda: FIXED_NOW)
 
 
 @pytest.fixture
@@ -45,7 +55,7 @@ class TestTermsAcceptanceStatusView:
         TermsAcceptance.objects.create(
             user=customer, terms_version=CURRENT_TERMS_VERSION,
             ip_address='127.0.0.1', user_agent='TestAgent',
-            accepted_at=timezone.now(),
+            accepted_at=FIXED_NOW,
         )
         api_client.force_authenticate(user=customer)
         response = api_client.get(reverse(STATUS_URL))
@@ -81,7 +91,7 @@ class TestTermsAcceptanceCreateView:
         TermsAcceptance.objects.create(
             user=customer, terms_version=CURRENT_TERMS_VERSION,
             ip_address='127.0.0.1', user_agent='Old',
-            accepted_at=timezone.now(),
+            accepted_at=FIXED_NOW,
         )
         api_client.force_authenticate(user=customer)
         response = api_client.post(reverse(ACCEPT_URL), {}, format='json')

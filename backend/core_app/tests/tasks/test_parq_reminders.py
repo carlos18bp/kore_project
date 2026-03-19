@@ -1,14 +1,22 @@
 """Tests for the send_parq_reminders Huey task."""
 
-from datetime import timedelta
+from datetime import datetime, timedelta
+from datetime import timezone as dt_tz
 from unittest.mock import patch
 
 import pytest
-from django.utils import timezone
 
 from core_app.models import Notification, Package, Subscription, User
 from core_app.models.parq_assessment import ParqAssessment
 from core_app.tasks import send_parq_reminders
+
+FIXED_NOW = datetime(2026, 3, 1, 10, 0, tzinfo=dt_tz.utc)
+
+
+@pytest.fixture(autouse=True)
+def freeze_now(monkeypatch):
+    """Freeze timezone.now so time-based assertions are deterministic."""
+    monkeypatch.setattr('django.utils.timezone.now', lambda: FIXED_NOW)
 
 
 @pytest.fixture
@@ -28,8 +36,8 @@ def active_subscription(customer, db):
         customer=customer, package=package,
         sessions_total=4, sessions_used=0,
         status=Subscription.Status.ACTIVE,
-        starts_at=timezone.now() - timedelta(days=5),
-        expires_at=timezone.now() + timedelta(days=25),
+        starts_at=FIXED_NOW - timedelta(days=5),
+        expires_at=FIXED_NOW + timedelta(days=25),
     )
 
 
@@ -61,7 +69,7 @@ def test_sends_reminder_when_entry_is_old(mock_email, customer, active_subscript
         q7_medical_supervision=False,
     )
     ParqAssessment.objects.filter(pk=parq.pk).update(
-        created_at=timezone.now() - timedelta(days=100),
+        created_at=FIXED_NOW - timedelta(days=100),
     )
 
     result = send_parq_reminders.call_local()
