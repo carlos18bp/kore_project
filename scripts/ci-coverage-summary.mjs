@@ -377,52 +377,56 @@ function build(be, fe, e2e, beFiles, feFiles, e2eFlows, beResults, feResults) {
     lines.push(`| ⬜ Missing | ${e2e.missing} |`);
     lines.push(`| **Total** | **${e2e.total}** |`);
 
-    // Failing flows
+    // Coverage by module
+    const moduleTotals = new Map();
+    for (const f of e2eFlows) {
+      const mod = f.module || 'unknown';
+      if (!moduleTotals.has(mod)) moduleTotals.set(mod, { covered: 0, total: 0 });
+      const stats = moduleTotals.get(mod);
+      stats.total += 1;
+      if (f.status === 'covered') stats.covered += 1;
+    }
+
+    if (moduleTotals.size > 0) {
+      lines.push('');
+      lines.push('**📦 Coverage by module**');
+      lines.push('');
+      lines.push('| Module | Covered | Total | % |');
+      lines.push('|--------|---------|-------|---|');
+      const sortedModules = Array.from(moduleTotals.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+      for (const [mod, stats] of sortedModules) {
+        const modPct = stats.total > 0 ? ((stats.covered / stats.total) * 100).toFixed(1) : '0.0';
+        lines.push(`| ${mod} | ${stats.covered} | ${stats.total} | ${modPct}% |`);
+      }
+    }
+
+    // Flows needing attention
     const failing = e2eFlows.filter(f => f.status === 'failing');
-    if (failing.length > 0) {
-      lines.push('');
-      lines.push('**❌ Failing Flows**');
-      lines.push('');
-      lines.push('| Flow | Module | Priority | Passed | Failed | Total |');
-      lines.push('|------|--------|----------|--------|--------|-------|');
-      for (const f of failing) {
-        lines.push(`| ${f.name} | ${f.module} | ${f.priority} | ${f.tests.passed} | ${f.tests.failed} | ${f.tests.total} |`);
-      }
-    }
-
-    // Partial flows
     const partial = e2eFlows.filter(f => f.status === 'partial');
-    if (partial.length > 0) {
-      lines.push('');
-      lines.push('**⚠️ Partial Flows**');
-      lines.push('');
-      lines.push('| Flow | Module | Priority | Passed | Skipped | Total | Known Gaps |');
-      lines.push('|------|--------|----------|--------|---------|-------|------------|');
-      for (const f of partial) {
-        const gaps = f.knownGaps.length > 0 ? f.knownGaps.join('; ') : '—';
-        lines.push(`| ${f.name} | ${f.module} | ${f.priority} | ${f.tests.passed} | ${f.tests.skipped} | ${f.tests.total} | ${gaps} |`);
-      }
-    }
-
-    // Missing flows (P1/P2/P3)
     const missing = e2eFlows.filter(f => f.status === 'missing');
-    const missingP1 = missing.filter(f => f.priority === 'P1');
-    const missingP2 = missing.filter(f => f.priority === 'P2');
-    const missingP3 = missing.filter(f => f.priority === 'P3');
 
-    if (missingP1.length > 0 || missingP2.length > 0 || missingP3.length > 0) {
+    const priorityOrder = { P1: 0, P2: 1, P3: 2, P4: 3 };
+    const statusOrder = { failing: 0, partial: 1, missing: 2 };
+    const needsAttention = [...failing, ...partial, ...missing]
+      .sort((a, b) => (priorityOrder[a.priority] ?? 4) - (priorityOrder[b.priority] ?? 4)
+        || (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3));
+
+    if (needsAttention.length > 0) {
+      const statusEmoji = { failing: '❌ failing', partial: '⚠️ partial', missing: '⬜ missing' };
       lines.push('');
-      lines.push('**⬜ Missing Flows**');
+      lines.push('**Flows needing attention**');
       lines.push('');
-      lines.push('| Priority | Flow | Module |');
-      lines.push('|----------|------|--------|');
-      for (const f of [...missingP1, ...missingP2, ...missingP3]) {
-        lines.push(`| ${f.priority} | ${f.name} | ${f.module} |`);
+      lines.push('| Status | Priority | Flow | Module | Tests |');
+      lines.push('|--------|----------|------|--------|-------|');
+      for (const f of needsAttention) {
+        const label = statusEmoji[f.status] || f.status;
+        const tests = f.tests.total > 0 ? `${f.tests.passed}/${f.tests.total}` : '—';
+        lines.push(`| ${label} | ${f.priority} | ${f.name} | ${f.module} | ${tests} |`);
       }
     }
 
     // If everything is clean
-    if (failing.length === 0 && partial.length === 0 && missing.length === 0) {
+    if (needsAttention.length === 0) {
       lines.push('');
       lines.push('✅ All flows fully covered — no failures, no gaps.');
     }
