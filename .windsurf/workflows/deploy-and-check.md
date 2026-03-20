@@ -83,6 +83,13 @@ bash ~/scripts/full-diagnostic.sh
 - **Media**: `/home/ryzepeck/webapps/kore_project/backend/media/`
 - **Resource limits**: MemoryMax=512MB, CPUQuota=50%, OOMScoreAdjust=250
 
+## Cleanup
+
+9. Remove `node_modules` to save disk space (frontend already compiled):
+```bash
+rm -rf /home/ryzepeck/webapps/kore_project/frontend/node_modules
+```
+
 ## Notes
 
 - `~/scripts` is a symlink to `/home/ryzepeck/webapps/ops/vps/`.

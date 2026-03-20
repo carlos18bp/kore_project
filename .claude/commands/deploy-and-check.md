@@ -71,6 +71,13 @@ sudo tail -20 /var/log/nginx/error.log
 - **Media**: `/home/ryzepeck/webapps/kore_project/backend/media/`
 - **Templates**: `/home/ryzepeck/webapps/kore_project/backend/templates/` (Next.js build output)
 
+## Cleanup
+
+9. Remove `node_modules` to save disk space (frontend already compiled):
+```bash
+rm -rf /home/ryzepeck/webapps/kore_project/frontend/node_modules
+```
+
 ## Notes
 
 - `~/scripts` is a symlink to `/home/ryzepeck/webapps/ops/vps/`.
