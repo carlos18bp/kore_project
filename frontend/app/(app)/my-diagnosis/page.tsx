@@ -38,6 +38,18 @@ const INDEX_SCIENCE: Record<string, { formula: string; reference: string }> = {
     formula: 'Masa grasa = peso × (%grasa / 100) · Masa libre = peso − masa grasa',
     reference: 'Derivado del cálculo de % de grasa corporal.',
   },
+  whe: {
+    formula: 'ICE = cintura (cm) / estatura (cm)',
+    reference: 'Ashwell & Hsieh (2005). Waist-to-height ratio as a screening tool.',
+  },
+  fat_mass: {
+    formula: 'Masa grasa (kg) = peso (kg) × (% grasa / 100)',
+    reference: 'Derivado del cálculo de % de grasa corporal.',
+  },
+  lean_mass: {
+    formula: 'Masa libre (kg) = peso total (kg) − masa grasa (kg)',
+    reference: 'Derivado del cálculo de % de grasa corporal.',
+  },
 };
 
 /* ── Educational content per index ── */
@@ -45,6 +57,8 @@ type IndexInfo = {
   title: string;
   whatIs: string;
   result: Record<string, string>;
+  importance: Record<string, string>;
+  nextStep: Record<string, string>;
   action: Record<string, string>;
 };
 
@@ -56,6 +70,16 @@ const INDEX_INFO: Record<string, IndexInfo> = {
       green: 'Tu peso está dentro del rango saludable. Esto significa que la relación entre tu peso y estatura es adecuada. Sigue así.',
       yellow: 'Tu peso está ligeramente por encima del rango ideal. Esto no significa que estés mal — muchas personas con buena masa muscular caen aquí. Lo importante es complementar con otros indicadores.',
       red: 'Tu peso está en un rango que puede representar un riesgo para tu salud. No te preocupes, con tu programa de entrenamiento y hábitos saludables puedes mejorar progresivamente.',
+    },
+    importance: {
+      green: 'Este dato ayuda a entender tu estado general de peso. Al estar en rango saludable, se convierte en una base sólida para tu proceso.',
+      yellow: 'Este dato es un primer filtro. No define por sí solo tu estado completo, por eso se complementa con grasa corporal, cintura y masa libre de grasa.',
+      red: 'Este dato señala un área de atención importante. Tu entrenador lo analiza junto con tus otros indicadores para diseñar un plan adecuado.',
+    },
+    nextStep: {
+      green: 'Tu entrenador seguirá monitoreando este indicador junto con tu composición corporal para asegurar que mantienes tu buen estado.',
+      yellow: 'Tu entrenador tendrá este resultado en cuenta junto con tus otros indicadores para ajustar tu proceso de forma personalizada.',
+      red: 'Tu entrenador usará este dato junto con el resto de tu evaluación para definir las prioridades de tu programa.',
     },
     action: {
       green: 'Mantén tus hábitos actuales de alimentación y ejercicio. La constancia es tu mejor aliada.',
@@ -71,6 +95,16 @@ const INDEX_INFO: Record<string, IndexInfo> = {
       yellow: 'Hay una acumulación moderada de grasa en la zona abdominal. Es un área donde vale la pena trabajar, pero no es alarmante.',
       red: 'La distribución de grasa indica concentración abdominal significativa. Esto se asocia con mayor riesgo metabólico, pero es reversible con ejercicio y alimentación adecuada.',
     },
+    importance: {
+      green: 'La distribución de grasa es tan importante como la cantidad. Al tener una distribución saludable, tu riesgo cardiovascular se mantiene bajo.',
+      yellow: 'La grasa abdominal tiene más impacto en la salud que la grasa en otras zonas. Este indicador complementa tu porcentaje de grasa y tu cintura.',
+      red: 'La concentración de grasa abdominal es uno de los factores más relevantes para tu salud metabólica. Mejorarlo tiene un impacto directo en tu bienestar.',
+    },
+    nextStep: {
+      green: 'Tu entrenador seguirá combinando fuerza y cardio en tu programa para mantener esta buena distribución.',
+      yellow: 'Tu entrenador incorporará ejercicios específicos que ayuden a reducir la grasa abdominal de forma progresiva.',
+      red: 'Tu entrenador priorizará este indicador en tu programa. Con constancia, es uno de los que más rápido responde al ejercicio.',
+    },
     action: {
       green: 'Sigue con tu rutina de ejercicio. Los entrenamientos que combinan fuerza y cardio ayudan a mantener esta distribución.',
       yellow: 'Ejercicios cardiovasculares y de core pueden ayudar a reducir la grasa abdominal. Tu entrenador puede incluir más trabajo de este tipo.',
@@ -85,10 +119,20 @@ const INDEX_INFO: Record<string, IndexInfo> = {
       yellow: 'Tu grasa corporal está un poco por encima del rango ideal. Con constancia en tu entrenamiento, puedes mejorar esta proporción.',
       red: 'Tu porcentaje de grasa está elevado. Cada sesión de entrenamiento contribuye a mejorar tu composición corporal — el progreso es gradual pero real.',
     },
+    importance: {
+      green: 'Este es uno de los indicadores más valiosos de tu proceso. Tener un buen porcentaje de grasa significa que tu cuerpo tiene una composición saludable.',
+      yellow: 'Este dato es más revelador que el peso solo. Ayuda a ver si tu proceso está mejorando la proporción entre grasa y músculo, que es lo que realmente importa.',
+      red: 'La composición corporal es el indicador central de tu recomposición. Cada mejora aquí se traduce en mejor salud, más energía y mejor rendimiento.',
+    },
+    nextStep: {
+      green: 'Tu entrenador seguirá monitoreando tu composición para asegurar que mantienes o mejoras estos niveles.',
+      yellow: 'Tu entrenador ajustará la intensidad y tipo de ejercicio para optimizar tu composición corporal de forma progresiva.',
+      red: 'Tu entrenador diseñará un programa que priorice la pérdida de grasa manteniendo tu masa muscular. Los hábitos sostenibles son más efectivos que las dietas extremas.',
+    },
     action: {
       green: 'Para mantener o mejorar, combina entrenamientos de fuerza (que aumentan masa muscular) con alimentación balanceada.',
       yellow: 'Enfócate en entrenamientos de fuerza combinados con actividad cardiovascular. La alimentación es clave: no se trata de hacer dieta, sino de nutrir bien tu cuerpo.',
-      red: 'Tu entrenador diseñará un programa que priorice la pérdida de grasa manteniendo tu masa muscular. Los hábitos sostenibles son más efectivos que las dietas extremas.',
+      red: 'Combina entrenamiento de fuerza con alimentación consciente. Los hábitos sostenibles son más efectivos que las dietas extremas.',
     },
   },
   waist: {
@@ -99,10 +143,92 @@ const INDEX_INFO: Record<string, IndexInfo> = {
       yellow: 'Tu cintura está en una zona de atención. No es crítico, pero reducir unos centímetros mejoraría significativamente tu perfil de salud.',
       red: 'Tu cintura indica acumulación de grasa abdominal que puede afectar tu salud. La buena noticia: la grasa abdominal es de las primeras en responder al ejercicio regular.',
     },
+    importance: {
+      green: 'La cintura es un indicador directo de salud metabólica. Al estar en rango seguro, tu riesgo de complicaciones se mantiene bajo.',
+      yellow: 'Este indicador tiene relación directa con la grasa que rodea tus órganos internos. Mejorarlo tiene un impacto real en tu salud general.',
+      red: 'La cintura es uno de los indicadores más importantes de riesgo metabólico. Es prioritario dentro de tu proceso porque afecta tu salud interna.',
+    },
+    nextStep: {
+      green: 'Tu entrenador mantendrá el enfoque actual para prevenir acumulación futura de grasa abdominal.',
+      yellow: 'Tu entrenador incluirá estrategias específicas en tu programa para reducir la cintura de forma progresiva.',
+      red: 'Tu entrenador priorizará este indicador. Con ejercicio regular y alimentación adecuada, es de los que más rápido mejoran.',
+    },
     action: {
       green: 'Mantén tu nivel de actividad física. Los entrenamientos de fuerza y cardio ayudan a prevenir acumulación futura.',
       yellow: 'Incorpora más movimiento en tu día a día además de tus sesiones. Caminar después de comer, por ejemplo, ayuda a reducir la grasa abdominal.',
       red: 'Además de tu entrenamiento, cuida tu alimentación — especialmente el consumo de azúcares y alcohol, que se asocian directamente con grasa abdominal. Cada centímetro que bajes es un logro.',
+    },
+  },
+  whe: {
+    title: 'Riesgo metabólico',
+    whatIs: 'La relación cintura-estatura es uno de los mejores indicadores simples de riesgo metabólico. Compara tu cintura con tu estatura para evaluar si hay acumulación de grasa abdominal excesiva, independientemente de tu contextura.',
+    result: {
+      green: 'Tu relación cintura-estatura está en rango saludable. Tu riesgo metabólico por grasa abdominal es bajo.',
+      yellow: 'Tu relación cintura-estatura indica un riesgo moderado. Hay margen para mejorar.',
+      red: 'Tu relación cintura-estatura indica riesgo elevado. La grasa abdominal está en un nivel que conviene abordar.',
+    },
+    importance: {
+      green: 'Este es uno de los indicadores más confiables de riesgo metabólico. Al estar bien, tu perfil de salud interna es favorable.',
+      yellow: 'Este indicador señala que la grasa abdominal empieza a ser relevante para tu salud. Mejorarlo reduce riesgos a largo plazo.',
+      red: 'Este indicador es prioritario porque la grasa abdominal afecta directamente tu salud interna, más allá de lo que se ve por fuera.',
+    },
+    nextStep: {
+      green: 'Tu entrenador seguirá monitoreando este indicador para mantener tu buen perfil metabólico.',
+      yellow: 'Tu entrenador incluirá estrategias para reducir la grasa abdominal de forma progresiva.',
+      red: 'Tu entrenador priorizará este indicador. Con ejercicio regular y alimentación adecuada, mejora significativamente.',
+    },
+    action: {
+      green: 'Sigue con tu programa actual. La combinación de fuerza y cardio es ideal para mantener esta relación.',
+      yellow: 'El ejercicio regular y una alimentación consciente son la mejor forma de mejorar este indicador.',
+      red: 'Combina ejercicio cardiovascular con entrenamiento de fuerza y cuida tu alimentación. Es de los indicadores que más rápido responden.',
+    },
+  },
+  fat_mass: {
+    title: 'Tu masa grasa',
+    whatIs: 'La masa grasa es la cantidad de kilos de tu cuerpo que corresponden a grasa corporal. Saber cuántos kilos de grasa tienes es más concreto que solo ver un porcentaje, porque te permite ver los cambios reales en kilos.',
+    result: {
+      green: 'Tu masa grasa está en un nivel adecuado. La cantidad de grasa corporal es proporcionada para tu peso.',
+      yellow: 'Tu masa grasa está un poco por encima del rango ideal. Con tu programa puedes reducirla de forma progresiva.',
+      red: 'Tu masa grasa está elevada. Cada kilo de grasa que reduzcas mejora tu composición corporal y tu salud.',
+    },
+    importance: {
+      green: 'Una masa grasa adecuada significa que tu cuerpo tiene una buena proporción de tejido graso. Esto se refleja en mejor energía y rendimiento.',
+      yellow: 'Reducir la masa grasa sin perder músculo es uno de los objetivos centrales de tu programa. Cada kilo cuenta.',
+      red: 'La masa grasa elevada impacta tu metabolismo, tu energía y tu salud general. Es una área clave de mejora.',
+    },
+    nextStep: {
+      green: 'Tu entrenador seguirá monitoreando que mantengas esta buena proporción de grasa corporal.',
+      yellow: 'Tu entrenador ajustará tu programa para favorecer la pérdida de grasa manteniendo tu masa muscular.',
+      red: 'Tu entrenador priorizará la reducción de grasa corporal con un plan de entrenamiento y hábitos personalizado.',
+    },
+    action: {
+      green: 'Sigue con tu entrenamiento de fuerza y alimentación equilibrada.',
+      yellow: 'Combina fuerza y cardio con una alimentación consciente. No se trata de dietas, sino de hábitos sostenibles.',
+      red: 'El ejercicio regular y la alimentación adecuada son la mejor combinación. Tu entrenador te guiará en el proceso.',
+    },
+  },
+  lean_mass: {
+    title: 'Tu masa libre de grasa',
+    whatIs: 'La masa libre de grasa incluye todo lo que no es grasa en tu cuerpo: músculo, huesos, agua y órganos. Es el indicador que te dice cuánta estructura útil tiene tu cuerpo. Lo ideal es mantenerla o aumentarla mientras reduces grasa.',
+    result: {
+      green: 'Tu masa libre de grasa es adecuada. Tu cuerpo tiene buena estructura muscular y ósea.',
+      yellow: 'Tu masa libre de grasa puede mejorar. Ganar músculo mejoraría tu metabolismo y tu fuerza.',
+      red: 'Tu masa libre de grasa es baja. Aumentarla es importante para tu salud, tu metabolismo y tu protección articular.',
+    },
+    importance: {
+      green: 'Tener buena masa muscular mejora tu metabolismo, protege tus articulaciones y te da más energía.',
+      yellow: 'El músculo es el motor de tu cuerpo. Aumentarlo mejora tu rendimiento, tu postura y tu calidad de vida.',
+      red: 'Sin masa muscular suficiente, tu metabolismo se ralentiza y tu cuerpo es más vulnerable. Ganar músculo es prioritario.',
+    },
+    nextStep: {
+      green: 'Tu entrenador mantendrá el enfoque en fuerza para conservar y mejorar tu masa muscular.',
+      yellow: 'Tu entrenador ajustará tu programa para favorecer el aumento de masa muscular con la intensidad adecuada.',
+      red: 'Tu entrenador diseñará un plan enfocado en ganar masa muscular de forma progresiva y segura.',
+    },
+    action: {
+      green: 'Sigue con el entrenamiento de fuerza y asegúrate de consumir proteína suficiente.',
+      yellow: 'Prioriza el entrenamiento de fuerza y asegura una buena ingesta de proteína para favorecer el crecimiento muscular.',
+      red: 'El entrenamiento de fuerza y la proteína adecuada son tu mejor estrategia. Tu entrenador te guiará paso a paso.',
     },
   },
   mass: {
@@ -112,6 +238,16 @@ const INDEX_INFO: Record<string, IndexInfo> = {
       green: 'Tu masa libre de grasa se mantiene o crece mientras reduces grasa. Esto es exactamente lo que buscamos: recomposición corporal.',
       yellow: 'Estás en un proceso de cambio. Vigila que tu masa libre de grasa no baje demasiado — eso indicaría que estás perdiendo músculo en vez de grasa.',
       red: 'Es importante ganar masa muscular y reducir grasa. Tu entrenador puede ajustar la intensidad y el tipo de ejercicio para optimizar tu composición.',
+    },
+    importance: {
+      green: 'Saber cuánto de tu peso es grasa y cuánto es músculo es clave. Una recomposición corporal exitosa se mide aquí, no en la báscula.',
+      yellow: 'Este indicador te muestra si estás perdiendo lo que debes perder. Es el complemento más importante de tu porcentaje de grasa.',
+      red: 'Mejorar la proporción entre grasa y músculo es el objetivo central de tu programa. Cada kilo de músculo que ganes mejora tu metabolismo y tu salud.',
+    },
+    nextStep: {
+      green: 'Tu entrenador seguirá ajustando tu programa para mantener esta buena proporción entre grasa y músculo.',
+      yellow: 'Tu entrenador revisará tu alimentación y tipo de ejercicio para asegurar que conserves masa muscular mientras pierdes grasa.',
+      red: 'Tu entrenador diseñará un plan que priorice el aumento de masa muscular con la intensidad adecuada para tu nivel.',
     },
     action: {
       green: 'Sigue así. El entrenamiento de fuerza es tu mejor herramienta para mantener y construir masa muscular.',
@@ -163,6 +299,16 @@ function IndexCard({ id, ev, prev }: { id: string; ev: AnthropometryEvaluation; 
     if (!ev.waist_cm) return null;
     value = ev.waist_cm; unit = ' cm'; color = ev.waist_risk_color;
     if (prev && prev.waist_cm) diffEl = getDiffBadge(parseFloat(ev.waist_cm), parseFloat(prev.waist_cm), 'cm', true);
+  } else if (id === 'whe') {
+    if (!ev.waist_height_ratio) return null;
+    value = ev.waist_height_ratio; color = ev.whe_color;
+    if (prev && prev.waist_height_ratio) diffEl = getDiffBadge(parseFloat(ev.waist_height_ratio), parseFloat(prev.waist_height_ratio), '', true);
+  } else if (id === 'fat_mass') {
+    value = ev.fat_mass_kg; unit = ' kg'; color = ev.bf_color;
+    if (prev) diffEl = getDiffBadge(parseFloat(ev.fat_mass_kg), parseFloat(prev.fat_mass_kg), 'kg', true);
+  } else if (id === 'lean_mass') {
+    value = ev.lean_mass_kg; unit = ' kg'; color = 'green';
+    if (prev) diffEl = getDiffBadge(parseFloat(ev.lean_mass_kg), parseFloat(prev.lean_mass_kg), 'kg');
   } else if (id === 'mass') {
     value = `${ev.fat_mass_kg} / ${ev.lean_mass_kg}`; unit = ' kg'; color = ev.bf_color;
   }
@@ -174,6 +320,8 @@ function IndexCard({ id, ev, prev }: { id: string; ev: AnthropometryEvaluation; 
   const recKey = id === 'waist' ? 'waist' : id;
   const customRec = recs[recKey];
   const resultText = customRec?.result || info.result[colorKey] || info.result.green;
+  const importanceText = info.importance[colorKey] || info.importance.green;
+  const nextStepText = info.nextStep[colorKey] || info.nextStep.green;
   const actionText = customRec?.action || info.action[colorKey] || info.action.green;
 
   // GSAP accordion toggle
@@ -226,9 +374,16 @@ function IndexCard({ id, ev, prev }: { id: string; ev: AnthropometryEvaluation; 
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-kore-gray-dark">{info.title}</p>
-          <p className="text-xs text-kore-gray-dark/50 mt-0.5">{id === 'mass' ? 'Grasa y masa libre' : (
-            id === 'bmi' ? ev.bmi_category : id === 'whr' ? ev.whr_risk : id === 'bf' ? ev.bf_category : ev.waist_risk
-          )}</p>
+          <p className="text-xs text-kore-gray-dark/50 mt-0.5">{
+            id === 'mass' ? 'Grasa y masa libre' :
+            id === 'bmi' ? ev.bmi_category :
+            id === 'whr' ? ev.whr_risk :
+            id === 'bf' ? ev.bf_category :
+            id === 'whe' ? ev.whe_risk :
+            id === 'fat_mass' ? `${ev.fat_mass_kg} kg de grasa estimada` :
+            id === 'lean_mass' ? `${ev.lean_mass_kg} kg de estructura útil` :
+            ev.waist_risk
+          }</p>
         </div>
         <div className="flex items-center gap-2">
           {diffEl}
@@ -249,8 +404,12 @@ function IndexCard({ id, ev, prev }: { id: string; ev: AnthropometryEvaluation; 
             <p className={`text-sm ${CT[colorKey]}/80 leading-relaxed`}>{resultText}</p>
           </div>
           <div className="idx-panel bg-white rounded-xl p-4 border border-kore-gray-light/30">
-            <p className="text-xs text-kore-gray-dark/50 uppercase tracking-wider font-medium mb-1.5">¿Qué puedes hacer?</p>
-            <p className="text-sm text-kore-gray-dark/70 leading-relaxed">{actionText}</p>
+            <p className="text-xs text-kore-gray-dark/50 uppercase tracking-wider font-medium mb-1.5">¿Qué importancia tiene en tu proceso?</p>
+            <p className="text-sm text-kore-gray-dark/70 leading-relaxed">{importanceText}</p>
+          </div>
+          <div className="idx-panel bg-kore-red/5 rounded-xl p-4 border border-kore-red/10">
+            <p className="text-xs text-kore-red/70 uppercase tracking-wider font-medium mb-1.5">¿Qué sigue con tu entrenador?</p>
+            <p className="text-sm text-kore-gray-dark/70 leading-relaxed">{nextStepText}</p>
           </div>
           {science && (
             <div className="idx-panel bg-kore-cream/20 rounded-xl p-4 border border-kore-gray-light/20">
@@ -441,10 +600,12 @@ export default function MyDiagnosisPage() {
               <p className="text-xs text-kore-gray-dark/50 mb-4">Toca cada indicador para entender qué significa y qué puedes hacer.</p>
               <div ref={cardsRef} className="space-y-3">
                 <IndexCard id="bf" ev={latest} prev={previous} />
-                <IndexCard id="mass" ev={latest} prev={previous} />
+                <IndexCard id="fat_mass" ev={latest} prev={previous} />
+                <IndexCard id="lean_mass" ev={latest} prev={previous} />
                 <IndexCard id="bmi" ev={latest} prev={previous} />
                 <IndexCard id="waist" ev={latest} prev={previous} />
                 <IndexCard id="whr" ev={latest} prev={previous} />
+                <IndexCard id="whe" ev={latest} prev={previous} />
               </div>
             </div>
 

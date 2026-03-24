@@ -25,6 +25,8 @@ type IndexInfo = {
   whatIs: string;
   tests: string;
   result: Record<string, string>;
+  importance: Record<string, string>;
+  nextStep: Record<string, string>;
   action: Record<string, string>;
 };
 
@@ -37,6 +39,16 @@ const INDEX_INFO: Record<string, IndexInfo> = {
       green: 'Tu condición física general es adecuada. Tu cuerpo responde bien al esfuerzo.',
       yellow: 'Tu condición física general está por debajo del rango ideal. Hay áreas por mejorar.',
       red: 'Tu condición física general necesita atención prioritaria.',
+    },
+    importance: {
+      green: 'Tu condición física es la base de todo tu entrenamiento. Al estar en buen nivel, puedes progresar con confianza.',
+      yellow: 'Este índice resume cómo está tu cuerpo para moverse y rendir. Mejorarlo impacta directamente tu calidad de vida.',
+      red: 'La condición física general es el punto de partida de tu proceso. Cada mejora aquí se traduce en más energía y menos riesgo.',
+    },
+    nextStep: {
+      green: 'Tu entrenador seguirá progresando tu programa para mantener y optimizar tu buen nivel.',
+      yellow: 'Tu entrenador identificará los componentes más débiles y ajustará tu programa para fortalecerlos.',
+      red: 'Tu entrenador diseñará un plan progresivo y seguro enfocado en mejorar tu base funcional.',
     },
     action: {
       green: 'Sigue con tu programa. La constancia y la progresión gradual son tu mejor estrategia.',
@@ -53,6 +65,16 @@ const INDEX_INFO: Record<string, IndexInfo> = {
       yellow: 'Tu fuerza-resistencia está por debajo del promedio para tu grupo.',
       red: 'Tu fuerza-resistencia necesita desarrollo prioritario.',
     },
+    importance: {
+      green: 'La fuerza es fundamental para proteger articulaciones, mejorar postura y mantener la masa muscular.',
+      yellow: 'La fuerza es la base del movimiento seguro. Mejorarla te permite entrenar con más seguridad y eficiencia.',
+      red: 'Sin una base de fuerza adecuada, otros componentes se ven limitados. Es la prioridad para tu progreso.',
+    },
+    nextStep: {
+      green: 'Tu entrenador progresará la carga e intensidad de tu entrenamiento de fuerza.',
+      yellow: 'Tu entrenador incorporará más trabajo de fuerza funcional adaptado a tu nivel.',
+      red: 'Tu entrenador empezará con ejercicios básicos de fuerza con cargas adaptadas a tu nivel actual.',
+    },
     action: {
       green: 'Mantén el entrenamiento de fuerza. La progresión en carga e intensidad es tu próximo paso.',
       yellow: 'Incorpora más trabajo de fuerza funcional. Tu entrenador adaptará los ejercicios a tu nivel.',
@@ -67,6 +89,16 @@ const INDEX_INFO: Record<string, IndexInfo> = {
       green: 'Tu capacidad aeróbica es buena. Toleras el esfuerzo sostenido de forma adecuada.',
       yellow: 'Tu capacidad aeróbica está por debajo del rango esperado.',
       red: 'Tu capacidad aeróbica necesita mejora significativa.',
+    },
+    importance: {
+      green: 'La resistencia te permite sostener esfuerzos prolongados y recuperarte más rápido entre ejercicios.',
+      yellow: 'Tu resistencia afecta cuánto puedes rendir en cada sesión. Mejorarla potencia todo tu entrenamiento.',
+      red: 'La resistencia es la base para tolerar el esfuerzo. Mejorarla es clave para que puedas progresar en tu programa.',
+    },
+    nextStep: {
+      green: 'Tu entrenador progresará tu actividad cardiovascular en intensidad o duración.',
+      yellow: 'Tu entrenador incorporará más actividad cardiovascular adaptada a tu capacidad.',
+      red: 'Tu entrenador comenzará con actividad cardiovascular de baja intensidad, aumentando gradualmente.',
     },
     action: {
       green: 'Mantén la actividad cardiovascular regular. Puedes progresar en intensidad o duración.',
@@ -83,6 +115,16 @@ const INDEX_INFO: Record<string, IndexInfo> = {
       yellow: 'Algunas zonas articulares presentan limitaciones leves de movilidad.',
       red: 'Hay limitaciones importantes de movilidad que pueden afectar tu movimiento.',
     },
+    importance: {
+      green: 'La movilidad te permite ejecutar ejercicios con técnica correcta y sin riesgo de lesión.',
+      yellow: 'Las limitaciones de movilidad afectan la calidad de tus ejercicios y pueden generar compensaciones.',
+      red: 'Sin movilidad adecuada, no es seguro progresar en carga. Es una prioridad para tu protección articular.',
+    },
+    nextStep: {
+      green: 'Tu entrenador mantendrá tu rutina de movilidad como parte integral de tu programa.',
+      yellow: 'Tu entrenador incluirá ejercicios específicos de movilidad para las zonas que necesitan mejorar.',
+      red: 'Tu entrenador priorizará la movilidad en tu programa antes de progresar en carga.',
+    },
     action: {
       green: 'Mantén tu rutina de movilidad. Estiramientos dinámicos antes del entrenamiento son ideales.',
       yellow: 'Tu programa incluirá ejercicios específicos de movilidad para las zonas limitadas.',
@@ -97,6 +139,16 @@ const INDEX_INFO: Record<string, IndexInfo> = {
       green: 'Tu equilibrio y control neuromuscular son adecuados.',
       yellow: 'Tu equilibrio está por debajo del promedio esperado.',
       red: 'Tu equilibrio necesita atención prioritaria.',
+    },
+    importance: {
+      green: 'El equilibrio refleja la calidad de tu control corporal. Un buen equilibrio protege contra caídas y lesiones.',
+      yellow: 'El equilibrio afecta tu estabilidad en ejercicios unilaterales y tu control durante el movimiento.',
+      red: 'Sin equilibrio adecuado, el riesgo de caída y lesión aumenta. Es fundamental mejorarlo para tu seguridad.',
+    },
+    nextStep: {
+      green: 'Tu entrenador seguirá incluyendo trabajo de estabilidad y ejercicios unilaterales en tu programa.',
+      yellow: 'Tu entrenador incorporará ejercicios específicos de equilibrio en tu plan.',
+      red: 'Tu entrenador incluirá trabajo progresivo de equilibrio estático y dinámico como prioridad.',
     },
     action: {
       green: 'Sigue trabajando la estabilidad. Ejercicios unilaterales y superficies inestables son buenas opciones.',
@@ -156,6 +208,8 @@ function IndexCard({ id, ev }: { id: string; ev: PhysicalEvaluation }) {
   const recs = ev.recommendations || {};
   const customRec = recs[id];
   const resultText = customRec?.result || info.result[color] || info.result.green;
+  const importanceText = info.importance[color] || info.importance.green;
+  const nextStepText = info.nextStep[color] || info.nextStep.green;
   const actionText = customRec?.action || info.action[color] || info.action.green;
 
   const toggle = useCallback(() => {
@@ -211,8 +265,12 @@ function IndexCard({ id, ev }: { id: string; ev: PhysicalEvaluation }) {
             <p className={`text-sm ${CT[color]}/80 leading-relaxed`}>{resultText}</p>
           </div>
           <div className="idx-panel bg-white rounded-xl p-4 border border-kore-gray-light/30">
-            <p className="text-xs text-kore-gray-dark/50 uppercase tracking-wider font-medium mb-1.5">¿Qué puedes hacer?</p>
-            <p className="text-sm text-kore-gray-dark/70 leading-relaxed">{actionText}</p>
+            <p className="text-xs text-kore-gray-dark/50 uppercase tracking-wider font-medium mb-1.5">¿Qué importancia tiene en tu proceso?</p>
+            <p className="text-sm text-kore-gray-dark/70 leading-relaxed">{importanceText}</p>
+          </div>
+          <div className="idx-panel bg-kore-red/5 rounded-xl p-4 border border-kore-red/10">
+            <p className="text-xs text-kore-red/70 uppercase tracking-wider font-medium mb-1.5">¿Qué sigue con tu entrenador?</p>
+            <p className="text-sm text-kore-gray-dark/70 leading-relaxed">{nextStepText}</p>
           </div>
         </div>
       </div>
@@ -220,17 +278,45 @@ function IndexCard({ id, ev }: { id: string; ev: PhysicalEvaluation }) {
   );
 }
 
+/* ── Reference ranges per test ── */
+const TEST_RANGES: Record<string, { scale: string; interpret: (raw: number | null) => string }> = {
+  squats: {
+    scale: '<15 bajo · 15–25 regular · 26–35 bueno · >35 muy bueno',
+    interpret: (r) => r == null ? '' : r < 15 ? 'Tu resistencia de piernas está en rango bajo. Hay espacio para mejorar.' : r <= 25 ? 'Tu resistencia de piernas está en rango regular. Tienes una base aceptable.' : r <= 35 ? 'Tu resistencia de piernas es buena. Puedes seguir progresando.' : 'Tu resistencia de piernas es muy buena. Excelente base funcional.',
+  },
+  pushups: {
+    scale: '0–5 bajo · 6–12 regular · 13–20 bueno · >20 muy bueno',
+    interpret: (r) => r == null ? '' : r <= 5 ? 'Tu fuerza de tren superior necesita desarrollo.' : r <= 12 ? 'Tu fuerza de tren superior es regular. Hay margen de mejora.' : r <= 20 ? 'Tu fuerza de tren superior es buena.' : 'Tu fuerza de tren superior es muy buena.',
+  },
+  plank: {
+    scale: '<20s bajo · 20–40s regular · 41–60s bueno · >60s muy bueno',
+    interpret: (r) => r == null ? '' : r < 20 ? 'Tu resistencia de core es baja. Es una prioridad para tu estabilidad.' : r <= 40 ? 'Tu core tiene una resistencia regular. Puede mejorar con trabajo específico.' : r <= 60 ? 'Tu resistencia de core es buena. Buen control central.' : 'Tu core es muy resistente. Excelente estabilidad.',
+  },
+  walk: {
+    scale: 'Baja · Media · Buena · Muy buena',
+    interpret: (r) => r == null ? '' : 'Tu capacidad aeróbica se evalúa según la distancia recorrida en 6 minutos, ajustada por edad y sexo.',
+  },
+  unipodal: {
+    scale: '<10s bajo · 10–20s regular · 21–40s bueno · >40s muy bueno',
+    interpret: (r) => r == null ? '' : r < 10 ? 'Tu estabilidad es baja. El equilibrio necesita trabajo prioritario.' : r <= 20 ? 'Tu estabilidad es regular. Puedes mejorar con ejercicios específicos.' : r <= 40 ? 'Tu estabilidad es buena. Buen control neuromuscular.' : 'Tu estabilidad es muy buena. Excelente control corporal.',
+  },
+};
+
+const MOBILITY_SCALE = '1 limitada · 2 reducida · 3 funcional · 4 buena · 5 excelente';
+
 /* ── Individual test scores bar chart ── */
 function TestScores({ ev }: { ev: PhysicalEvaluation }) {
   return (
     <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
       <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-3">Tus resultados por prueba</p>
-      <div className="space-y-2.5">
+      <div className="space-y-4">
         {TEST_LABELS.map(t => {
           const score = (ev[t.scoreKey] as number | null) ?? 0;
           const raw = ev[t.rawKey] as number | null;
           const pct = (score / 5) * 100;
           const barColor = score <= 2 ? 'bg-red-400' : score <= 3 ? 'bg-amber-400' : 'bg-green-500';
+          const range = TEST_RANGES[t.key];
+          const interpretation = range?.interpret(raw);
           return (
             <div key={t.key}>
               <div className="flex items-center justify-between mb-1">
@@ -240,6 +326,12 @@ function TestScores({ ev }: { ev: PhysicalEvaluation }) {
               <div className="h-1.5 bg-kore-gray-light/30 rounded-full overflow-hidden">
                 <div className={`h-full rounded-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
               </div>
+              {range && (
+                <p className="text-xs text-kore-gray-dark/35 mt-1">{range.scale}</p>
+              )}
+              {interpretation && (
+                <p className="text-xs text-kore-gray-dark/60 mt-0.5 leading-relaxed">{interpretation}</p>
+              )}
             </div>
           );
         })}
@@ -254,11 +346,12 @@ function TestScores({ ev }: { ev: PhysicalEvaluation }) {
             const val = (ev[z.key] as number | null) ?? 0;
             const pct = (val / 5) * 100;
             const barColor = val <= 2 ? 'bg-red-400' : val === 3 ? 'bg-amber-400' : 'bg-green-500';
+            const mobLabel = val <= 1 ? 'Limitada' : val === 2 ? 'Reducida' : val === 3 ? 'Funcional' : val === 4 ? 'Buena' : 'Excelente';
             return (
               <div key={z.key} className="mb-2">
                 <div className="flex items-center justify-between mb-0.5">
                   <span className="text-xs text-kore-gray-dark/70">{z.label}</span>
-                  <span className="text-xs text-kore-gray-dark/50">{val}/5</span>
+                  <span className="text-xs text-kore-gray-dark/50">{val}/5 · {mobLabel}</span>
                 </div>
                 <div className="h-1.5 bg-kore-gray-light/30 rounded-full overflow-hidden">
                   <div className={`h-full rounded-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
@@ -266,6 +359,7 @@ function TestScores({ ev }: { ev: PhysicalEvaluation }) {
               </div>
             );
           })}
+          <p className="text-xs text-kore-gray-dark/35 mt-1">{MOBILITY_SCALE}</p>
         </div>
       </div>
     </div>

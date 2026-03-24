@@ -18,6 +18,7 @@ import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 import UpcomingSessionReminder from '@/app/components/booking/UpcomingSessionReminder';
 import SubscriptionExpiryReminder from '@/app/components/subscription/SubscriptionExpiryReminder';
 import SubscriptionDashboardToast from '@/app/components/subscription/SubscriptionDashboardToast';
+import { ExpandableIndicator, type IndicatorData } from '@/app/components/dashboard/ExpandableIndicator';
 import { WHATSAPP_URL } from '@/lib/constants';
 import {
   getGoalLabel, getGoalIcon, getMoodLabel, getMoodIcon,
@@ -408,17 +409,26 @@ export default function DashboardPage() {
             {/* Estado de hoy (embedded) */}
             <div className="py-3 border-t border-kore-gray-light/30">
               {todayMood ? (
-                <div className="flex items-center gap-2.5">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center font-heading text-sm font-bold flex-shrink-0 ${
-                    todayMood.score >= 7 ? 'bg-green-100 text-green-700' : todayMood.score >= 4 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'
-                  }`}>{todayMood.score}</div>
-                  <div>
-                    <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Estado de hoy</p>
-                    <p className={`text-sm font-medium ${todayMood.score >= 7 ? 'text-green-700' : todayMood.score >= 4 ? 'text-amber-700' : 'text-red-600'}`}>
-                      {todayMood.score >= 9 ? 'Excelente' : todayMood.score >= 7 ? 'Bien' : todayMood.score >= 5 ? 'Regular' : todayMood.score >= 3 ? 'Bajo' : 'Muy bajo'}
-                      <span className="text-kore-gray-dark/40 text-xs font-normal ml-1">de 10</span>
-                    </p>
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-heading text-sm font-bold flex-shrink-0 ${
+                      todayMood.score >= 7 ? 'bg-green-100 text-green-700' : todayMood.score >= 4 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'
+                    }`}>{todayMood.score}</div>
+                    <div>
+                      <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Estado de hoy</p>
+                      <p className={`text-sm font-medium ${todayMood.score >= 7 ? 'text-green-700' : todayMood.score >= 4 ? 'text-amber-700' : 'text-red-600'}`}>
+                        {todayMood.score >= 9 ? 'Excelente' : todayMood.score >= 7 ? 'Bien' : todayMood.score >= 5 ? 'Regular' : todayMood.score >= 3 ? 'Bajo' : 'Muy bajo'}
+                        <span className="text-kore-gray-dark/40 text-xs font-normal ml-1">de 10</span>
+                      </p>
+                    </div>
                   </div>
+                  <p className="text-xs text-kore-gray-dark/45 leading-relaxed mt-1.5 ml-10">
+                    {todayMood.score >= 7
+                      ? 'Tu bienestar hoy es favorable. Buena disposición para entrenar.'
+                      : todayMood.score >= 4
+                      ? 'Tu bienestar hoy es regular. Escucha a tu cuerpo y coméntalo con tu entrenador si es frecuente.'
+                      : 'Tu bienestar hoy está bajo. Si te sientes así con frecuencia, coméntalo con tu entrenador.'}
+                  </p>
                 </div>
               ) : (
                 <div className="flex items-center gap-2.5">
@@ -626,6 +636,32 @@ export default function DashboardPage() {
                     }).filter(Boolean)}
                   </div>
                   <p className="text-xs text-kore-gray-dark/30 mt-3">{koreIndex.modules_available} de {koreIndex.modules_total} módulos evaluados</p>
+                  {/* What sustains / what to improve */}
+                  {(() => {
+                    const MODULE_LABELS: Record<string, string> = { anthropometry: 'Composición', metabolic_risk: 'Riesgo metab.', posturometry: 'Postura', physical: 'Condición', mood: 'Bienestar', nutrition: 'Nutrición' };
+                    const entries = Object.entries(koreIndex.components).filter(([, v]) => v !== undefined) as [string, number][];
+                    const sorted = [...entries].sort((a, b) => b[1] - a[1]);
+                    const best = sorted.filter(([, v]) => v >= 75).slice(0, 2);
+                    const worst = sorted.filter(([, v]) => v < 60).reverse().slice(0, 2);
+                    if (best.length === 0 && worst.length === 0) return null;
+                    return (
+                      <div className="mt-3 pt-3 border-t border-kore-gray-light/20 space-y-2">
+                        {best.length > 0 && (
+                          <div className="flex items-start gap-2">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0" />
+                            <p className="text-xs text-kore-gray-dark/60"><span className="font-medium text-emerald-700">Te sostiene:</span> {best.map(([k]) => MODULE_LABELS[k] || k).join(', ')}</p>
+                          </div>
+                        )}
+                        {worst.length > 0 && (
+                          <div className="flex items-start gap-2">
+                            <div className="w-2 h-2 rounded-full bg-amber-500 mt-1.5 flex-shrink-0" />
+                            <p className="text-xs text-kore-gray-dark/60"><span className="font-medium text-amber-700">Puedes mejorar:</span> {worst.map(([k]) => MODULE_LABELS[k] || k).join(', ')}</p>
+                          </div>
+                        )}
+                        <p className="text-xs text-kore-gray-dark/35 leading-relaxed">Tu entrenador usará esta lectura para orientar tu siguiente fase.</p>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })() : (
@@ -641,19 +677,33 @@ export default function DashboardPage() {
         {/* ═══════ DIAGNOSTIC MODULES SECTION ═══════ */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 xl:gap-4 mb-3 xl:mb-4">
 
-          {/* ⑦ Evaluación Postural */}
+          {/* ⑦ Evaluación Postural — expandable indicators */}
           {posturoEvals.length > 0 && (() => {
             const latest = posturoEvals[0];
             const CTP: Record<string, string> = { green: 'text-green-700', yellow: 'text-amber-700', orange: 'text-orange-700', red: 'text-red-600' };
             const CBP: Record<string, string> = { green: 'bg-green-100', yellow: 'bg-amber-100', orange: 'bg-orange-100', red: 'bg-red-100' };
-            const CDP: Record<string, string> = { green: 'bg-green-500', yellow: 'bg-amber-500', orange: 'bg-orange-500', red: 'bg-red-500' };
+            const posturoIndicators: IndicatorData[] = [
+              { key: 'upper', label: 'Zona superior', value: latest.upper_index, category: latest.upper_category || 'Funcional', color: latest.upper_color,
+                whatIs: 'Incluye cabeza, cuello, hombros, escápulas y codos. Los desbalances suelen venir de hábitos posturales.',
+                meaning: latest.upper_color === 'green' ? 'Tu zona superior muestra alineación funcional.' : latest.upper_color === 'yellow' ? 'Se observan desbalances leves, posiblemente por hábitos posturales.' : 'Se detectan desbalances que pueden afectar tu movilidad.',
+                importance: 'La zona superior influye en cómo usas los brazos, hombros y cuello en tu día a día y en el entrenamiento.',
+                nextStep: 'Tu entrenador incorporará ejercicios de movilidad y fortalecimiento adaptados a esta zona.' },
+              { key: 'central', label: 'Zona central', value: latest.central_index, category: latest.central_category || 'Funcional', color: latest.central_color,
+                whatIs: 'Incluye columna vertebral, abdomen, cadera y pelvis. Es el centro de control de tu cuerpo.',
+                meaning: latest.central_color === 'green' ? 'Tu zona central muestra buena alineación.' : latest.central_color === 'yellow' ? 'Se observan desbalances leves que pueden influir en cómo distribuyes la carga.' : 'Hay desbalances que pueden afectar tu estabilidad y función.',
+                importance: 'El centro de tu cuerpo es donde nace la fuerza funcional. Un centro equilibrado mejora todo tu movimiento.',
+                nextStep: 'Tu entrenador incluirá trabajo de core y movilidad de columna en tu programa.' },
+              { key: 'lower', label: 'Zona inferior', value: latest.lower_index, category: latest.lower_category || 'Funcional', color: latest.lower_color,
+                whatIs: 'Incluye rodillas, pies y zona poplítea. Es la base de apoyo de tu cuerpo.',
+                meaning: latest.lower_color === 'green' ? 'Tu tren inferior muestra buena alineación.' : latest.lower_color === 'yellow' ? 'Se observan desbalances leves que pueden influir en cómo absorbes el impacto.' : 'Hay desbalances que pueden afectar tu mecánica de movimiento.',
+                importance: 'Tus piernas y pies son la base de apoyo de tu cuerpo. Un buen apoyo protege articulaciones.',
+                nextStep: 'Tu entrenador incorporará ejercicios de estabilización y movilidad de tren inferior.' },
+            ];
             return (
-              <Link href="/my-posturometry" className="block bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm">
                 <div className="flex items-center justify-between mb-2.5">
                   <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Evaluación Postural</h2>
-                  <svg className="w-3.5 h-3.5 text-kore-gray-dark/30 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                  </svg>
+                  <Link href="/my-posturometry" className="text-[10px] text-kore-red font-medium hover:underline">Ver completo</Link>
                 </div>
                 <div className="flex items-center gap-2.5 mb-2.5">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${CBP[latest.global_color] || CBP.green}`}>
@@ -664,58 +714,60 @@ export default function DashboardPage() {
                     <p className="text-xs text-kore-gray-dark/40">Índice global</p>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-1.5 mb-2">
-                  {[
-                    { label: 'Superior', val: latest.upper_index, col: latest.upper_color },
-                    { label: 'Central', val: latest.central_index, col: latest.central_color },
-                    { label: 'Inferior', val: latest.lower_index, col: latest.lower_color },
-                  ].map((r) => (
-                    <div key={r.label} className="text-center bg-kore-cream/40 rounded-lg py-1.5">
-                      <p className={`font-heading text-sm font-bold ${CTP[r.col] || CTP.green}`}>{r.val}</p>
-                      <p className="text-xs text-kore-gray-dark/40">{r.label}</p>
-                    </div>
+                <p className="text-xs text-kore-gray-dark/35 mb-1.5">Toca cada zona para ver qué significa</p>
+                <div className="pt-2.5 border-t border-kore-gray-light/20 space-y-0.5">
+                  {posturoIndicators.map((ind) => (
+                    <ExpandableIndicator key={ind.key} ind={ind} />
                   ))}
                 </div>
-                {/* Indicator badges — replaces dots, fills space */}
-                <div ref={posturoDotsRef} className="space-y-1.5 pt-2.5 border-t border-kore-gray-light/20 mb-2.5">
-                  {[
-                    { label: 'Superior', cat: latest.upper_category, col: latest.upper_color, val: latest.upper_index },
-                    { label: 'Central', cat: latest.central_category, col: latest.central_color, val: latest.central_index },
-                    { label: 'Inferior', cat: latest.lower_category, col: latest.lower_color, val: latest.lower_index },
-                  ].map((r) => (
-                    <div key={r.label} className="flex items-center gap-2">
-                      <div className={`posturo-wave-dot w-2 h-2 rounded-full flex-shrink-0 ${CDP[r.col] || CDP.green}`} />
-                      <span className="text-xs text-kore-gray-dark/70 flex-1">{r.label}</span>
-                      <span className={`text-xs font-medium ${CTP[r.col] || CTP.green}`}>{r.cat || 'Funcional'}</span>
-                    </div>
-                  ))}
-                </div>
-                {/* Trainer notes */}
                 {latest.notes && (
-                  <div className="pt-2 border-t border-kore-gray-light/20">
+                  <div className="pt-2 border-t border-kore-gray-light/20 mt-2">
                     <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider font-medium mb-0.5">Tu entrenador</p>
                     <p className="text-xs text-kore-gray-dark/60 leading-relaxed line-clamp-2 italic">{latest.notes}</p>
                   </div>
                 )}
-              </Link>
+              </div>
             );
           })()}
 
-          {/* ⑧ Mi estado físico (Antropometría) */}
+          {/* ⑧ Mi estado físico (Antropometría) — expandable indicators */}
           {anthroEvals.length > 0 && (() => {
             const latest = anthroEvals[0];
             const first = anthroEvals.length > 1 ? anthroEvals[anthroEvals.length - 1] : null;
             const CT: Record<string, string> = { green: 'text-green-700', yellow: 'text-amber-700', red: 'text-red-600' };
-            const CD: Record<string, string> = { green: 'bg-green-500', yellow: 'bg-amber-500', red: 'bg-red-500' };
             const weightDiff = first ? parseFloat(latest.weight_kg) - parseFloat(first.weight_kg) : null;
             const fatDiff = first ? parseFloat(latest.body_fat_pct) - parseFloat(first.body_fat_pct) : null;
+            const anthroIndicators: IndicatorData[] = [
+              { key: 'bf', label: 'Composición corporal', value: latest.body_fat_pct, unit: '%', category: latest.bf_category, color: latest.bf_color,
+                whatIs: 'El porcentaje de grasa indica qué parte de tu peso total es grasa corporal. Es más informativo que el peso solo.',
+                meaning: latest.bf_color === 'green' ? 'Tu porcentaje de grasa está en un rango saludable. Buena composición corporal.' : latest.bf_color === 'yellow' ? 'Tu grasa corporal está un poco por encima del rango ideal. Con constancia puedes mejorar.' : 'Tu porcentaje de grasa está elevado. Cada sesión contribuye a mejorar tu composición.',
+                importance: 'Este es uno de los indicadores más valiosos de tu proceso. Ayuda a ver si estás mejorando la proporción entre grasa y músculo.',
+                nextStep: 'Tu entrenador ajustará la intensidad y tipo de ejercicio para optimizar tu composición corporal.',
+                formula: '%Grasa = (1.20 × IMC) + (0.23 × edad) − (10.8 × sexo) − 5.4' },
+              { key: 'bmi', label: 'IMC – Peso y estatura', value: latest.bmi, category: latest.bmi_category, color: latest.bmi_color,
+                whatIs: 'El IMC compara tu peso con tu estatura. Es un primer filtro general — no distingue entre músculo y grasa.',
+                meaning: latest.bmi_color === 'green' ? 'Tu peso está dentro del rango saludable.' : latest.bmi_color === 'yellow' ? 'Tu peso está ligeramente por encima del rango ideal. Se complementa con otros indicadores.' : 'Tu peso está en un rango que requiere atención. Tu entrenador lo analiza junto con otros datos.',
+                importance: 'Este dato ayuda a entender tu estado general de peso, pero no es el único indicador importante.',
+                nextStep: 'Tu entrenador tendrá este resultado en cuenta junto con tus otros indicadores para ajustar tu proceso.',
+                formula: 'IMC = peso (kg) / estatura (m)²' },
+              ...(latest.waist_cm ? [{ key: 'waist', label: 'Zona abdominal – Cintura', value: latest.waist_cm, unit: ' cm', category: latest.waist_risk || '—', color: latest.waist_risk_color,
+                whatIs: 'El perímetro de cintura es uno de los indicadores más directos de riesgo metabólico.',
+                meaning: latest.waist_risk_color === 'green' ? 'Tu cintura está en un rango seguro.' : latest.waist_risk_color === 'yellow' ? 'Tu cintura está en una zona de atención. Reducir unos centímetros mejoraría tu perfil de salud.' : 'Tu cintura indica acumulación de grasa abdominal. Es de las primeras en responder al ejercicio.',
+                importance: 'La cintura tiene relación directa con la grasa que rodea tus órganos internos.',
+                nextStep: 'Tu entrenador incluirá estrategias para reducir la cintura de forma progresiva.',
+                formula: 'Perímetro de cintura (cm) comparado con umbrales OMS' } as IndicatorData] : []),
+              ...(latest.waist_hip_ratio ? [{ key: 'whr', label: 'Distribución de grasa – ICC', value: latest.waist_hip_ratio, category: latest.whr_risk || '—', color: latest.whr_color,
+                whatIs: 'La relación cintura-cadera mide cómo se distribuye la grasa en tu cuerpo.',
+                meaning: latest.whr_color === 'green' ? 'Tu grasa se distribuye de forma saludable.' : latest.whr_color === 'yellow' ? 'Hay acumulación moderada de grasa abdominal.' : 'La distribución indica concentración abdominal significativa.',
+                importance: 'La distribución de grasa es tan importante como la cantidad. Afecta tu riesgo cardiovascular.',
+                nextStep: 'Tu entrenador incorporará ejercicios que ayuden a mejorar la distribución de grasa.',
+                formula: 'ICC = cintura / cadera' } as IndicatorData] : []),
+            ];
             return (
-              <Link href="/my-diagnosis" className="block bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm">
                 <div className="flex items-center justify-between mb-2.5">
                   <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Mi diagnóstico</h2>
-                  <svg className="w-3.5 h-3.5 text-kore-gray-dark/30 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                  </svg>
+                  <Link href="/my-diagnosis" className="text-[10px] text-kore-red font-medium hover:underline">Ver completo</Link>
                 </div>
                 <div className="grid grid-cols-3 gap-1.5 mb-2.5">
                   {[
@@ -744,45 +796,54 @@ export default function DashboardPage() {
                     )}
                   </div>
                 )}
-                {/* Indicator badges — replaces dots, fills space */}
-                <div ref={anthroDotsRef} className="space-y-1.5 pt-2.5 border-t border-kore-gray-light/20 mb-2.5">
-                  {[
-                    { key: 'bf', label: 'Composición', cat: latest.bf_category, col: latest.bf_color },
-                    { key: 'bmi', label: 'Peso/estatura', cat: latest.bmi_category, col: latest.bmi_color },
-                    { key: 'waist', label: 'Zona abdominal', cat: latest.waist_risk || '—', col: latest.waist_risk_color },
-                    { key: 'whr', label: 'Dist. grasa', cat: latest.whr_risk || '—', col: latest.whr_color },
-                  ].map((item) => (
-                    <div key={item.key} className="flex items-center gap-2">
-                      <div className={`anthro-wave-dot w-2 h-2 rounded-full flex-shrink-0 ${CD[item.col] || CD.green}`} />
-                      <span className="text-xs text-kore-gray-dark/70 flex-1">{item.label}</span>
-                      <span className={`text-xs font-medium ${CT[item.col] || CT.green}`}>{item.cat}</span>
-                    </div>
+                <p className="text-xs text-kore-gray-dark/35 mb-1.5">Toca cada indicador para ver qué significa</p>
+                <div className="pt-2.5 border-t border-kore-gray-light/20 space-y-0.5">
+                  {anthroIndicators.map((ind) => (
+                    <ExpandableIndicator key={ind.key} ind={ind} />
                   ))}
                 </div>
-                {/* Trainer notes */}
                 {latest.notes && (
-                  <div className="pt-2 border-t border-kore-gray-light/20">
+                  <div className="pt-2 border-t border-kore-gray-light/20 mt-2">
                     <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider font-medium mb-0.5">Tu entrenador</p>
                     <p className="text-xs text-kore-gray-dark/60 leading-relaxed line-clamp-2 italic">{latest.notes}</p>
                   </div>
                 )}
-              </Link>
+              </div>
             );
           })()}
 
-          {/* ⑨ Evaluación Física */}
+          {/* ⑨ Evaluación Física — expandable indicators */}
           {physicalEvals.length > 0 && (() => {
             const latest = physicalEvals[0];
             const CTP: Record<string, string> = { green: 'text-green-700', yellow: 'text-amber-700', red: 'text-red-600' };
             const CBP: Record<string, string> = { green: 'bg-green-100', yellow: 'bg-amber-100', red: 'bg-red-100' };
-            const CDP: Record<string, string> = { green: 'bg-green-500', yellow: 'bg-amber-500', red: 'bg-red-500' };
+            const physIndicators: IndicatorData[] = [
+              { key: 'strength', label: 'Fuerza', value: latest.strength_index ?? '—', category: latest.strength_category || '—', color: latest.strength_color,
+                whatIs: 'Evalúa la capacidad de tus músculos para sostener esfuerzos repetidos: sentadillas, flexiones y plancha.',
+                meaning: latest.strength_color === 'green' ? 'Tu fuerza-resistencia es funcional. Puedes sostener esfuerzos con buen control.' : latest.strength_color === 'yellow' ? 'Tu fuerza está por debajo del promedio. Hay espacio para mejorar.' : 'Tu fuerza necesita desarrollo prioritario.',
+                importance: 'La fuerza es fundamental para proteger articulaciones, mejorar postura y mantener masa muscular.',
+                nextStep: 'Tu entrenador adaptará los ejercicios de fuerza a tu nivel actual.' },
+              { key: 'endurance', label: 'Resistencia', value: latest.endurance_index ?? '—', category: latest.endurance_category || '—', color: latest.endurance_color,
+                whatIs: 'Mide tu capacidad aeróbica funcional — qué tan bien toleras un esfuerzo sostenido.',
+                meaning: latest.endurance_color === 'green' ? 'Tu capacidad aeróbica es buena.' : latest.endurance_color === 'yellow' ? 'Tu capacidad aeróbica está por debajo del rango esperado.' : 'Tu resistencia necesita mejora significativa.',
+                importance: 'Tu resistencia afecta cuánto puedes rendir en cada sesión de entrenamiento.',
+                nextStep: 'Tu entrenador incorporará actividad cardiovascular adaptada a tu capacidad.' },
+              { key: 'mobility', label: 'Movilidad', value: latest.mobility_index ?? '—', category: latest.mobility_category || '—', color: latest.mobility_color,
+                whatIs: 'Evalúa los rangos de movimiento de cadera, hombros y tobillo.',
+                meaning: latest.mobility_color === 'green' ? 'Tu movilidad articular es funcional.' : latest.mobility_color === 'yellow' ? 'Algunas zonas articulares tienen limitaciones leves.' : 'Hay limitaciones de movilidad que pueden afectar tu movimiento.',
+                importance: 'Sin movilidad adecuada, no es seguro progresar en carga. Protege tus articulaciones.',
+                nextStep: 'Tu entrenador incluirá ejercicios específicos de movilidad para las zonas que lo necesiten.' },
+              { key: 'balance', label: 'Equilibrio', value: latest.balance_index ?? '—', category: latest.balance_category || '—', color: latest.balance_color,
+                whatIs: 'Mide tu control neuromuscular y estabilidad sobre un solo pie.',
+                meaning: latest.balance_color === 'green' ? 'Tu equilibrio y control son adecuados.' : latest.balance_color === 'yellow' ? 'Tu equilibrio está por debajo del promedio.' : 'Tu equilibrio necesita atención prioritaria.',
+                importance: 'El equilibrio protege contra caídas y refleja la calidad de tu control corporal.',
+                nextStep: 'Tu entrenador incorporará trabajo de estabilidad adaptado a tu nivel.' },
+            ];
             return (
-              <Link href="/my-physical-evaluation" className="block bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm">
                 <div className="flex items-center justify-between mb-2.5">
                   <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Evaluación Física</h2>
-                  <svg className="w-3.5 h-3.5 text-kore-gray-dark/30 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                  </svg>
+                  <Link href="/my-physical-evaluation" className="text-[10px] text-kore-red font-medium hover:underline">Ver completo</Link>
                 </div>
                 <div className="flex items-center gap-2.5 mb-2.5">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${CBP[latest.general_color] || CBP.green}`}>
@@ -793,42 +854,19 @@ export default function DashboardPage() {
                     <p className="text-xs text-kore-gray-dark/40">Condición general</p>
                   </div>
                 </div>
-                <div className="grid grid-cols-4 gap-1 mb-2">
-                  {[
-                    { label: 'Fuerza', val: latest.strength_index, col: latest.strength_color },
-                    { label: 'Resist.', val: latest.endurance_index, col: latest.endurance_color },
-                    { label: 'Movil.', val: latest.mobility_index, col: latest.mobility_color },
-                    { label: 'Equil.', val: latest.balance_index, col: latest.balance_color },
-                  ].map((r) => (
-                    <div key={r.label} className="text-center bg-kore-cream/40 rounded-lg py-1.5">
-                      <p className={`font-heading text-sm font-bold ${CTP[r.col] || CTP.green}`}>{r.val ?? '—'}</p>
-                      <p className="text-xs text-kore-gray-dark/40">{r.label}</p>
-                    </div>
+                <p className="text-xs text-kore-gray-dark/35 mb-1.5">Toca cada componente para ver qué significa</p>
+                <div className="pt-2.5 border-t border-kore-gray-light/20 space-y-0.5">
+                  {physIndicators.map((ind) => (
+                    <ExpandableIndicator key={ind.key} ind={ind} />
                   ))}
                 </div>
-                {/* Indicator badges — replaces dots, fills space */}
-                <div ref={physicalDotsRef} className="space-y-1.5 pt-2.5 border-t border-kore-gray-light/20 mb-2.5">
-                  {[
-                    { key: 'strength', label: 'Fuerza', cat: latest.strength_category, col: latest.strength_color },
-                    { key: 'endurance', label: 'Resistencia', cat: latest.endurance_category, col: latest.endurance_color },
-                    { key: 'mobility', label: 'Movilidad', cat: latest.mobility_category, col: latest.mobility_color },
-                    { key: 'balance', label: 'Equilibrio', cat: latest.balance_category, col: latest.balance_color },
-                  ].map((item) => (
-                    <div key={item.key} className="flex items-center gap-2">
-                      <div className={`physical-wave-dot w-2 h-2 rounded-full flex-shrink-0 ${CDP[item.col] || CDP.green}`} />
-                      <span className="text-xs text-kore-gray-dark/70 flex-1">{item.label}</span>
-                      <span className={`text-xs font-medium ${CTP[item.col] || CTP.green}`}>{item.cat || '—'}</span>
-                    </div>
-                  ))}
-                </div>
-                {/* Trainer notes */}
                 {latest.notes && (
-                  <div className="pt-2 border-t border-kore-gray-light/20">
+                  <div className="pt-2 border-t border-kore-gray-light/20 mt-2">
                     <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider font-medium mb-0.5">Tu entrenador</p>
                     <p className="text-xs text-kore-gray-dark/60 leading-relaxed line-clamp-2 italic">{latest.notes}</p>
                   </div>
                 )}
-              </Link>
+              </div>
             );
           })()}
 

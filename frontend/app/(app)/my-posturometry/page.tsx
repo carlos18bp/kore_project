@@ -22,6 +22,8 @@ type RegionInfo = {
   whatIs: string;
   segments: string;
   result: Record<string, string>;
+  importance: Record<string, string>;
+  nextStep: Record<string, string>;
   action: Record<string, string>;
 };
 
@@ -35,6 +37,18 @@ const REGION_INFO: Record<string, RegionInfo> = {
       yellow: 'Tu postura muestra desbalances leves. Son comunes y corregibles con trabajo dirigido.',
       orange: 'Tu postura presenta desbalances moderados que conviene abordar de forma estructurada.',
       red: 'Tu postura muestra desbalances importantes que requieren atención prioritaria.',
+    },
+    importance: {
+      green: 'Una buena postura general es la base de un movimiento eficiente y seguro. Esto te permite progresar con confianza.',
+      yellow: 'Tu postura influye en cómo te mueves, cómo entrenas y cómo te sientes. Corregir estos desbalances mejora todo tu proceso.',
+      orange: 'La postura afecta directamente tu rendimiento y tu riesgo de lesión. Mejorarla es una inversión en tu salud a largo plazo.',
+      red: 'La postura es una prioridad porque afecta cómo distribuyes la carga en cada ejercicio. Corregirla protege tu cuerpo.',
+    },
+    nextStep: {
+      green: 'Tu entrenador seguirá incluyendo consciencia postural en tu programa para mantener este buen estado.',
+      yellow: 'Tu entrenador incluirá ejercicios correctivos específicos en tu próxima fase de entrenamiento.',
+      orange: 'Tu entrenador priorizará el trabajo correctivo como parte central de tu programa.',
+      red: 'Tu entrenador diseñará un plan enfocado primero en corrección postural antes de progresar en carga.',
     },
     action: {
       green: 'Sigue con tu programa de entrenamiento. La consciencia postural y el movimiento regular son tu mejor herramienta.',
@@ -53,6 +67,18 @@ const REGION_INFO: Record<string, RegionInfo> = {
       orange: 'La zona superior muestra desbalances moderados que pueden estar afectando tu movilidad.',
       red: 'Se detectan desbalances importantes en la zona superior que requieren atención prioritaria.',
     },
+    importance: {
+      green: 'La zona superior influye en cómo usas los brazos, hombros y cuello en tu día a día y en el entrenamiento.',
+      yellow: 'Los desbalances en esta zona suelen venir de hábitos posturales. Corregirlos mejora tu comodidad y movilidad.',
+      orange: 'Una zona superior desalineada puede generar tensión, dolor y limitar tu rendimiento en ejercicios de empuje y tracción.',
+      red: 'Esta zona requiere atención prioritaria porque afecta tu movilidad diaria y la calidad de tu entrenamiento.',
+    },
+    nextStep: {
+      green: 'Tu entrenador mantendrá ejercicios de movilidad cervical y escapular en tu programa.',
+      yellow: 'Tu entrenador incorporará trabajo de movilidad cervical y fortalecimiento escapular en tu plan.',
+      orange: 'Tu entrenador incluirá trabajo correctivo: movilidad torácica, estabilización escapular y re-educación postural.',
+      red: 'Tu entrenador priorizará la corrección de esta zona antes de progresar en carga de tren superior.',
+    },
     action: {
       green: 'Mantén la consciencia postural. Los ejercicios de movilidad cervical y escapular ayudan a preservar este estado.',
       yellow: 'Incorpora ejercicios de movilidad cervical y fortalecimiento escapular. La corrección es alcanzable.',
@@ -70,6 +96,18 @@ const REGION_INFO: Record<string, RegionInfo> = {
       orange: 'La zona central muestra desbalances moderados que pueden afectar tu función.',
       red: 'Se detectan desbalances importantes en la zona central que requieren abordaje específico.',
     },
+    importance: {
+      green: 'El centro de tu cuerpo es donde nace la fuerza funcional. Un centro equilibrado mejora todo tu movimiento.',
+      yellow: 'Los desbalances en la zona central afectan cómo distribuyes la carga y pueden generar compensaciones en otras zonas.',
+      orange: 'La zona central es el eje de tu cuerpo. Mejorarla impacta directamente tu estabilidad, fuerza y prevención de lesiones.',
+      red: 'Un centro desalineado afecta todo lo demás. Corregir esta zona es prioritario para tu seguridad y tu progreso.',
+    },
+    nextStep: {
+      green: 'Tu entrenador seguirá fortaleciendo tu core y manteniendo la movilidad de tu columna.',
+      yellow: 'Tu entrenador añadirá ejercicios de estabilización de core y movilidad de columna a tu programa.',
+      orange: 'Tu entrenador incluirá trabajo correctivo: core profundo, movilidad segmentaria y control pélvico.',
+      red: 'Tu entrenador priorizará la corrección de esta zona con trabajo progresivo de estabilidad y control motor.',
+    },
     action: {
       green: 'Sigue fortaleciendo tu core y manteniendo la movilidad de columna.',
       yellow: 'Ejercicios de estabilización de core y movilidad de columna ayudarán a mejorar estos patrones.',
@@ -86,6 +124,18 @@ const REGION_INFO: Record<string, RegionInfo> = {
       yellow: 'Se observan desbalances leves en el tren inferior. Pueden influir en cómo absorbes el impacto.',
       orange: 'El tren inferior muestra desbalances moderados que pueden afectar tu mecánica de movimiento.',
       red: 'Se detectan desbalances importantes en el tren inferior.',
+    },
+    importance: {
+      green: 'Tus piernas y pies son la base de apoyo de tu cuerpo. Un buen apoyo protege articulaciones y optimiza el movimiento.',
+      yellow: 'Los desbalances en el tren inferior afectan cómo absorbes el impacto al caminar, correr y entrenar.',
+      orange: 'La alineación de rodillas y pies impacta toda la cadena de movimiento hacia arriba. Mejorarla previene problemas futuros.',
+      red: 'El tren inferior es tu base. Corregir su alineación es fundamental para poder progresar con seguridad.',
+    },
+    nextStep: {
+      green: 'Tu entrenador mantendrá el trabajo de fuerza de tren inferior y movilidad de tobillos en tu programa.',
+      yellow: 'Tu entrenador incorporará ejercicios de estabilización de rodilla y movilidad de tobillo.',
+      orange: 'Tu entrenador incluirá trabajo correctivo: glúteo medio, estabilización de rodilla y re-educación del apoyo.',
+      red: 'Tu entrenador priorizará la corrección de alineación de rodillas y pies antes de progresar en carga.',
     },
     action: {
       green: 'Mantén el trabajo de fuerza de tren inferior y la movilidad de tobillos.',
@@ -149,6 +199,8 @@ function RegionCard({ id, ev }: { id: string; ev: PosturometryEvaluation }) {
   const recs = ev.recommendations || {};
   const customRec = recs[id];
   const resultText = customRec?.result || info.result[color] || info.result.green;
+  const importanceText = info.importance[color] || info.importance.green;
+  const nextStepText = info.nextStep[color] || info.nextStep.green;
   const actionText = customRec?.action || info.action[color] || info.action.green;
 
   const toggle = useCallback(() => {
@@ -204,8 +256,12 @@ function RegionCard({ id, ev }: { id: string; ev: PosturometryEvaluation }) {
             <p className={`text-sm ${CT[color]}/80 leading-relaxed`}>{resultText}</p>
           </div>
           <div className="idx-panel bg-white rounded-xl p-4 border border-kore-gray-light/30">
-            <p className="text-xs text-kore-gray-dark/50 uppercase tracking-wider font-medium mb-1.5">¿Qué puedes hacer?</p>
-            <p className="text-sm text-kore-gray-dark/70 leading-relaxed">{actionText}</p>
+            <p className="text-xs text-kore-gray-dark/50 uppercase tracking-wider font-medium mb-1.5">¿Qué importancia tiene en tu proceso?</p>
+            <p className="text-sm text-kore-gray-dark/70 leading-relaxed">{importanceText}</p>
+          </div>
+          <div className="idx-panel bg-kore-red/5 rounded-xl p-4 border border-kore-red/10">
+            <p className="text-xs text-kore-red/70 uppercase tracking-wider font-medium mb-1.5">¿Qué sigue con tu entrenador?</p>
+            <p className="text-sm text-kore-gray-dark/70 leading-relaxed">{nextStepText}</p>
           </div>
         </div>
       </div>
