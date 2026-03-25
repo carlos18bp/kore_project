@@ -10,8 +10,8 @@ WorkingDirectory=/home/ryzepeck/webapps/kore_project/backend
 ExecStart=/home/ryzepeck/webapps/kore_project/backend/venv/bin/gunicorn \
           --config /home/ryzepeck/webapps/kore_project/backend/gunicorn.conf.py \
           core_project.wsgi:application
-Restart=on-failure
-RestartSec=5s
+Restart=always
+RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
