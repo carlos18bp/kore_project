@@ -13,6 +13,7 @@ import {
 } from '@/lib/stores/posturometryStore';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 import { compressImage } from '@/lib/utils/compressImage';
+import ImageLightbox from '@/app/components/shared/ImageLightbox';
 
 /* ── Color helpers ── */
 const COLOR_MAP: Record<string, string> = {
@@ -515,6 +516,9 @@ function TrainerPosturometryPage() {
   const [justCreated, setJustCreated] = useState<PosturometryEvaluation | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState('');
+  const [lightboxAlt, setLightboxAlt] = useState('');
 
   useEffect(() => {
     if (clientId) fetchEvaluations(clientId);
@@ -762,7 +766,22 @@ function TrainerPosturometryPage() {
                         { url: latest.posterior_photo, label: 'Posterior' },
                       ].map((p) => p.url && (
                         <div key={p.label} className="text-center">
-                          <img src={p.url} alt={p.label} className="rounded-xl w-full h-36 object-cover border border-kore-gray-light/30" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLightboxSrc(p.url);
+                              setLightboxAlt(p.label);
+                              setLightboxOpen(true);
+                            }}
+                            className="relative group w-full rounded-xl overflow-hidden cursor-pointer"
+                          >
+                            <img src={p.url} alt={p.label} className="rounded-xl w-full h-36 object-cover border border-kore-gray-light/30" />
+                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6" />
+                              </svg>
+                            </div>
+                          </button>
                           <p className="text-xs text-kore-gray-dark/50 mt-1">{p.label}</p>
                         </div>
                       ))}
@@ -921,6 +940,14 @@ function TrainerPosturometryPage() {
           </div>
         )}
       </div>
+
+      {/* Image Lightbox */}
+      <ImageLightbox
+        src={lightboxSrc}
+        alt={lightboxAlt}
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
     </section>
   );
 }

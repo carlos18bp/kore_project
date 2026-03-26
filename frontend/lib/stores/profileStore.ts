@@ -146,8 +146,14 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   uploadAvatar: async (file) => {
     set({ saving: true, error: '' });
     try {
+      // Import dynamically to avoid SSR issues
+      const { compressImage } = await import('@/lib/utils/compressImage');
+
+      // Compress image before upload (WhatsApp-like: max 1600px, ~80% quality)
+      const compressedFile = await compressImage(file);
+
       const formData = new FormData();
-      formData.append('avatar', file);
+      formData.append('avatar', compressedFile);
       const { data } = await api.post<{ avatar_url: string }>('/auth/profile/avatar/', formData, {
         headers: { ...authHeaders(), 'Content-Type': 'multipart/form-data' },
       });

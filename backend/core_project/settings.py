@@ -169,6 +169,12 @@ STORAGES = {
     },
 }
 
+# File upload settings
+# Frontend compresses images to ~150-400 KB before upload, but backend enforces
+# limits as secondary protection against large file uploads or client-side bypass.
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5 MB (in-memory threshold)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5 MB (total request size)
+
 
 CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:3000,http://localhost:3001', cast=Csv())
 CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='', cast=Csv())
