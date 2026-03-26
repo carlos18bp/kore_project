@@ -769,9 +769,11 @@ function TrainerPosturometryPage() {
                           <button
                             type="button"
                             onClick={() => {
-                              setLightboxSrc(p.url);
-                              setLightboxAlt(p.label);
-                              setLightboxOpen(true);
+                              if (p.url) {
+                                setLightboxSrc(p.url);
+                                setLightboxAlt(p.label);
+                                setLightboxOpen(true);
+                              }
                             }}
                             className="relative group w-full rounded-xl overflow-hidden cursor-pointer"
                           >
