@@ -1,5 +1,8 @@
 ---
-description: Deploy latest master to production server for kore_project
+name: deploy-and-check
+description: "Deploy latest master/main to the production server with pre-deploy checks, build, restart, and post-deploy verification."
+disable-model-invocation: true
+allowed-tools: Bash
 ---
 
 > Ejecutar estos pasos conectado al servidor de producción vía SSH.
