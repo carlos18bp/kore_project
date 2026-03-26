@@ -62,12 +62,22 @@ def generate_ics(booking):
         if normalized_email in seen_attendees:
             continue
         seen_attendees.add(normalized_email)
-        attendee_lines.append(f'ATTENDEE;CN={attendee_name}:mailto:{attendee_email}')
+        attendee_lines.append(f'ATTENDEE;CN={attendee_name};RSVP=TRUE:mailto:{attendee_email}')
 
-    dtstart = _format_dt_bogota(slot.starts_at)
-    dtend = _format_dt_bogota(slot.ends_at)
+    # Use UTC format for maximum compatibility with Yahoo/Apple Calendar
+    dtstart_utc = _format_dt_utc(slot.starts_at)
+    dtend_utc = _format_dt_utc(slot.ends_at)
     dtstamp = _format_dt_utc(datetime.now(dt_tz.utc))
     uid = f'{uuid4()}@korehealths.com'
+
+    # Add human-readable time zone info to description
+    bogota_start = slot.starts_at.astimezone(BOGOTA_TZ)
+    bogota_end = slot.ends_at.astimezone(BOGOTA_TZ)
+    time_info = (
+        f'{bogota_start.strftime("%A %d de %B de %Y, %I:%M %p")} - '
+        f'{bogota_end.strftime("%I:%M %p")} (hora de Colombia, America/Bogota / UTC-5)'
+    )
+    description_with_tz = f'{description}\n\n{time_info}'
 
     lines = [
         'BEGIN:VCALENDAR',
@@ -75,25 +85,18 @@ def generate_ics(booking):
         'PRODID:-//KÓRE//Booking//EN',
         'CALSCALE:GREGORIAN',
         'METHOD:REQUEST',
-        'BEGIN:VTIMEZONE',
-        'TZID:America/Bogota',
-        'BEGIN:STANDARD',
-        'DTSTART:19700101T000000',
-        'TZOFFSETFROM:-0500',
-        'TZOFFSETTO:-0500',
-        'END:STANDARD',
-        'END:VTIMEZONE',
         'BEGIN:VEVENT',
         f'UID:{uid}',
         f'DTSTAMP:{dtstamp}',
-        f'DTSTART;TZID=America/Bogota:{dtstart}',
-        f'DTEND;TZID=America/Bogota:{dtend}',
+        f'DTSTART:{dtstart_utc}',
+        f'DTEND:{dtend_utc}',
         f'SUMMARY:{summary}',
-        f'DESCRIPTION:{description}',
+        f'DESCRIPTION:{description_with_tz}',
         f'LOCATION:{location}',
         f'ORGANIZER;CN={organizer_name}:mailto:{organizer_email}',
         *attendee_lines,
         'STATUS:CONFIRMED',
+        'SEQUENCE:0',
         'END:VEVENT',
         'END:VCALENDAR',
     ]
@@ -108,9 +111,15 @@ def _format_dt_utc(dt):
         dt: A ``datetime`` instance (naive assumed UTC, or aware).
 
     Returns:
-        str: Formatted datetime string.
+        str: Formatted datetime string in UTC.
     """
-    return dt.strftime('%Y%m%dT%H%M%SZ')
+    if dt.tzinfo is not None and dt.tzinfo.utcoffset(dt) is not None:
+        # Convert aware datetime to UTC
+        utc_dt = dt.astimezone(dt_tz.utc)
+    else:
+        # Naive datetime assumed to be UTC
+        utc_dt = dt.replace(tzinfo=dt_tz.utc)
+    return utc_dt.strftime('%Y%m%dT%H%M%SZ')
 
 
 def _format_dt_bogota(dt):

@@ -87,10 +87,10 @@ class TestIcsGenerator:
         assert 'Studio X' in ics
 
     def test_contains_customer_and_trainer_attendees(self, booking_with_trainer):
-        """Include both customer and trainer as attendees when trainer exists."""
+        """Include both customer and trainer as attendees with RSVP when trainer exists."""
         ics = generate_ics(booking_with_trainer).decode('utf-8')
-        assert 'ATTENDEE;CN=Juan Pérez:mailto:cust_ics@example.com' in ics
-        assert 'ATTENDEE;CN=Germán Franco:mailto:trainer_ics@example.com' in ics
+        assert 'ATTENDEE;CN=Juan Pérez;RSVP=TRUE:mailto:cust_ics@example.com' in ics
+        assert 'ATTENDEE;CN=Germán Franco;RSVP=TRUE:mailto:trainer_ics@example.com' in ics
 
     def test_contains_attendee_email(self, booking_with_trainer):
         """Embed customer email as event attendee information."""
@@ -110,10 +110,13 @@ class TestIcsGenerator:
         assert 'ORGANIZER;CN=KÓRE:mailto:noreply@korehealths.com' in ics
 
     def test_contains_dtstart_and_dtend(self, booking_with_trainer):
-        """Include DTSTART and DTEND fields to define event boundaries."""
+        """Include DTSTART and DTEND fields in UTC format for maximum compatibility."""
         ics = generate_ics(booking_with_trainer).decode('utf-8')
-        assert 'DTSTART;TZID=America/Bogota:' in ics
-        assert 'DTEND;TZID=America/Bogota:' in ics
+        # Verify UTC format (ends with 'Z')
+        assert 'DTSTART:' in ics and 'Z' in ics
+        assert 'DTEND:' in ics and 'Z' in ics
+        # Verify no TZID is used (UTC format doesn't need it)
+        assert 'TZID=America/Bogota' not in ics
 
     def test_works_without_trainer(self, customer, package):
         """Generate a valid ICS payload even when booking has no trainer assigned."""
