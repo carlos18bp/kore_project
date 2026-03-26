@@ -98,37 +98,37 @@ function analyzeHabits(entry: NutritionHabit): { strengths: HabitItem[]; improve
   const items: HabitItem[] = [];
   const meals = entry.meals_per_day;
   items.push(meals >= 3 && meals <= 5
-    ? { label: 'Comidas al d\u00eda', status: 'good', detail: `${meals} comidas \u2014 frecuencia adecuada` }
-    : { label: 'Comidas al d\u00eda', status: 'improve', detail: meals < 3 ? 'Pocas comidas. Intenta distribuir mejor tu alimentaci\u00f3n.' : 'Muchas comidas. Revisa si todas son necesarias.' }
+    ? { label: 'Comidas al día', status: 'good', detail: `${meals} comidas — frecuencia adecuada` }
+    : { label: 'Comidas al día', status: 'improve', detail: meals < 3 ? 'Pocas comidas. Intenta distribuir mejor tu alimentación.' : 'Muchas comidas. Revisa si todas son necesarias.' }
   );
   const water = parseFloat(entry.water_liters);
   items.push(water >= 2
-    ? { label: 'Agua', status: 'good', detail: `${water}L al d\u00eda \u2014 buena hidrataci\u00f3n` }
-    : { label: 'Agua', status: 'improve', detail: `${water}L al d\u00eda \u2014 intenta llegar a 2L o m\u00e1s` }
+    ? { label: 'Agua', status: 'good', detail: `${water}L al día — buena hidratación` }
+    : { label: 'Agua', status: 'improve', detail: `${water}L al día — intenta llegar a 2L o más` }
   );
   items.push(entry.fruit_weekly >= 7
-    ? { label: 'Frutas', status: 'good', detail: `${entry.fruit_weekly} veces/semana \u2014 excelente` }
-    : { label: 'Frutas', status: 'improve', detail: `${entry.fruit_weekly} veces/semana \u2014 intenta consumir fruta a diario` }
+    ? { label: 'Frutas', status: 'good', detail: `${entry.fruit_weekly} veces/semana — excelente` }
+    : { label: 'Frutas', status: 'improve', detail: `${entry.fruit_weekly} veces/semana — intenta consumir fruta a diario` }
   );
   items.push(entry.vegetable_weekly >= 7
-    ? { label: 'Verduras', status: 'good', detail: `${entry.vegetable_weekly} veces/semana \u2014 excelente` }
-    : { label: 'Verduras', status: 'improve', detail: `${entry.vegetable_weekly} veces/semana \u2014 intenta incluir verduras a diario` }
+    ? { label: 'Verduras', status: 'good', detail: `${entry.vegetable_weekly} veces/semana — excelente` }
+    : { label: 'Verduras', status: 'improve', detail: `${entry.vegetable_weekly} veces/semana — intenta incluir verduras a diario` }
   );
   items.push(entry.protein_frequency >= 4
-    ? { label: 'Prote\u00edna', status: 'good', detail: 'Consumo frecuente de prote\u00edna \u2014 favorece tu masa muscular' }
-    : { label: 'Prote\u00edna', status: 'improve', detail: 'Aumentar la prote\u00edna puede mejorar tu recuperaci\u00f3n y composici\u00f3n corporal' }
+    ? { label: 'Proteína', status: 'good', detail: 'Consumo frecuente de proteína — favorece tu masa muscular' }
+    : { label: 'Proteína', status: 'improve', detail: 'Aumentar la proteína puede mejorar tu recuperación y composición corporal' }
   );
   items.push(entry.ultraprocessed_weekly <= 3
-    ? { label: 'Ultraprocesados', status: 'good', detail: `${entry.ultraprocessed_weekly} veces/semana \u2014 consumo bajo` }
-    : { label: 'Ultraprocesados', status: 'improve', detail: `${entry.ultraprocessed_weekly} veces/semana \u2014 reducir mejora tu salud general` }
+    ? { label: 'Ultraprocesados', status: 'good', detail: `${entry.ultraprocessed_weekly} veces/semana — consumo bajo` }
+    : { label: 'Ultraprocesados', status: 'improve', detail: `${entry.ultraprocessed_weekly} veces/semana — reducir mejora tu salud general` }
   );
   items.push(entry.sugary_drinks_weekly <= 2
-    ? { label: 'Bebidas azucaradas', status: 'good', detail: `${entry.sugary_drinks_weekly} veces/semana \u2014 consumo controlado` }
-    : { label: 'Bebidas azucaradas', status: 'improve', detail: `${entry.sugary_drinks_weekly} veces/semana \u2014 reducirlas mejora tu perfil metab\u00f3lico` }
+    ? { label: 'Bebidas azucaradas', status: 'good', detail: `${entry.sugary_drinks_weekly} veces/semana — consumo controlado` }
+    : { label: 'Bebidas azucaradas', status: 'improve', detail: `${entry.sugary_drinks_weekly} veces/semana — reducirlas mejora tu perfil metabólico` }
   );
   items.push(entry.eats_breakfast
-    ? { label: 'Desayuno', status: 'good', detail: 'Desayunas regularmente \u2014 buen h\u00e1bito' }
-    : { label: 'Desayuno', status: 'improve', detail: 'No desayunar con regularidad puede afectar tu energ\u00eda y rendimiento' }
+    ? { label: 'Desayuno', status: 'good', detail: 'Desayunas regularmente — buen hábito' }
+    : { label: 'Desayuno', status: 'improve', detail: 'No desayunar con regularidad puede afectar tu energía y rendimiento' }
   );
 
   const strengths = items.filter(i => i.status === 'good');
@@ -136,11 +136,11 @@ function analyzeHabits(entry: NutritionHabit): { strengths: HabitItem[]; improve
 
   let summary = '';
   if (improvements.length === 0) {
-    summary = 'Tus h\u00e1bitos alimentarios son muy favorables. Sigue as\u00ed para sostener tu proceso.';
+    summary = 'Tus hábitos alimentarios son muy favorables. Sigue así para sostener tu proceso.';
   } else if (improvements.length <= 2) {
-    summary = `Tienes h\u00e1bitos favorables en general. Mejorar en ${improvements.map(i => i.label.toLowerCase()).join(' y ')} puede potenciar a\u00fan m\u00e1s tu proceso.`;
+    summary = `Tienes hábitos favorables en general. Mejorar en ${improvements.map(i => i.label.toLowerCase()).join(' y ')} puede potenciar aún más tu proceso.`;
   } else {
-    summary = 'Hay varias \u00e1reas de tu alimentaci\u00f3n que puedes mejorar. Los cambios peque\u00f1os y sostenidos generan los mejores resultados.';
+    summary = 'Hay varias áreas de tu alimentación que puedes mejorar. Los cambios pequeños y sostenidos generan los mejores resultados.';
   }
 
   return { strengths, improvements, summary };
@@ -172,7 +172,7 @@ function HabitAnalysis({ entry }: { entry: NutritionHabit }) {
       )}
       {improvements.length > 0 && (
         <div>
-          <p className="text-xs text-amber-700/70 uppercase tracking-wider font-medium mb-1.5">\u00c1reas por mejorar</p>
+          <p className="text-xs text-amber-700/70 uppercase tracking-wider font-medium mb-1.5">Áreas por mejorar</p>
           <div className="space-y-1.5">
             {improvements.map(s => (
               <div key={s.label} className="flex items-start gap-2">
@@ -187,7 +187,7 @@ function HabitAnalysis({ entry }: { entry: NutritionHabit }) {
         </div>
       )}
       <div className="pt-2 border-t border-kore-gray-light/20">
-        <p className="text-xs text-kore-gray-dark/40 leading-relaxed">Tu entrenador usar\u00e1 esta informaci\u00f3n junto con tus otros indicadores para orientar mejor tu proceso.</p>
+        <p className="text-xs text-kore-gray-dark/40 leading-relaxed">Tu entrenador usará esta información junto con tus otros indicadores para orientar mejor tu proceso.</p>
       </div>
     </div>
   );
@@ -220,9 +220,9 @@ export default function MyNutritionPage() {
     <div className="w-full px-6 md:px-10 lg:px-16 pt-20 xl:pt-8 pb-16 max-w-3xl mx-auto">
       <div className="mb-8 xl:mb-10">
         <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-1">Tu salud</p>
-        <h1 className="font-heading text-2xl md:text-3xl font-semibold text-kore-gray-dark">Mi Nutrici\u00f3n</h1>
+        <h1 className="font-heading text-2xl md:text-3xl font-semibold text-kore-gray-dark">Mi Nutrición</h1>
         <p className="text-sm text-kore-gray-dark/50 mt-1">
-          Registra tus h\u00e1bitos alimentarios semanalmente para darle contexto a tu proceso K\u00d3RE.
+          Registra tus hábitos alimentarios semanalmente para darle contexto a tu proceso KÓRE.
         </p>
       </div>
 
@@ -259,7 +259,7 @@ export default function MyNutritionPage() {
       {/* WhatsApp CTA */}
       {latest && !showForm && (
         <a
-          href={`${WHATSAPP_URL}&text=${encodeURIComponent('Hola, me gustar\u00eda solicitar un plan nutricional personalizado en K\u00d3RE.')}`}
+          href={`${WHATSAPP_URL}&text=${encodeURIComponent('Hola, me gustaría solicitar un plan nutricional personalizado en KÓRE.')}`}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center justify-between w-full mb-8 p-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-700 text-white hover:shadow-lg transition-all group"
@@ -272,7 +272,7 @@ export default function MyNutritionPage() {
             </div>
             <div>
               <p className="font-heading text-sm font-semibold">Solicitar plan nutricional personalizado</p>
-              <p className="text-xs text-white/70">Servicio adicional con acompa\u00f1amiento profesional</p>
+              <p className="text-xs text-white/70">Servicio adicional con acompañamiento profesional</p>
             </div>
           </div>
           <svg className="w-5 h-5 text-white/60 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">

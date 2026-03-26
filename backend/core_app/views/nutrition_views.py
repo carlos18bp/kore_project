@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Views for nutrition habit entries.
 
 Client endpoints: create and read own nutrition entries (rate-limited to 1/week).

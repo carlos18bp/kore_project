@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Nutrition habits score calculator for the KÓRE diagnostic engine.
 
 Computes a composite Habit Score (0–10) from 8 dietary habit variables

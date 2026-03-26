@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Nutrition habits model for the KÓRE diagnostic engine.
 
 Stores self-reported dietary habit data submitted by the client and

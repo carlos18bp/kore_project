@@ -292,96 +292,260 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* MOBILE: Prominent CTA - Agendar sesión — with animated bubbles + grain */}
-        <div className="xl:hidden mb-5">
-          <Link
-            href="/book-session"
-            className="group relative flex items-center justify-between w-full text-white p-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-kore-red via-kore-crimson to-kore-burgundy" />
-            <div ref={mobileBubblesRef} className="absolute inset-0 pointer-events-none">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="cta-bubble absolute rounded-full"
-                  style={{
-                    background: i % 5 === 0
-                      ? 'radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%)'
-                      : i % 5 === 1
-                      ? 'radial-gradient(circle, rgba(255,200,200,0.22) 0%, transparent 70%)'
-                      : i % 5 === 2
-                      ? 'radial-gradient(circle, rgba(255,150,170,0.20) 0%, transparent 70%)'
-                      : i % 5 === 3
-                      ? 'radial-gradient(circle, rgba(255,220,210,0.18) 0%, transparent 70%)'
-                      : 'radial-gradient(circle, rgba(255,180,190,0.20) 0%, transparent 70%)',
-                    filter: 'blur(12px)',
-                  }}
-                />
-              ))}
-            </div>
-            <div className="absolute inset-0 opacity-[0.12] pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`, backgroundSize: '128px 128px' }} />
-            <div className="relative z-10 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
-                <CalendarIcon />
-              </div>
-              <div>
-                <p className="font-heading text-base font-semibold">Agendar sesión</p>
-                <p className="text-xs text-white/70">Continúa tu progreso</p>
-              </div>
-            </div>
-            <div className="relative z-10 w-9 h-9 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors">
-              <ArrowRightIcon />
-            </div>
-          </Link>
-        </div>
 
-        {/* Progress Message Card - Mobile only */}
-        <div data-hero="heading" className="mb-5 xl:hidden">
-          <div className="relative bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm overflow-hidden">
-            {/* Subtle organic accent */}
-            <div className="absolute -right-8 -bottom-8 w-32 h-32 opacity-5">
-              <Image src="/images/flower.webp" alt="" fill className="object-contain" />
+        {/* ═══════ MOBILE ONLY: PRIMARY METRICS (Large cards) ═══════ */}
+        <div className="xl:hidden space-y-3 mb-3">
+          {/* CTA - Agendar sesión MOBILE */}
+          {formattedDate ? (
+            <div className="relative rounded-2xl p-4 text-white overflow-hidden shadow-lg">
+              <div className="absolute inset-0 bg-gradient-to-br from-kore-red via-kore-crimson to-kore-burgundy" />
+              <div ref={mobileBubblesRef} className="absolute inset-0 pointer-events-none">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="cta-bubble absolute rounded-full" style={{ background: i % 5 === 0 ? 'radial-gradient(circle, rgba(255,64,64,0.7) 0%, transparent 70%)' : i % 5 === 1 ? 'radial-gradient(circle, rgba(171,13,47,0.6) 0%, transparent 70%)' : i % 5 === 2 ? 'radial-gradient(circle, rgba(255,118,118,0.5) 0%, transparent 70%)' : i % 5 === 3 ? 'radial-gradient(circle, rgba(194,0,0,0.5) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(205,12,54,0.6) 0%, transparent 70%)', filter: 'blur(6px)' }} />
+                ))}
+              </div>
+              <div className="absolute inset-0 opacity-[0.12] pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`, backgroundSize: '128px 128px' }} />
+              <div className="relative z-10 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+                  <CalendarIcon />
+                </div>
+                <div className="flex-1">
+                  <p className="font-heading text-sm font-semibold">Próxima sesión</p>
+                  <p className="text-xs text-white/70 capitalize">{formattedDate}, {formattedTime}</p>
+                </div>
+              </div>
             </div>
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
-                <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+          ) : (
+            <Link href="/book-session" className="group relative block rounded-2xl p-4 text-white overflow-hidden shadow-lg">
+              <div className="absolute inset-0 bg-gradient-to-br from-kore-red via-kore-crimson to-kore-burgundy" />
+              <div ref={mobileBubblesRef} className="absolute inset-0 pointer-events-none">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="cta-bubble absolute rounded-full" style={{ background: i % 5 === 0 ? 'radial-gradient(circle, rgba(255,64,64,0.7) 0%, transparent 70%)' : i % 5 === 1 ? 'radial-gradient(circle, rgba(171,13,47,0.6) 0%, transparent 70%)' : i % 5 === 2 ? 'radial-gradient(circle, rgba(255,118,118,0.5) 0%, transparent 70%)' : i % 5 === 3 ? 'radial-gradient(circle, rgba(194,0,0,0.5) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(205,12,54,0.6) 0%, transparent 70%)', filter: 'blur(6px)' }} />
+                ))}
+              </div>
+              <div className="absolute inset-0 opacity-[0.12] pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`, backgroundSize: '128px 128px' }} />
+              <div className="relative z-10 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+                  <CalendarIcon />
+                </div>
+                <div className="flex-1">
+                  <p className="font-heading text-sm font-semibold">Agendar sesión</p>
+                  <p className="text-xs text-white/70">Continúa tu transformación</p>
+                </div>
+                <ArrowRightIcon />
+              </div>
+            </Link>
+          )}
+
+          {/* KÓRE Score - WITH VISUAL BARS */}
+          {koreIndex && koreIndex.kore_score !== null ? (
+            <Link href="/my-programs" className="block bg-gradient-to-br from-white via-white to-kore-cream/30 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-lg">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-0.5">Calificación KÓRE</p>
+                  <p className={`text-2xl font-heading font-bold ${koreIndex.kore_color === 'green' ? 'text-emerald-700' : koreIndex.kore_color === 'yellow' ? 'text-amber-600' : koreIndex.kore_color === 'orange' ? 'text-orange-600' : 'text-red-600'}`}>{koreIndex.kore_score}</p>
+                  <p className={`text-sm font-semibold ${koreIndex.kore_color === 'green' ? 'text-emerald-700' : koreIndex.kore_color === 'yellow' ? 'text-amber-600' : koreIndex.kore_color === 'orange' ? 'text-orange-600' : 'text-red-600'}`}>{koreIndex.kore_category}</p>
+                </div>
+                <svg className="w-4 h-4 text-kore-gray-dark/20" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                 </svg>
               </div>
+              <div className="space-y-1.5">
+                {[
+                  { key: 'anthropometry', label: 'Composición', icon: '💪' },
+                  { key: 'posturometry', label: 'Postura', icon: '🧘' },
+                  { key: 'physical', label: 'Condición', icon: '⚡' },
+                  { key: 'nutrition', label: 'Nutrición', icon: '🥗' },
+                ].map(({ key, label, icon }) => {
+                  const val = koreIndex.components[key];
+                  if (val === undefined) return null;
+                  const barCol = val >= 75 ? 'bg-emerald-500' : val >= 60 ? 'bg-amber-400' : val >= 40 ? 'bg-orange-400' : 'bg-red-500';
+                  return (
+                    <div key={key} className="flex items-center gap-2">
+                      <span className="text-sm">{icon}</span>
+                      <span className="text-[10px] text-kore-gray-dark/50 w-16 truncate">{label}</span>
+                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full">
+                        <div className={`h-1.5 rounded-full ${barCol}`} style={{ width: `${Math.min(val, 100)}%` }} />
+                      </div>
+                      <span className="text-[10px] text-kore-gray-dark/60 font-semibold w-6 text-right">{Math.round(val)}</span>
+                    </div>
+                  );
+                }).filter(Boolean)}
+              </div>
+            </Link>
+          ) : (
+            <div className="bg-gradient-to-br from-white via-white to-kore-cream/30 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-lg">
+              <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-2">Calificación KÓRE</p>
+              <p className="text-sm text-kore-gray-dark/40">Completa tus evaluaciones para ver tu calificación general.</p>
+            </div>
+          )}
+
+          {/* Progress - LARGE PRIMARY CARD */}
+          <div className="bg-gradient-to-br from-white via-white to-purple-50/30 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-lg">
+            <div className="flex items-start justify-between mb-3">
               <div className="flex-1">
-                <p className="text-sm text-kore-gray-dark/90 leading-relaxed font-medium">
-                  {getProgressMessage(sessionsUsed, progressPercent)}
-                </p>
+                <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-1">Tu progreso</p>
+                <span className="text-xs text-green-700 font-semibold bg-green-100 px-2 py-0.5 rounded-full">
+                  {getProgressStage(progressPercent)}
+                </span>
+              </div>
+              <Link href="/subscription" className="flex-shrink-0">
+                <svg className="w-4 h-4 text-kore-gray-dark/20 hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </Link>
+            </div>
+            <div className="flex items-center gap-4 mb-3">
+              <div className="relative w-20 h-20 flex-shrink-0">
+                <svg className="w-20 h-20 transform -rotate-90" viewBox="0 0 36 36">
+                  <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#E5E5E5" strokeWidth="3" />
+                  <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="url(#progressGradientMobile)" strokeWidth="3" strokeDasharray={`${progressPercent}, 100`} strokeLinecap="round" />
+                  <defs><linearGradient id="progressGradientMobile" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#670F22" /><stop offset="100%" stopColor="#AB0D2F" /></linearGradient></defs>
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="font-heading text-xl font-bold text-kore-gray-dark">{progressPercent}%</span>
+                </div>
+              </div>
+              <div>
+                <p className="font-heading text-lg font-semibold text-kore-gray-dark">{sessionsUsed} sesiones</p>
+                <p className="text-sm text-kore-gray-dark/50 mb-2">completadas de {sessionsTotal}</p>
+                <p className="text-xs text-kore-gray-dark/60 leading-relaxed">{getProgressMessage(sessionsUsed, progressPercent)}</p>
               </div>
             </div>
+            {/* Horizontal indicators: Mood and Goal with messages */}
+            <div className="space-y-2 pt-3 border-t border-kore-gray-light/30">
+              {/* Estado de hoy */}
+              <div className="flex items-center gap-2">
+                {todayMood ? (
+                  <>
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center font-heading text-xs font-bold flex-shrink-0 ${
+                      todayMood.score >= 7 ? 'bg-green-100 text-green-700' : todayMood.score >= 4 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'
+                    }`}>{todayMood.score}</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Estado de hoy</p>
+                      <p className={`text-xs font-medium ${todayMood.score >= 7 ? 'text-green-700' : todayMood.score >= 4 ? 'text-amber-700' : 'text-red-600'}`}>
+                        {todayMood.score >= 9 ? 'Excelente' : todayMood.score >= 7 ? 'Bien' : todayMood.score >= 5 ? 'Regular' : todayMood.score >= 3 ? 'Bajo' : 'Muy bajo'}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-7 h-7 rounded-full bg-kore-cream flex items-center justify-center flex-shrink-0">
+                      <svg className="w-4 h-4 text-kore-gray-dark/30" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Estado de hoy</p>
+                      <Link href="/profile" className="text-xs text-kore-red font-medium hover:underline">Regístralo</Link>
+                    </div>
+                  </>
+                )}
+              </div>
+              {/* Mi objetivo */}
+              {(() => {
+                const goalValue = profile?.customer_profile?.primary_goal;
+                const GoalIcon = goalValue ? getGoalIcon(goalValue) : null;
+                return (
+                  <div className="flex items-center gap-2">
+                    {goalValue && GoalIcon ? (
+                      <>
+                        <div className="w-7 h-7 rounded-full bg-kore-red/10 flex items-center justify-center flex-shrink-0">
+                          <GoalIcon className="w-4 h-4 text-kore-red" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Mi objetivo</p>
+                          <p className="text-xs font-medium text-kore-gray-dark">{getGoalLabel(goalValue)}</p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-7 h-7 rounded-full bg-kore-cream flex items-center justify-center flex-shrink-0">
+                          <svg className="w-4 h-4 text-kore-gray-dark/30" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Mi objetivo</p>
+                          <Link href="/profile" className="text-xs text-kore-red font-medium hover:underline">Defínelo</Link>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Próximas sesiones - MOBILE */}
+          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-heading text-sm font-semibold text-kore-gray-dark">Próximas sesiones</h2>
+              <Link href="/book-session" className="text-[10px] text-kore-red font-medium hover:underline">Agendar</Link>
+            </div>
+            {(() => {
+              const upcoming = bookings.filter(
+                (b) => b.status === 'pending' && new Date(b.slot.starts_at) > new Date()
+              ).sort((a, b) => new Date(a.slot.starts_at).getTime() - new Date(b.slot.starts_at).getTime());
+              return upcoming.length > 0 ? (
+                <div className="space-y-1.5">
+                  {upcoming.slice(0, 2).map((booking) => {
+                    const d = new Date(booking.slot.starts_at);
+                    const dateStr = d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
+                    const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+                    return (
+                      <div key={booking.id} className="flex items-center gap-2 p-2 rounded-xl bg-kore-cream/30">
+                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-kore-red/10 flex items-center justify-center">
+                          <svg className="w-3 h-3 text-kore-red" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-kore-gray-dark capitalize truncate">{dateStr} <span className="text-kore-red">· {timeStr}</span></p>
+                          <p className="text-[10px] text-kore-gray-dark/50 truncate">{booking.package?.title ?? '—'}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-3">
+                  <div className="w-8 h-8 rounded-full bg-kore-cream mx-auto mb-1 flex items-center justify-center">
+                    <CalendarIcon />
+                  </div>
+                  <p className="text-xs text-kore-gray-dark/50 mb-1">No tienes sesiones próximas</p>
+                  <Link href="/book-session" className="text-[10px] text-kore-red font-medium hover:underline">Agenda ahora</Link>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
-        {/* ═══════ HERO ROW: Progress + CTA + KÓRE Score ═══════ */}
-        <div data-hero="body" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-3 xl:gap-4 mb-3 xl:mb-4">
+        {/* ═══════ DESKTOP: Progress + CTA + KÓRE Score ═══════ */}
+        <div data-hero="body" className="hidden xl:grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-3 xl:gap-4 mb-3 xl:mb-4">
 
           {/* ① Progress + Goal + Mood + Motivation — left column */}
-          <div className="xl:col-span-3 xl:row-span-2 bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm flex flex-col">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium">Tu progreso</p>
-              <span className="text-xs text-green-700 font-semibold bg-green-100 px-2 py-0.5 rounded-full">
+          <div className="xl:col-span-3 xl:row-span-2 bg-white/70 backdrop-blur-sm rounded-2xl p-3 md:p-5 border border-white/60 shadow-sm flex flex-col">
+            <div className="flex items-center justify-between mb-2 md:mb-3">
+              <p className="text-[10px] md:text-xs text-kore-gray-dark/50 uppercase tracking-widest font-medium">Tu progreso</p>
+              <span className="text-[10px] md:text-xs text-green-700 font-semibold bg-green-100 px-1.5 md:px-2 py-0.5 rounded-full">
                 {getProgressStage(progressPercent)}
               </span>
             </div>
-            <div className="flex items-center gap-4 mb-4">
-              <div className="relative w-16 h-16 flex-shrink-0">
-                <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
+            <div className="flex items-center gap-2 md:gap-4 mb-2 md:mb-4">
+              <div className="relative w-12 h-12 md:w-16 md:h-16 flex-shrink-0">
+                <svg className="w-12 h-12 md:w-16 md:h-16 transform -rotate-90" viewBox="0 0 36 36">
                   <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#E5E5E5" strokeWidth="3" />
                   <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="url(#progressGradient)" strokeWidth="3" strokeDasharray={`${progressPercent}, 100`} strokeLinecap="round" />
                   <defs><linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#670F22" /><stop offset="100%" stopColor="#AB0D2F" /></linearGradient></defs>
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="font-heading text-lg font-bold text-kore-gray-dark">{progressPercent}%</span>
+                  <span className="font-heading text-sm md:text-lg font-bold text-kore-gray-dark">{progressPercent}%</span>
                 </div>
               </div>
               <div>
-                <p className="font-heading text-base font-semibold text-kore-gray-dark">{sessionsUsed} sesiones</p>
-                <p className="text-xs text-kore-gray-dark/50">completadas de {sessionsTotal}</p>
+                <p className="font-heading text-sm md:text-base font-semibold text-kore-gray-dark">{sessionsUsed} sesiones</p>
+                <p className="text-[10px] md:text-xs text-kore-gray-dark/50">completadas de {sessionsTotal}</p>
               </div>
             </div>
             {/* Mi objetivo (inline) */}
@@ -389,40 +553,40 @@ export default function DashboardPage() {
               const goalValue = profile?.customer_profile?.primary_goal;
               const GoalIcon = goalValue ? getGoalIcon(goalValue) : null;
               return (
-                <div className="py-3 border-t border-kore-gray-light/30">
+                <div className="py-2 md:py-3 border-t border-kore-gray-light/30">
                   {goalValue && GoalIcon ? (
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-kore-red/10 flex items-center justify-center flex-shrink-0">
-                        <GoalIcon className="w-4 h-4 text-kore-red" />
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-kore-red/10 flex items-center justify-center flex-shrink-0">
+                        <GoalIcon className="w-3 h-3 md:w-4 md:h-4 text-kore-red" />
                       </div>
                       <div>
-                        <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Mi objetivo</p>
-                        <span className="text-sm font-medium text-kore-gray-dark">{getGoalLabel(goalValue)}</span>
+                        <p className="text-[10px] md:text-xs text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Mi objetivo</p>
+                        <span className="text-xs md:text-sm font-medium text-kore-gray-dark">{getGoalLabel(goalValue)}</span>
                       </div>
                     </div>
                   ) : (
-                    <Link href="/profile" className="text-xs text-kore-red hover:underline">Define tu objetivo</Link>
+                    <Link href="/profile" className="text-[10px] md:text-xs text-kore-red hover:underline">Define tu objetivo</Link>
                   )}
                 </div>
               );
             })()}
             {/* Estado de hoy (embedded) */}
-            <div className="py-3 border-t border-kore-gray-light/30">
+            <div className="py-2 md:py-3 border-t border-kore-gray-light/30">
               {todayMood ? (
                 <div>
-                  <div className="flex items-center gap-2.5">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-heading text-sm font-bold flex-shrink-0 ${
+                  <div className="flex items-center gap-2">
+                    <div className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center font-heading text-xs md:text-sm font-bold flex-shrink-0 ${
                       todayMood.score >= 7 ? 'bg-green-100 text-green-700' : todayMood.score >= 4 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'
                     }`}>{todayMood.score}</div>
                     <div>
-                      <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Estado de hoy</p>
-                      <p className={`text-sm font-medium ${todayMood.score >= 7 ? 'text-green-700' : todayMood.score >= 4 ? 'text-amber-700' : 'text-red-600'}`}>
+                      <p className="text-[10px] md:text-xs text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Estado de hoy</p>
+                      <p className={`text-xs md:text-sm font-medium ${todayMood.score >= 7 ? 'text-green-700' : todayMood.score >= 4 ? 'text-amber-700' : 'text-red-600'}`}>
                         {todayMood.score >= 9 ? 'Excelente' : todayMood.score >= 7 ? 'Bien' : todayMood.score >= 5 ? 'Regular' : todayMood.score >= 3 ? 'Bajo' : 'Muy bajo'}
-                        <span className="text-kore-gray-dark/40 text-xs font-normal ml-1">de 10</span>
+                        <span className="text-kore-gray-dark/40 text-[10px] md:text-xs font-normal ml-1">de 10</span>
                       </p>
                     </div>
                   </div>
-                  <p className="text-xs text-kore-gray-dark/45 leading-relaxed mt-1.5 ml-10">
+                  <p className="text-[10px] md:text-xs text-kore-gray-dark/45 leading-relaxed mt-1 md:mt-1.5 ml-8 md:ml-10 hidden md:block">
                     {todayMood.score >= 7
                       ? 'Tu bienestar hoy es favorable. Buena disposición para entrenar.'
                       : todayMood.score >= 4
@@ -431,21 +595,21 @@ export default function DashboardPage() {
                   </p>
                 </div>
               ) : (
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-kore-cream flex items-center justify-center flex-shrink-0">
-                    <svg className="w-4 h-4 text-kore-gray-dark/30" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-kore-cream flex items-center justify-center flex-shrink-0">
+                    <svg className="w-3 h-3 md:w-4 md:h-4 text-kore-gray-dark/30" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z" />
                     </svg>
                   </div>
                   <div>
-                    <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Estado de hoy</p>
-                    <Link href="/profile" className="text-xs text-kore-red font-medium hover:underline">Registra cómo te sientes</Link>
+                    <p className="text-[10px] md:text-xs text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Estado de hoy</p>
+                    <Link href="/profile" className="text-[10px] md:text-xs text-kore-red font-medium hover:underline">Registra cómo te sientes</Link>
                   </div>
                 </div>
               )}
             </div>
-            {/* Tu motivación */}
-            <div className="flex items-start gap-2.5 mt-auto pt-3 border-t border-kore-gray-light/30">
+            {/* Tu motivación - Desktop only */}
+            <div className="hidden xl:flex items-start gap-2.5 mt-auto pt-3 border-t border-kore-gray-light/30">
               <div className="flex-shrink-0 w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center">
                 <svg className="w-3.5 h-3.5 text-purple-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
@@ -456,8 +620,8 @@ export default function DashboardPage() {
                 <p className="text-xs text-kore-gray-dark/70 leading-relaxed">{getProgressMessage(sessionsUsed, progressPercent)}</p>
               </div>
             </div>
-            {/* Miembro desde */}
-            <div className="pt-3 border-t border-kore-gray-light/30">
+            {/* Miembro desde - Desktop only */}
+            <div className="hidden xl:block pt-3 border-t border-kore-gray-light/30">
               <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Miembro desde</p>
               <p className="text-sm font-medium text-kore-gray-dark capitalize">{memberDate}</p>
             </div>
@@ -675,9 +839,9 @@ export default function DashboardPage() {
 
 
         {/* ═══════ DIAGNOSTIC MODULES SECTION ═══════ */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 xl:gap-4 mb-3 xl:mb-4">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 md:gap-3 xl:gap-4 mb-3 xl:mb-4">
 
-          {/* ⑦ Evaluación Postural — expandable indicators */}
+          {/* ⑦ Evaluación Postural — mobile simplified */}
           {posturoEvals.length > 0 && (() => {
             const latest = posturoEvals[0];
             const CTP: Record<string, string> = { green: 'text-green-700', yellow: 'text-amber-700', orange: 'text-orange-700', red: 'text-red-600' };
@@ -700,37 +864,54 @@ export default function DashboardPage() {
                 nextStep: 'Tu entrenador incorporará ejercicios de estabilización y movilidad de tren inferior.' },
             ];
             return (
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm">
-                <div className="flex items-center justify-between mb-2.5">
-                  <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Evaluación Postural</h2>
-                  <Link href="/my-posturometry" className="text-[10px] text-kore-red font-medium hover:underline">Ver completo</Link>
+              <Link href="/my-posturometry" className="block bg-white/70 backdrop-blur-sm rounded-xl md:rounded-2xl p-2.5 md:p-4 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
+                <div className="flex items-center justify-between mb-1.5 md:mb-2.5">
+                  <h2 className="font-heading text-xs md:text-base font-semibold text-kore-gray-dark">Postura</h2>
+                  <svg className="w-3 h-3 md:w-3.5 md:h-3.5 text-kore-gray-dark/20 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
                 </div>
-                <div className="flex items-center gap-2.5 mb-2.5">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${CBP[latest.global_color] || CBP.green}`}>
-                    <span className={`font-heading text-base font-bold ${CTP[latest.global_color] || CTP.green}`}>{latest.global_index}</span>
+                <div className="flex items-center gap-2 md:gap-2.5">
+                  <div className={`w-11 h-11 md:w-12 md:h-12 rounded-full flex items-center justify-center ${CBP[latest.global_color] || CBP.green}`}>
+                    <span className={`font-heading text-lg md:text-xl font-bold ${CTP[latest.global_color] || CTP.green}`}>{latest.global_index}</span>
                   </div>
-                  <div>
-                    <p className={`text-sm font-medium ${CTP[latest.global_color] || CTP.green}`}>{latest.global_category}</p>
-                    <p className="text-xs text-kore-gray-dark/40">Índice global</p>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm md:text-base font-semibold ${CTP[latest.global_color] || CTP.green} line-clamp-1`}>{latest.global_category}</p>
+                    <p className="text-[10px] md:text-xs text-kore-gray-dark/40">Índice global</p>
                   </div>
                 </div>
-                <p className="text-xs text-kore-gray-dark/35 mb-1.5">Toca cada zona para ver qué significa</p>
-                <div className="pt-2.5 border-t border-kore-gray-light/20 space-y-0.5">
-                  {posturoIndicators.map((ind) => (
-                    <ExpandableIndicator key={ind.key} ind={ind} />
-                  ))}
+                {/* Mobile mini indicators */}
+                <div className="flex items-center gap-1 mt-2 md:hidden">
+                  {posturoIndicators.map((ind) => {
+                    const dotColor = ind.color === 'green' ? 'bg-green-500' : ind.color === 'yellow' ? 'bg-amber-400' : ind.color === 'orange' ? 'bg-orange-400' : 'bg-red-500';
+                    return (
+                      <div key={ind.key} className="flex items-center gap-0.5 flex-1">
+                        <div className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                        <span className="text-[9px] text-kore-gray-dark/40 truncate">{ind.label.replace('Zona ', '')}</span>
+                      </div>
+                    );
+                  })}
                 </div>
-                {latest.notes && (
-                  <div className="pt-2 border-t border-kore-gray-light/20 mt-2">
-                    <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider font-medium mb-0.5">Tu entrenador</p>
-                    <p className="text-xs text-kore-gray-dark/60 leading-relaxed line-clamp-2 italic">{latest.notes}</p>
+                {/* Desktop only - expandable indicators */}
+                <div className="hidden md:block">
+                  <p className="text-xs text-kore-gray-dark/35 mb-1.5 mt-2.5">Toca cada zona para ver qué significa</p>
+                  <div className="pt-2.5 border-t border-kore-gray-light/20 space-y-0.5">
+                    {posturoIndicators.map((ind) => (
+                      <ExpandableIndicator key={ind.key} ind={ind} />
+                    ))}
                   </div>
-                )}
-              </div>
+                  {latest.notes && (
+                    <div className="pt-2 border-t border-kore-gray-light/20 mt-2">
+                      <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider font-medium mb-0.5">Tu entrenador</p>
+                      <p className="text-xs text-kore-gray-dark/60 leading-relaxed line-clamp-2 italic">{latest.notes}</p>
+                    </div>
+                  )}
+                </div>
+              </Link>
             );
           })()}
 
-          {/* ⑧ Mi estado físico (Antropometría) — expandable indicators */}
+          {/* ⑧ Mi estado físico (Antropometría) — mobile simplified */}
           {anthroEvals.length > 0 && (() => {
             const latest = anthroEvals[0];
             const first = anthroEvals.length > 1 ? anthroEvals[anthroEvals.length - 1] : null;
@@ -764,12 +945,44 @@ export default function DashboardPage() {
                 formula: 'ICC = cintura / cadera' } as IndicatorData] : []),
             ];
             return (
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm">
-                <div className="flex items-center justify-between mb-2.5">
-                  <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Mi diagnóstico</h2>
-                  <Link href="/my-diagnosis" className="text-[10px] text-kore-red font-medium hover:underline">Ver completo</Link>
+              <Link href="/my-diagnosis" className="block bg-white/70 backdrop-blur-sm rounded-xl md:rounded-2xl p-2.5 md:p-4 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
+                <div className="flex items-center justify-between mb-1.5 md:mb-2.5">
+                  <h2 className="font-heading text-xs md:text-base font-semibold text-kore-gray-dark">Diagnóstico</h2>
+                  <svg className="w-3 h-3 md:w-3.5 md:h-3.5 text-kore-gray-dark/20 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
                 </div>
-                <div className="grid grid-cols-3 gap-1.5 mb-2.5">
+                {/* Mobile - simplified stats */}
+                <div className="md:hidden space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-11 h-11 rounded-full bg-kore-red/10 flex items-center justify-center flex-shrink-0">
+                      <span className="font-heading text-base font-bold text-kore-gray-dark">{latest.weight_kg}</span>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[10px] text-kore-gray-dark/40">Peso actual</p>
+                      <p className={`text-sm font-semibold ${CT[latest.bf_color] || CT.green}`}>{latest.body_fat_pct}% grasa</p>
+                    </div>
+                  </div>
+                  {/* Mobile mini indicators */}
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <div className="flex items-center gap-0.5 flex-1">
+                      <div className={`w-1.5 h-1.5 rounded-full ${latest.bf_color === 'green' ? 'bg-green-500' : latest.bf_color === 'yellow' ? 'bg-amber-400' : 'bg-red-500'}`} />
+                      <span className="text-[9px] text-kore-gray-dark/40 truncate">Grasa</span>
+                    </div>
+                    <div className="flex items-center gap-0.5 flex-1">
+                      <div className={`w-1.5 h-1.5 rounded-full ${latest.bmi_color === 'green' ? 'bg-green-500' : latest.bmi_color === 'yellow' ? 'bg-amber-400' : 'bg-red-500'}`} />
+                      <span className="text-[9px] text-kore-gray-dark/40 truncate">IMC</span>
+                    </div>
+                    {latest.waist_cm && (
+                      <div className="flex items-center gap-0.5 flex-1">
+                        <div className={`w-1.5 h-1.5 rounded-full ${latest.waist_risk_color === 'green' ? 'bg-green-500' : latest.waist_risk_color === 'yellow' ? 'bg-amber-400' : 'bg-red-500'}`} />
+                        <span className="text-[9px] text-kore-gray-dark/40 truncate">Cintura</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {/* Desktop - full stats grid */}
+                <div className="hidden md:grid grid-cols-3 gap-1.5 mb-2.5">
                   {[
                     { label: 'kg', val: latest.weight_kg, colClass: 'text-kore-gray-dark' },
                     { label: 'grasa', val: `${latest.body_fat_pct}%`, colClass: CT[latest.bf_color] || CT.green },
@@ -781,38 +994,41 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
-                {first && (weightDiff !== null || fatDiff !== null) && (
-                  <div className="flex items-center gap-2 text-xs mb-1.5">
-                    <span className="text-kore-gray-dark/40">Desde inicio:</span>
-                    {weightDiff !== null && Math.abs(weightDiff) >= 0.1 && (
-                      <span className={weightDiff < 0 ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>
-                        {weightDiff > 0 ? '+' : ''}{weightDiff.toFixed(1)} kg
-                      </span>
-                    )}
-                    {fatDiff !== null && Math.abs(fatDiff) >= 0.1 && (
-                      <span className={fatDiff < 0 ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>
-                        {fatDiff > 0 ? '+' : ''}{fatDiff.toFixed(1)}% grasa
-                      </span>
-                    )}
+                {/* Desktop only - diff and indicators */}
+                <div className="hidden md:block">
+                  {first && (weightDiff !== null || fatDiff !== null) && (
+                    <div className="flex items-center gap-2 text-xs mb-1.5">
+                      <span className="text-kore-gray-dark/40">Desde inicio:</span>
+                      {weightDiff !== null && Math.abs(weightDiff) >= 0.1 && (
+                        <span className={weightDiff < 0 ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>
+                          {weightDiff > 0 ? '+' : ''}{weightDiff.toFixed(1)} kg
+                        </span>
+                      )}
+                      {fatDiff !== null && Math.abs(fatDiff) >= 0.1 && (
+                        <span className={fatDiff < 0 ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>
+                          {fatDiff > 0 ? '+' : ''}{fatDiff.toFixed(1)}% grasa
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <p className="text-xs text-kore-gray-dark/35 mb-1.5">Toca cada indicador para ver qué significa</p>
+                  <div className="pt-2.5 border-t border-kore-gray-light/20 space-y-0.5">
+                    {anthroIndicators.map((ind) => (
+                      <ExpandableIndicator key={ind.key} ind={ind} />
+                    ))}
                   </div>
-                )}
-                <p className="text-xs text-kore-gray-dark/35 mb-1.5">Toca cada indicador para ver qué significa</p>
-                <div className="pt-2.5 border-t border-kore-gray-light/20 space-y-0.5">
-                  {anthroIndicators.map((ind) => (
-                    <ExpandableIndicator key={ind.key} ind={ind} />
-                  ))}
+                  {latest.notes && (
+                    <div className="pt-2 border-t border-kore-gray-light/20 mt-2">
+                      <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider font-medium mb-0.5">Tu entrenador</p>
+                      <p className="text-xs text-kore-gray-dark/60 leading-relaxed line-clamp-2 italic">{latest.notes}</p>
+                    </div>
+                  )}
                 </div>
-                {latest.notes && (
-                  <div className="pt-2 border-t border-kore-gray-light/20 mt-2">
-                    <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider font-medium mb-0.5">Tu entrenador</p>
-                    <p className="text-xs text-kore-gray-dark/60 leading-relaxed line-clamp-2 italic">{latest.notes}</p>
-                  </div>
-                )}
-              </div>
+              </Link>
             );
           })()}
 
-          {/* ⑨ Evaluación Física — expandable indicators */}
+          {/* ⑨ Evaluación Física — mobile simplified */}
           {physicalEvals.length > 0 && (() => {
             const latest = physicalEvals[0];
             const CTP: Record<string, string> = { green: 'text-green-700', yellow: 'text-amber-700', red: 'text-red-600' };
@@ -840,38 +1056,55 @@ export default function DashboardPage() {
                 nextStep: 'Tu entrenador incorporará trabajo de estabilidad adaptado a tu nivel.' },
             ];
             return (
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm">
-                <div className="flex items-center justify-between mb-2.5">
-                  <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Evaluación Física</h2>
-                  <Link href="/my-physical-evaluation" className="text-[10px] text-kore-red font-medium hover:underline">Ver completo</Link>
+              <Link href="/my-physical-evaluation" className="block bg-white/70 backdrop-blur-sm rounded-xl md:rounded-2xl p-2.5 md:p-4 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
+                <div className="flex items-center justify-between mb-1.5 md:mb-2.5">
+                  <h2 className="font-heading text-xs md:text-base font-semibold text-kore-gray-dark">Condición</h2>
+                  <svg className="w-3 h-3 md:w-3.5 md:h-3.5 text-kore-gray-dark/20 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
                 </div>
-                <div className="flex items-center gap-2.5 mb-2.5">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${CBP[latest.general_color] || CBP.green}`}>
-                    <span className={`font-heading text-base font-bold ${CTP[latest.general_color] || CTP.green}`}>{latest.general_index}</span>
+                <div className="flex items-center gap-2 md:gap-2.5">
+                  <div className={`w-11 h-11 md:w-12 md:h-12 rounded-full flex items-center justify-center ${CBP[latest.general_color] || CBP.green}`}>
+                    <span className={`font-heading text-lg md:text-xl font-bold ${CTP[latest.general_color] || CTP.green}`}>{latest.general_index}</span>
                   </div>
-                  <div>
-                    <p className={`text-sm font-medium ${CTP[latest.general_color] || CTP.green}`}>{latest.general_category}</p>
-                    <p className="text-xs text-kore-gray-dark/40">Condición general</p>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm md:text-base font-semibold ${CTP[latest.general_color] || CTP.green} line-clamp-1`}>{latest.general_category}</p>
+                    <p className="text-[10px] md:text-xs text-kore-gray-dark/40">Índice general</p>
                   </div>
                 </div>
-                <p className="text-xs text-kore-gray-dark/35 mb-1.5">Toca cada componente para ver qué significa</p>
-                <div className="pt-2.5 border-t border-kore-gray-light/20 space-y-0.5">
-                  {physIndicators.map((ind) => (
-                    <ExpandableIndicator key={ind.key} ind={ind} />
-                  ))}
+                {/* Mobile mini indicators */}
+                <div className="grid grid-cols-2 gap-x-1 gap-y-1 mt-2 md:hidden">
+                  {physIndicators.map((ind) => {
+                    const dotColor = ind.color === 'green' ? 'bg-green-500' : ind.color === 'yellow' ? 'bg-amber-400' : 'bg-red-500';
+                    return (
+                      <div key={ind.key} className="flex items-center gap-0.5">
+                        <div className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                        <span className="text-[9px] text-kore-gray-dark/40 truncate">{ind.label}</span>
+                      </div>
+                    );
+                  })}
                 </div>
-                {latest.notes && (
-                  <div className="pt-2 border-t border-kore-gray-light/20 mt-2">
-                    <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider font-medium mb-0.5">Tu entrenador</p>
-                    <p className="text-xs text-kore-gray-dark/60 leading-relaxed line-clamp-2 italic">{latest.notes}</p>
+                {/* Desktop only - expandable indicators */}
+                <div className="hidden md:block">
+                  <p className="text-xs text-kore-gray-dark/35 mb-1.5 mt-2.5">Toca cada componente para ver qué significa</p>
+                  <div className="pt-2.5 border-t border-kore-gray-light/20 space-y-0.5">
+                    {physIndicators.map((ind) => (
+                      <ExpandableIndicator key={ind.key} ind={ind} />
+                    ))}
                   </div>
-                )}
-              </div>
+                  {latest.notes && (
+                    <div className="pt-2 border-t border-kore-gray-light/20 mt-2">
+                      <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider font-medium mb-0.5">Tu entrenador</p>
+                      <p className="text-xs text-kore-gray-dark/60 leading-relaxed line-clamp-2 italic">{latest.notes}</p>
+                    </div>
+                  )}
+                </div>
+              </Link>
             );
           })()}
 
           {/* ⑩ Nutrición + ⑪ PAR-Q + ⑥ Historial — stacked in one column */}
-          <div className="flex flex-col gap-3 xl:gap-4">
+          <div className="col-span-1 grid grid-cols-1 gap-2 md:gap-3 xl:gap-4">
             {/* Mi Nutrición */}
             {nutritionEntries.length > 0 && (() => {
               const latest = nutritionEntries[0];
@@ -881,24 +1114,24 @@ export default function DashboardPage() {
               const pct = Math.min(score / 10, 1) * 100;
               const CDN: Record<string, string> = { green: 'bg-emerald-500', yellow: 'bg-amber-500', red: 'bg-red-500' };
               return (
-                <Link href="/my-nutrition" className="block bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
-                  <div className="flex items-center justify-between mb-2">
-                    <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Mi Nutrición</h2>
-                    <svg className="w-3.5 h-3.5 text-kore-gray-dark/30 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <Link href="/my-nutrition" className="block bg-white/70 backdrop-blur-sm rounded-xl md:rounded-2xl p-2.5 md:p-4 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
+                  <div className="flex items-center justify-between mb-1.5 md:mb-2">
+                    <h2 className="font-heading text-xs md:text-base font-semibold text-kore-gray-dark">Mi Nutrición</h2>
+                    <svg className="w-3 h-3 md:w-3.5 md:h-3.5 text-kore-gray-dark/30 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                     </svg>
                   </div>
-                  <div className="flex items-center gap-2.5 mb-2">
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center ${CBN[latest.habit_color] || CBN.green}`}>
-                      <span className={`font-heading text-sm font-bold ${CTN[latest.habit_color] || CTN.green}`}>{score}</span>
+                  <div className="flex items-center gap-1.5 md:gap-2.5 mb-1.5 md:mb-2">
+                    <div className={`w-7 h-7 md:w-9 md:h-9 rounded-full flex items-center justify-center ${CBN[latest.habit_color] || CBN.green}`}>
+                      <span className={`font-heading text-xs md:text-sm font-bold ${CTN[latest.habit_color] || CTN.green}`}>{score}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={`text-xs font-medium ${CTN[latest.habit_color] || CTN.green}`}>{latest.habit_category}</p>
-                      <p className="text-xs text-kore-gray-dark/40">Índice /10</p>
+                      <p className={`text-[10px] md:text-xs font-medium ${CTN[latest.habit_color] || CTN.green}`}>{latest.habit_category}</p>
+                      <p className="text-[9px] md:text-xs text-kore-gray-dark/40">Índice /10</p>
                     </div>
                   </div>
-                  <div className="w-full bg-gray-100 rounded-full h-1.5">
-                    <div className={`h-1.5 rounded-full transition-all duration-500 ${CDN[latest.habit_color] || CDN.green}`} style={{ width: `${pct}%` }} />
+                  <div className="w-full bg-gray-100 rounded-full h-1 md:h-1.5">
+                    <div className={`h-1 md:h-1.5 rounded-full transition-all duration-500 ${CDN[latest.habit_color] || CDN.green}`} style={{ width: `${pct}%` }} />
                   </div>
                 </Link>
               );
@@ -910,32 +1143,32 @@ export default function DashboardPage() {
               const CTQ: Record<string, string> = { green: 'text-emerald-700', yellow: 'text-amber-700', red: 'text-red-600' };
               const CBQ: Record<string, string> = { green: 'bg-emerald-100', yellow: 'bg-amber-100', red: 'bg-red-100' };
               return (
-                <Link href="/my-parq" className="block bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
-                  <div className="flex items-center justify-between mb-2">
-                    <h2 className="font-heading text-base font-semibold text-kore-gray-dark">PAR-Q+</h2>
-                    <svg className="w-3.5 h-3.5 text-kore-gray-dark/30 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <Link href="/my-parq" className="block bg-white/70 backdrop-blur-sm rounded-xl md:rounded-2xl p-2.5 md:p-4 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
+                  <div className="flex items-center justify-between mb-1.5 md:mb-2">
+                    <h2 className="font-heading text-xs md:text-base font-semibold text-kore-gray-dark">PAR-Q+</h2>
+                    <svg className="w-3 h-3 md:w-3.5 md:h-3.5 text-kore-gray-dark/30 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                     </svg>
                   </div>
-                  <div className="flex items-center gap-2.5">
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center ${CBQ[latest.risk_color] || CBQ.green}`}>
+                  <div className="flex items-center gap-1.5 md:gap-2.5">
+                    <div className={`w-7 h-7 md:w-9 md:h-9 rounded-full flex items-center justify-center ${CBQ[latest.risk_color] || CBQ.green}`}>
                       {latest.risk_color === 'green' ? (
-                        <svg className={`w-5 h-5 ${CTQ.green}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <svg className={`w-4 h-4 md:w-5 md:h-5 ${CTQ.green}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                         </svg>
                       ) : latest.risk_color === 'yellow' ? (
-                        <svg className={`w-5 h-5 ${CTQ.yellow}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <svg className={`w-4 h-4 md:w-5 md:h-5 ${CTQ.yellow}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                         </svg>
                       ) : (
-                        <svg className={`w-5 h-5 ${CTQ.red}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <svg className={`w-4 h-4 md:w-5 md:h-5 ${CTQ.red}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.008v.008H12v-.008zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       )}
                     </div>
                     <div>
-                      <p className={`text-xs font-medium ${CTQ[latest.risk_color] || CTQ.green}`}>{latest.risk_label}</p>
-                      <p className="text-xs text-kore-gray-dark/40">{latest.yes_count}/7 respuestas afirmativas</p>
+                      <p className={`text-[10px] md:text-xs font-medium ${CTQ[latest.risk_color] || CTQ.green}`}>{latest.risk_label}</p>
+                      <p className="text-[9px] md:text-xs text-kore-gray-dark/40">{latest.yes_count}/7 respuestas afirmativas</p>
                     </div>
                   </div>
                 </Link>
@@ -943,30 +1176,70 @@ export default function DashboardPage() {
             })()}
 
             {/* ⑥ Historial reciente */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-3.5 border border-white/60 shadow-sm">
-              <h2 className="font-heading text-sm font-semibold text-kore-gray-dark mb-2">Historial reciente</h2>
+            <div className="bg-white/70 backdrop-blur-sm rounded-xl md:rounded-2xl p-2.5 md:p-3.5 border border-white/60 shadow-sm hidden xl:block">
+              <h2 className="font-heading text-xs md:text-sm font-semibold text-kore-gray-dark mb-1.5 md:mb-2">Historial reciente</h2>
               <div className="space-y-0.5">
                 {bookings.filter(b => b.status === 'confirmed').length > 0 ? (
                   bookings.filter(b => b.status === 'confirmed').slice(0, 3).map((booking) => {
                     const date = new Date(booking.slot.starts_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
                     return (
-                      <div key={booking.id} className="flex items-center gap-2 py-1 rounded-lg">
-                        <div className="flex-shrink-0 w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
-                          <svg className="w-2.5 h-2.5 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <div key={booking.id} className="flex items-center gap-1.5 md:gap-2 py-0.5 md:py-1 rounded-lg">
+                        <div className="flex-shrink-0 w-4 h-4 md:w-5 md:h-5 rounded-full bg-green-100 flex items-center justify-center">
+                          <svg className="w-2 h-2 md:w-2.5 md:h-2.5 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         </div>
-                        <div className="flex-1 min-w-0"><p className="text-xs font-medium text-kore-gray-dark truncate">{booking.package?.title ?? '—'}</p></div>
-                        <p className="text-xs text-kore-gray-dark/40 capitalize">{date}</p>
+                        <div className="flex-1 min-w-0"><p className="text-[10px] md:text-xs font-medium text-kore-gray-dark truncate">{booking.package?.title ?? '—'}</p></div>
+                        <p className="text-[10px] md:text-xs text-kore-gray-dark/40 capitalize">{date}</p>
                       </div>
                     );
                   })
                 ) : (
-                  <p className="text-xs text-kore-gray-dark/40 text-center py-1.5">Sin sesiones completadas</p>
+                  <p className="text-[10px] md:text-xs text-kore-gray-dark/40 text-center py-1 md:py-1.5">Sin sesiones completadas</p>
                 )}
               </div>
             </div>
           </div>
+        </div>
+
+        {/* ═══════ MOBILE: Historial reciente al final ═══════ */}
+        <div className="xl:hidden bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-lg mb-3">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-heading text-sm font-semibold text-kore-gray-dark">Historial reciente</h2>
+          </div>
+          {(() => {
+            const completed = bookings.filter(b => b.status === 'confirmed').slice(0, 3);
+            return completed.length > 0 ? (
+              <div className="space-y-1.5">
+                {completed.map((booking) => {
+                  const d = new Date(booking.slot.starts_at);
+                  const dateStr = d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
+                  return (
+                    <div key={booking.id} className="flex items-center gap-2 p-2 rounded-xl bg-kore-cream/30">
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+                        <svg className="w-3 h-3 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-kore-gray-dark truncate">{booking.package?.title ?? '—'}</p>
+                        <p className="text-[10px] text-kore-gray-dark/50 capitalize">{dateStr}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-3">
+                <div className="w-8 h-8 rounded-full bg-kore-cream mx-auto mb-1 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-kore-gray-dark/30" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <p className="text-xs text-kore-gray-dark/50">Sin sesiones completadas</p>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </section>
