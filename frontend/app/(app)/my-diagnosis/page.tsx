@@ -10,6 +10,19 @@ import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 
 gsap.registerPlugin(ScrollTrigger);
 
+/* ── Measurement field labels ── */
+const PERIMETER_LABELS: Record<string, string> = {
+  brazo_relajado: 'Brazo relajado', brazo_flexionado: 'Brazo flexionado',
+  antebrazo: 'Antebrazo', muneca: 'Muñeca', pecho: 'Pecho',
+  cintura: 'Cintura', gluteos: 'Glúteos', muslo: 'Muslo',
+  pantorrilla: 'Pantorrilla', tobillo: 'Tobillo',
+};
+const SKINFOLD_LABELS: Record<string, string> = {
+  triceps: 'Tríceps', biceps: 'Bíceps', subescapular: 'Sub Escapular',
+  cresta_iliaca: 'Cresta Ilíaca', supraespinal: 'Supraespinal',
+  abdominal: 'Abdominal', muslo: 'Muslo', pantorrilla: 'Pantorrilla',
+};
+
 /* ── Color helpers ── */
 const CT: Record<string, string> = { green: 'text-green-700', yellow: 'text-amber-700', red: 'text-red-600' };
 const CB: Record<string, string> = { green: 'bg-green-100', yellow: 'bg-amber-100', red: 'bg-red-100' };
@@ -424,6 +437,402 @@ function IndexCard({ id, ev, prev }: { id: string; ev: AnthropometryEvaluation; 
   );
 }
 
+/* ── Measurements section (read-only, collapsible) ── */
+function MeasurementsSection({ title, subtitle, data, prevData, labels, unit, inverted = false }: {
+  title: string; subtitle: string;
+  data: Record<string, number>; prevData?: Record<string, number> | null;
+  labels: Record<string, string>; unit: string; inverted?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const arrowRef = useRef<SVGSVGElement>(null);
+
+  const toggle = useCallback(() => {
+    if (!contentRef.current) return;
+    const el = contentRef.current;
+    const willOpen = !open;
+    setOpen(willOpen);
+    if (willOpen) {
+      gsap.set(el, { height: 0, opacity: 0, display: 'block', overflow: 'hidden' });
+      gsap.to(el, { height: 'auto', opacity: 1, duration: 0.4, ease: 'power3.out' });
+      if (arrowRef.current) gsap.to(arrowRef.current, { rotation: 180, duration: 0.3, ease: 'power2.inOut' });
+    } else {
+      gsap.to(el, { height: 0, opacity: 0, duration: 0.3, ease: 'power2.in', onComplete: () => { gsap.set(el, { display: 'none' }); } });
+      if (arrowRef.current) gsap.to(arrowRef.current, { rotation: 0, duration: 0.3, ease: 'power2.inOut' });
+    }
+  }, [open]);
+
+  // Group entries: base keys (without _d/_i suffixes) for bilateral display
+  const grouped: { label: string; values: { side: string; val: number; prevVal?: number }[] }[] = [];
+  const processed = new Set<string>();
+
+  for (const [rawKey, val] of Object.entries(data)) {
+    if (processed.has(rawKey)) continue;
+    const isD = rawKey.endsWith('_d');
+    const isI = rawKey.endsWith('_i');
+    const baseKey = isD ? rawKey.slice(0, -2) : isI ? rawKey.slice(0, -2) : rawKey;
+    if (processed.has(baseKey)) continue;
+
+    const dKey = `${baseKey}_d`;
+    const iKey = `${baseKey}_i`;
+    const hasBilateral = dKey in data || iKey in data;
+
+    if (hasBilateral && !isD && !isI) continue; // skip base if bilateral exists
+
+    if (hasBilateral) {
+      processed.add(baseKey); processed.add(dKey); processed.add(iKey);
+      const entries: { side: string; val: number; prevVal?: number }[] = [];
+      if (dKey in data) entries.push({ side: 'D', val: data[dKey], prevVal: prevData?.[dKey] });
+      if (iKey in data) entries.push({ side: 'I', val: data[iKey], prevVal: prevData?.[iKey] });
+      grouped.push({ label: labels[baseKey] || baseKey.replace(/_/g, ' '), values: entries });
+    } else {
+      processed.add(rawKey);
+      grouped.push({ label: labels[rawKey] || rawKey.replace(/_/g, ' '), values: [{ side: '', val, prevVal: prevData?.[rawKey] }] });
+    }
+  }
+
+  return (
+    <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm overflow-hidden">
+      <button type="button" onClick={toggle} className="w-full flex items-center justify-between p-5 cursor-pointer hover:bg-kore-cream/20 transition-colors text-left">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-kore-red/10 flex items-center justify-center flex-shrink-0">
+            <svg className="w-4 h-4 text-kore-red" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-kore-gray-dark">{title}</p>
+            <p className="text-xs text-kore-gray-dark/50 mt-0.5">{subtitle}</p>
+          </div>
+        </div>
+        <svg ref={arrowRef} className="w-5 h-5 text-kore-gray-dark/30 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+      <div ref={contentRef} style={{ display: 'none', height: 0 }}>
+        <div className="px-5 pb-5">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-kore-gray-light/30">
+                <th className="text-left text-xs text-kore-gray-dark/50 uppercase tracking-wider py-2 font-medium">Medida</th>
+                <th className="text-center text-xs text-kore-gray-dark/50 uppercase tracking-wider py-2 font-medium w-20">Valor</th>
+                {prevData && <th className="text-center text-xs text-kore-gray-dark/50 uppercase tracking-wider py-2 font-medium w-20">Cambio</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {grouped.map((g) =>
+                g.values.map((v, i) => {
+                  const displayLabel = g.values.length > 1 ? `${g.label} (${v.side})` : g.label;
+                  const diff = v.prevVal != null ? v.val - v.prevVal : null;
+                  const improved = diff != null && Math.abs(diff) >= 0.1 ? (inverted ? diff < 0 : diff > 0) : null;
+                  return (
+                    <tr key={`${g.label}-${v.side}-${i}`} className="border-b border-kore-gray-light/10">
+                      <td className="py-2 text-sm text-kore-gray-dark capitalize">{displayLabel}</td>
+                      <td className="py-2 text-center text-sm font-medium text-kore-gray-dark">{v.val} <span className="text-xs text-kore-gray-dark/40">{unit}</span></td>
+                      {prevData && (
+                        <td className="py-2 text-center">
+                          {diff != null && Math.abs(diff) >= 0.1 ? (
+                            <span className={`inline-flex items-center text-xs font-semibold px-1.5 py-0.5 rounded-full ${improved ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+                              {diff > 0 ? '↑' : '↓'} {Math.abs(diff).toFixed(1)}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-kore-gray-dark/30">—</span>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Sparkline: mini trend dots connected by line ── */
+function Sparkline({ values, inverted = false }: { values: number[]; inverted?: boolean }) {
+  if (values.length < 2) return null;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const h = 32; // svg height
+  const w = 80; // svg width
+  const padY = 4;
+  const points = values.map((v, i) => ({
+    x: (i / (values.length - 1)) * w,
+    y: padY + (1 - (v - min) / range) * (h - padY * 2),
+  }));
+  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+  const first = values[0];
+  const last = values[values.length - 1];
+  const diff = last - first;
+  const improved = inverted ? diff < 0 : diff > 0;
+  const lineColor = Math.abs(diff) < 0.1 ? '#9ca3af' : improved ? '#16a34a' : '#dc2626';
+
+  return (
+    <svg width={w} height={h} className="flex-shrink-0">
+      <path d={pathD} fill="none" stroke={lineColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      {points.map((p, i) => (
+        <circle key={i} cx={p.x} cy={p.y} r={i === points.length - 1 ? 3.5 : 2} fill={i === points.length - 1 ? lineColor : 'white'} stroke={lineColor} strokeWidth={1.5} />
+      ))}
+    </svg>
+  );
+}
+
+/* ── Single metric row with tap-to-expand info ── */
+function MetricRow({ label, emoji, tip, unit, current, initial, diff, improved, color, barColor, pct, initialPct, sparkValues, inverted }: {
+  label: string; emoji: string; tip: string; unit: string;
+  current: number; initial: number | null; diff: number | null; improved: boolean | null;
+  color: string; barColor: { bg: string; fill: string }; pct: number; initialPct: number | null;
+  sparkValues: number[]; inverted: boolean;
+}) {
+  const [showTip, setShowTip] = useState(false);
+  const tipRef = useRef<HTMLDivElement>(null);
+
+  const toggleTip = useCallback(() => {
+    if (!tipRef.current) { setShowTip(!showTip); return; }
+    const el = tipRef.current;
+    const willOpen = !showTip;
+    setShowTip(willOpen);
+    if (willOpen) {
+      gsap.set(el, { height: 0, opacity: 0, display: 'block', overflow: 'hidden' });
+      gsap.to(el, { height: 'auto', opacity: 1, duration: 0.25, ease: 'power2.out' });
+    } else {
+      gsap.to(el, { height: 0, opacity: 0, duration: 0.2, ease: 'power2.in', onComplete: () => { gsap.set(el, { display: 'none' }); } });
+    }
+  }, [showTip]);
+
+  // Verdict text
+  const verdictText = (() => {
+    if (diff == null || Math.abs(diff) < 0.1) return null;
+    const absDiff = Math.abs(diff).toFixed(1);
+    if (improved) {
+      return inverted
+        ? `Bajó ${absDiff} ${unit} — buen progreso`
+        : `Subió ${absDiff} ${unit} — buen progreso`;
+    }
+    return inverted
+      ? `Subió ${absDiff} ${unit} — a trabajar`
+      : `Bajó ${absDiff} ${unit} — a trabajar`;
+  })();
+
+  return (
+    <div className="bg-kore-cream/30 rounded-xl p-3.5">
+      {/* Header: label + info button + current value */}
+      <div className="flex items-center justify-between mb-2">
+        <button type="button" onClick={toggleTip} className="flex items-center gap-2 cursor-pointer active:opacity-70 transition-opacity">
+          <span className="text-sm">{emoji}</span>
+          <span className="text-sm font-medium text-kore-gray-dark">{label}</span>
+          <div className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${showTip ? 'bg-kore-red/15' : 'bg-kore-gray-dark/8'}`}>
+            <span className={`text-[9px] font-bold ${showTip ? 'text-kore-red' : 'text-kore-gray-dark/40'}`}>i</span>
+          </div>
+        </button>
+        <span className={`text-base font-bold ${CT[color] || 'text-kore-gray-dark'}`}>
+          {current.toFixed(1)}<span className="text-xs font-normal ml-0.5">{unit}</span>
+        </span>
+      </div>
+
+      {/* Expandable info panel */}
+      <div ref={tipRef} style={{ display: 'none', height: 0 }}>
+        <div className="bg-white/80 rounded-lg px-3 py-2 mb-2 border border-kore-gray-light/30">
+          <p className="text-xs text-kore-gray-dark/70 leading-relaxed">{tip}</p>
+        </div>
+      </div>
+
+      {/* Bar + sparkline */}
+      <div className="flex items-center gap-3 mb-1.5">
+        <div className="flex-1">
+          <div className={`relative h-2.5 rounded-full ${barColor.bg} overflow-hidden`}>
+            {initialPct != null && Math.abs(pct - initialPct) > 1 && (
+              <div className="absolute inset-y-0 left-0 rounded-full bg-kore-gray-dark/10" style={{ width: `${initialPct}%` }} />
+            )}
+            <div className={`progress-bar-fill absolute inset-y-0 left-0 rounded-full ${barColor.fill} origin-left`} style={{ width: `${pct}%` }} />
+            {initialPct != null && Math.abs(pct - initialPct) > 1 && (
+              <div className="absolute top-0 bottom-0 w-0.5 bg-kore-gray-dark/40" style={{ left: `${initialPct}%` }} />
+            )}
+          </div>
+        </div>
+        {sparkValues.length >= 2 && <Sparkline values={sparkValues} inverted={inverted} />}
+      </div>
+
+      {/* Before → After with verdict */}
+      {initial != null && Math.abs(current - initial) >= 0.1 && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="text-kore-gray-dark/50">Inicio</span>
+            <span className="font-semibold text-kore-gray-dark/70">{initial.toFixed(1)}</span>
+            <svg className="w-3.5 h-3.5 text-kore-gray-dark/30" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+            <span className="text-kore-gray-dark/50">Actual</span>
+            <span className={`font-semibold ${CT[color] || 'text-kore-gray-dark'}`}>{current.toFixed(1)}</span>
+          </div>
+          {verdictText && (
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${improved ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+              {verdictText}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Visual progress charts across evaluations ── */
+function ProgressCharts({ evaluations }: { evaluations: AnthropometryEvaluation[] }) {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const first = evaluations[evaluations.length - 1];
+  const latest = evaluations[0];
+
+  // Animate bars on mount
+  useEffect(() => {
+    if (!chartRef.current) return;
+    const bars = chartRef.current.querySelectorAll('.progress-bar-fill');
+    const ctx = gsap.context(() => {
+      gsap.fromTo(bars,
+        { scaleX: 0 },
+        { scaleX: 1, duration: 0.8, stagger: 0.1, ease: 'power3.out', delay: 0.2 },
+      );
+    });
+    return () => ctx.revert();
+  }, [evaluations]);
+
+  const metrics: { key: string; label: string; emoji: string; unit: string; getValue: (ev: AnthropometryEvaluation) => string | null; inverted: boolean; getColor: (ev: AnthropometryEvaluation) => string; maxVal: number; tip: string }[] = [
+    { key: 'bf', label: '% Grasa corporal', emoji: '🔥', unit: '%', getValue: (ev) => ev.body_fat_pct, inverted: true, getColor: (ev) => ev.bf_color, maxVal: 50, tip: 'Qué parte de tu peso total es grasa. Lo ideal es reducirlo manteniendo músculo.' },
+    { key: 'weight', label: 'Peso', emoji: '⚖️', unit: 'kg', getValue: (ev) => ev.weight_kg, inverted: true, getColor: () => 'green', maxVal: 150, tip: 'Tu peso total. No basta solo con bajar de peso — lo que importa es qué pierdes (grasa) y qué conservas (músculo).' },
+    { key: 'lean', label: 'Masa muscular', emoji: '💪', unit: 'kg', getValue: (ev) => ev.lean_mass_kg, inverted: false, getColor: () => 'green', maxVal: 100, tip: 'Todo lo que no es grasa: músculo, huesos, agua y órganos. Lo ideal es mantenerla o aumentarla.' },
+    { key: 'fat', label: 'Masa grasa', emoji: '📉', unit: 'kg', getValue: (ev) => ev.fat_mass_kg, inverted: true, getColor: (ev) => ev.bf_color, maxVal: 60, tip: 'Kilos de grasa corporal. Reducirla sin perder músculo es el objetivo de tu programa.' },
+    { key: 'bmi', label: 'IMC', emoji: '📊', unit: '', getValue: (ev) => ev.bmi, inverted: true, getColor: (ev) => ev.bmi_color, maxVal: 40, tip: 'Índice de Masa Corporal: compara tu peso con tu estatura. Es un filtro general, no distingue grasa de músculo.' },
+    { key: 'waist', label: 'Cintura', emoji: '📏', unit: 'cm', getValue: (ev) => ev.waist_cm, inverted: true, getColor: (ev) => ev.waist_risk_color, maxVal: 130, tip: 'Tu perímetro abdominal. Es uno de los mejores indicadores de riesgo metabólico y grasa visceral.' },
+  ];
+
+  const BAR_COLORS: Record<string, { bg: string; fill: string }> = {
+    green: { bg: 'bg-green-100', fill: 'bg-green-500' },
+    yellow: { bg: 'bg-amber-100', fill: 'bg-amber-500' },
+    red: { bg: 'bg-red-100', fill: 'bg-red-500' },
+  };
+
+  return (
+    <div ref={chartRef} className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
+      <div className="flex items-center gap-3 mb-1">
+        <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Tu progreso</h2>
+        <span className="text-xs text-kore-gray-dark/40">{evaluations.length} evaluaciones</span>
+      </div>
+      <p className="text-xs text-kore-gray-dark/50 mb-5">Toca cada indicador para ver qué significa.</p>
+
+      <div className="space-y-5">
+        {metrics.map((m) => {
+          const latestVal = m.getValue(latest);
+          const firstVal = m.getValue(first);
+          if (!latestVal) return null;
+
+          const current = parseFloat(latestVal);
+          const initial = firstVal ? parseFloat(firstVal) : null;
+          const diff = initial != null ? current - initial : null;
+          const improved = diff != null && Math.abs(diff) >= 0.1 ? (m.inverted ? diff < 0 : diff > 0) : null;
+          const color = m.getColor(latest);
+          const barColor = BAR_COLORS[color] || BAR_COLORS.green;
+          const pct = Math.min((current / m.maxVal) * 100, 100);
+          const initialPct = initial != null ? Math.min((initial / m.maxVal) * 100, 100) : null;
+
+          // Collect all values for sparkline (reversed so oldest is first)
+          const sparkValues = evaluations.map(ev => {
+            const v = m.getValue(ev);
+            return v ? parseFloat(v) : null;
+          }).filter((v): v is number => v != null).reverse();
+
+          return (
+            <MetricRow
+              key={m.key}
+              label={m.label}
+              emoji={m.emoji}
+              tip={m.tip}
+              unit={m.unit}
+              current={current}
+              initial={initial}
+              diff={diff}
+              improved={improved}
+              color={color}
+              barColor={barColor}
+              pct={pct}
+              initialPct={initialPct}
+              sparkValues={sparkValues}
+              inverted={m.inverted}
+            />
+          );
+        })}
+      </div>
+
+      {/* Composition visual: fat vs lean */}
+      <div className="mt-6 pt-5 border-t border-kore-gray-light/30">
+        <p className="text-xs text-kore-gray-dark/50 uppercase tracking-wider font-medium mb-3">Composición corporal</p>
+        <div className="flex items-center gap-3">
+          {/* Stacked bar: fat vs lean */}
+          <div className="flex-1">
+            {(() => {
+              const fat = parseFloat(latest.fat_mass_kg);
+              const lean = parseFloat(latest.lean_mass_kg);
+              const total = fat + lean;
+              if (total === 0) return null;
+              const fatPct = (fat / total) * 100;
+              const leanPct = (lean / total) * 100;
+              const initFat = first ? parseFloat(first.fat_mass_kg) : null;
+              const initLean = first ? parseFloat(first.lean_mass_kg) : null;
+              const initTotal = initFat != null && initLean != null ? initFat + initLean : null;
+              const initFatPct = initFat != null && initTotal ? (initFat / initTotal) * 100 : null;
+
+              return (
+                <div className="space-y-2">
+                  {/* Current composition */}
+                  <div>
+                    <div className="flex text-[10px] text-kore-gray-dark/60 font-medium mb-0.5">
+                      <span>Actual</span>
+                    </div>
+                    <div className="flex h-5 rounded-full overflow-hidden">
+                      <div className="bg-red-400 flex items-center justify-center transition-all duration-700" style={{ width: `${fatPct}%` }}>
+                        <span className="text-[9px] text-white font-bold">{fatPct.toFixed(0)}%</span>
+                      </div>
+                      <div className="bg-green-500 flex items-center justify-center transition-all duration-700" style={{ width: `${leanPct}%` }}>
+                        <span className="text-[9px] text-white font-bold">{leanPct.toFixed(0)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Initial composition */}
+                  {initFatPct != null && (
+                    <div>
+                      <div className="flex text-[10px] text-kore-gray-dark/60 font-medium mb-0.5">
+                        <span>Inicio</span>
+                      </div>
+                      <div className="flex h-3 rounded-full overflow-hidden opacity-50">
+                        <div className="bg-red-400" style={{ width: `${initFatPct}%` }} />
+                        <div className="bg-green-500" style={{ width: `${100 - initFatPct}%` }} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+          {/* Legend */}
+          <div className="flex flex-col gap-1 text-xs flex-shrink-0">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+              <span className="text-kore-gray-dark/60">Grasa ({latest.fat_mass_kg} kg)</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+              <span className="text-kore-gray-dark/60">Músculo ({latest.lean_mass_kg} kg)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── CountUp number component ── */
 function CountUpNumber({ target, decimals = 1, suffix = '' }: { target: number; decimals?: number; suffix?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
@@ -546,37 +955,6 @@ export default function MyDiagnosisPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* ══ Hero summary: 3 animated numbers ══ */}
-            <div ref={heroRef} className="grid grid-cols-3 gap-3">
-              <div className="hero-stat bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm text-center">
-                <p className="text-xs text-kore-gray-dark/50 mb-2">Peso actual</p>
-                <p className="font-heading text-2xl font-bold text-kore-gray-dark">
-                  <CountUpNumber target={parseFloat(latest.weight_kg)} /><span className="text-sm font-normal ml-1">kg</span>
-                </p>
-                {first && (
-                  <div className="mt-2">{getDiffBadge(parseFloat(latest.weight_kg), parseFloat(first.weight_kg), 'kg desde inicio', true)}</div>
-                )}
-              </div>
-              <div className={`hero-stat backdrop-blur-sm rounded-2xl p-5 border shadow-sm text-center ${CB[latest.bf_color]} ${CBorder[latest.bf_color]}`}>
-                <p className={`text-xs ${CT[latest.bf_color]}/70 mb-2`}>Grasa corporal</p>
-                <p className={`font-heading text-2xl font-bold ${CT[latest.bf_color]}`}>
-                  <CountUpNumber target={parseFloat(latest.body_fat_pct)} /><span className="text-sm font-normal ml-1">%</span>
-                </p>
-                {first && (
-                  <div className="mt-2">{getDiffBadge(parseFloat(latest.body_fat_pct), parseFloat(first.body_fat_pct), '% desde inicio', true)}</div>
-                )}
-              </div>
-              <div className="hero-stat bg-green-50 backdrop-blur-sm rounded-2xl p-5 border border-green-200 shadow-sm text-center">
-                <p className="text-xs text-green-700/70 mb-2">Masa muscular</p>
-                <p className="font-heading text-2xl font-bold text-green-700">
-                  <CountUpNumber target={parseFloat(latest.lean_mass_kg)} /><span className="text-sm font-normal ml-1">kg</span>
-                </p>
-                {first && (
-                  <div className="mt-2">{getDiffBadge(parseFloat(latest.lean_mass_kg), parseFloat(first.lean_mass_kg), 'kg desde inicio')}</div>
-                )}
-              </div>
-            </div>
-
             {/* ══ Trainer notes ══ */}
             {latest.notes && (
               <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
@@ -594,6 +972,11 @@ export default function MyDiagnosisPage() {
               </div>
             )}
 
+            {/* ══ Visual progress charts (when 2+ evaluations) ══ */}
+            {evaluations.length > 1 && (
+              <ProgressCharts evaluations={evaluations} />
+            )}
+
             {/* ══ Educational index cards with GSAP stagger ══ */}
             <div>
               <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-3">Tus indicadores en detalle</p>
@@ -608,6 +991,57 @@ export default function MyDiagnosisPage() {
                 <IndexCard id="whe" ev={latest} prev={previous} />
               </div>
             </div>
+
+            {/* ══ Measurements: Perimeters & Skinfolds (read-only) ══ */}
+            {latest.perimeters && Object.keys(latest.perimeters).length > 0 && (
+              <MeasurementsSection
+                title="Tus medidas — Perímetros"
+                subtitle="Mediciones de circunferencia de diferentes partes de tu cuerpo (cm)."
+                data={latest.perimeters}
+                prevData={previous?.perimeters}
+                labels={PERIMETER_LABELS}
+                unit="cm"
+                inverted
+              />
+            )}
+            {latest.skinfolds && Object.keys(latest.skinfolds).length > 0 && (
+              <MeasurementsSection
+                title="Tus medidas — Pliegues cutáneos"
+                subtitle="Grosor de los pliegues de piel en diferentes puntos, usados para estimar tu grasa corporal (mm)."
+                data={latest.skinfolds}
+                prevData={previous?.skinfolds}
+                labels={SKINFOLD_LABELS}
+                unit="mm"
+                inverted
+              />
+            )}
+
+            {/* ══ Asymmetries ══ */}
+            {latest.asymmetries && Object.keys(latest.asymmetries).length > 0 && (
+              <div className="bg-amber-50/70 backdrop-blur-sm rounded-2xl p-5 border border-amber-200/60 shadow-sm">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800">Asimetrías detectadas</p>
+                    <p className="text-xs text-amber-700/70">Diferencias mayores al 10% entre lado derecho e izquierdo</p>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  {Object.entries(latest.asymmetries).map(([key, asym]: [string, { d: number; i: number; diff_pct: number }]) => (
+                    <div key={key} className="flex items-center gap-2 text-xs text-amber-800 bg-amber-100/50 rounded-lg px-3 py-2">
+                      <div className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />
+                      <span className="font-medium capitalize">{key.replace(/_/g, ' ')}</span>
+                      <span className="text-amber-700/80">— Dcha: {asym.d} / Izda: {asym.i} ({asym.diff_pct}% diferencia)</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-amber-700/60 mt-3 italic">Tu entrenador tiene en cuenta estas diferencias para equilibrar tu programa de entrenamiento.</p>
+              </div>
+            )}
 
             {/* ══ Progress timeline with staggered entrance ══ */}
             {evaluations.length > 1 && (

@@ -175,6 +175,212 @@ const TEST_LABELS: { key: string; label: string; rawKey: keyof PhysicalEvaluatio
 ];
 
 /* ── CountUp ── */
+/* ── Sparkline for fitness ── */
+function FitnessSparkline({ values }: { values: number[] }) {
+  if (values.length < 2) return null;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const h = 28; const w = 64; const padY = 4;
+  const points = values.map((v, i) => ({
+    x: (i / (values.length - 1)) * w,
+    y: padY + (1 - (v - min) / range) * (h - padY * 2),
+  }));
+  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+  const diff = values[values.length - 1] - values[0];
+  const improved = diff > 0;
+  const lineColor = Math.abs(diff) < 0.1 ? '#9ca3af' : improved ? '#16a34a' : '#dc2626';
+  return (
+    <svg width={w} height={h} className="flex-shrink-0">
+      <path d={pathD} fill="none" stroke={lineColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      {points.map((p, i) => (
+        <circle key={i} cx={p.x} cy={p.y} r={i === points.length - 1 ? 3 : 1.5} fill={i === points.length - 1 ? lineColor : 'white'} stroke={lineColor} strokeWidth={1.5} />
+      ))}
+    </svg>
+  );
+}
+
+/* ── Fitness progress charts ── */
+function FitnessProgress({ evaluations }: { evaluations: PhysicalEvaluation[] }) {
+  const first = evaluations[evaluations.length - 1];
+  const latest = evaluations[0];
+  const chartRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+    const bars = chartRef.current.querySelectorAll('.fitness-bar-fill');
+    const ctx = gsap.context(() => {
+      gsap.fromTo(bars, { scaleX: 0 }, { scaleX: 1, duration: 0.8, stagger: 0.12, ease: 'power3.out', delay: 0.2 });
+    });
+    return () => ctx.revert();
+  }, [evaluations]);
+
+  const components = [
+    { key: 'general', label: 'Condición general', emoji: '🏃', tip: 'Promedio de todos tus componentes físicos. Refleja tu nivel de preparación integral.' },
+    { key: 'strength', label: 'Fuerza', emoji: '💪', tip: 'Capacidad de tus músculos para sostener esfuerzos: sentadillas, flexiones y plancha.' },
+    { key: 'endurance', label: 'Resistencia', emoji: '❤️', tip: 'Tu capacidad aeróbica — qué tan bien toleras un esfuerzo sostenido (test de caminata 6 min).' },
+    { key: 'mobility', label: 'Movilidad', emoji: '🤸', tip: 'Rangos de movimiento de cadera, hombros y tobillos. Sin movilidad, no es seguro progresar en carga.' },
+    { key: 'balance', label: 'Equilibrio', emoji: '🧘', tip: 'Control neuromuscular y estabilidad sobre un solo pie. Protege contra caídas y lesiones.' },
+  ];
+
+  const getVal = (ev: PhysicalEvaluation, key: string) => parseFloat(String((ev as unknown as Record<string, unknown>)[`${key}_index`] ?? '0'));
+  const getColor = (ev: PhysicalEvaluation, key: string) => String((ev as unknown as Record<string, unknown>)[`${key}_color`] ?? 'green');
+
+  return (
+    <div ref={chartRef} className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
+      <div className="flex items-center gap-3 mb-1">
+        <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Tu progreso físico</h2>
+        <span className="text-xs text-kore-gray-dark/40">{evaluations.length} evaluaciones</span>
+      </div>
+      <p className="text-xs text-kore-gray-dark/50 mb-5">Escala 1–5 · más alto es mejor. Toca cada componente para saber más.</p>
+
+      <div className="space-y-4">
+        {components.map((c) => {
+          const current = getVal(latest, c.key);
+          const initial = getVal(first, c.key);
+          const color = getColor(latest, c.key);
+          const diff = current - initial;
+          const improved = Math.abs(diff) >= 0.1 ? diff > 0 : null;
+          const pct = Math.min((current / 5) * 100, 100);
+          const initPct = Math.min((initial / 5) * 100, 100);
+          const sparkVals = evaluations.map(ev => getVal(ev, c.key)).reverse();
+
+          const verdictText = Math.abs(diff) < 0.1 ? null : improved ? `Mejoró ${Math.abs(diff).toFixed(1)} pts` : `Bajó ${Math.abs(diff).toFixed(1)} pts`;
+
+          return <FitnessMetricRow key={c.key} label={c.label} emoji={c.emoji} tip={c.tip} current={current} initial={initial} color={color} diff={diff} improved={improved} pct={pct} initPct={initPct} sparkVals={sparkVals} verdictText={verdictText} />;
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── Single fitness metric row with tap-to-expand info ── */
+function FitnessMetricRow({ label, emoji, tip, current, initial, color, diff, improved, pct, initPct, sparkVals, verdictText }: {
+  label: string; emoji: string; tip: string;
+  current: number; initial: number; color: string;
+  diff: number; improved: boolean | null; pct: number; initPct: number;
+  sparkVals: number[]; verdictText: string | null;
+}) {
+  const [showTip, setShowTip] = useState(false);
+  const tipRef = useRef<HTMLDivElement>(null);
+
+  const toggleTip = useCallback(() => {
+    if (!tipRef.current) { setShowTip(!showTip); return; }
+    const el = tipRef.current;
+    const willOpen = !showTip;
+    setShowTip(willOpen);
+    if (willOpen) {
+      gsap.set(el, { height: 0, opacity: 0, display: 'block', overflow: 'hidden' });
+      gsap.to(el, { height: 'auto', opacity: 1, duration: 0.25, ease: 'power2.out' });
+    } else {
+      gsap.to(el, { height: 0, opacity: 0, duration: 0.2, ease: 'power2.in', onComplete: () => { gsap.set(el, { display: 'none' }); } });
+    }
+  }, [showTip]);
+
+  const BAR_BG: Record<string, string> = { green: 'bg-green-100', yellow: 'bg-amber-100', red: 'bg-red-100' };
+  const BAR_FILL: Record<string, string> = { green: 'bg-green-500', yellow: 'bg-amber-500', red: 'bg-red-500' };
+
+  return (
+    <div className="bg-kore-cream/30 rounded-xl p-3.5">
+      <div className="flex items-center justify-between mb-2">
+        <button type="button" onClick={toggleTip} className="flex items-center gap-2 cursor-pointer active:opacity-70 transition-opacity">
+          <span className="text-sm">{emoji}</span>
+          <span className="text-sm font-medium text-kore-gray-dark">{label}</span>
+          <div className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${showTip ? 'bg-kore-red/15' : 'bg-kore-gray-dark/8'}`}>
+            <span className={`text-[9px] font-bold ${showTip ? 'text-kore-red' : 'text-kore-gray-dark/40'}`}>i</span>
+          </div>
+        </button>
+        <span className={`text-base font-bold ${CT[color] || 'text-kore-gray-dark'}`}>{current.toFixed(1)}<span className="text-xs font-normal text-kore-gray-dark/40">/5</span></span>
+      </div>
+      <div ref={tipRef} style={{ display: 'none', height: 0 }}>
+        <div className="bg-white/80 rounded-lg px-3 py-2 mb-2 border border-kore-gray-light/30">
+          <p className="text-xs text-kore-gray-dark/70 leading-relaxed">{tip}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 mb-1.5">
+        <div className="flex-1">
+          <div className={`relative h-2.5 rounded-full ${BAR_BG[color] || BAR_BG.green} overflow-hidden`}>
+            {Math.abs(pct - initPct) > 1 && (
+              <div className="absolute inset-y-0 left-0 rounded-full bg-kore-gray-dark/10" style={{ width: `${initPct}%` }} />
+            )}
+            <div className={`fitness-bar-fill absolute inset-y-0 left-0 rounded-full ${BAR_FILL[color] || BAR_FILL.green} origin-left`} style={{ width: `${pct}%` }} />
+            {Math.abs(pct - initPct) > 1 && (
+              <div className="absolute top-0 bottom-0 w-0.5 bg-kore-gray-dark/40" style={{ left: `${initPct}%` }} />
+            )}
+          </div>
+        </div>
+        {sparkVals.length >= 2 && <FitnessSparkline values={sparkVals} />}
+      </div>
+      {Math.abs(diff) >= 0.1 && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="text-kore-gray-dark/50">Inicio</span>
+            <span className="font-semibold text-kore-gray-dark/70">{initial.toFixed(1)}</span>
+            <svg className="w-3.5 h-3.5 text-kore-gray-dark/30" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+            <span className="text-kore-gray-dark/50">Actual</span>
+            <span className={`font-semibold ${CT[color]}`}>{current.toFixed(1)}</span>
+          </div>
+          {verdictText && (
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${improved ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+              {verdictText}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Scientific basis accordion ── */
+function PhysScienceBasis() {
+  const [open, setOpen] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const arrowRef = useRef<SVGSVGElement>(null);
+  const toggle = useCallback(() => {
+    if (!contentRef.current) return;
+    const el = contentRef.current;
+    const willOpen = !open;
+    setOpen(willOpen);
+    if (willOpen) {
+      gsap.set(el, { height: 0, opacity: 0, display: 'block', overflow: 'hidden' });
+      gsap.to(el, { height: 'auto', opacity: 1, duration: 0.4, ease: 'power3.out' });
+      if (arrowRef.current) gsap.to(arrowRef.current, { rotation: 180, duration: 0.3, ease: 'power2.inOut' });
+    } else {
+      gsap.to(el, { height: 0, opacity: 0, duration: 0.3, ease: 'power2.in', onComplete: () => { gsap.set(el, { display: 'none' }); } });
+      if (arrowRef.current) gsap.to(arrowRef.current, { rotation: 0, duration: 0.3, ease: 'power2.inOut' });
+    }
+  }, [open]);
+  return (
+    <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm overflow-hidden">
+      <button type="button" onClick={toggle} className="w-full flex items-center justify-between p-5 cursor-pointer hover:bg-kore-cream/20 transition-colors text-left">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-kore-gray-dark/5 flex items-center justify-center flex-shrink-0">
+            <svg className="w-4 h-4 text-kore-gray-dark/40" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
+            </svg>
+          </div>
+          <span className="text-sm font-medium text-kore-gray-dark/60">¿Cómo se calcula?</span>
+        </div>
+        <svg ref={arrowRef} className="w-5 h-5 text-kore-gray-dark/30 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+      <div ref={contentRef} style={{ display: 'none', height: 0 }}>
+        <div className="px-5 pb-5 space-y-2">
+          {SCIENCE.map((sci, i) => (
+            <div key={i} className="bg-kore-cream/20 rounded-xl p-4 border border-kore-gray-light/20">
+              <p className="text-xs text-kore-gray-dark/60 leading-relaxed mb-1">{sci.formula}</p>
+              <p className="text-xs text-kore-gray-dark/40 italic leading-relaxed">{sci.reference}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CountUpNumber({ target, decimals = 2 }: { target: number; decimals?: number }) {
   const ref = useRef<HTMLSpanElement>(null);
   useEffect(() => {
@@ -456,31 +662,7 @@ export default function MyPhysicalEvaluationPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* ══ Hero summary ══ */}
-            <div ref={heroRef} className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              {[
-                { label: 'General', key: 'general' },
-                { label: 'Fuerza', key: 'strength' },
-                { label: 'Resistencia', key: 'endurance' },
-                { label: 'Movilidad', key: 'mobility' },
-                { label: 'Equilibrio', key: 'balance' },
-              ].map(({ label, key }) => {
-                const idx = String((latest as unknown as Record<string, unknown>)[`${key}_index`] ?? '0');
-                const cat = String((latest as unknown as Record<string, unknown>)[`${key}_category`] ?? '');
-                const col = String((latest as unknown as Record<string, unknown>)[`${key}_color`] ?? 'green');
-                return (
-                  <div key={key} className={`hero-stat backdrop-blur-sm rounded-2xl p-5 border shadow-sm text-center ${CB[col]} ${CBorder[col]}`}>
-                    <p className={`text-xs ${CT[col]}/70 mb-2`}>{label}</p>
-                    <p className={`font-heading text-2xl font-bold ${CT[col]}`}>
-                      <CountUpNumber target={parseFloat(idx)} />
-                    </p>
-                    <p className={`text-xs ${CT[col]}/60 mt-1`}>{cat}</p>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* ══ Trainer notes ══ */}
+            {/* ══ Trainer notes (first) ══ */}
             {latest.notes && (
               <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
                 <div className="flex items-start gap-3">
@@ -497,10 +679,12 @@ export default function MyPhysicalEvaluationPage() {
               </div>
             )}
 
-            {/* ══ Test scores ══ */}
-            <TestScores ev={latest} />
+            {/* ══ Progress charts (when 2+ evaluations) ══ */}
+            {evaluations.length > 1 && (
+              <FitnessProgress evaluations={evaluations} />
+            )}
 
-            {/* ══ Index cards ══ */}
+            {/* ══ Components detail ══ */}
             <div>
               <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-3">Tus componentes en detalle</p>
               <p className="text-xs text-kore-gray-dark/50 mb-4">Toca cada componente para entender qué significa y qué puedes hacer.</p>
@@ -513,15 +697,10 @@ export default function MyPhysicalEvaluationPage() {
               </div>
             </div>
 
-            {/* ══ Scientific basis ══ */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
-              <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-3">¿Cómo se calcula?</p>
-              {SCIENCE.map((sci, i) => (
-                <div key={i} className="bg-kore-cream/20 rounded-xl p-4 border border-kore-gray-light/20 mb-2 last:mb-0">
-                  <p className="text-xs text-kore-gray-dark/60 leading-relaxed mb-1">{sci.formula}</p>
-                  <p className="text-xs text-kore-gray-dark/40 italic leading-relaxed">{sci.reference}</p>
-                </div>
-              ))}
+            {/* ══ Test scores (results per test) ══ */}
+            <div>
+              <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-3">Resultados por prueba</p>
+              <TestScores ev={latest} />
             </div>
 
             {/* ══ Progress timeline ══ */}
@@ -562,6 +741,9 @@ export default function MyPhysicalEvaluationPage() {
                 </div>
               </div>
             )}
+
+            {/* ══ Scientific basis (accordion, last) ══ */}
+            <PhysScienceBasis />
           </div>
         )}
       </div>

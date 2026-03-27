@@ -260,7 +260,7 @@ export default function DashboardPage() {
 
   const quickActions = [
     { label: 'Mi suscripción', icon: <CardIcon />, href: '/subscription' },
-    { label: 'Mis programas', icon: <ClipboardIcon />, href: '/my-programs' },
+    { label: 'Mi suscripción', icon: <ClipboardIcon />, href: '/subscription' },
     { label: 'Soporte', icon: <ChatIcon />, href: WHATSAPP_URL },
   ];
 
@@ -337,188 +337,91 @@ export default function DashboardPage() {
             </Link>
           )}
 
-          {/* KÓRE Score - WITH VISUAL BARS */}
-          {koreIndex && koreIndex.kore_score !== null ? (
-            <Link href="/my-programs" className="block bg-gradient-to-br from-white via-white to-kore-cream/30 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-lg">
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-0.5">Calificación KÓRE</p>
-                  <p className={`text-2xl font-heading font-bold ${koreIndex.kore_color === 'green' ? 'text-emerald-700' : koreIndex.kore_color === 'yellow' ? 'text-amber-600' : koreIndex.kore_color === 'orange' ? 'text-orange-600' : 'text-red-600'}`}>{koreIndex.kore_score}</p>
-                  <p className={`text-sm font-semibold ${koreIndex.kore_color === 'green' ? 'text-emerald-700' : koreIndex.kore_color === 'yellow' ? 'text-amber-600' : koreIndex.kore_color === 'orange' ? 'text-orange-600' : 'text-red-600'}`}>{koreIndex.kore_category}</p>
-                </div>
-                <svg className="w-4 h-4 text-kore-gray-dark/20" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                </svg>
+          {/* KÓRE Score + Progress — side by side compact */}
+          <div className="grid grid-cols-2 gap-2">
+            {/* KÓRE Score — compact with component dots */}
+            {koreIndex && koreIndex.kore_score !== null ? (() => {
+              const kCol = koreIndex.kore_color === 'green' ? 'emerald' : koreIndex.kore_color === 'yellow' ? 'amber' : koreIndex.kore_color === 'orange' ? 'orange' : 'red';
+              const kText = `text-${kCol}-700`;
+              const kBg = `bg-${kCol}-500`;
+              const components = [
+                { key: 'anthropometry', emoji: '💪' },
+                { key: 'posturometry', emoji: '🧘' },
+                { key: 'physical', emoji: '⚡' },
+                { key: 'nutrition', emoji: '🥗' },
+                { key: 'mood', emoji: '😊' },
+              ];
+              return (
+                <Link href="/subscription" className="block bg-white/70 backdrop-blur-sm rounded-xl p-3 border border-white/60 shadow-sm">
+                  <p className="text-[9px] text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-1">Tu nivel KÓRE</p>
+                  <div className="flex items-baseline gap-1 mb-1">
+                    <span className={`font-heading text-2xl font-bold ${koreIndex.kore_color === 'green' ? 'text-emerald-700' : koreIndex.kore_color === 'yellow' ? 'text-amber-600' : koreIndex.kore_color === 'orange' ? 'text-orange-600' : 'text-red-600'}`}>{koreIndex.kore_score}</span>
+                    <span className="text-[9px] text-kore-gray-dark/30">/100</span>
+                  </div>
+                  <p className={`text-[10px] font-semibold mb-2 ${koreIndex.kore_color === 'green' ? 'text-emerald-700' : koreIndex.kore_color === 'yellow' ? 'text-amber-600' : koreIndex.kore_color === 'orange' ? 'text-orange-600' : 'text-red-600'}`}>{koreIndex.kore_category}</p>
+                  {/* Component dots */}
+                  <div className="flex items-center gap-1">
+                    {components.map(({ key, emoji }) => {
+                      const val = koreIndex.components[key];
+                      if (val === undefined) return null;
+                      const dotCol = val >= 75 ? 'bg-emerald-500' : val >= 60 ? 'bg-amber-400' : val >= 40 ? 'bg-orange-400' : 'bg-red-500';
+                      return (
+                        <div key={key} className="flex flex-col items-center gap-0.5 flex-1" title={`${key}: ${Math.round(val)}`}>
+                          <span className="text-[10px]">{emoji}</span>
+                          <div className={`w-full h-1 rounded-full ${dotCol}`} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Link>
+              );
+            })() : (
+              <div className="bg-white/70 backdrop-blur-sm rounded-xl p-3 border border-white/60 shadow-sm">
+                <p className="text-[9px] text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-1">Tu nivel KÓRE</p>
+                <p className="text-[10px] text-kore-gray-dark/40">Completa evaluaciones</p>
               </div>
-              <div className="space-y-1.5">
-                {[
-                  { key: 'anthropometry', label: 'Composición', icon: '💪' },
-                  { key: 'posturometry', label: 'Postura', icon: '🧘' },
-                  { key: 'physical', label: 'Condición', icon: '⚡' },
-                  { key: 'nutrition', label: 'Nutrición', icon: '🥗' },
-                ].map(({ key, label, icon }) => {
-                  const val = koreIndex.components[key];
-                  if (val === undefined) return null;
-                  const barCol = val >= 75 ? 'bg-emerald-500' : val >= 60 ? 'bg-amber-400' : val >= 40 ? 'bg-orange-400' : 'bg-red-500';
-                  return (
-                    <div key={key} className="flex items-center gap-2">
-                      <span className="text-sm">{icon}</span>
-                      <span className="text-[10px] text-kore-gray-dark/50 w-16 truncate">{label}</span>
-                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full">
-                        <div className={`h-1.5 rounded-full ${barCol}`} style={{ width: `${Math.min(val, 100)}%` }} />
-                      </div>
-                      <span className="text-[10px] text-kore-gray-dark/60 font-semibold w-6 text-right">{Math.round(val)}</span>
-                    </div>
-                  );
-                }).filter(Boolean)}
+            )}
+
+            {/* Progress — compact with circle */}
+            <Link href="/subscription" className="block bg-white/70 backdrop-blur-sm rounded-xl p-3 border border-white/60 shadow-sm">
+              <p className="text-[9px] text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-1">Progreso</p>
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="relative w-12 h-12 flex-shrink-0">
+                  <svg className="w-12 h-12 transform -rotate-90" viewBox="0 0 36 36">
+                    <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#E5E5E5" strokeWidth="3.5" />
+                    <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="url(#progressGradientMobile)" strokeWidth="3.5" strokeDasharray={`${progressPercent}, 100`} strokeLinecap="round" />
+                    <defs><linearGradient id="progressGradientMobile" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#670F22" /><stop offset="100%" stopColor="#AB0D2F" /></linearGradient></defs>
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="font-heading text-sm font-bold text-kore-gray-dark">{progressPercent}%</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="font-heading text-sm font-bold text-kore-gray-dark">{sessionsUsed}/{sessionsTotal}</p>
+                  <p className="text-[9px] text-kore-gray-dark/40">sesiones</p>
+                </div>
+              </div>
+              {/* Mood + Goal mini */}
+              <div className="space-y-1 pt-1.5 border-t border-kore-gray-light/20">
+                {todayMood ? (
+                  <div className="flex items-center gap-1.5">
+                    <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${todayMood.score >= 7 ? 'bg-green-100 text-green-700' : todayMood.score >= 4 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'}`}>{todayMood.score}</div>
+                    <span className="text-[9px] text-kore-gray-dark/50">Estado hoy</span>
+                  </div>
+                ) : (
+                  <Link href="/profile" className="text-[9px] text-kore-red font-medium">Registrar estado</Link>
+                )}
+                {(() => {
+                  const goalValue = profile?.customer_profile?.primary_goal;
+                  return goalValue ? (
+                    <p className="text-[9px] text-kore-gray-dark/50 truncate">🎯 {getGoalLabel(goalValue)}</p>
+                  ) : null;
+                })()}
               </div>
             </Link>
-          ) : (
-            <div className="bg-gradient-to-br from-white via-white to-kore-cream/30 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-lg">
-              <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-2">Calificación KÓRE</p>
-              <p className="text-sm text-kore-gray-dark/40">Completa tus evaluaciones para ver tu calificación general.</p>
-            </div>
-          )}
-
-          {/* Progress - LARGE PRIMARY CARD */}
-          <div className="bg-gradient-to-br from-white via-white to-purple-50/30 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-lg">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex-1">
-                <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-1">Tu progreso</p>
-                <span className="text-xs text-green-700 font-semibold bg-green-100 px-2 py-0.5 rounded-full">
-                  {getProgressStage(progressPercent)}
-                </span>
-              </div>
-              <Link href="/subscription" className="flex-shrink-0">
-                <svg className="w-4 h-4 text-kore-gray-dark/20 hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                </svg>
-              </Link>
-            </div>
-            <div className="flex items-center gap-4 mb-3">
-              <div className="relative w-20 h-20 flex-shrink-0">
-                <svg className="w-20 h-20 transform -rotate-90" viewBox="0 0 36 36">
-                  <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#E5E5E5" strokeWidth="3" />
-                  <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="url(#progressGradientMobile)" strokeWidth="3" strokeDasharray={`${progressPercent}, 100`} strokeLinecap="round" />
-                  <defs><linearGradient id="progressGradientMobile" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#670F22" /><stop offset="100%" stopColor="#AB0D2F" /></linearGradient></defs>
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="font-heading text-xl font-bold text-kore-gray-dark">{progressPercent}%</span>
-                </div>
-              </div>
-              <div>
-                <p className="font-heading text-lg font-semibold text-kore-gray-dark">{sessionsUsed} sesiones</p>
-                <p className="text-sm text-kore-gray-dark/50 mb-2">completadas de {sessionsTotal}</p>
-                <p className="text-xs text-kore-gray-dark/60 leading-relaxed">{getProgressMessage(sessionsUsed, progressPercent)}</p>
-              </div>
-            </div>
-            {/* Horizontal indicators: Mood and Goal with messages */}
-            <div className="space-y-2 pt-3 border-t border-kore-gray-light/30">
-              {/* Estado de hoy */}
-              <div className="flex items-center gap-2">
-                {todayMood ? (
-                  <>
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center font-heading text-xs font-bold flex-shrink-0 ${
-                      todayMood.score >= 7 ? 'bg-green-100 text-green-700' : todayMood.score >= 4 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'
-                    }`}>{todayMood.score}</div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[10px] text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Estado de hoy</p>
-                      <p className={`text-xs font-medium ${todayMood.score >= 7 ? 'text-green-700' : todayMood.score >= 4 ? 'text-amber-700' : 'text-red-600'}`}>
-                        {todayMood.score >= 9 ? 'Excelente' : todayMood.score >= 7 ? 'Bien' : todayMood.score >= 5 ? 'Regular' : todayMood.score >= 3 ? 'Bajo' : 'Muy bajo'}
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-7 h-7 rounded-full bg-kore-cream flex items-center justify-center flex-shrink-0">
-                      <svg className="w-4 h-4 text-kore-gray-dark/30" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z" />
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[10px] text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Estado de hoy</p>
-                      <Link href="/profile" className="text-xs text-kore-red font-medium hover:underline">Regístralo</Link>
-                    </div>
-                  </>
-                )}
-              </div>
-              {/* Mi objetivo */}
-              {(() => {
-                const goalValue = profile?.customer_profile?.primary_goal;
-                const GoalIcon = goalValue ? getGoalIcon(goalValue) : null;
-                return (
-                  <div className="flex items-center gap-2">
-                    {goalValue && GoalIcon ? (
-                      <>
-                        <div className="w-7 h-7 rounded-full bg-kore-red/10 flex items-center justify-center flex-shrink-0">
-                          <GoalIcon className="w-4 h-4 text-kore-red" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Mi objetivo</p>
-                          <p className="text-xs font-medium text-kore-gray-dark">{getGoalLabel(goalValue)}</p>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-7 h-7 rounded-full bg-kore-cream flex items-center justify-center flex-shrink-0">
-                          <svg className="w-4 h-4 text-kore-gray-dark/30" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
-                          </svg>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[10px] text-kore-gray-dark/40 uppercase tracking-wider mb-0.5">Mi objetivo</p>
-                          <Link href="/profile" className="text-xs text-kore-red font-medium hover:underline">Defínelo</Link>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
           </div>
 
-          {/* Próximas sesiones - MOBILE */}
-          <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-lg">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-heading text-sm font-semibold text-kore-gray-dark">Próximas sesiones</h2>
-              <Link href="/book-session" className="text-[10px] text-kore-red font-medium hover:underline">Agendar</Link>
-            </div>
-            {(() => {
-              const upcoming = bookings.filter(
-                (b) => b.status === 'pending' && new Date(b.slot.starts_at) > new Date()
-              ).sort((a, b) => new Date(a.slot.starts_at).getTime() - new Date(b.slot.starts_at).getTime());
-              return upcoming.length > 0 ? (
-                <div className="space-y-1.5">
-                  {upcoming.slice(0, 2).map((booking) => {
-                    const d = new Date(booking.slot.starts_at);
-                    const dateStr = d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
-                    const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
-                    return (
-                      <div key={booking.id} className="flex items-center gap-2 p-2 rounded-xl bg-kore-cream/30">
-                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-kore-red/10 flex items-center justify-center">
-                          <svg className="w-3 h-3 text-kore-red" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                          </svg>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-kore-gray-dark capitalize truncate">{dateStr} <span className="text-kore-red">· {timeStr}</span></p>
-                          <p className="text-[10px] text-kore-gray-dark/50 truncate">{booking.package?.title ?? '—'}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-3">
-                  <div className="w-8 h-8 rounded-full bg-kore-cream mx-auto mb-1 flex items-center justify-center">
-                    <CalendarIcon />
-                  </div>
-                  <p className="text-xs text-kore-gray-dark/50 mb-1">No tienes sesiones próximas</p>
-                  <Link href="/book-session" className="text-[10px] text-kore-red font-medium hover:underline">Agenda ahora</Link>
-                </div>
-              );
-            })()}
-          </div>
+          {/* Próximas sesiones — moved after diagnostics, see below */}
         </div>
 
         {/* ═══════ DESKTOP: Progress + CTA + KÓRE Score ═══════ */}
@@ -802,7 +705,7 @@ export default function DashboardPage() {
                   <p className="text-xs text-kore-gray-dark/30 mt-3">{koreIndex.modules_available} de {koreIndex.modules_total} módulos evaluados</p>
                   {/* What sustains / what to improve */}
                   {(() => {
-                    const MODULE_LABELS: Record<string, string> = { anthropometry: 'Composición', metabolic_risk: 'Riesgo metab.', posturometry: 'Postura', physical: 'Condición', mood: 'Bienestar', nutrition: 'Nutrición' };
+                    const MODULE_LABELS: Record<string, string> = { anthropometry: 'Composición', metabolic_risk: 'Riesgo metab.', posturometry: 'Postura', physical: 'Cond. física', mood: 'Bienestar', nutrition: 'Nutrición' };
                     const entries = Object.entries(koreIndex.components).filter(([, v]) => v !== undefined) as [string, number][];
                     const sorted = [...entries].sort((a, b) => b[1] - a[1]);
                     const best = sorted.filter(([, v]) => v >= 75).slice(0, 2);
@@ -841,11 +744,20 @@ export default function DashboardPage() {
         {/* ═══════ DIAGNOSTIC MODULES SECTION ═══════ */}
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 md:gap-3 xl:gap-4 mb-3 xl:mb-4">
 
-          {/* ⑦ Evaluación Postural — mobile simplified */}
+          {/* ⑦ Evaluación Postural — with progress bars */}
           {posturoEvals.length > 0 && (() => {
             const latest = posturoEvals[0];
+            const first = posturoEvals.length > 1 ? posturoEvals[posturoEvals.length - 1] : null;
             const CTP: Record<string, string> = { green: 'text-green-700', yellow: 'text-amber-700', orange: 'text-orange-700', red: 'text-red-600' };
             const CBP: Record<string, string> = { green: 'bg-green-100', yellow: 'bg-amber-100', orange: 'bg-orange-100', red: 'bg-red-100' };
+            const FILL_P: Record<string, string> = { green: 'bg-green-500', yellow: 'bg-amber-500', orange: 'bg-orange-500', red: 'bg-red-500' };
+            const zones = [
+              { key: 'global', label: 'General', idx: latest.global_index, cat: latest.global_category, col: latest.global_color, firstIdx: first?.global_index },
+              { key: 'upper', label: 'Superior', idx: latest.upper_index, cat: latest.upper_category, col: latest.upper_color, firstIdx: first?.upper_index },
+              { key: 'central', label: 'Central', idx: latest.central_index, cat: latest.central_category, col: latest.central_color, firstIdx: first?.central_index },
+              { key: 'lower', label: 'Inferior', idx: latest.lower_index, cat: latest.lower_category, col: latest.lower_color, firstIdx: first?.lower_index },
+            ];
+            const globalDiff = first ? parseFloat(latest.global_index) - parseFloat(first.global_index) : null;
             const posturoIndicators: IndicatorData[] = [
               { key: 'upper', label: 'Zona superior', value: latest.upper_index, category: latest.upper_category || 'Funcional', color: latest.upper_color,
                 whatIs: 'Incluye cabeza, cuello, hombros, escápulas y codos. Los desbalances suelen venir de hábitos posturales.',
@@ -866,28 +778,43 @@ export default function DashboardPage() {
             return (
               <Link href="/my-posturometry" className="block bg-white/70 backdrop-blur-sm rounded-xl md:rounded-2xl p-2.5 md:p-4 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
                 <div className="flex items-center justify-between mb-1.5 md:mb-2.5">
-                  <h2 className="font-heading text-xs md:text-base font-semibold text-kore-gray-dark">Postura</h2>
+                  <h2 className={`font-heading text-xs md:text-base font-semibold ${CTP[latest.global_color] || CTP.green}`}>{latest.global_category || 'Postura'}</h2>
                   <svg className="w-3 h-3 md:w-3.5 md:h-3.5 text-kore-gray-dark/20 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                   </svg>
                 </div>
+                {/* Global score + scale explanation */}
                 <div className="flex items-center gap-2 md:gap-2.5">
                   <div className={`w-11 h-11 md:w-12 md:h-12 rounded-full flex items-center justify-center ${CBP[latest.global_color] || CBP.green}`}>
                     <span className={`font-heading text-lg md:text-xl font-bold ${CTP[latest.global_color] || CTP.green}`}>{latest.global_index}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm md:text-base font-semibold ${CTP[latest.global_color] || CTP.green} line-clamp-1`}>{latest.global_category}</p>
-                    <p className="text-[10px] md:text-xs text-kore-gray-dark/40">Índice global</p>
+                    <p className="text-[10px] md:text-xs text-kore-gray-dark/50 leading-snug">Escala 0–3 · más cerca de 0 es mejor</p>
+                    {globalDiff !== null && Math.abs(globalDiff) >= 0.05 && (
+                      <p className={`text-[9px] md:text-[10px] font-semibold mt-0.5 ${globalDiff < 0 ? 'text-green-600' : 'text-red-500'}`}>
+                        {globalDiff < 0 ? 'Mejoró' : 'Subió'} {Math.abs(globalDiff).toFixed(2)} desde inicio
+                      </p>
+                    )}
                   </div>
                 </div>
-                {/* Mobile mini indicators */}
-                <div className="flex items-center gap-1 mt-2 md:hidden">
-                  {posturoIndicators.map((ind) => {
-                    const dotColor = ind.color === 'green' ? 'bg-green-500' : ind.color === 'yellow' ? 'bg-amber-400' : ind.color === 'orange' ? 'bg-orange-400' : 'bg-red-500';
+                {/* Zone progress bars — both mobile & desktop */}
+                <div className="mt-2 space-y-1.5">
+                  {zones.map((z) => {
+                    const val = parseFloat(z.idx);
+                    const pct = Math.min((val / 3) * 100, 100);
+                    const col = z.col || 'green';
+                    const initVal = z.firstIdx ? parseFloat(z.firstIdx) : null;
+                    const diff = initVal != null ? val - initVal : null;
+                    const improved = diff != null && Math.abs(diff) >= 0.05 ? diff < 0 : null;
                     return (
-                      <div key={ind.key} className="flex items-center gap-0.5 flex-1">
-                        <div className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
-                        <span className="text-[9px] text-kore-gray-dark/40 truncate">{ind.label.replace('Zona ', '')}</span>
+                      <div key={z.key}>
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-[10px] md:text-xs text-kore-gray-dark/60 font-medium">{z.label}</span>
+                          <span className={`text-[10px] md:text-xs font-bold ${CTP[col] || CTP.green}`}>{z.idx}</span>
+                        </div>
+                        <div className={`h-1.5 md:h-2 rounded-full ${CBP[col] || CBP.green} overflow-hidden`}>
+                          <div className={`h-full rounded-full ${FILL_P[col] || FILL_P.green} transition-all`} style={{ width: `${pct}%` }} />
+                        </div>
                       </div>
                     );
                   })}
@@ -963,22 +890,53 @@ export default function DashboardPage() {
                       <p className={`text-sm font-semibold ${CT[latest.bf_color] || CT.green}`}>{latest.body_fat_pct}% grasa</p>
                     </div>
                   </div>
-                  {/* Mobile mini indicators */}
-                  <div className="flex items-center gap-1.5 pt-1">
-                    <div className="flex items-center gap-0.5 flex-1">
-                      <div className={`w-1.5 h-1.5 rounded-full ${latest.bf_color === 'green' ? 'bg-green-500' : latest.bf_color === 'yellow' ? 'bg-amber-400' : 'bg-red-500'}`} />
-                      <span className="text-[9px] text-kore-gray-dark/40 truncate">Grasa</span>
-                    </div>
-                    <div className="flex items-center gap-0.5 flex-1">
-                      <div className={`w-1.5 h-1.5 rounded-full ${latest.bmi_color === 'green' ? 'bg-green-500' : latest.bmi_color === 'yellow' ? 'bg-amber-400' : 'bg-red-500'}`} />
-                      <span className="text-[9px] text-kore-gray-dark/40 truncate">IMC</span>
-                    </div>
-                    {latest.waist_cm && (
-                      <div className="flex items-center gap-0.5 flex-1">
-                        <div className={`w-1.5 h-1.5 rounded-full ${latest.waist_risk_color === 'green' ? 'bg-green-500' : latest.waist_risk_color === 'yellow' ? 'bg-amber-400' : 'bg-red-500'}`} />
-                        <span className="text-[9px] text-kore-gray-dark/40 truncate">Cintura</span>
+                  {/* Mobile: mini composition bar */}
+                  {(() => {
+                    const fat = parseFloat(latest.fat_mass_kg);
+                    const lean = parseFloat(latest.lean_mass_kg);
+                    const total = fat + lean;
+                    if (total === 0) return null;
+                    const fatPct = (fat / total) * 100;
+                    const leanPct = (lean / total) * 100;
+                    return (
+                      <div className="pt-1.5">
+                        <div className="flex h-2.5 rounded-full overflow-hidden">
+                          <div className="bg-red-400" style={{ width: `${fatPct}%` }} />
+                          <div className="bg-green-500" style={{ width: `${leanPct}%` }} />
+                        </div>
+                        <div className="flex justify-between mt-0.5">
+                          <span className="text-[8px] text-kore-gray-dark/60 font-medium">{fat.toFixed(1)} kg grasa</span>
+                          <span className="text-[8px] text-kore-gray-dark/60 font-medium">{lean.toFixed(1)} kg músculo</span>
+                        </div>
                       </div>
-                    )}
+                    );
+                  })()}
+                  {/* Mobile: progress from start */}
+                  {first && (weightDiff !== null || fatDiff !== null) && (
+                    <div className="flex items-center gap-1.5 pt-0.5 text-[9px]">
+                      <span className="text-kore-gray-dark/50">Desde inicio:</span>
+                      {weightDiff !== null && Math.abs(weightDiff) >= 0.1 && (
+                        <span className={`font-semibold ${weightDiff < 0 ? 'text-green-600' : 'text-red-500'}`}>
+                          {weightDiff > 0 ? '+' : ''}{weightDiff.toFixed(1)} kg
+                        </span>
+                      )}
+                      {fatDiff !== null && Math.abs(fatDiff) >= 0.1 && (
+                        <span className={`font-semibold ${fatDiff < 0 ? 'text-green-600' : 'text-red-500'}`}>
+                          {fatDiff > 0 ? '+' : ''}{fatDiff.toFixed(1)}%
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {/* Mobile: masa muscular + IMC mini metrics */}
+                  <div className="flex items-center gap-2 pt-1.5">
+                    <div className="flex-1 bg-green-50 rounded-lg px-2 py-1.5 text-center">
+                      <p className="text-[9px] text-green-700/60">Músculo</p>
+                      <p className="text-xs font-bold text-green-700">{latest.lean_mass_kg} <span className="font-normal">kg</span></p>
+                    </div>
+                    <div className={`flex-1 rounded-lg px-2 py-1.5 text-center ${latest.bmi_color === 'green' ? 'bg-green-50' : latest.bmi_color === 'yellow' ? 'bg-amber-50' : 'bg-red-50'}`}>
+                      <p className={`text-[9px] ${latest.bmi_color === 'green' ? 'text-green-700/60' : latest.bmi_color === 'yellow' ? 'text-amber-700/60' : 'text-red-600/60'}`}>IMC</p>
+                      <p className={`text-xs font-bold ${latest.bmi_color === 'green' ? 'text-green-700' : latest.bmi_color === 'yellow' ? 'text-amber-700' : 'text-red-600'}`}>{latest.bmi}</p>
+                    </div>
                   </div>
                 </div>
                 {/* Desktop - full stats grid */}
@@ -994,8 +952,33 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
-                {/* Desktop only - diff and indicators */}
+                {/* Desktop only - composition bar + diff and indicators */}
                 <div className="hidden md:block">
+                  {/* Desktop: mini composition bar */}
+                  {(() => {
+                    const fat = parseFloat(latest.fat_mass_kg);
+                    const lean = parseFloat(latest.lean_mass_kg);
+                    const total = fat + lean;
+                    if (total === 0) return null;
+                    const fatPct = (fat / total) * 100;
+                    const leanPct = (lean / total) * 100;
+                    return (
+                      <div className="mb-2">
+                        <div className="flex h-3 rounded-full overflow-hidden">
+                          <div className="bg-red-400 flex items-center justify-center" style={{ width: `${fatPct}%` }}>
+                            {fatPct > 15 && <span className="text-[8px] text-white font-bold">{fatPct.toFixed(0)}%</span>}
+                          </div>
+                          <div className="bg-green-500 flex items-center justify-center" style={{ width: `${leanPct}%` }}>
+                            {leanPct > 15 && <span className="text-[8px] text-white font-bold">{leanPct.toFixed(0)}%</span>}
+                          </div>
+                        </div>
+                        <div className="flex justify-between mt-0.5">
+                          <span className="text-[9px] text-kore-gray-dark/60 font-medium">Grasa {fat.toFixed(1)} kg</span>
+                          <span className="text-[9px] text-kore-gray-dark/60 font-medium">Músculo {lean.toFixed(1)} kg</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   {first && (weightDiff !== null || fatDiff !== null) && (
                     <div className="flex items-center gap-2 text-xs mb-1.5">
                       <span className="text-kore-gray-dark/40">Desde inicio:</span>
@@ -1058,7 +1041,7 @@ export default function DashboardPage() {
             return (
               <Link href="/my-physical-evaluation" className="block bg-white/70 backdrop-blur-sm rounded-xl md:rounded-2xl p-2.5 md:p-4 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
                 <div className="flex items-center justify-between mb-1.5 md:mb-2.5">
-                  <h2 className="font-heading text-xs md:text-base font-semibold text-kore-gray-dark">Condición</h2>
+                  <h2 className="font-heading text-xs md:text-base font-semibold text-kore-gray-dark">Condición física</h2>
                   <svg className="w-3 h-3 md:w-3.5 md:h-3.5 text-kore-gray-dark/20 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                   </svg>
@@ -1179,51 +1162,72 @@ export default function DashboardPage() {
             <div className="bg-white/70 backdrop-blur-sm rounded-xl md:rounded-2xl p-2.5 md:p-3.5 border border-white/60 shadow-sm hidden xl:block">
               <h2 className="font-heading text-xs md:text-sm font-semibold text-kore-gray-dark mb-1.5 md:mb-2">Historial reciente</h2>
               <div className="space-y-0.5">
-                {bookings.filter(b => b.status === 'confirmed').length > 0 ? (
-                  bookings.filter(b => b.status === 'confirmed').slice(0, 3).map((booking) => {
-                    const date = new Date(booking.slot.starts_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
+                {(() => {
+                  const recent = bookings
+                    .filter(b => b.status === 'confirmed' || b.status === 'canceled')
+                    .sort((a, b) => new Date(b.slot.starts_at).getTime() - new Date(a.slot.starts_at).getTime())
+                    .slice(0, 4);
+                  return recent.length > 0 ? recent.map((booking) => {
+                    const d = new Date(booking.slot.starts_at);
+                    const dateStr = d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+                    const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+                    const isCanceled = booking.status === 'canceled';
                     return (
                       <div key={booking.id} className="flex items-center gap-1.5 md:gap-2 py-0.5 md:py-1 rounded-lg">
-                        <div className="flex-shrink-0 w-4 h-4 md:w-5 md:h-5 rounded-full bg-green-100 flex items-center justify-center">
-                          <svg className="w-2 h-2 md:w-2.5 md:h-2.5 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
+                        <div className={`flex-shrink-0 w-4 h-4 md:w-5 md:h-5 rounded-full flex items-center justify-center ${isCanceled ? 'bg-red-100' : 'bg-green-100'}`}>
+                          {isCanceled ? (
+                            <svg className="w-2 h-2 md:w-2.5 md:h-2.5 text-red-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          ) : (
+                            <svg className="w-2 h-2 md:w-2.5 md:h-2.5 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          )}
                         </div>
-                        <div className="flex-1 min-w-0"><p className="text-[10px] md:text-xs font-medium text-kore-gray-dark truncate">{booking.package?.title ?? '—'}</p></div>
-                        <p className="text-[10px] md:text-xs text-kore-gray-dark/40 capitalize">{date}</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] md:text-xs font-medium text-kore-gray-dark capitalize truncate">{dateStr} · {timeStr}</p>
+                        </div>
+                        <span className={`text-[8px] md:text-[9px] font-medium ${isCanceled ? 'text-red-500' : 'text-green-600'}`}>
+                          {isCanceled ? 'Cancelada' : 'Completada'}
+                        </span>
                       </div>
                     );
-                  })
-                ) : (
-                  <p className="text-[10px] md:text-xs text-kore-gray-dark/40 text-center py-1 md:py-1.5">Sin sesiones completadas</p>
-                )}
+                  }) : (
+                    <p className="text-[10px] md:text-xs text-kore-gray-dark/40 text-center py-1 md:py-1.5">Sin sesiones registradas</p>
+                  );
+                })()}
               </div>
             </div>
           </div>
         </div>
 
-        {/* ═══════ MOBILE: Historial reciente al final ═══════ */}
+        {/* ═══════ MOBILE: Próximas sesiones (after diagnostics) ═══════ */}
         <div className="xl:hidden bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-lg mb-3">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-heading text-sm font-semibold text-kore-gray-dark">Historial reciente</h2>
+            <h2 className="font-heading text-sm font-semibold text-kore-gray-dark">Próximas sesiones</h2>
+            <Link href="/book-session" className="text-[10px] text-kore-red font-medium hover:underline">Agendar</Link>
           </div>
           {(() => {
-            const completed = bookings.filter(b => b.status === 'confirmed').slice(0, 3);
-            return completed.length > 0 ? (
+            const upcoming = bookings.filter(
+              (b) => b.status === 'pending' && new Date(b.slot.starts_at) > new Date()
+            ).sort((a, b) => new Date(a.slot.starts_at).getTime() - new Date(b.slot.starts_at).getTime());
+            return upcoming.length > 0 ? (
               <div className="space-y-1.5">
-                {completed.map((booking) => {
+                {upcoming.slice(0, 2).map((booking) => {
                   const d = new Date(booking.slot.starts_at);
                   const dateStr = d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
+                  const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
                   return (
                     <div key={booking.id} className="flex items-center gap-2 p-2 rounded-xl bg-kore-cream/30">
-                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
-                        <svg className="w-3 h-3 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-kore-red/10 flex items-center justify-center">
+                        <svg className="w-3 h-3 text-kore-red" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
                         </svg>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-kore-gray-dark truncate">{booking.package?.title ?? '—'}</p>
-                        <p className="text-[10px] text-kore-gray-dark/50 capitalize">{dateStr}</p>
+                        <p className="text-xs font-medium text-kore-gray-dark capitalize truncate">{dateStr} <span className="text-kore-red">· {timeStr}</span></p>
+                        <p className="text-[10px] text-kore-gray-dark/50 truncate">{booking.package?.title ?? '—'}</p>
                       </div>
                     </div>
                   );
@@ -1232,11 +1236,58 @@ export default function DashboardPage() {
             ) : (
               <div className="text-center py-3">
                 <div className="w-8 h-8 rounded-full bg-kore-cream mx-auto mb-1 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-kore-gray-dark/30" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  <CalendarIcon />
                 </div>
-                <p className="text-xs text-kore-gray-dark/50">Sin sesiones completadas</p>
+                <p className="text-xs text-kore-gray-dark/50 mb-1">No tienes sesiones próximas</p>
+                <Link href="/book-session" className="text-[10px] text-kore-red font-medium hover:underline">Agenda ahora</Link>
+              </div>
+            );
+          })()}
+        </div>
+
+        {/* ═══════ MOBILE: Historial reciente al final ═══════ */}
+        <div className="xl:hidden bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-lg mb-3">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-heading text-sm font-semibold text-kore-gray-dark">Historial reciente</h2>
+          </div>
+          {(() => {
+            const recent = bookings
+              .filter(b => b.status === 'confirmed' || b.status === 'canceled')
+              .sort((a, b) => new Date(b.slot.starts_at).getTime() - new Date(a.slot.starts_at).getTime())
+              .slice(0, 4);
+            return recent.length > 0 ? (
+              <div className="space-y-1.5">
+                {recent.map((booking) => {
+                  const d = new Date(booking.slot.starts_at);
+                  const dateStr = d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
+                  const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+                  const isCanceled = booking.status === 'canceled';
+                  return (
+                    <div key={booking.id} className="flex items-center gap-2 p-2 rounded-xl bg-kore-cream/30">
+                      <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${isCanceled ? 'bg-red-100' : 'bg-green-100'}`}>
+                        {isCanceled ? (
+                          <svg className="w-3 h-3 text-red-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        ) : (
+                          <svg className="w-3 h-3 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-kore-gray-dark capitalize truncate">{dateStr} <span className="text-kore-red">· {timeStr}</span></p>
+                      </div>
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${isCanceled ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-700'}`}>
+                        {isCanceled ? 'Cancelada' : 'Completada'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-3">
+                <p className="text-xs text-kore-gray-dark/50">Sin sesiones registradas</p>
               </div>
             );
           })()}

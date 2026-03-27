@@ -40,9 +40,7 @@ export default function UpcomingSessionReminder() {
     minute: '2-digit',
   });
 
-  const detailUrl = upcomingReminder.subscription_id_display
-    ? `/my-programs/program?id=${upcomingReminder.subscription_id_display}`
-    : `/my-programs`;
+  const detailUrl = '/subscription';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">

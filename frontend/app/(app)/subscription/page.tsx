@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
+import { useBookingStore } from '@/lib/stores/bookingStore';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 import { WHATSAPP_URL } from '@/lib/constants';
 
@@ -23,13 +24,16 @@ export default function SubscriptionPage() {
     fetchPaymentHistory,
   } = useSubscriptionStore();
 
+  const { bookings, fetchBookings } = useBookingStore();
   const sectionRef = useRef<HTMLElement>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [sessionTab, setSessionTab] = useState<'upcoming' | 'past'>('upcoming');
   useHeroAnimation(sectionRef);
 
   useEffect(() => {
     fetchSubscriptions();
-  }, [fetchSubscriptions]);
+    fetchBookings();
+  }, [fetchSubscriptions, fetchBookings]);
 
   const activeSubscriptions = useMemo(
     () => subscriptions.filter((item) => item.status === 'active'),
@@ -273,6 +277,67 @@ export default function SubscriptionPage() {
                       )}
                     </div>
                   </div>
+
+                  {/* Sessions for this subscription */}
+                  {(() => {
+                    const subId = detailSubscription.id;
+                    const now = new Date();
+                    const subBookings = bookings.filter(b => b.subscription_id_display === subId);
+                    const upcoming = subBookings.filter(b => b.status === 'pending' && new Date(b.slot.starts_at) > now).sort((a, b) => new Date(a.slot.starts_at).getTime() - new Date(b.slot.starts_at).getTime());
+                    const past = subBookings.filter(b => b.status === 'confirmed' || (b.status === 'pending' && new Date(b.slot.starts_at) <= now)).sort((a, b) => new Date(b.slot.starts_at).getTime() - new Date(a.slot.starts_at).getTime());
+                    const displayed = sessionTab === 'upcoming' ? upcoming : past;
+
+                    return (
+                      <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-kore-gray-light/50">
+                        <div className="flex items-center justify-between mb-4">
+                          <h2 className="font-heading text-lg font-semibold text-kore-gray-dark">Mis sesiones</h2>
+                          <Link href="/book-session" className="text-xs text-kore-red font-medium hover:underline">Agendar</Link>
+                        </div>
+                        {/* Tabs */}
+                        <div className="flex gap-1 mb-4 bg-kore-cream/50 rounded-lg p-1">
+                          <button onClick={() => setSessionTab('upcoming')} className={`flex-1 text-xs font-medium py-2 rounded-md transition-colors cursor-pointer ${sessionTab === 'upcoming' ? 'bg-white text-kore-gray-dark shadow-sm' : 'text-kore-gray-dark/40 hover:text-kore-gray-dark/60'}`}>
+                            Próximas ({upcoming.length})
+                          </button>
+                          <button onClick={() => setSessionTab('past')} className={`flex-1 text-xs font-medium py-2 rounded-md transition-colors cursor-pointer ${sessionTab === 'past' ? 'bg-white text-kore-gray-dark shadow-sm' : 'text-kore-gray-dark/40 hover:text-kore-gray-dark/60'}`}>
+                            Pasadas ({past.length})
+                          </button>
+                        </div>
+                        {displayed.length === 0 ? (
+                          <p className="text-sm text-kore-gray-dark/40 py-4 text-center">
+                            {sessionTab === 'upcoming' ? 'No tienes sesiones próximas' : 'Aún no tienes sesiones completadas'}
+                          </p>
+                        ) : (
+                          <div className="space-y-2">
+                            {displayed.slice(0, 5).map((booking) => {
+                              const d = new Date(booking.slot.starts_at);
+                              const dateStr = d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
+                              const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+                              const trainerName = booking.trainer ? `${booking.trainer.first_name} ${booking.trainer.last_name}` : '';
+                              return (
+                                <div key={booking.id} className="flex items-center gap-3 py-2.5 border-b border-kore-gray-light/20 last:border-0">
+                                  <div className="w-8 h-8 rounded-full bg-kore-red/10 flex items-center justify-center flex-shrink-0">
+                                    <svg className="w-4 h-4 text-kore-red" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                                    </svg>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-kore-gray-dark capitalize">{dateStr} <span className="text-kore-red">· {timeStr}</span></p>
+                                    {trainerName && <p className="text-xs text-kore-gray-dark/40">{trainerName}</p>}
+                                  </div>
+                                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${booking.status === 'confirmed' ? 'bg-green-100 text-green-700' : booking.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'}`}>
+                                    {booking.status === 'confirmed' ? 'Confirmada' : booking.status === 'pending' ? 'Pendiente' : 'Cancelada'}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                            {displayed.length > 5 && (
+                              <p className="text-xs text-kore-gray-dark/40 text-center pt-2">{displayed.length - 5} sesiones más</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Payment History */}
                   <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-kore-gray-light/50">

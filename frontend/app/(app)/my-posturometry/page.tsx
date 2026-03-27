@@ -6,7 +6,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { usePosturometryStore, type PosturometryEvaluation } from '@/lib/stores/posturometryStore';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
-import ImageLightbox from '@/app/components/shared/ImageLightbox';
+import { motion, AnimatePresence } from 'framer-motion';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -163,6 +163,377 @@ const SCIENCE: Record<string, { formula: string; reference: string }> = {
   },
 };
 
+/* ── View labels & findings helpers ── */
+const VIEW_LABELS: Record<string, string> = {
+  anterior: 'Anterior (frente)', lateral_right: 'Lateral Derecha',
+  lateral_left: 'Lateral Izquierda', posterior: 'Posterior (espalda)',
+};
+const VIEW_KEYS = ['anterior', 'lateral_right', 'lateral_left', 'posterior'] as const;
+
+/* ── Sparkline for posturometry ── */
+function PostureSparkline({ values, inverted = true }: { values: number[]; inverted?: boolean }) {
+  if (values.length < 2) return null;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const h = 28; const w = 64; const padY = 4;
+  const points = values.map((v, i) => ({
+    x: (i / (values.length - 1)) * w,
+    y: padY + (1 - (v - min) / range) * (h - padY * 2),
+  }));
+  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+  const diff = values[values.length - 1] - values[0];
+  const improved = inverted ? diff < 0 : diff > 0;
+  const lineColor = Math.abs(diff) < 0.05 ? '#9ca3af' : improved ? '#16a34a' : '#dc2626';
+  return (
+    <svg width={w} height={h} className="flex-shrink-0">
+      <path d={pathD} fill="none" stroke={lineColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      {points.map((p, i) => (
+        <circle key={i} cx={p.x} cy={p.y} r={i === points.length - 1 ? 3 : 1.5} fill={i === points.length - 1 ? lineColor : 'white'} stroke={lineColor} strokeWidth={1.5} />
+      ))}
+    </svg>
+  );
+}
+
+/* ── Posture progress charts ── */
+function PostureProgress({ evaluations }: { evaluations: PosturometryEvaluation[] }) {
+  const first = evaluations[evaluations.length - 1];
+  const latest = evaluations[0];
+  const chartRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+    const bars = chartRef.current.querySelectorAll('.posture-bar-fill');
+    const ctx = gsap.context(() => {
+      gsap.fromTo(bars, { scaleX: 0 }, { scaleX: 1, duration: 0.8, stagger: 0.12, ease: 'power3.out', delay: 0.2 });
+    });
+    return () => ctx.revert();
+  }, [evaluations]);
+
+  const regions = [
+    { key: 'global', label: 'Postura general', tip: 'Promedio de todos los segmentos de tu cuerpo. Cuanto más bajo, mejor alineación tienes.', emoji: '🧍' },
+    { key: 'upper', label: 'Zona superior', tip: 'Cabeza, cuello, hombros y escápulas. Los desbalances aquí suelen venir de hábitos del día a día.', emoji: '🙆' },
+    { key: 'central', label: 'Zona central', tip: 'Columna, abdomen, cadera y glúteos. Es el centro de estabilidad de tu cuerpo.', emoji: '🏋️' },
+    { key: 'lower', label: 'Zona inferior', tip: 'Rodillas, pies y base de apoyo. La alineación aquí protege tus articulaciones.', emoji: '🦵' },
+  ];
+
+  const getVal = (ev: PosturometryEvaluation, key: string) => parseFloat(String((ev as unknown as Record<string, unknown>)[`${key}_index`] ?? '0'));
+  const getColor = (ev: PosturometryEvaluation, key: string) => String((ev as unknown as Record<string, unknown>)[`${key}_color`] ?? 'green');
+  const getCat = (ev: PosturometryEvaluation, key: string) => String((ev as unknown as Record<string, unknown>)[`${key}_category`] ?? '');
+
+  const BAR_BG: Record<string, string> = { green: 'bg-green-100', yellow: 'bg-amber-100', orange: 'bg-orange-100', red: 'bg-red-100' };
+  const BAR_FILL: Record<string, string> = { green: 'bg-green-500', yellow: 'bg-amber-500', orange: 'bg-orange-500', red: 'bg-red-500' };
+
+  return (
+    <div ref={chartRef} className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
+      <div className="flex items-center gap-3 mb-1">
+        <h2 className="font-heading text-base font-semibold text-kore-gray-dark">Tu progreso postural</h2>
+        <span className="text-xs text-kore-gray-dark/40">{evaluations.length} evaluaciones</span>
+      </div>
+      <p className="text-xs text-kore-gray-dark/50 mb-5">Escala de 0 a 3 — cuanto más bajo, mejor está tu postura. Toca cada indicador para saber más.</p>
+
+      <div className="space-y-4">
+        {regions.map((r) => {
+          const current = getVal(latest, r.key);
+          const initial = getVal(first, r.key);
+          const color = getColor(latest, r.key);
+          const category = getCat(latest, r.key);
+          const diff = current - initial;
+          const improved = Math.abs(diff) >= 0.05 ? diff < 0 : null;
+          const pct = Math.min((current / 3) * 100, 100);
+          const initPct = Math.min((initial / 3) * 100, 100);
+          const sparkVals = evaluations.map(ev => getVal(ev, r.key)).reverse();
+
+          const verdictText = (() => {
+            if (Math.abs(diff) < 0.05) return null;
+            return improved
+              ? `Mejoró ${Math.abs(diff).toFixed(2)} pts`
+              : `Subió ${Math.abs(diff).toFixed(2)} pts`;
+          })();
+
+          return <PostureMetricRow key={r.key} label={r.label} emoji={r.emoji} tip={r.tip} current={current} initial={initial} color={color} category={category} diff={diff} improved={improved} pct={pct} initPct={initPct} sparkVals={sparkVals} verdictText={verdictText} />;
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── Single posture metric row with tap-to-expand info ── */
+function PostureMetricRow({ label, emoji, tip, current, initial, color, category, diff, improved, pct, initPct, sparkVals, verdictText }: {
+  label: string; emoji: string; tip: string;
+  current: number; initial: number; color: string; category: string;
+  diff: number; improved: boolean | null; pct: number; initPct: number;
+  sparkVals: number[]; verdictText: string | null;
+}) {
+  const [showTip, setShowTip] = useState(false);
+  const tipRef = useRef<HTMLDivElement>(null);
+
+  const toggleTip = useCallback(() => {
+    if (!tipRef.current) { setShowTip(!showTip); return; }
+    const el = tipRef.current;
+    const willOpen = !showTip;
+    setShowTip(willOpen);
+    if (willOpen) {
+      gsap.set(el, { height: 0, opacity: 0, display: 'block', overflow: 'hidden' });
+      gsap.to(el, { height: 'auto', opacity: 1, duration: 0.25, ease: 'power2.out' });
+    } else {
+      gsap.to(el, { height: 0, opacity: 0, duration: 0.2, ease: 'power2.in', onComplete: () => { gsap.set(el, { display: 'none' }); } });
+    }
+  }, [showTip]);
+
+  const BAR_BG: Record<string, string> = { green: 'bg-green-100', yellow: 'bg-amber-100', orange: 'bg-orange-100', red: 'bg-red-100' };
+  const BAR_FILL: Record<string, string> = { green: 'bg-green-500', yellow: 'bg-amber-500', orange: 'bg-orange-500', red: 'bg-red-500' };
+
+  return (
+    <div className="bg-kore-cream/30 rounded-xl p-3.5">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-2">
+        <button type="button" onClick={toggleTip} className="flex items-center gap-2 cursor-pointer active:opacity-70 transition-opacity">
+          <span className="text-sm">{emoji}</span>
+          <span className="text-sm font-medium text-kore-gray-dark">{label}</span>
+          <div className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${showTip ? 'bg-kore-red/15' : 'bg-kore-gray-dark/8'}`}>
+            <span className={`text-[9px] font-bold ${showTip ? 'text-kore-red' : 'text-kore-gray-dark/40'}`}>i</span>
+          </div>
+        </button>
+        <span className={`text-base font-bold ${CT[color]}`}>{current.toFixed(2)}</span>
+      </div>
+
+      {/* Expandable info */}
+      <div ref={tipRef} style={{ display: 'none', height: 0 }}>
+        <div className="bg-white/80 rounded-lg px-3 py-2 mb-2 border border-kore-gray-light/30">
+          <p className="text-xs text-kore-gray-dark/70 leading-relaxed">{tip}</p>
+        </div>
+      </div>
+
+      {/* Bar + sparkline */}
+      <div className="flex items-center gap-3 mb-1.5">
+        <div className="flex-1">
+          <div className={`relative h-2.5 rounded-full ${BAR_BG[color] || BAR_BG.green} overflow-hidden`}>
+            {Math.abs(pct - initPct) > 1 && (
+              <div className="absolute inset-y-0 left-0 rounded-full bg-kore-gray-dark/10" style={{ width: `${initPct}%` }} />
+            )}
+            <div className={`posture-bar-fill absolute inset-y-0 left-0 rounded-full ${BAR_FILL[color] || BAR_FILL.green} origin-left`} style={{ width: `${pct}%` }} />
+            {Math.abs(pct - initPct) > 1 && (
+              <div className="absolute top-0 bottom-0 w-0.5 bg-kore-gray-dark/40" style={{ left: `${initPct}%` }} />
+            )}
+          </div>
+        </div>
+        {sparkVals.length >= 2 && <PostureSparkline values={sparkVals} />}
+      </div>
+
+      {/* Before → After with verdict */}
+      {Math.abs(diff) >= 0.05 && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="text-kore-gray-dark/50">Inicio</span>
+            <span className="font-semibold text-kore-gray-dark/70">{initial.toFixed(2)}</span>
+            <svg className="w-3.5 h-3.5 text-kore-gray-dark/30" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+            <span className="text-kore-gray-dark/50">Actual</span>
+            <span className={`font-semibold ${CT[color]}`}>{current.toFixed(2)}</span>
+          </div>
+          {verdictText && (
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${improved ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+              {verdictText}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Photo bottom sheet with swipeable views ── */
+function PhotoBottomSheet({ ev, initialIndex, onClose }: {
+  ev: PosturometryEvaluation; initialIndex: number; onClose: () => void;
+}) {
+  const [activeIdx, setActiveIdx] = useState(initialIndex);
+  const touchStartX = useRef(0);
+
+  const views = VIEW_KEYS.map(key => ({
+    key,
+    label: VIEW_LABELS[key],
+    photo: String((ev as unknown as Record<string, unknown>)[`${key}_photo`] ?? ''),
+    observations: String((ev as unknown as Record<string, unknown>)[`${key}_observations`] ?? ''),
+    findings: ev.findings?.[key] || [],
+  })).filter(v => v.photo);
+
+  if (views.length === 0) return null;
+  const current = views[activeIdx] || views[0];
+
+  // Lock body scroll
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = 'unset'; };
+  }, []);
+
+  const handleSwipe = (endX: number) => {
+    const diff = endX - touchStartX.current;
+    if (diff < -50 && activeIdx < views.length - 1) setActiveIdx(activeIdx + 1);
+    else if (diff > 50 && activeIdx > 0) setActiveIdx(activeIdx - 1);
+  };
+
+  // Region scores for this view
+  const viewSegments = ev.segment_scores
+    ? Object.entries(ev.segment_scores)
+        .filter(([, s]) => s.views && current.key in s.views && s.views[current.key] > 0)
+        .sort((a, b) => b[1].score - a[1].score)
+        .slice(0, 6)
+    : [];
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 bg-kore-gray-dark/50 backdrop-blur-sm z-50"
+      />
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        className="fixed inset-x-0 bottom-0 z-50 flex flex-col"
+        style={{ maxHeight: '92vh' }}
+        onTouchStart={e => { touchStartX.current = e.touches[0].clientX; }}
+        onTouchEnd={e => handleSwipe(e.changedTouches[0].clientX)}
+      >
+        {/* Handle + close */}
+        <div className="flex-shrink-0 pt-3 pb-2 px-5 bg-white rounded-t-[28px]">
+          <div className="w-12 h-1.5 bg-kore-gray-light rounded-full mx-auto mb-2" />
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-kore-gray-dark">{current.label}</p>
+            <button onClick={onClose} className="w-7 h-7 rounded-full bg-kore-gray-dark/5 flex items-center justify-center cursor-pointer">
+              <svg className="w-4 h-4 text-kore-gray-dark/50" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto bg-white pb-8">
+          {/* Photo */}
+          <div className="px-5 pt-2">
+            <img src={current.photo} alt={current.label} className="w-full rounded-2xl object-cover max-h-[50vh] border border-kore-gray-light/30" />
+          </div>
+
+          {/* Dot indicators */}
+          <div className="flex items-center justify-center gap-2 py-3">
+            {views.map((v, i) => (
+              <button key={v.key} onClick={() => setActiveIdx(i)} className={`rounded-full transition-all cursor-pointer ${i === activeIdx ? 'w-6 h-2 bg-kore-red' : 'w-2 h-2 bg-kore-gray-dark/20'}`} />
+            ))}
+          </div>
+
+          {/* Results summary for this view */}
+          <div className="px-5 space-y-3">
+            {/* Observations */}
+            {current.observations && (
+              <div className="bg-kore-cream/40 rounded-xl p-3.5">
+                <p className="text-xs text-kore-gray-dark/50 uppercase tracking-wider font-medium mb-1">Observaciones</p>
+                <p className="text-sm text-kore-gray-dark/70 leading-relaxed">{current.observations}</p>
+              </div>
+            )}
+
+            {/* Findings for this view */}
+            {current.findings.length > 0 && (
+              <div className="bg-amber-50/60 rounded-xl p-3.5 border border-amber-200/40">
+                <p className="text-xs text-amber-800 uppercase tracking-wider font-medium mb-2">Hallazgos en esta vista</p>
+                <div className="space-y-1">
+                  {current.findings.map((f, i) => (
+                    <div key={i} className="flex items-start gap-2 text-xs text-amber-800/80">
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 flex-shrink-0" />
+                      <span>{f}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Segments affected in this view */}
+            {viewSegments.length > 0 && (
+              <div className="bg-white rounded-xl p-3.5 border border-kore-gray-light/30">
+                <p className="text-xs text-kore-gray-dark/50 uppercase tracking-wider font-medium mb-2">Segmentos evaluados</p>
+                <div className="space-y-1.5">
+                  {viewSegments.map(([key, seg]) => {
+                    const score = seg.views[current.key] || 0;
+                    const scoreColor = score === 0 ? 'text-green-600' : score <= 1 ? 'text-amber-600' : score <= 2 ? 'text-orange-600' : 'text-red-600';
+                    const scoreLabel = score === 0 ? 'Normal' : score <= 1 ? 'Leve' : score <= 2 ? 'Moderado' : 'Importante';
+                    return (
+                      <div key={key} className="flex items-center justify-between text-xs">
+                        <span className="text-kore-gray-dark/70">{seg.label}</span>
+                        <span className={`font-semibold ${scoreColor}`}>{scoreLabel}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Swipe hint */}
+            {views.length > 1 && (
+              <p className="text-[10px] text-kore-gray-dark/30 text-center pt-1">Desliza para ver las otras vistas</p>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+/* ── Scientific basis accordion ── */
+function ScienceBasis() {
+  const [open, setOpen] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const arrowRef = useRef<SVGSVGElement>(null);
+
+  const toggle = useCallback(() => {
+    if (!contentRef.current) return;
+    const el = contentRef.current;
+    const willOpen = !open;
+    setOpen(willOpen);
+    if (willOpen) {
+      gsap.set(el, { height: 0, opacity: 0, display: 'block', overflow: 'hidden' });
+      gsap.to(el, { height: 'auto', opacity: 1, duration: 0.4, ease: 'power3.out' });
+      if (arrowRef.current) gsap.to(arrowRef.current, { rotation: 180, duration: 0.3, ease: 'power2.inOut' });
+    } else {
+      gsap.to(el, { height: 0, opacity: 0, duration: 0.3, ease: 'power2.in', onComplete: () => { gsap.set(el, { display: 'none' }); } });
+      if (arrowRef.current) gsap.to(arrowRef.current, { rotation: 0, duration: 0.3, ease: 'power2.inOut' });
+    }
+  }, [open]);
+
+  return (
+    <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm overflow-hidden">
+      <button type="button" onClick={toggle} className="w-full flex items-center justify-between p-5 cursor-pointer hover:bg-kore-cream/20 transition-colors text-left">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-kore-gray-dark/5 flex items-center justify-center flex-shrink-0">
+            <svg className="w-4 h-4 text-kore-gray-dark/40" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
+            </svg>
+          </div>
+          <span className="text-sm font-medium text-kore-gray-dark/60">¿Cómo se calcula?</span>
+        </div>
+        <svg ref={arrowRef} className="w-5 h-5 text-kore-gray-dark/30 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+      <div ref={contentRef} style={{ display: 'none', height: 0 }}>
+        <div className="px-5 pb-5 space-y-2">
+          {Object.entries(SCIENCE).map(([key, sci]) => (
+            <div key={key} className="bg-kore-cream/20 rounded-xl p-4 border border-kore-gray-light/20">
+              <p className="text-xs text-kore-gray-dark/60 leading-relaxed mb-1">{sci.formula}</p>
+              <p className="text-xs text-kore-gray-dark/40 italic leading-relaxed">{sci.reference}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── CountUp number ── */
 function CountUpNumber({ target, decimals = 2 }: { target: number; decimals?: number }) {
   const ref = useRef<HTMLSpanElement>(null);
@@ -311,9 +682,8 @@ export default function MyPosturometryPage() {
   const heroRef = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [lightboxSrc, setLightboxSrc] = useState('');
-  const [lightboxAlt, setLightboxAlt] = useState('');
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetInitialIdx, setSheetInitialIdx] = useState(0);
   useHeroAnimation(sectionRef);
 
   useEffect(() => {
@@ -399,30 +769,6 @@ export default function MyPosturometryPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* ══ Hero summary ══ */}
-            <div ref={heroRef} className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[
-                { label: 'Global', key: 'global' },
-                { label: 'Superior', key: 'upper' },
-                { label: 'Central', key: 'central' },
-                { label: 'Inferior', key: 'lower' },
-              ].map(({ label, key }) => {
-                const g = (k: string): string => String((latest as unknown as Record<string, unknown>)[k] ?? '');
-                const idx = g(`${key}_index`) || '0';
-                const cat = g(`${key}_category`);
-                const col = g(`${key}_color`) || 'green';
-                return (
-                  <div key={key} className={`hero-stat backdrop-blur-sm rounded-2xl p-5 border shadow-sm text-center ${CB[col]} ${CBorder[col]}`}>
-                    <p className={`text-xs ${CT[col]}/70 mb-2`}>{label}</p>
-                    <p className={`font-heading text-2xl font-bold ${CT[col]}`}>
-                      <CountUpNumber target={parseFloat(idx)} />
-                    </p>
-                    <p className={`text-xs ${CT[col]}/60 mt-1`}>{cat}</p>
-                  </div>
-                );
-              })}
-            </div>
-
             {/* ══ Trainer notes ══ */}
             {latest.notes && (
               <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
@@ -440,45 +786,50 @@ export default function MyPosturometryPage() {
               </div>
             )}
 
+            {/* ══ Visual progress charts (when 2+ evaluations) ══ */}
+            {evaluations.length > 1 && (
+              <PostureProgress evaluations={evaluations} />
+            )}
+
             {/* ══ Top segments to work on ══ */}
             <TopSegments ev={latest} />
 
-            {/* ══ Photos ══ */}
-            {(latest.anterior_photo || latest.lateral_right_photo || latest.lateral_left_photo || latest.posterior_photo) && (
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
-                <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-3">Tus fotos de evaluación</p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {[
-                    { url: latest.anterior_photo, label: 'Anterior' },
-                    { url: latest.lateral_right_photo, label: 'Lateral Derecha' },
-                    { url: latest.lateral_left_photo, label: 'Lateral Izquierda' },
-                    { url: latest.posterior_photo, label: 'Posterior' },
-                  ].map((p) => p.url && (
-                    <div key={p.label} className="text-center">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (p.url) {
-                            setLightboxSrc(p.url);
-                            setLightboxAlt(p.label);
-                            setLightboxOpen(true);
-                          }
-                        }}
-                        className="relative group w-full rounded-xl overflow-hidden cursor-pointer"
-                      >
-                        <img src={p.url} alt={p.label} className="rounded-xl w-full h-48 object-cover border border-kore-gray-light/30" />
-                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6" />
-                          </svg>
-                        </div>
-                      </button>
-                      <p className="text-xs text-kore-gray-dark/50 mt-1">{p.label}</p>
-                    </div>
-                  ))}
+            {/* ══ Photos — tap to open bottom sheet ══ */}
+            {(latest.anterior_photo || latest.lateral_right_photo || latest.lateral_left_photo || latest.posterior_photo) && (() => {
+              const photoViews = VIEW_KEYS.map((key, i) => ({
+                key, idx: i,
+                label: VIEW_LABELS[key],
+                photo: String((latest as unknown as Record<string, unknown>)[`${key}_photo`] ?? ''),
+              })).filter(v => v.photo);
+              return (
+                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
+                  <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-1">Tus fotos de evaluación</p>
+                  <p className="text-xs text-kore-gray-dark/50 mb-3">Toca una foto para ver los resultados de esa vista.</p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {photoViews.map((p) => (
+                      <div key={p.key} className="text-center">
+                        <button
+                          type="button"
+                          onClick={() => { setSheetInitialIdx(photoViews.findIndex(v => v.key === p.key)); setSheetOpen(true); }}
+                          className="relative group w-full rounded-xl overflow-hidden cursor-pointer"
+                        >
+                          <img src={p.photo} alt={p.label} className="rounded-xl w-full h-48 object-cover border border-kore-gray-light/30" />
+                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <div className="bg-white/90 rounded-full px-3 py-1.5 flex items-center gap-1.5">
+                              <svg className="w-4 h-4 text-kore-gray-dark" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zm3.75 11.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                              </svg>
+                              <span className="text-xs font-medium text-kore-gray-dark">Ver resultados</span>
+                            </div>
+                          </div>
+                        </button>
+                        <p className="text-xs text-kore-gray-dark/50 mt-1">{p.label}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* ══ Region cards with GSAP stagger ══ */}
             <div>
@@ -490,17 +841,6 @@ export default function MyPosturometryPage() {
                 <RegionCard id="central" ev={latest} />
                 <RegionCard id="lower" ev={latest} />
               </div>
-            </div>
-
-            {/* ══ Scientific basis ══ */}
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
-              <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-3">¿Cómo se calcula?</p>
-              {Object.entries(SCIENCE).map(([key, sci]) => (
-                <div key={key} className="bg-kore-cream/20 rounded-xl p-4 border border-kore-gray-light/20 mb-2 last:mb-0">
-                  <p className="text-xs text-kore-gray-dark/60 leading-relaxed mb-1">{sci.formula}</p>
-                  <p className="text-xs text-kore-gray-dark/40 italic leading-relaxed">{sci.reference}</p>
-                </div>
-              ))}
             </div>
 
             {/* ══ Progress timeline ══ */}
@@ -540,17 +880,20 @@ export default function MyPosturometryPage() {
                 </div>
               </div>
             )}
+            {/* ══ Scientific basis (accordion, last) ══ */}
+            <ScienceBasis />
           </div>
         )}
       </div>
 
-      {/* Image Lightbox */}
-      <ImageLightbox
-        src={lightboxSrc}
-        alt={lightboxAlt}
-        isOpen={lightboxOpen}
-        onClose={() => setLightboxOpen(false)}
-      />
+      {/* Photo bottom sheet */}
+      {sheetOpen && latest && (
+        <PhotoBottomSheet
+          ev={latest}
+          initialIndex={sheetInitialIdx}
+          onClose={() => setSheetOpen(false)}
+        />
+      )}
     </section>
   );
 }
