@@ -1,8 +1,7 @@
 """Tests for physical evaluation API views."""
 
-from datetime import date
+from datetime import date, timedelta
 from datetime import datetime as dt
-from datetime import timedelta
 
 import pytest
 from django.test import TestCase
@@ -75,6 +74,7 @@ class TestTrainerPhysicalEvalListCreate(TestCase):
         self.client.force_authenticate(user=self.trainer_user)
 
     def test_create_evaluation_success(self):
+        """POST returns 201 with computed scores, general index, age and sex from profile."""
         resp = self.client.post(
             f'/api/trainer/my-clients/{self.customer.id}/physical-evaluation/',
             SAMPLE_DATA,

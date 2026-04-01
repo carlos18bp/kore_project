@@ -130,6 +130,14 @@ function classifyCall(node) {
   }
 
   if (root === 'it' || root === 'test') {
+    // Exclude Playwright hook methods — these are configuration calls, not tests
+    const HOOK_METHODS = new Set([
+      'use', 'beforeEach', 'afterEach', 'beforeAll', 'afterAll',
+      'step', 'extend', 'slow',
+    ]);
+    if (chain.length > 1 && HOOK_METHODS.has(chain[chain.length - 1])) {
+      return null;
+    }
     return {
       kind: 'test',
       chain,
