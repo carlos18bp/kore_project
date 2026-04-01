@@ -1,7 +1,7 @@
 import { test, expect, setupDefaultApiMocks, injectAuthCookies } from '../fixtures';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
-test.describe('My Programs Flow — Program Detail & Session Detail (mocked)', { tag: [...FlowTags.MY_PROGRAMS_DETAIL, RoleTags.USER] }, () => {
+test.describe('My Programs Flow — Subscription detail & sessions (mocked)', { tag: [...FlowTags.MY_PROGRAMS_DETAIL, RoleTags.USER] }, () => {
   const navSubId = 55;
   const navMockSub = {
     id: navSubId,
@@ -23,7 +23,6 @@ test.describe('My Programs Flow — Program Detail & Session Detail (mocked)', {
     await injectAuthCookies(page);
     await setupDefaultApiMocks(page);
 
-    // Override with test-specific mocks (LIFO: last registered wins)
     await page.route('**/api/subscriptions/', (r) => r.fulfill({
       status: 200, contentType: 'application/json',
       body: JSON.stringify({ count: 1, next: null, previous: null, results: [navMockSub] }),
@@ -35,67 +34,71 @@ test.describe('My Programs Flow — Program Detail & Session Detail (mocked)', {
     });
   }
 
-  test('clicking a subscription card navigates to program detail', async ({ page }) => {
+  test('clicking a subscription card shows details section', async ({ page }) => {
     await setupListAndDetailMocks(page, []);
-    await page.goto('/my-programs');
-    await expect(page.getByText('Paquete Navegación')).toBeVisible({ timeout: 10_000 });
+    await page.goto('/subscription');
+    await expect(page.getByText('Paquete Navegación').first()).toBeVisible({ timeout: 10_000 });
 
-    await page.getByRole('link', { name: /Paquete Navegación/ }).click();
-    await page.waitForURL(`**/my-programs/program?id=${navSubId}`);
+    await page.getByRole('button', { name: /Paquete Navegación/ }).click();
 
     const main = page.getByRole('main');
-    await expect(main.getByRole('link', { name: 'Mis Programas' })).toBeVisible();
-    await expect(main.getByText('Completadas')).toBeVisible();
-    await expect(main.getByText('Total')).toBeVisible();
-    await expect(main.getByText('Vencimiento')).toBeVisible();
-    await expect(main.getByText('Avance')).toBeVisible();
+    await expect(main.getByRole('heading', { name: 'Detalles' })).toBeVisible();
+    await expect(main.getByText('2 de 6 completadas').first()).toBeVisible();
+    await expect(main.getByText('Vence:')).toBeVisible();
+    await expect(main.getByText('Avance:')).toBeVisible();
   });
 
-  test('program detail page renders upcoming/past tabs', async ({ page }) => {
+  test('subscription page renders upcoming past tabs', async ({ page }) => {
     const pastSlotStart = new Date(Date.now() - 3 * 86400000).toISOString();
     const pastSlotEnd = new Date(Date.now() - 3 * 86400000 + 3600000).toISOString();
-    const pastBk = { id: 310, status: 'confirmed', slot: { id: 410, starts_at: pastSlotStart, ends_at: pastSlotEnd }, trainer: null, package: { title: 'Paquete Navegación' } };
+    const pastBk = {
+      id: 310,
+      subscription_id_display: navSubId,
+      status: 'confirmed',
+      slot: { id: 410, starts_at: pastSlotStart, ends_at: pastSlotEnd },
+      trainer: null,
+      package: { title: 'Paquete Navegación' },
+    };
     await setupListAndDetailMocks(page, [pastBk]);
-    await page.goto(`/my-programs/program?id=${navSubId}`);
+    await page.goto('/subscription');
 
     const main = page.getByRole('main');
-    await expect(main.getByRole('button', { name: 'Próximas' })).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByRole('button', { name: 'Pasadas' })).toBeVisible();
+    await expect(main.getByRole('button', { name: /Próximas\s*\(/ })).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByRole('button', { name: /Pasadas\s*\(/ })).toBeVisible();
 
-    await main.getByRole('button', { name: 'Pasadas' }).click();
-    await expect(main.getByText('Confirmada')).toBeVisible({ timeout: 5_000 });
+    await main.getByRole('button', { name: /Pasadas\s*\(/ }).click();
+    await expect(main.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 5_000 });
 
-    await main.getByRole('button', { name: 'Próximas' }).click();
-    await expect(main.getByText('No tienes sesiones próximas.')).toBeVisible();
+    await main.getByRole('button', { name: /Próximas\s*\(/ }).click();
+    await expect(main.getByText('No tienes sesiones próximas')).toBeVisible();
   });
 
-  test('program detail shows empty state for upcoming when no bookings', async ({ page }) => {
+  test('subscription shows empty state for upcoming when no bookings', async ({ page }) => {
     await setupListAndDetailMocks(page, []);
-    await page.goto(`/my-programs/program?id=${navSubId}`);
+    await page.goto('/subscription');
 
     const main = page.getByRole('main');
-    await expect(main.getByText('No tienes sesiones próximas.')).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('No tienes sesiones próximas')).toBeVisible({ timeout: 10_000 });
 
-    const link = main.getByRole('link', { name: 'Agendar sesión' });
+    const link = main.getByRole('link', { name: 'Agendar' });
     await expect(link).toBeVisible();
-    const href = await link.getAttribute('href');
-    expect(href).toContain(`subscription=${navSubId}`);
+    await expect(link).toHaveAttribute('href', '/book-session');
   });
 
-  test('breadcrumb navigates back to my-programs', async ({ page }) => {
+  test('navigate from subscription to dashboard and back via sidebar', async ({ page }) => {
     await setupListAndDetailMocks(page, []);
-    await page.goto(`/my-programs/program?id=${navSubId}`);
+    await page.goto('/subscription');
+    await expect(page.getByRole('heading', { name: 'Mi Suscripción' })).toBeVisible({ timeout: 10_000 });
 
-    const main = page.getByRole('main');
-    await expect(main.getByText('Paquete Navegación').first()).toBeVisible({ timeout: 10_000 });
-
-    await main.getByRole('link', { name: 'Mis Programas' }).click();
-    await page.waitForURL('**/my-programs');
-    await expect(page.getByRole('heading', { name: 'Mis Programas' })).toBeVisible();
+    await page.getByRole('link', { name: 'Inicio' }).click();
+    await page.waitForURL('**/dashboard');
+    await page.getByRole('link', { name: 'Mi Suscripción' }).click();
+    await page.waitForURL('**/subscription');
+    await expect(page.getByRole('heading', { name: 'Mi Suscripción' })).toBeVisible();
   });
 });
 
-test.describe('Program Detail Page — mocked data branches', { tag: [...FlowTags.MY_PROGRAMS_DETAIL, RoleTags.USER] }, () => {
+test.describe('Subscription detail — mocked data branches', { tag: [...FlowTags.MY_PROGRAMS_DETAIL, RoleTags.USER] }, () => {
   const subId = 42;
   const mockSub = {
     id: subId,
@@ -117,6 +120,7 @@ test.describe('Program Detail Page — mocked data branches', { tag: [...FlowTag
 
   const upcomingBooking = {
     id: 301,
+    subscription_id_display: subId,
     status: 'confirmed',
     slot: { id: 401, starts_at: futureSlotStart, ends_at: futureSlotEnd },
     trainer: { first_name: 'Germán', last_name: 'Franco' },
@@ -125,6 +129,7 @@ test.describe('Program Detail Page — mocked data branches', { tag: [...FlowTag
 
   const pastBooking = {
     id: 302,
+    subscription_id_display: subId,
     status: 'confirmed',
     slot: { id: 402, starts_at: pastSlotStart, ends_at: pastSlotEnd },
     trainer: null,
@@ -133,6 +138,7 @@ test.describe('Program Detail Page — mocked data branches', { tag: [...FlowTag
 
   const canceledBooking = {
     id: 303,
+    subscription_id_display: subId,
     status: 'canceled',
     slot: { id: 403, starts_at: futureSlotStart, ends_at: futureSlotEnd },
     trainer: { first_name: 'Germán', last_name: 'Franco' },
@@ -142,12 +148,10 @@ test.describe('Program Detail Page — mocked data branches', { tag: [...FlowTag
   async function setupProgramDetailMocks(
     page: import('@playwright/test').Page,
     bookings: typeof upcomingBooking[],
-    count = bookings.length,
   ) {
     await injectAuthCookies(page);
     await setupDefaultApiMocks(page);
 
-    // Override with test-specific mocks (LIFO: last registered wins)
     await page.route('**/api/subscriptions/', (r) => r.fulfill({
       status: 200, contentType: 'application/json',
       body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockSub] }),
@@ -155,54 +159,66 @@ test.describe('Program Detail Page — mocked data branches', { tag: [...FlowTag
     await page.route('**/api/bookings/**', async (route) => {
       const url = route.request().url();
       if (url.includes('/upcoming-reminder') || url.includes('/cancel') || url.includes('/reschedule')) { await route.fallback(); return; }
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count, next: null, previous: null, results: bookings }) });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: bookings.length, next: null, previous: null, results: bookings }) });
     });
   }
 
-  test('program detail renders header card with subscription data', async ({ page }) => {
+  test('subscription detail renders card with subscription data', async ({ page }) => {
     await setupProgramDetailMocks(page, [upcomingBooking]);
-    await page.goto(`/my-programs/program?id=${subId}`);
+    await page.goto('/subscription');
     const main = page.getByRole('main');
-    await expect(main.getByText('Paquete Elite').first()).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('Completadas')).toBeVisible();
-    await expect(main.getByText('Avance')).toBeVisible();
-    await expect(main.getByText('Activo')).toBeVisible();
+    await expect(main.getByText('Paquete Elite').filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByRole('heading', { name: 'Detalles' })).toBeVisible();
+    await expect(main.getByText('Avance:')).toBeVisible();
+    await expect(
+      main.getByRole('button').filter({ hasText: 'Paquete Elite' }).getByText('Activa', { exact: true }),
+    ).toBeVisible();
   });
 
   test('upcoming tab shows future confirmed bookings with trainer name', async ({ page }) => {
     await setupProgramDetailMocks(page, [upcomingBooking]);
-    await page.goto(`/my-programs/program?id=${subId}`);
+    await page.goto('/subscription');
     const main = page.getByRole('main');
-    await expect(main.getByRole('button', { name: 'Pr\u00f3ximas' })).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('Confirmada')).toBeVisible();
-    await expect(main.getByText(/Germ\u00e1n Franco/)).toBeVisible();
+    await expect(main.getByRole('button', { name: /Próximas\s*\(/ })).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByRole('button', { name: /Confirmada/ })).toBeVisible();
+    await expect(main.getByText(/Germán Franco/)).toBeVisible();
   });
 
   test('past tab shows past bookings and empty upcoming state', async ({ page }) => {
     await setupProgramDetailMocks(page, [pastBooking]);
-    await page.goto(`/my-programs/program?id=${subId}`);
+    await page.goto('/subscription');
     const main = page.getByRole('main');
-    await expect(main.getByRole('button', { name: 'Pr\u00f3ximas' })).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('No tienes sesiones pr\u00f3ximas.')).toBeVisible();
-    await main.getByRole('button', { name: 'Pasadas' }).click();
-    await expect(main.getByText('Confirmada')).toBeVisible();
+    await expect(main.getByRole('button', { name: /Próximas\s*\(/ })).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('No tienes sesiones próximas')).toBeVisible();
+    await main.getByRole('button', { name: /Pasadas\s*\(/ }).click();
+    await expect(main.getByRole('button', { name: /Confirmada/ })).toBeVisible();
   });
 
   test('canceled booking appears in past tab even with future slot', async ({ page }) => {
     await setupProgramDetailMocks(page, [canceledBooking]);
-    await page.goto(`/my-programs/program?id=${subId}`);
+    await page.goto('/subscription');
     const main = page.getByRole('main');
-    await expect(main.getByRole('button', { name: 'Pasadas' })).toBeVisible({ timeout: 10_000 });
-    await main.getByRole('button', { name: 'Pasadas' }).click();
-    await expect(main.getByText('Cancelada')).toBeVisible();
+    await expect(main.getByRole('button', { name: /Pasadas\s*\(/ })).toBeVisible({ timeout: 10_000 });
+    await main.getByRole('button', { name: /Pasadas\s*\(/ }).click();
+    await expect(main.getByRole('button', { name: /Cancelada/ })).toBeVisible();
   });
 
-  test('pagination controls render when totalPages greater than 1', async ({ page }) => {
-    await setupProgramDetailMocks(page, [upcomingBooking], 25);
-    await page.goto(`/my-programs/program?id=${subId}`);
+  test('shows more-sessions hint when list exceeds five', async ({ page }) => {
+    const bookings = Array.from({ length: 6 }, (_, i) => ({
+      id: 400 + i,
+      subscription_id_display: subId,
+      status: 'confirmed' as const,
+      slot: {
+        id: 500 + i,
+        starts_at: new Date(Date.now() + (2 + i) * 86400000).toISOString(),
+        ends_at: new Date(Date.now() + (2 + i) * 86400000 + 3600000).toISOString(),
+      },
+      trainer: { first_name: 'G', last_name: 'F' },
+      package: { title: 'Paquete Elite' },
+    }));
+    await setupProgramDetailMocks(page, bookings);
+    await page.goto('/subscription');
     const main = page.getByRole('main');
-    await expect(main.getByRole('button', { name: 'Siguiente' })).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText(/P\u00e1gina 1 de/)).toBeVisible();
-    await expect(main.getByRole('button', { name: 'Anterior' })).toBeDisabled();
+    await expect(main.getByText('1 sesiones más')).toBeVisible({ timeout: 10_000 });
   });
 });

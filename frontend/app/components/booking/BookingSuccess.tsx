@@ -26,6 +26,7 @@ export default function BookingSuccess({ booking, onReset }: Props) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      data-testid="booking-success-backdrop"
       onClick={handleBackdropClick}
     >
       <div className="bg-white rounded-2xl w-full max-w-lg mx-4 shadow-xl relative max-h-[90vh] overflow-y-auto">

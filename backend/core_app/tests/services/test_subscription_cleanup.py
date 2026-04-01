@@ -1,5 +1,6 @@
 """Tests for subscription cleanup helpers."""
 
+from datetime import datetime as dt
 from datetime import timedelta
 
 import pytest
@@ -8,7 +9,7 @@ from django.utils import timezone
 from core_app.models import AvailabilitySlot, Booking, Package, Subscription, User
 from core_app.services.subscription_cleanup import CANCEL_REASON, cancel_future_bookings
 
-FIXED_CLEANUP_NOW = timezone.now()
+FIXED_CLEANUP_NOW = timezone.make_aware(dt(2026, 3, 1, 10, 0, 0))
 
 
 def _build_cleanup_fixtures(fixed_now):

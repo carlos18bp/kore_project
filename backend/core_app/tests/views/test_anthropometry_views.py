@@ -321,6 +321,7 @@ class TestAnthropometryCustomerDoesNotExist:
     """Cover User.DoesNotExist branch when user exists but has non-customer role."""
 
     def test_post_returns_404_when_user_not_customer_role(self, api_client, trainer, package):
+        """POST anthropometry returns 404 when target user is not a customer."""
         non_customer = User.objects.create_user(
             email='anthro-noncust@test.com', password='pass', role=User.Role.TRAINER,
         )

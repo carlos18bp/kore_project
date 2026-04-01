@@ -59,6 +59,7 @@ test-reports/
 /backend/.coverage
 /backend/coverage.xml
 /backend/coverage.json
+/backend/pytest-results.xml
 /.pytest_cache/
 
 # IDE & tooling

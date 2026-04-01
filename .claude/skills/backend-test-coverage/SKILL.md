@@ -15,8 +15,8 @@ Before writing any test, consult: `docs/TESTING_QUALITY_STANDARDS.md`
 
 ## Execution Rules
 
-1. **Activate virtual environment**: `source venv/bin/activate`
-2. **Run only modified test files**: `pytest path/to/test_file.py -v`
+1. **Working directory and venv**: The Python venv is created under [`backend/`](backend/) (see `docs/methodology/technical.md`). Use `cd backend && source venv/bin/activate` before pytest.
+2. **Run only modified test files**: `pytest core_app/tests/path/to/test_file.py -v` (paths relative to `backend/`)
 3. **Maximum per execution**: 20 tests per batch, 3 commands per cycle
 
 ## Coverage Prioritization
@@ -54,5 +54,5 @@ Before writing any test, consult: `docs/TESTING_QUALITY_STANDARDS.md`
 - Tests added: <count>
 - Coverage before: <X%>
 - Coverage after: <Y%>
-- Command executed: pytest <path> -v
+- Command executed: cd backend && source venv/bin/activate && pytest core_app/tests/... -v
 ```

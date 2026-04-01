@@ -112,9 +112,10 @@ class TestIcsGenerator:
     def test_contains_dtstart_and_dtend(self, booking_with_trainer):
         """Include DTSTART and DTEND fields in UTC format for maximum compatibility."""
         ics = generate_ics(booking_with_trainer).decode('utf-8')
-        # Verify UTC format (ends with 'Z')
-        assert 'DTSTART:' in ics and 'Z' in ics
-        assert 'DTEND:' in ics and 'Z' in ics
+        assert 'DTSTART:' in ics
+        assert 'Z' in ics
+        assert 'DTEND:' in ics
+        assert 'Z' in ics
         # Verify no TZID is used (UTC format doesn't need it)
         assert 'TZID=America/Bogota' not in ics
 

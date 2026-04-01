@@ -120,7 +120,7 @@ test.describe('Booking Store Error Paths', { tag: [...FlowTags.BOOKING_ERROR_PAT
     await expect(page.getByText('Agenda tu sesión')).toBeVisible({ timeout: 10_000 });
   });
 
-  test('fetchBookings error shows empty state on program page', async ({ page }) => {
+  test('fetchBookings error still renders subscription page', async ({ page }) => {
     await mockLoginAsTestUser(page);
     await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
@@ -134,10 +134,9 @@ test.describe('Booking Store Error Paths', { tag: [...FlowTags.BOOKING_ERROR_PAT
       await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'Server error' }) });
     });
 
-    await page.goto('/my-programs/program?id=11');
+    await page.goto('/subscription');
 
-    // Should show empty state since bookings couldn't load
-    await expect(page.getByRole('heading', { name: 'Programa', exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: 'Mi Suscripción' })).toBeVisible({ timeout: 10_000 });
   });
 
   test('fetchUpcomingReminder error does not break dashboard', async ({ page }) => {
@@ -157,7 +156,7 @@ test.describe('Booking Store Error Paths', { tag: [...FlowTags.BOOKING_ERROR_PAT
     const fixtures = buildCancelableBookingFixtures();
     await mockCancelBookingFailureRoutes(page, fixtures);
 
-    await page.goto('/my-programs/program?id=11');
+    await page.goto('/subscription');
     await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
 
     // Open session detail modal
@@ -166,7 +165,7 @@ test.describe('Booking Store Error Paths', { tag: [...FlowTags.BOOKING_ERROR_PAT
     await expect(page.getByText('Detalle de Sesión')).toBeVisible({ timeout: 5_000 });
 
     // Open cancel confirmation and confirm
-    await page.getByRole('button', { name: 'Cancelar' }).click();
+    await page.getByRole('dialog', { name: 'Detalle de Sesión' }).getByRole('button', { name: 'Cancelar', exact: true }).click();
     await expect(page.getByText('Cancelar sesión')).toBeVisible();
     await page.getByRole('button', { name: 'Confirmar cancelación' }).click();
 

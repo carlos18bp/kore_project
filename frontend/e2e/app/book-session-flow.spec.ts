@@ -143,12 +143,10 @@ test.describe('Book Session Flow', { tag: [...FlowTags.BOOKING_SESSION_FLOW, Rol
         await slotButton.click();
         await expect(page.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
 
-        // TrainerInfoPanel: duration and location info
+        // TrainerInfoPanel: duration, modality, studio location
         await expect(page.getByText(/\d+ min/)).toBeVisible();
         await expect(page.getByText('En persona')).toBeVisible();
-
-        // Timezone detection
-        await expect(page.getByText(/\//)).toBeVisible(); // timezone format like America/Bogota
+        await expect(page.getByText('Entrenamiento Kóre')).toBeVisible();
       }
     }
   });

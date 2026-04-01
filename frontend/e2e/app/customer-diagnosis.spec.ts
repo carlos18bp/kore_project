@@ -53,12 +53,12 @@ test.describe('Customer Diagnosis Page', { tag: [...FlowTags.CUSTOMER_DIAGNOSIS,
     await expect(page.getByText(/Última evaluación/i)).toBeVisible();
   });
 
-  test('renders hero summary cards with weight, body fat, and lean mass', async ({ page }) => {
+  test('renders primary index card titles for composition and lean mass', async ({ page }) => {
     await goToDiagnosisWithData(page);
 
-    await expect(page.getByText('Peso actual')).toBeVisible();
-    await expect(page.getByText('Grasa corporal', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('Masa muscular', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Tu composición corporal').first()).toBeVisible();
+    await expect(page.getByText('Tu masa grasa').first()).toBeVisible();
+    await expect(page.getByText('Tu masa libre de grasa').first()).toBeVisible();
   });
 
   test('renders trainer notes when present', async ({ page }) => {

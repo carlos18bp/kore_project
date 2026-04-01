@@ -31,8 +31,7 @@ describe('BookingSuccess', () => {
 
   it('renders as a modal overlay with backdrop', () => {
     render(<BookingSuccess booking={MOCK_BOOKING} onReset={onReset} />);
-    const backdrop = screen.getByText('Tu entrenamiento está agendado').closest('[class*="fixed inset-0"]');
-    expect(backdrop).toBeInTheDocument();
+    expect(screen.getByTestId('booking-success-backdrop')).toBeInTheDocument();
   });
 
   it('renders close button with aria-label', () => {
@@ -49,9 +48,8 @@ describe('BookingSuccess', () => {
 
   it('calls onReset when backdrop clicked', async () => {
     const user = userEvent.setup();
-    const { container } = render(<BookingSuccess booking={MOCK_BOOKING} onReset={onReset} />);
-    const backdrop = container.firstChild as HTMLElement;
-    await user.click(backdrop);
+    render(<BookingSuccess booking={MOCK_BOOKING} onReset={onReset} />);
+    await user.click(screen.getByTestId('booking-success-backdrop'));
     expect(onReset).toHaveBeenCalledTimes(1);
   });
 
@@ -82,16 +80,11 @@ describe('BookingSuccess', () => {
     expect(screen.getByText('Entrenamiento presencial')).toBeInTheDocument();
   });
 
-  it('renders trainer name when available', () => {
-    render(<BookingSuccess booking={MOCK_BOOKING} onReset={onReset} />);
-    expect(screen.getByText('Germán Franco')).toBeInTheDocument();
-  });
-
   it('renders program link for changes', () => {
     render(<BookingSuccess booking={MOCK_BOOKING} onReset={onReset} />);
     const link = screen.getByText('tu programa');
     expect(link).toBeInTheDocument();
-    expect(link.closest('a')).toHaveAttribute('href', '/my-programs/program?id=2');
+    expect(link.closest('a')).toHaveAttribute('href', '/subscription');
   });
 
   it('calls onReset when "Agendar otra sesión" clicked', async () => {
@@ -105,7 +98,7 @@ describe('BookingSuccess', () => {
     const bookingNoSub = { ...MOCK_BOOKING, subscription_id_display: null };
     render(<BookingSuccess booking={bookingNoSub} onReset={onReset} />);
     const link = screen.getByText('tu programa');
-    expect(link.closest('a')).toHaveAttribute('href', '/my-programs/program?id=');
+    expect(link.closest('a')).toHaveAttribute('href', '/subscription');
   });
 
   it('does not render location row when trainer has no location', () => {

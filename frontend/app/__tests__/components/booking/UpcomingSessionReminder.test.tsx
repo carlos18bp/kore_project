@@ -106,7 +106,7 @@ describe('UpcomingSessionReminder', () => {
     mockedUseBookingStore.mockReturnValue({ upcomingReminder: buildReminder(12), fetchUpcomingReminder });
     render(<UpcomingSessionReminder />);
     const link = screen.getByText('Ver detalle');
-    expect(link.closest('a')).toHaveAttribute('href', '/my-programs/program?id=2');
+    expect(link.closest('a')).toHaveAttribute('href', '/subscription');
   });
 
   it('clears justLoggedIn when detail link is clicked', async () => {
@@ -119,12 +119,12 @@ describe('UpcomingSessionReminder', () => {
     expect(mockClearJustLoggedIn).toHaveBeenCalledTimes(1);
   });
 
-  it('renders fallback link to /my-programs when subscription_id_display is null', () => {
+  it('renders detail link to /subscription when subscription_id_display is null', () => {
     const reminder = { ...buildReminder(12), subscription_id_display: null };
     mockedUseBookingStore.mockReturnValue({ upcomingReminder: reminder, fetchUpcomingReminder });
     render(<UpcomingSessionReminder />);
     const link = screen.getByText('Ver detalle');
-    expect(link.closest('a')).toHaveAttribute('href', '/my-programs');
+    expect(link.closest('a')).toHaveAttribute('href', '/subscription');
   });
 
   it('renders nothing when booking is in the past (hoursUntil < 0)', () => {

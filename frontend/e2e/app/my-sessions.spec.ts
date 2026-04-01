@@ -3,30 +3,29 @@ import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 test.describe('My Programs Page', { tag: [...FlowTags.MY_PROGRAMS_LIST, RoleTags.USER] }, () => {
   test('unauthenticated user is redirected to login', async ({ page }) => {
-    await page.goto('/my-programs');
+    await page.goto('/subscription');
     await page.waitForURL('**/login');
     await expect(page.getByLabel(/Correo electrónico/i)).toBeVisible();
   });
 
-  test('authenticated user sees My Programs heading', async ({ page }) => {
+  test('authenticated user sees Mi Suscripción heading', async ({ page }) => {
     await mockLoginAsTestUser(page);
-    await page.goto('/my-programs');
-    await expect(page.getByRole('heading', { name: 'Mis Programas' })).toBeVisible();
+    await page.goto('/subscription');
+    await expect(page.getByRole('heading', { name: 'Mi Suscripción' })).toBeVisible();
   });
 
-  test('sidebar link navigates to my-programs', async ({ page }) => {
+  test('sidebar link navigates to subscription', async ({ page }) => {
     await mockLoginAsTestUser(page);
-    await page.locator('aside').getByRole('link', { name: 'Mis Programas' }).click();
-    await page.waitForURL('**/my-programs');
-    await expect(page.getByRole('heading', { name: 'Mis Programas' })).toBeVisible();
+    await page.locator('aside').getByRole('link', { name: 'Mi Suscripción' }).click();
+    await page.waitForURL('**/subscription');
+    await expect(page.getByRole('heading', { name: 'Mi Suscripción' })).toBeVisible();
   });
 
   test('shows empty state or subscription list', async ({ page }) => {
     await mockLoginAsTestUser(page);
-    await page.goto('/my-programs');
-    // Wait for either subscriptions or the empty state to render (after API loads)
+    await page.goto('/subscription');
     await expect(
-      page.getByText('Activo').or(page.getByText('No tienes programas aún'))
+      page.getByText('Sin suscripción activa').or(page.getByText('Activas'))
     ).toBeVisible({ timeout: 10_000 });
   });
 });

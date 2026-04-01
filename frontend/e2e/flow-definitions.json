@@ -1,6 +1,7 @@
 {
-  "version": "1.0.0",
-  "lastUpdated": "2026-07-14",
+  "version": "1.0.2",
+  "lastUpdated": "2026-04-01",
+  "documentation": "Step-by-step user journeys (branches, variations) are maintained in docs/USER_FLOW_MAP.md. This file defines flow IDs and metadata for Playwright @flow: tags and e2e/reporters/flow-coverage-reporter.mjs.",
   "flows": {
     "auth-login": {
       "name": "Login",
@@ -140,14 +141,14 @@
       "module": "programs",
       "priority": "P1",
       "roles": ["guest", "user"],
-      "description": "List subscriptions and handle empty states on My Programs."
+      "description": "Mi Suscripción at /subscription: list subscriptions, empty state, sidebar link; flow ID my-programs-list is historical."
     },
     "my-programs-detail": {
       "name": "My Programs Detail",
       "module": "programs",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Navigate program detail and session history."
+      "description": "In-page subscription detail on /subscription: cards, session tabs, session rows, session modal."
     },
     "subscription-page": {
       "name": "Subscription Page",
@@ -240,6 +241,13 @@
       "roles": ["guest"],
       "description": "View the terms and conditions page and navigate back to programs."
     },
+    "public-whatsapp-cta": {
+      "name": "Public WhatsApp Floating CTA",
+      "module": "public",
+      "priority": "P4",
+      "roles": ["guest"],
+      "description": "Floating WhatsApp link on selected public routes (ConditionalWhatsApp)."
+    },
     "booking-cancel-flow": {
       "name": "Booking Cancel Flow",
       "module": "booking",
@@ -259,7 +267,7 @@
       "module": "subscription",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Cancel subscription from subscription page and verify status change."
+      "description": "Subscription page cancel affordances: enabled cancel opens confirmation; expired and canceled subscriptions hide cancel."
     },
     "auth-protected-routes": {
       "name": "Auth Protected Routes",

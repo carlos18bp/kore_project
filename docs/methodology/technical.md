@@ -107,7 +107,7 @@ python manage.py delete_fake_data   # cleans up fake data
 ```bash
 # Backend
 cd backend && source venv/bin/activate
-pytest backend/tests/path/to/test_file.py -v
+pytest core_app/tests/path/to/test_file.py -v
 
 # Frontend unit
 cd frontend

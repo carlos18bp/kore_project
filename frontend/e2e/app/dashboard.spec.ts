@@ -2,6 +2,8 @@ import { test, expect, E2E_USER, mockLoginAsTestUser } from '../fixtures';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags.USER] }, () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
   test.beforeEach(async ({ page }) => {
     await mockLoginAsTestUser(page);
     await expect(page).toHaveURL(/\/dashboard$/);
@@ -12,42 +14,53 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
   });
 
   test('renders progress card', async ({ page }) => {
-    await expect(page.getByText('Tu progreso', { exact: true })).toBeVisible();
-    await expect(page.getByText(/completadas de \d+/)).toBeVisible();
+    const main = page.getByRole('main');
+    await expect(main.getByText('Tu progreso', { exact: true }).filter({ visible: true })).toBeVisible();
+    await expect(main.getByText(/completadas de \d+/).filter({ visible: true })).toBeVisible();
   });
 
   test('renders sessions remaining', async ({ page }) => {
-    await expect(page.getByText(/completadas de \d+/)).toBeVisible();
+    await expect(
+      page.getByRole('main').getByText(/completadas de \d+/).filter({ visible: true }),
+    ).toBeVisible();
   });
 
   test('renders next session card', async ({ page }) => {
-    await expect(page.getByText('Tu siguiente paso')).toBeVisible();
+    await expect(
+      page.getByRole('main').getByText('Tu siguiente paso').filter({ visible: true }),
+    ).toBeVisible();
   });
 
   test('renders sidebar quick action links', async ({ page }) => {
-    const sidebar = page.locator('aside');
+    const sidebar = page.getByRole('complementary');
     await expect(sidebar.getByRole('link', { name: 'Agendar Sesión' })).toBeVisible();
-    await expect(sidebar.getByRole('link', { name: 'Mis Programas' })).toBeVisible();
+    await expect(sidebar.getByRole('link', { name: 'Mi Diagnóstico' })).toBeVisible();
     await expect(sidebar.getByRole('link', { name: 'Mi Suscripción' })).toBeVisible();
   });
 
   test('renders recent activity section', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: 'Historial reciente' })).toBeVisible();
+    await expect(
+      page.getByRole('main').getByRole('heading', { name: 'Historial reciente' }).filter({ visible: true }),
+    ).toBeVisible();
   });
 
   test('renders member since label', async ({ page }) => {
-    await expect(page.getByText('Miembro desde')).toBeVisible();
+    await expect(
+      page.getByRole('main').getByText('Miembro desde').filter({ visible: true }),
+    ).toBeVisible();
   });
 
   test('sidebar is visible with navigation', async ({ page }) => {
-    const sidebar = page.locator('aside');
+    const sidebar = page.getByRole('complementary');
     await expect(sidebar.getByRole('link', { name: 'Agendar Sesión' })).toBeVisible();
-    await expect(sidebar.getByRole('link', { name: 'Mis Programas' })).toBeVisible();
+    await expect(sidebar.getByRole('link', { name: 'Mi Suscripción' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
   });
 });
 
 test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags.USER] }, () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
   const activeSub = {
     id: 10,
     customer_email: 'e2e@kore.com',
@@ -106,7 +119,7 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
     });
 
     await page.goto('/dashboard');
-    const main = page.locator('main');
+    const main = page.getByRole('main');
     await expect(main.getByText('3 sesiones')).toBeVisible({ timeout: 10_000 });
     await expect(main.getByText('completadas de 10')).toBeVisible();
   });
@@ -129,8 +142,8 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
     });
 
     await page.goto('/dashboard');
-    const main = page.locator('main');
-    await expect(main.getByText('Próxima sesión').first()).toBeVisible({ timeout: 10_000 });
+    const main = page.getByRole('main');
+    await expect(main.getByText('Próxima sesión').filter({ visible: true })).toBeVisible({ timeout: 10_000 });
   });
 
   test('recent activity shows confirmed, canceled and pending booking statuses', async ({ page }) => {
@@ -151,8 +164,9 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
     });
 
     await page.goto('/dashboard');
-    const main = page.locator('main');
-    await expect(main.getByText('Historial reciente')).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('Plan Elite').first()).toBeVisible();
+    const main = page.getByRole('main');
+    await expect(main.getByText('Historial reciente').filter({ visible: true })).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('Completada', { exact: true }).filter({ visible: true }).first()).toBeVisible();
+    await expect(main.getByText('Cancelada', { exact: true }).filter({ visible: true }).first()).toBeVisible();
   });
 });

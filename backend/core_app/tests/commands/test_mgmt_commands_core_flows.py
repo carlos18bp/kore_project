@@ -357,6 +357,82 @@ class TestCreateFakeBookings:
         assert ratio == 0.37
         mock_uniform.assert_called_once_with(0.31, 0.49)
 
+    def test_pick_booking_ratio_returns_min_when_max_equals_min(self):
+        """Helper returns the single boundary when min and max booking ratio are equal."""
+        ratio = _pick_booking_ratio(0.55, 0.55)
+        assert ratio == 0.55
+
+    def test_pick_booking_ratio_selects_from_discrete_options_in_band(self):
+        """Helper uses ``random.choice`` when discrete ratio targets fall inside the range."""
+        with patch(
+            'core_app.management.commands.create_fake_bookings.random.choice',
+            return_value=0.5,
+        ) as mock_choice:
+            ratio = _pick_booking_ratio(0.2, 1.0)
+
+        assert ratio == 0.5
+        chosen = mock_choice.call_args[0][0]
+        lo, mid, hi = 0.2, 0.5, 1.0
+        assert lo in chosen
+        assert mid in chosen
+        assert hi in chosen
+
+    def test_backfill_past_bookings_returns_zero_when_subscription_starts_in_future(self):
+        """Backfill skips subscriptions whose window has not started yet."""
+        now = FIXED_NOW
+        customer = User.objects.create_user(
+            email='bk_backfill_future@example.com',
+            password='p',
+            role=User.Role.CUSTOMER,
+        )
+        pkg = Package.objects.create(
+            title='BackfillFuturePkg',
+            is_active=True,
+            sessions_count=4,
+            validity_days=30,
+            session_duration_minutes=60,
+        )
+        Subscription.objects.create(
+            customer=customer,
+            package=pkg,
+            sessions_total=4,
+            sessions_used=2,
+            status=Subscription.Status.ACTIVE,
+            starts_at=now + timedelta(days=1),
+            expires_at=now + timedelta(days=60),
+        )
+
+        created = CreateFakeBookingsCommand._backfill_past_bookings([])
+        assert created == 0
+
+    def test_backfill_past_bookings_returns_zero_when_past_window_has_no_room(self):
+        """Backfill skips subscriptions where the computed past slot window is empty."""
+        now = FIXED_NOW
+        customer = User.objects.create_user(
+            email='bk_backfill_nowindow@example.com',
+            password='p',
+            role=User.Role.CUSTOMER,
+        )
+        pkg = Package.objects.create(
+            title='BackfillNoWindowPkg',
+            is_active=True,
+            sessions_count=4,
+            validity_days=5,
+            session_duration_minutes=60,
+        )
+        Subscription.objects.create(
+            customer=customer,
+            package=pkg,
+            sessions_total=4,
+            sessions_used=2,
+            status=Subscription.Status.EXPIRED,
+            starts_at=now - timedelta(days=2),
+            expires_at=now - timedelta(days=1),
+        )
+
+        created = CreateFakeBookingsCommand._backfill_past_bookings([])
+        assert created == 0
+
     def test_candidate_at_limit_guard_skips_in_loop(self):
         """Defensive candidate-limit guard skips customers that reached target bookings mid-iteration."""
         now = FIXED_NOW

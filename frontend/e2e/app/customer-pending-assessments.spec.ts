@@ -6,6 +6,7 @@ import { FlowTags, RoleTags } from '../helpers/flow-tags';
  * Covers KÓRE score display, module breakdown, empty state, and diagnostic module cards.
  */
 test.describe('Customer Pending Assessments (Dashboard)', { tag: [...FlowTags.CUSTOMER_PENDING_ASSESSMENTS, RoleTags.USER] }, () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
 
   const fakeKoreIndex = {
     kore_score: 72,
@@ -50,24 +51,28 @@ test.describe('Customer Pending Assessments (Dashboard)', { tag: [...FlowTags.CU
   test('renders KÓRE score with category and message', async ({ page }) => {
     await goToDashboardWithKore(page);
 
-    await expect(page.getByText('Calificación KÓRE')).toBeVisible();
-    await expect(page.getByText('Bueno')).toBeVisible();
-    await expect(page.getByText(/Tu progreso es constante/)).toBeVisible();
+    const main = page.getByRole('main');
+    await expect(main.getByText('Calificación KÓRE').filter({ visible: true }).first()).toBeVisible();
+    await expect(main.getByText('Bueno').filter({ visible: true }).first()).toBeVisible();
+    await expect(main.getByText(/Tu progreso es constante/).filter({ visible: true })).toBeVisible();
   });
 
   test('renders module breakdown bars', async ({ page }) => {
     await goToDashboardWithKore(page);
 
-    await expect(page.getByText('Calificación KÓRE')).toBeVisible();
-    await expect(page.getByText('Composición').first()).toBeVisible();
-    await expect(page.getByText('Postura').first()).toBeVisible();
-    await expect(page.getByText('Condición').first()).toBeVisible();
+    const main = page.getByRole('main');
+    await expect(main.getByText('Calificación KÓRE').filter({ visible: true }).first()).toBeVisible();
+    await expect(main.getByText('Composición').filter({ visible: true }).first()).toBeVisible();
+    await expect(main.getByText('Postura').filter({ visible: true }).first()).toBeVisible();
+    await expect(main.getByText('Condición').filter({ visible: true }).first()).toBeVisible();
   });
 
   test('renders modules evaluated count', async ({ page }) => {
     await goToDashboardWithKore(page);
 
-    await expect(page.getByText(/5 de 6 módulos evaluados/)).toBeVisible();
+    await expect(
+      page.getByRole('main').getByText(/5 de 6 módulos evaluados/).filter({ visible: true }),
+    ).toBeVisible();
   });
 
   test('empty KÓRE score shows placeholder message', async ({ page }) => {
@@ -82,7 +87,8 @@ test.describe('Customer Pending Assessments (Dashboard)', { tag: [...FlowTags.CU
     };
     await goToDashboardWithKore(page, emptyKore);
 
-    await expect(page.getByText('Calificación KÓRE')).toBeVisible();
-    await expect(page.getByText(/Completa tus evaluaciones/)).toBeVisible();
+    const main = page.getByRole('main');
+    await expect(main.getByText('Calificación KÓRE').filter({ visible: true }).first()).toBeVisible();
+    await expect(main.getByText(/Completa tus evaluaciones/).filter({ visible: true })).toBeVisible();
   });
 });

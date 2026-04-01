@@ -30,7 +30,9 @@ export default defineConfig({
   webServer: {
     command: 'NODE_OPTIONS=--no-deprecation npm run dev -- --port 3000',
     url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
+    // CI jobs start a fresh server; local shells with CI=1 can set E2E_REUSE_SERVER=1 to attach to an existing dev server on :3000.
+    reuseExistingServer:
+      !process.env.CI || process.env.E2E_REUSE_SERVER === '1',
     timeout: 120_000,
   },
   use: {

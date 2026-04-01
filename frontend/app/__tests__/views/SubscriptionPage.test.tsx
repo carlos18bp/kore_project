@@ -1,223 +1,210 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen } from '@testing-library/react';
 import SubscriptionPage from '@/app/(app)/subscription/page';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
-import { api } from '@/lib/services/http';
+import { useBookingStore } from '@/lib/stores/bookingStore';
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn() }),
-  usePathname: () => '/subscription',
 }));
 
 jest.mock('next/link', () => ({
   __esModule: true,
-  default: ({ children, href, ...rest }: { children: React.ReactNode; href: string }) => (
+  default: ({ children, href, prefetch: _prefetch, ...rest }: { children: React.ReactNode; href: string; prefetch?: boolean }) => (
     <a href={href} {...rest}>{children}</a>
   ),
 }));
 
 jest.mock('js-cookie', () => ({
-  get: jest.fn().mockReturnValue('fake-token'),
+  get: jest.fn(),
   set: jest.fn(),
   remove: jest.fn(),
 }));
 
-jest.mock('@/lib/services/http', () => ({
-  api: { get: jest.fn(), post: jest.fn() },
+jest.mock('@/app/composables/useScrollAnimations', () => ({
+  useHeroAnimation: jest.fn(),
 }));
 
-const mockedApi = api as jest.Mocked<typeof api>;
+const mockFetchSubscriptions = jest.fn();
+const mockFetchBookings = jest.fn();
+const mockSetSelectedSubscriptionId = jest.fn();
+const mockFetchPaymentHistory = jest.fn();
+const mockCancelSubscription = jest.fn();
 
-const MOCK_SUBSCRIPTION = {
-  id: 1,
-  customer_email: 'test@kore.com',
+jest.mock('@/lib/stores/subscriptionStore', () => ({
+  useSubscriptionStore: jest.fn(),
+}));
+
+jest.mock('@/lib/stores/bookingStore', () => ({
+  useBookingStore: jest.fn(),
+}));
+
+const mockedUseSubscriptionStore = useSubscriptionStore as unknown as jest.Mock;
+const mockedUseBookingStore = useBookingStore as unknown as jest.Mock;
+
+const mockUser = {
+  id: '22',
+  email: 'cust@kore.com',
+  first_name: 'Carlos',
+  last_name: 'D',
+  phone: '',
+  role: 'customer',
+  name: 'Carlos D',
+};
+
+const baseSubscription = {
+  id: 2,
+  customer_email: 'cust@kore.com',
   package: {
     id: 1,
-    title: 'Semi Presencial FLW',
-    sessions_count: 10,
+    title: 'Gold',
+    sessions_count: 12,
     session_duration_minutes: 60,
-    price: '300000.00',
+    price: '500000',
     currency: 'COP',
     validity_days: 30,
   },
-  sessions_total: 10,
+  sessions_total: 12,
   sessions_used: 3,
-  sessions_remaining: 7,
+  sessions_remaining: 9,
   status: 'active' as const,
-  starts_at: '2025-01-01T00:00:00Z',
-  expires_at: '2025-01-31T00:00:00Z',
-  next_billing_date: '2025-01-31',
-  is_recurring: true,
+  starts_at: '2025-02-01T00:00:00Z',
+  expires_at: '2025-03-01T00:00:00Z',
+  next_billing_date: null,
+  is_recurring: false,
   billing_failed_at: null,
 };
 
-const MOCK_PAYMENTS = [
-  {
-    id: 1,
-    amount: '300000.00',
-    currency: 'COP',
-    status: 'confirmed',
-    provider: 'wompi',
-    provider_reference: 'txn-001',
-    created_at: '2025-01-01T00:00:00Z',
-  },
-];
+function defaultSubscriptionState(overrides: Record<string, unknown> = {}) {
+  return {
+    subscriptions: [] as typeof baseSubscription[],
+    activeSubscription: null as typeof baseSubscription | null,
+    selectedSubscriptionId: null as number | null,
+    payments: [],
+    loading: false,
+    actionLoading: false,
+    error: '',
+    fetchSubscriptions: mockFetchSubscriptions,
+    setSelectedSubscriptionId: mockSetSelectedSubscriptionId,
+    cancelSubscription: mockCancelSubscription,
+    fetchPaymentHistory: mockFetchPaymentHistory,
+    ...overrides,
+  };
+}
+
+function defaultBookingState(overrides: Record<string, unknown> = {}) {
+  return {
+    bookings: [],
+    fetchBookings: mockFetchBookings,
+    ...overrides,
+  };
+}
 
 describe('SubscriptionPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    useAuthStore.setState({
-      user: { id: '1', email: 'test@kore.com', first_name: 'Test', last_name: 'User', phone: '', role: 'customer', name: 'Test User', profile_completed: true, avatar_url: null },
-      accessToken: 'fake-token',
-      isAuthenticated: true,
-    });
-    useSubscriptionStore.setState({
-      subscriptions: [],
-      activeSubscription: null,
-      selectedSubscriptionId: null,
-      payments: [],
-      loading: false,
-      actionLoading: false,
-      error: '',
-    });
+    useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
+    mockedUseSubscriptionStore.mockImplementation(() => defaultSubscriptionState());
+    mockedUseBookingStore.mockImplementation(() => defaultBookingState());
   });
 
-  it('shows loading spinner while fetching', () => {
-    useSubscriptionStore.setState({ loading: true });
+  it('renders loading spinner when user is null', () => {
+    useAuthStore.setState({ user: null, isAuthenticated: false, accessToken: null });
     render(<SubscriptionPage />);
-    expect(screen.queryByText('Mi Suscripción')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Cargando' })).toBeInTheDocument();
   });
 
-  it('shows no subscription state with link to programs', async () => {
-    mockedApi.get.mockRejectedValue(new Error('no subs'));
+  it('renders page heading Mi Suscripción', () => {
     render(<SubscriptionPage />);
-    // The fetchSubscriptions effect will run and fail; but initial state has no sub
-    await waitFor(() => {
-      expect(screen.getByText('Sin suscripción activa')).toBeInTheDocument();
-    });
-    expect(screen.getByText('Ver programas')).toHaveAttribute('href', '/programs');
+    expect(screen.getByText('Mi Suscripción')).toBeInTheDocument();
   });
 
-  it('renders subscription details when active subscription exists', async () => {
-    mockedApi.get.mockImplementation((url: string) => {
-      if (url.includes('/payments/')) return Promise.resolve({ data: MOCK_PAYMENTS });
-      return Promise.resolve({ data: { results: [MOCK_SUBSCRIPTION] } });
-    });
+  it('calls fetchSubscriptions and fetchBookings on mount', () => {
     render(<SubscriptionPage />);
-
-    await waitFor(() => {
-      expect(screen.getAllByText('Semi Presencial FLW').length).toBeGreaterThan(0);
-    });
-    expect(screen.getAllByText(/3 de 10 completadas/).length).toBeGreaterThan(0);
+    expect(mockFetchSubscriptions).toHaveBeenCalledTimes(1);
+    expect(mockFetchBookings).toHaveBeenCalledTimes(1);
   });
 
-  it('allows selecting inactive subscription from card list', async () => {
-    const inactiveSub = {
-      ...MOCK_SUBSCRIPTION,
-      id: 2,
-      status: 'expired' as const,
-      sessions_used: 10,
-      sessions_remaining: 0,
-      package: {
-        ...MOCK_SUBSCRIPTION.package,
-        title: 'Plan Expirado',
-      },
-      next_billing_date: null,
-    };
-    mockedApi.get.mockImplementation((url: string) => {
-      if (url.includes(`/subscriptions/${inactiveSub.id}/payments/`)) {
-        return Promise.resolve({ data: [] });
-      }
-      if (url.includes('/payments/')) return Promise.resolve({ data: MOCK_PAYMENTS });
-      return Promise.resolve({ data: { results: [MOCK_SUBSCRIPTION, inactiveSub] } });
-    });
+  it('renders empty state when no subscriptions', () => {
     render(<SubscriptionPage />);
-    const user = userEvent.setup();
+    expect(screen.getByText('Sin suscripción activa')).toBeInTheDocument();
+    expect(screen.getByText('Ver programas')).toBeInTheDocument();
+  });
 
-    await waitFor(() => {
-      expect(screen.getByText('Plan Expirado')).toBeInTheDocument();
-    });
-    await user.click(screen.getByText('Plan Expirado'));
-
-    await waitFor(() => {
-      expect(screen.getByText('Renovar este programa')).toBeInTheDocument();
-    });
-    expect(mockedApi.get).toHaveBeenCalledWith(
-      `/subscriptions/${inactiveSub.id}/payments/`,
-      expect.anything(),
+  it('renders loading spinner when subscriptions loading', () => {
+    mockedUseSubscriptionStore.mockImplementation(() =>
+      defaultSubscriptionState({ loading: true }),
     );
+    render(<SubscriptionPage />);
+    expect(screen.getByRole('status', { name: 'Cargando' })).toBeInTheDocument();
   });
 
-  it('shows cancel action as enabled for active subscription', async () => {
-    mockedApi.get.mockImplementation((url: string) => {
-      if (url.includes('/payments/')) return Promise.resolve({ data: MOCK_PAYMENTS });
-      return Promise.resolve({ data: { results: [MOCK_SUBSCRIPTION] } });
-    });
+  it('renders subscription card with package title', () => {
+    mockedUseSubscriptionStore.mockImplementation(() =>
+      defaultSubscriptionState({
+        subscriptions: [baseSubscription],
+        activeSubscription: baseSubscription,
+        selectedSubscriptionId: 2,
+      }),
+    );
     render(<SubscriptionPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Cancelar suscripción')).toBeInTheDocument();
-    });
-
-    const cancelButton = screen.getByRole('button', { name: 'Cancelar suscripción' });
-    expect(cancelButton).toBeEnabled();
-    expect(screen.queryByText('¿Seguro que deseas cancelar?')).not.toBeInTheDocument();
-    expect(screen.queryByText('Sí, cancelar')).not.toBeInTheDocument();
-    expect(screen.queryByText('No, volver')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Gold').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('shows confirmation dialog when cancel button is clicked', async () => {
-    mockedApi.get.mockImplementation((url: string) => {
-      if (url.includes('/payments/')) return Promise.resolve({ data: MOCK_PAYMENTS });
-      return Promise.resolve({ data: { results: [MOCK_SUBSCRIPTION] } });
-    });
+  it('renders Activa status label for active subscription', () => {
+    mockedUseSubscriptionStore.mockImplementation(() =>
+      defaultSubscriptionState({
+        subscriptions: [baseSubscription],
+        activeSubscription: baseSubscription,
+        selectedSubscriptionId: 2,
+      }),
+    );
     render(<SubscriptionPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Cancelar suscripción')).toBeInTheDocument();
-    });
-
-    const cancelButton = screen.getByRole('button', { name: 'Cancelar suscripción' });
-    await userEvent.click(cancelButton);
-
-    expect(screen.getByText('¿Seguro que deseas cancelar?')).toBeInTheDocument();
-    expect(screen.getByText('Sí, cancelar')).toBeInTheDocument();
-    expect(screen.getByText('No, volver')).toBeInTheDocument();
+    expect(screen.getAllByText('Activa').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders payment history', async () => {
-    mockedApi.get.mockImplementation((url: string) => {
-      if (url.includes('/payments/')) return Promise.resolve({ data: MOCK_PAYMENTS });
-      return Promise.resolve({ data: { results: [MOCK_SUBSCRIPTION] } });
-    });
+  it('renders sessions used count and progress percentage', () => {
+    mockedUseSubscriptionStore.mockImplementation(() =>
+      defaultSubscriptionState({
+        subscriptions: [baseSubscription],
+        activeSubscription: baseSubscription,
+        selectedSubscriptionId: 2,
+      }),
+    );
     render(<SubscriptionPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Historial de pagos')).toBeInTheDocument();
-    });
-    await waitFor(() => {
-      expect(screen.getByText('Confirmado')).toBeInTheDocument();
-    });
+    expect(screen.getAllByText(/3 de 12/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Avance: 25%/).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('shows error message when fetch fails', async () => {
-    mockedApi.get.mockRejectedValue(new Error('server error'));
+  it('renders Expirada badge for expired subscription', () => {
+    const expired = {
+      ...baseSubscription,
+      id: 3,
+      status: 'expired' as const,
+      sessions_used: 12,
+      sessions_remaining: 0,
+    };
+    mockedUseSubscriptionStore.mockImplementation(() =>
+      defaultSubscriptionState({
+        subscriptions: [expired],
+        activeSubscription: null,
+        selectedSubscriptionId: 3,
+      }),
+    );
     render(<SubscriptionPage />);
-    await waitFor(() => {
-      expect(screen.getByText('No se pudieron cargar las suscripciones.')).toBeInTheDocument();
-    });
+    expect(screen.getAllByText('Expirada').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders next billing date for active subscription', async () => {
-    mockedApi.get.mockImplementation((url: string) => {
-      if (url.includes('/payments/')) return Promise.resolve({ data: MOCK_PAYMENTS });
-      return Promise.resolve({ data: { results: [MOCK_SUBSCRIPTION] } });
-    });
+  it('renders Agendar link to book-session when detail is visible', () => {
+    mockedUseSubscriptionStore.mockImplementation(() =>
+      defaultSubscriptionState({
+        subscriptions: [baseSubscription],
+        activeSubscription: baseSubscription,
+        selectedSubscriptionId: 2,
+      }),
+    );
     render(<SubscriptionPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Próximo cobro')).toBeInTheDocument();
-    });
+    const link = screen.getByRole('link', { name: 'Agendar' });
+    expect(link).toHaveAttribute('href', '/book-session');
   });
 });

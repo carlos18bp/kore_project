@@ -3,8 +3,9 @@ import { render, screen } from '@testing-library/react';
 import DashboardPage from '@/app/(app)/dashboard/page';
 import { useAuthStore } from '@/lib/stores/authStore';
 
+const mockPush = jest.fn();
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: jest.fn() }),
+  useRouter: () => ({ push: mockPush }),
 }));
 
 jest.mock('js-cookie', () => ({
@@ -139,8 +140,8 @@ describe('DashboardPage', () => {
 
   it('renders loading spinner when user is null', () => {
     useAuthStore.setState({ user: null, isAuthenticated: false, accessToken: null });
-    const { container } = render(<DashboardPage />);
-    expect(container.querySelector('.animate-spin')).toBeInTheDocument();
+    render(<DashboardPage />);
+    expect(screen.getByRole('status', { name: 'Cargando' })).toBeInTheDocument();
   });
 
   it('renders greeting with first name when user is present', () => {
@@ -164,14 +165,14 @@ describe('DashboardPage', () => {
   it('renders upcoming sessions section', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
     render(<DashboardPage />);
-    expect(screen.getByText('Próximas sesiones')).toBeInTheDocument();
+    expect(screen.getAllByText('Próximas sesiones').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders activity history', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
     render(<DashboardPage />);
-    expect(screen.getByText('Historial reciente')).toBeInTheDocument();
-    expect(screen.getByText('Sin sesiones completadas')).toBeInTheDocument();
+    expect(screen.getAllByText('Historial reciente').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Sin sesiones registradas').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders greeting with user first name and header', () => {
@@ -189,8 +190,7 @@ describe('DashboardPage', () => {
 
   it('renders circular progress indicator', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
-    const { container } = render(<DashboardPage />);
-    const progressCircle = container.querySelector('svg path[stroke-dasharray]');
-    expect(progressCircle).toBeInTheDocument();
+    render(<DashboardPage />);
+    expect(screen.getByRole('img', { name: /Progreso 0 por ciento/ })).toBeInTheDocument();
   });
 });

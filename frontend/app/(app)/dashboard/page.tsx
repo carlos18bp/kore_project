@@ -253,7 +253,11 @@ export default function DashboardPage() {
   if (!user) {
     return (
       <section className="min-h-screen bg-kore-cream flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-2 border-kore-red border-t-transparent rounded-full" />
+        <div
+          className="animate-spin h-8 w-8 border-2 border-kore-red border-t-transparent rounded-full"
+          role="status"
+          aria-label="Cargando"
+        />
       </section>
     );
   }
@@ -409,7 +413,7 @@ export default function DashboardPage() {
                     <span className="text-[9px] text-kore-gray-dark/50">Estado hoy</span>
                   </div>
                 ) : (
-                  <Link href="/profile" className="text-[9px] text-kore-red font-medium">Registrar estado</Link>
+                  <Link href="/profile" onClick={(e) => e.stopPropagation()} className="text-[9px] text-kore-red font-medium">Registrar estado</Link>
                 )}
                 {(() => {
                   const goalValue = profile?.customer_profile?.primary_goal;
@@ -437,7 +441,12 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-center gap-2 md:gap-4 mb-2 md:mb-4">
               <div className="relative w-12 h-12 md:w-16 md:h-16 flex-shrink-0">
-                <svg className="w-12 h-12 md:w-16 md:h-16 transform -rotate-90" viewBox="0 0 36 36">
+                <svg
+                  className="w-12 h-12 md:w-16 md:h-16 transform -rotate-90"
+                  viewBox="0 0 36 36"
+                  aria-label={`Progreso ${progressPercent} por ciento`}
+                  role="img"
+                >
                   <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#E5E5E5" strokeWidth="3" />
                   <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="url(#progressGradient)" strokeWidth="3" strokeDasharray={`${progressPercent}, 100`} strokeLinecap="round" />
                   <defs><linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#670F22" /><stop offset="100%" stopColor="#AB0D2F" /></linearGradient></defs>

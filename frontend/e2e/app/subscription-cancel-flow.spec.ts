@@ -5,9 +5,8 @@ import { FlowTags, RoleTags } from '../helpers/flow-tags';
  * E2E tests for subscription cancellation flow.
  * @flow:subscription-cancel-flow
  *
- * Covers: view active subscription → attempt cancel → verify UI state.
- * Note: Cancel button is currently disabled in the UI. These tests verify
- * the disabled state and guard against future enablement regressions.
+ * Covers: active subscription shows cancel → opens confirmation dialog;
+ * expired/canceled subscriptions hide cancel (mocked APIs).
  */
 test.describe('Subscription Cancel Flow', { tag: [...FlowTags.SUBSCRIPTION_CANCEL_FLOW, RoleTags.USER] }, () => {
 
@@ -94,6 +93,22 @@ test.describe('Subscription Cancel Flow', { tag: [...FlowTags.SUBSCRIPTION_CANCE
 
     await cancelBtn.click();
     await expect(page.getByText('¿Seguro que deseas cancelar?')).toBeVisible({ timeout: 5_000 });
+  });
+
+  test('confirming cancellation updates subscription to canceled state', async ({ page }) => {
+    await injectAuthCookies(page);
+    await setupMocks(page, mockSubscription);
+    await page.goto('/subscription');
+
+    const cancelBtn = page.getByRole('button', { name: 'Cancelar suscripción' });
+    await expect(cancelBtn).toBeVisible({ timeout: 10_000 });
+    await cancelBtn.click();
+    await expect(page.getByText('¿Seguro que deseas cancelar?')).toBeVisible({ timeout: 5_000 });
+
+    await page.getByRole('button', { name: 'Sí, cancelar' }).click();
+
+    await expect(page.getByText('Cancelada', { exact: true }).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: 'Cancelar suscripción' })).not.toBeVisible();
   });
 
   test('expired subscription does not show cancel button', async ({ page }) => {

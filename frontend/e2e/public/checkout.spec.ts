@@ -489,7 +489,7 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
 
     await page.getByRole('button', { name: /Bancolombia/ }).click();
     await expect(page.getByText('Serás redirigido a Bancolombia')).toBeVisible();
-    await expect(page.locator('form').getByText('Paquete Pro')).toBeVisible();
+    await expect(page.locator('form').filter({ hasText: 'Paquete Pro' })).toBeVisible();
 
     const payBtn = page.getByRole('button', { name: /Pagar.*Bancolombia/ });
     await expect(payBtn).toBeDisabled();

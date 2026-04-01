@@ -6,7 +6,9 @@ import { useAuthStore } from '@/lib/stores/authStore';
 import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
 import { useBookingStore } from '@/lib/stores/bookingStore';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
+import SessionDetailModal from '@/app/components/booking/SessionDetailModal';
 import { WHATSAPP_URL } from '@/lib/constants';
+import type { BookingData } from '@/lib/stores/bookingStore';
 
 export default function SubscriptionPage() {
   const { user } = useAuthStore();
@@ -28,6 +30,7 @@ export default function SubscriptionPage() {
   const sectionRef = useRef<HTMLElement>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [sessionTab, setSessionTab] = useState<'upcoming' | 'past'>('upcoming');
+  const [sessionModalBooking, setSessionModalBooking] = useState<BookingData | null>(null);
   useHeroAnimation(sectionRef);
 
   useEffect(() => {
@@ -40,7 +43,7 @@ export default function SubscriptionPage() {
     [subscriptions]
   );
   const inactiveSubscriptions = useMemo(
-    () => subscriptions.filter((item) => item.status === 'expired' || item.status === 'canceled'),
+    () => subscriptions.filter((item) => item.status !== 'active'),
     [subscriptions]
   );
   const selectedSubscription = useMemo(() => {
@@ -141,7 +144,11 @@ export default function SubscriptionPage() {
   if (!user) {
     return (
       <section className="min-h-screen bg-kore-cream flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-2 border-kore-red border-t-transparent rounded-full" />
+        <div
+          className="animate-spin h-8 w-8 border-2 border-kore-red border-t-transparent rounded-full"
+          role="status"
+          aria-label="Cargando"
+        />
       </section>
     );
   }
@@ -166,7 +173,11 @@ export default function SubscriptionPage() {
 
         {loading ? (
           <div className="flex items-center justify-center py-24">
-            <div className="animate-spin h-8 w-8 border-2 border-kore-red border-t-transparent rounded-full" />
+            <div
+              className="animate-spin h-8 w-8 border-2 border-kore-red border-t-transparent rounded-full"
+              role="status"
+              aria-label="Cargando"
+            />
           </div>
         ) : !hasSubscriptions ? (
           /* No subscription */
@@ -283,8 +294,12 @@ export default function SubscriptionPage() {
                     const subId = detailSubscription.id;
                     const now = new Date();
                     const subBookings = bookings.filter(b => b.subscription_id_display === subId);
-                    const upcoming = subBookings.filter(b => b.status === 'pending' && new Date(b.slot.starts_at) > now).sort((a, b) => new Date(a.slot.starts_at).getTime() - new Date(b.slot.starts_at).getTime());
-                    const past = subBookings.filter(b => b.status === 'confirmed' || (b.status === 'pending' && new Date(b.slot.starts_at) <= now)).sort((a, b) => new Date(b.slot.starts_at).getTime() - new Date(a.slot.starts_at).getTime());
+                    const upcoming = subBookings
+                      .filter((b) => b.status !== 'canceled' && new Date(b.slot.starts_at) > now)
+                      .sort((a, b) => new Date(a.slot.starts_at).getTime() - new Date(b.slot.starts_at).getTime());
+                    const past = subBookings
+                      .filter((b) => b.status === 'canceled' || new Date(b.slot.starts_at) <= now)
+                      .sort((a, b) => new Date(b.slot.starts_at).getTime() - new Date(a.slot.starts_at).getTime());
                     const displayed = sessionTab === 'upcoming' ? upcoming : past;
 
                     return (
@@ -313,8 +328,16 @@ export default function SubscriptionPage() {
                               const dateStr = d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
                               const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
                               const trainerName = booking.trainer ? `${booking.trainer.first_name} ${booking.trainer.last_name}` : '';
+                              const statusLabel =
+                                booking.status === 'confirmed' ? 'Confirmada' : booking.status === 'pending' ? 'Pendiente' : 'Cancelada';
                               return (
-                                <div key={booking.id} className="flex items-center gap-3 py-2.5 border-b border-kore-gray-light/20 last:border-0">
+                                <button
+                                  key={booking.id}
+                                  type="button"
+                                  data-testid={`subscription-session-row-${booking.id}`}
+                                  onClick={() => setSessionModalBooking(booking)}
+                                  className="flex items-center gap-3 py-2.5 border-b border-kore-gray-light/20 last:border-0 w-full text-left rounded-lg hover:bg-kore-cream/40 transition-colors cursor-pointer"
+                                >
                                   <div className="w-8 h-8 rounded-full bg-kore-red/10 flex items-center justify-center flex-shrink-0">
                                     <svg className="w-4 h-4 text-kore-red" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
@@ -325,9 +348,9 @@ export default function SubscriptionPage() {
                                     {trainerName && <p className="text-xs text-kore-gray-dark/40">{trainerName}</p>}
                                   </div>
                                   <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${booking.status === 'confirmed' ? 'bg-green-100 text-green-700' : booking.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'}`}>
-                                    {booking.status === 'confirmed' ? 'Confirmada' : booking.status === 'pending' ? 'Pendiente' : 'Cancelada'}
+                                    {statusLabel}
                                   </span>
-                                </div>
+                                </button>
                               );
                             })}
                             {displayed.length > 5 && (
@@ -531,6 +554,18 @@ export default function SubscriptionPage() {
           </div>
         )}
       </div>
+
+      {sessionModalBooking && detailSubscription && (
+        <SessionDetailModal
+          booking={sessionModalBooking}
+          subscriptionId={detailSubscription.id}
+          onClose={() => setSessionModalBooking(null)}
+          onCanceled={() => {
+            setSessionModalBooking(null);
+            fetchBookings();
+          }}
+        />
+      )}
     </section>
   );
 }

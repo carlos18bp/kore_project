@@ -84,7 +84,7 @@ test.describe('Booking Cancel Flow', { tag: [...FlowTags.BOOKING_CANCEL_FLOW, Ro
   test('full cancel journey: detail → reason → confirm → status change', async ({ page }) => {
     await mockLoginAsTestUser(page);
     await setupMocks(page);
-    await page.goto('/my-programs/program?id=20');
+    await page.goto('/subscription');
 
     // Wait for the booking row to appear
     await expect(page.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 10_000 });
@@ -93,8 +93,8 @@ test.describe('Booking Cancel Flow', { tag: [...FlowTags.BOOKING_CANCEL_FLOW, Ro
     await page.getByRole('button', { name: /Confirmada/ }).click();
     await expect(page.getByRole('dialog', { name: 'Detalle de Sesión' })).toBeVisible({ timeout: 5_000 });
 
-    // Click cancel
-    await page.getByRole('button', { name: 'Cancelar' }).click();
+    // Click cancel (scoped to session dialog — avoids "Cancelar suscripción" on page)
+    await page.getByRole('dialog', { name: 'Detalle de Sesión' }).getByRole('button', { name: 'Cancelar', exact: true }).click();
     await expect(page.getByText('Cancelar sesión')).toBeVisible();
 
     // Fill reason
@@ -116,13 +116,13 @@ test.describe('Booking Cancel Flow', { tag: [...FlowTags.BOOKING_CANCEL_FLOW, Ro
       await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'Server error' }) });
     });
 
-    await page.goto('/my-programs/program?id=20');
+    await page.goto('/subscription');
     await expect(page.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole('button', { name: /Confirmada/ }).click();
     await expect(page.getByRole('dialog', { name: 'Detalle de Sesión' })).toBeVisible({ timeout: 5_000 });
 
-    await page.getByRole('button', { name: 'Cancelar' }).click();
+    await page.getByRole('dialog', { name: 'Detalle de Sesión' }).getByRole('button', { name: 'Cancelar', exact: true }).click();
     await page.getByRole('button', { name: 'Confirmar cancelación' }).click();
 
     // Modal should still be visible (cancel failed)

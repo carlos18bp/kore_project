@@ -1,4 +1,15 @@
-import { test, expect, E2E_USER, mockLoginApi, setupDefaultApiMocks, mockCaptchaSiteKey, mockLoginAsTestUser } from '../fixtures';
+import {
+  test,
+  expect,
+  E2E_USER,
+  E2E_TRAINER,
+  mockLoginApi,
+  mockTrainerLoginApi,
+  mockCaptchaSiteKey,
+  mockTrainerAuthProfile,
+  setupDefaultApiMocks,
+  mockLoginAsTestUser,
+} from '../fixtures';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 test.describe('Login Page', { tag: [...FlowTags.AUTH_LOGIN, RoleTags.GUEST] }, () => {
@@ -46,16 +57,44 @@ test.describe('Login Page', { tag: [...FlowTags.AUTH_LOGIN, RoleTags.GUEST] }, (
     await expect(page.getByRole('heading', { level: 1, name: new RegExp(E2E_USER.firstName) })).toBeVisible();
   });
 
+  test('successful trainer login redirects to trainer dashboard', async ({ page }) => {
+    await page.route('**/api/trainer/dashboard-stats/', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          total_clients: 0,
+          today_sessions: 0,
+          upcoming_sessions: [],
+        }),
+      });
+    });
+    await page.route('**/api/trainer/my-clients/', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    });
+    await mockTrainerLoginApi(page);
+    await mockTrainerAuthProfile(page);
+    await mockCaptchaSiteKey(page);
+    await page.goto('/login');
+
+    await page.getByLabel(/Correo electrónico/i).fill(E2E_TRAINER.email);
+    await page.getByLabel(/Contraseña/i).fill(E2E_TRAINER.password);
+    await page.getByRole('button', { name: 'Iniciar sesión' }).click();
+
+    await page.waitForURL('**/trainer/dashboard', { timeout: 60_000 });
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(E2E_TRAINER.firstName);
+  });
+
   test('toggle password visibility works', async ({ page }) => {
     await openLoginPage(page);
     const passwordInput = page.getByLabel(/Contraseña/i);
     await expect(passwordInput).toHaveAttribute('type', 'password');
 
     // Use evaluate to bypass GSAP animation overlay
-    await page.locator('button', { hasText: 'Ver' }).evaluate((el) => (el as HTMLElement).click());
+    await page.getByRole('button', { name: /^Ver$/ }).evaluate((el) => (el as HTMLElement).click());
     await expect(passwordInput).toHaveAttribute('type', 'text');
 
-    await page.locator('button', { hasText: 'Ocultar' }).evaluate((el) => (el as HTMLElement).click());
+    await page.getByRole('button', { name: /^Ocultar$/ }).evaluate((el) => (el as HTMLElement).click());
     await expect(passwordInput).toHaveAttribute('type', 'password');
   });
 
