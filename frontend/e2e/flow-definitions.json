@@ -1,6 +1,7 @@
 {
-  "version": "1.0.1",
-  "lastUpdated": "2026-03-31",
+  "version": "1.0.2",
+  "lastUpdated": "2026-04-01",
+  "documentation": "Step-by-step user journeys (branches, variations) are maintained in docs/USER_FLOW_MAP.md. This file defines flow IDs and metadata for Playwright @flow: tags and e2e/reporters/flow-coverage-reporter.mjs.",
   "flows": {
     "auth-login": {
       "name": "Login",
@@ -140,14 +141,14 @@
       "module": "programs",
       "priority": "P1",
       "roles": ["guest", "user"],
-      "description": "Mi Suscripción (/subscription): list subscriptions, empty state, sidebar navigation."
+      "description": "Mi Suscripción at /subscription: list subscriptions, empty state, sidebar link; flow ID my-programs-list is historical."
     },
     "my-programs-detail": {
       "name": "My Programs Detail",
       "module": "programs",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Subscription detail on /subscription: program cards, session tabs, session rows, modal entry."
+      "description": "In-page subscription detail on /subscription: cards, session tabs, session rows, session modal."
     },
     "subscription-page": {
       "name": "Subscription Page",
@@ -239,6 +240,13 @@
       "priority": "P3",
       "roles": ["guest"],
       "description": "View the terms and conditions page and navigate back to programs."
+    },
+    "public-whatsapp-cta": {
+      "name": "Public WhatsApp Floating CTA",
+      "module": "public",
+      "priority": "P4",
+      "roles": ["guest"],
+      "description": "Floating WhatsApp link on selected public routes (ConditionalWhatsApp)."
     },
     "booking-cancel-flow": {
       "name": "Booking Cancel Flow",

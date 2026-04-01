@@ -95,6 +95,22 @@ test.describe('Subscription Cancel Flow', { tag: [...FlowTags.SUBSCRIPTION_CANCE
     await expect(page.getByText('¿Seguro que deseas cancelar?')).toBeVisible({ timeout: 5_000 });
   });
 
+  test('confirming cancellation updates subscription to canceled state', async ({ page }) => {
+    await injectAuthCookies(page);
+    await setupMocks(page, mockSubscription);
+    await page.goto('/subscription');
+
+    const cancelBtn = page.getByRole('button', { name: 'Cancelar suscripción' });
+    await expect(cancelBtn).toBeVisible({ timeout: 10_000 });
+    await cancelBtn.click();
+    await expect(page.getByText('¿Seguro que deseas cancelar?')).toBeVisible({ timeout: 5_000 });
+
+    await page.getByRole('button', { name: 'Sí, cancelar' }).click();
+
+    await expect(page.getByText('Cancelada', { exact: true }).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: 'Cancelar suscripción' })).not.toBeVisible();
+  });
+
   test('expired subscription does not show cancel button', async ({ page }) => {
     const expiredSub = {
       ...mockSubscription,

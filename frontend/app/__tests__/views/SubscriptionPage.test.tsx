@@ -110,8 +110,8 @@ describe('SubscriptionPage', () => {
 
   it('renders loading spinner when user is null', () => {
     useAuthStore.setState({ user: null, isAuthenticated: false, accessToken: null });
-    const { container } = render(<SubscriptionPage />);
-    expect(container.querySelector('.animate-spin')).toBeInTheDocument();
+    render(<SubscriptionPage />);
+    expect(screen.getByRole('status', { name: 'Cargando' })).toBeInTheDocument();
   });
 
   it('renders page heading Mi Suscripción', () => {
@@ -135,8 +135,8 @@ describe('SubscriptionPage', () => {
     mockedUseSubscriptionStore.mockImplementation(() =>
       defaultSubscriptionState({ loading: true }),
     );
-    const { container } = render(<SubscriptionPage />);
-    expect(container.querySelector('.animate-spin')).toBeInTheDocument();
+    render(<SubscriptionPage />);
+    expect(screen.getByRole('status', { name: 'Cargando' })).toBeInTheDocument();
   });
 
   it('renders subscription card with package title', () => {

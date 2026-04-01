@@ -372,9 +372,10 @@ class TestCreateFakeBookings:
 
         assert ratio == 0.5
         chosen = mock_choice.call_args[0][0]
-        assert 0.2 in chosen
-        assert 0.5 in chosen
-        assert 1.0 in chosen
+        lo, mid, hi = 0.2, 0.5, 1.0
+        assert lo in chosen
+        assert mid in chosen
+        assert hi in chosen
 
     def test_backfill_past_bookings_returns_zero_when_subscription_starts_in_future(self):
         """Backfill skips subscriptions whose window has not started yet."""

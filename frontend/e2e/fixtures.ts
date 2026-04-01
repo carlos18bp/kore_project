@@ -281,6 +281,31 @@ const FAKE_TRAINER_COOKIE = JSON.stringify({
 });
 
 /**
+ * Mock login API for a trainer user (redirect assertion tests).
+ */
+export async function mockTrainerLoginApi(page: Page) {
+  await page.route('**/api/auth/login/', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        tokens: { access: FAKE_TOKEN, refresh: 'fake-e2e-refresh-token' },
+        user: {
+          id: 100,
+          email: E2E_TRAINER.email,
+          first_name: E2E_TRAINER.firstName,
+          last_name: E2E_TRAINER.lastName,
+          phone: '',
+          role: 'trainer',
+          profile_completed: true,
+          avatar_url: null,
+        },
+      }),
+    });
+  });
+}
+
+/**
  * Mock the auth profile endpoint for trainer hydration.
  */
 export async function mockTrainerAuthProfile(page: Page) {
@@ -308,7 +333,7 @@ export async function mockTrainerAuthProfile(page: Page) {
  * Inject trainer auth cookies with minimal auth mocks (login API, captcha, trainer profile).
  */
 export async function injectTrainerAuthCookies(page: Page) {
-  await mockLoginApi(page);
+  await mockTrainerLoginApi(page);
   await mockCaptchaSiteKey(page);
   await mockTrainerAuthProfile(page);
   await page.context().addCookies([

@@ -68,20 +68,19 @@ test.describe('Customer Physical Evaluation Page', { tag: [...FlowTags.CUSTOMER_
     await goToPhysicalEvalWithData(page);
 
     await expect(page.getByText('Tus componentes en detalle')).toBeVisible();
-    await expect(page.getByText('Tu condición física general').first()).toBeVisible();
-    await expect(page.getByRole('button', { name: /Fuerza/ }).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: /Resistencia/ }).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: /Movilidad/ }).first()).toBeVisible();
+    await expect(page.getByText('Tu condición física general')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Fuerza/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Resistencia/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Movilidad/ })).toBeVisible();
   });
 
   test('renders test scores section with individual results', async ({ page }) => {
     await goToPhysicalEvalWithData(page);
 
     await expect(page.getByText('Tus resultados por prueba')).toBeVisible();
-    const scoresBlock = page.locator('div').filter({ hasText: 'Tus resultados por prueba' }).first();
-    await expect(scoresBlock.getByText('Sentadillas', { exact: true })).toBeVisible();
-    await expect(scoresBlock.getByText('Flexiones', { exact: true })).toBeVisible();
-    await expect(scoresBlock.getByText('Plancha', { exact: true })).toBeVisible();
+    await expect(page.getByText('Sentadillas', { exact: true })).toBeVisible();
+    await expect(page.getByText('Flexiones', { exact: true })).toBeVisible();
+    await expect(page.getByText('Plancha', { exact: true })).toBeVisible();
   });
 
   test('renders trainer notes when present', async ({ page }) => {
@@ -95,7 +94,7 @@ test.describe('Customer Physical Evaluation Page', { tag: [...FlowTags.CUSTOMER_
     await goToPhysicalEvalWithData(page);
 
     await expect(page.getByText('Tus componentes en detalle')).toBeVisible();
-    await expect(page.getByText('Tu condición física general').first()).toBeVisible();
+    await expect(page.getByText('Tu condición física general')).toBeVisible();
   });
 
   test('empty state shows placeholder when no evaluations exist', async ({ page }) => {

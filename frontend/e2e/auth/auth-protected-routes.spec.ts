@@ -13,8 +13,22 @@ test.describe('Auth Protected Routes', { tag: [...FlowTags.AUTH_PROTECTED_ROUTES
   const protectedRoutes = [
     '/dashboard',
     '/book-session',
+    '/calendar',
     '/subscription',
+    '/profile',
     '/my-diagnosis',
+    '/my-nutrition',
+    '/my-parq',
+    '/my-physical-evaluation',
+    '/my-posturometry',
+    '/trainer/dashboard',
+    '/trainer/clients',
+    '/trainer/clients/client?id=1',
+    '/trainer/clients/client/anthropometry?id=1',
+    '/trainer/clients/client/nutrition?id=1',
+    '/trainer/clients/client/parq?id=1',
+    '/trainer/clients/client/physical-evaluation?id=1',
+    '/trainer/clients/client/posturometry?id=1',
   ];
 
   for (const route of protectedRoutes) {

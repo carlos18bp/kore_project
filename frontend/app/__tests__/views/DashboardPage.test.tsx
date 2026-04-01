@@ -140,8 +140,8 @@ describe('DashboardPage', () => {
 
   it('renders loading spinner when user is null', () => {
     useAuthStore.setState({ user: null, isAuthenticated: false, accessToken: null });
-    const { container } = render(<DashboardPage />);
-    expect(container.querySelector('.animate-spin')).toBeInTheDocument();
+    render(<DashboardPage />);
+    expect(screen.getByRole('status', { name: 'Cargando' })).toBeInTheDocument();
   });
 
   it('renders greeting with first name when user is present', () => {
@@ -190,8 +190,7 @@ describe('DashboardPage', () => {
 
   it('renders circular progress indicator', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
-    const { container } = render(<DashboardPage />);
-    const progressCircle = container.querySelector('svg path[stroke-dasharray]');
-    expect(progressCircle).toBeInTheDocument();
+    render(<DashboardPage />);
+    expect(screen.getByRole('img', { name: /Progreso 0 por ciento/ })).toBeInTheDocument();
   });
 });

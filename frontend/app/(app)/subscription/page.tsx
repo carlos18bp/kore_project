@@ -144,7 +144,11 @@ export default function SubscriptionPage() {
   if (!user) {
     return (
       <section className="min-h-screen bg-kore-cream flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-2 border-kore-red border-t-transparent rounded-full" />
+        <div
+          className="animate-spin h-8 w-8 border-2 border-kore-red border-t-transparent rounded-full"
+          role="status"
+          aria-label="Cargando"
+        />
       </section>
     );
   }
@@ -169,7 +173,11 @@ export default function SubscriptionPage() {
 
         {loading ? (
           <div className="flex items-center justify-center py-24">
-            <div className="animate-spin h-8 w-8 border-2 border-kore-red border-t-transparent rounded-full" />
+            <div
+              className="animate-spin h-8 w-8 border-2 border-kore-red border-t-transparent rounded-full"
+              role="status"
+              aria-label="Cargando"
+            />
           </div>
         ) : !hasSubscriptions ? (
           /* No subscription */

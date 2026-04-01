@@ -44,6 +44,7 @@ export const FlowTags = {
   PUBLIC_FAQ: ['@flow:public-faq', '@module:public', '@priority:P3'],
   PUBLIC_FAQ_ERRORS: ['@flow:public-faq-errors', '@module:public', '@priority:P3'],
   PUBLIC_TERMS: ['@flow:public-terms', '@module:public', '@priority:P3'],
+  PUBLIC_WHATSAPP_CTA: ['@flow:public-whatsapp-cta', '@module:public', '@priority:P4'],
 
   AUTH_FORGOT_PASSWORD: ['@flow:auth-forgot-password', '@module:auth', '@priority:P1'],
 

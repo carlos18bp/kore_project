@@ -167,10 +167,10 @@ test.describe('Subscription detail — mocked data branches', { tag: [...FlowTag
     await setupProgramDetailMocks(page, [upcomingBooking]);
     await page.goto('/subscription');
     const main = page.getByRole('main');
-    await expect(main.getByText('Paquete Elite').first()).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('Paquete Elite')).toBeVisible({ timeout: 10_000 });
     await expect(main.getByRole('heading', { name: 'Detalles' })).toBeVisible();
     await expect(main.getByText('Avance:')).toBeVisible();
-    await expect(main.locator('span').filter({ hasText: /^Activa$/ }).first()).toBeVisible();
+    await expect(main.getByText('Activa', { exact: true })).toBeVisible();
   });
 
   test('upcoming tab shows future confirmed bookings with trainer name', async ({ page }) => {

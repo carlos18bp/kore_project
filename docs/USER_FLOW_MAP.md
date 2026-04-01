@@ -1,9 +1,9 @@
 # User Flow Map
 
-Version: 1.3
-Last Updated: 2026-03-31
+Version: 1.4
+Last Updated: 2026-04-01
 Description: End-to-end user flows for the Kore frontend, grouped by role with branches for form variants and alternate outcomes.
-Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, frontend/e2e specs, frontend/app routes (see audit notes on /my-programs below).
+Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, frontend/e2e specs, frontend/app routes. Canonical customer subscription URL is `/subscription` (flow IDs `my-programs-*` are historical).
 
 ## System Roles
 - Guest: Unauthenticated visitor.
@@ -155,15 +155,15 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 ### my-programs-list: My Programs List
 - Module: programs
 - Priority: P1
-- Route: /my-programs
+- Route: /subscription
 - Roles: guest, user
-- Description: List subscriptions and entry to program detail pages.
+- Description: List subscriptions and entry to in-page program detail (session lists, modals).
 - E2E Coverage: Covered (frontend/e2e/app/my-sessions.spec.ts; frontend/e2e/app/coverage-gaps.spec.ts)
 
 **Steps**
-1. Open /my-programs.
+1. Open /subscription.
 2. View subscription cards or empty state.
-3. Navigate via the sidebar link.
+3. Navigate via the sidebar link (“Mi Suscripción”).
 
 **Branches / Variations**
 - Guest access redirects to /login.
@@ -192,6 +192,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Disabled account shows a blocked login message.
 - Password visibility toggle switches between masked and plain text.
 - Already-authenticated visitors are redirected to /dashboard.
+- Successful login as **trainer** redirects to `/trainer/dashboard` ([login/page.tsx](frontend/app/(public)/login/page.tsx)); covered in [frontend/e2e/auth/login.spec.ts](frontend/e2e/auth/login.spec.ts).
 
 ### auth-register: Register
 - Module: auth
@@ -366,6 +367,22 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Footer note text ("Al reservar cualquier programa, aceptas nuestros Términos y Condiciones") links to /terms.
 - Back link ("Volver a Programas") navigates to /programs.
 
+### public-whatsapp-cta: Public WhatsApp Floating CTA
+- Module: public
+- Priority: P4
+- Route: / (and other routes where `ConditionalWhatsApp` renders: /kore-brand, /programs, /faq, /contact)
+- Roles: guest
+- Description: Floating WhatsApp button visible on selected public pages; link opens the configured WhatsApp URL.
+- E2E Coverage: Covered (frontend/e2e/public/whatsapp-cta.spec.ts)
+
+**Steps**
+1. Open a public route that shows the floating button (e.g. `/`).
+2. Locate the WhatsApp control (link with accessible name).
+3. Assert href targets the WhatsApp API URL.
+
+**Branches / Variations**
+- Button is not shown on /login, /dashboard, /checkout, etc. (see `ROUTES_WITH_WHATSAPP` in the app).
+
 ### checkout-guest-redirect: Checkout Guest Redirect
 - Module: checkout
 - Priority: P2
@@ -426,18 +443,18 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 ### auth-protected-routes: Auth Protected Routes
 - Module: auth
 - Priority: P2
-- Route: /dashboard, /book-session, /my-programs, /subscription; /checkout (guest edge case)
+- Route: all `(app)` customer and trainer routes; /checkout (guest edge case)
 - Roles: guest
 - Description: Ensure authenticated app routes redirect anonymous users to login (or acceptable checkout funnel routes).
 - E2E Coverage: Covered (frontend/e2e/auth/auth-protected-routes.spec.ts)
 
 **Steps**
 1. Clear or omit auth cookies.
-2. Navigate directly to each protected customer route.
+2. Navigate directly to each protected route.
 3. App redirects to /login (or allowed checkout/register/programs pattern for bare /checkout).
 
 **Branches / Variations**
-- /dashboard, /book-session, /my-programs, /subscription each land on /login.
+- Customer routes under `(app)` (e.g. /dashboard, /book-session, /subscription, /profile, assessments, /calendar) and trainer routes under /trainer/* each land on /login when unauthenticated.
 - /checkout without package may redirect to login, register, subscription, or programs per current guards.
 
 ### dashboard-overview: Dashboard Overview
@@ -475,27 +492,27 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 **Branches / Variations**
 - Dismissal hides the modal and persists for the session.
 - "Ver detalle" navigates to the program detail page when subscription_id_display exists.
-- Missing subscription_id_display sends users to /my-programs.
+- Missing subscription_id_display sends users to /subscription.
 - Sessions beyond 48 hours do not trigger the modal.
 - Null API response keeps reminder hidden.
 
 ### my-programs-detail: Program Detail & Sessions
 - Module: programs
 - Priority: P2
-- Route: /my-programs/program/:subscriptionId
+- Route: /subscription (detail is in-page: select subscription, tabs, session rows)
 - Roles: user
-- Description: Review subscription detail, session history, and open session detail modal.
+- Description: Review subscription detail, session history, and open session detail modal on the subscription page.
 - E2E Coverage: Covered (frontend/e2e/app/my-sessions-flow.spec.ts)
 
 **Steps**
-1. Navigate from My Programs to a subscription detail page.
+1. Open /subscription and select a subscription (card / detail panel).
 2. Review subscription header details and tabs.
 3. Switch between upcoming and past sessions.
 4. Open a session detail modal from the list.
 
 **Branches / Variations**
 - Empty upcoming or past sessions show placeholders.
-- Breadcrumb navigation returns to /my-programs.
+- Navigation back to the list uses in-page UI (same route).
 - Session rows open the detail modal for the selected booking.
 
 ### subscription-page: Subscription Page
@@ -552,9 +569,11 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 1. Open /subscription with an active subscription (mocked list/detail).
 2. Locate "Cancelar suscripción" and verify visibility/state for the subscription status.
 3. Open the confirmation dialog when cancel is available.
+4. Confirm with "Sí, cancelar" to complete cancellation (mocked POST); UI shows canceled state and hides cancel.
 
 **Branches / Variations**
 - Active subscription: cancel button is visible and enabled; click opens "¿Seguro que deseas cancelar?".
+- Confirming cancellation: subscription updates to canceled; "Cancelada" visible; cancel button hidden.
 - Expired subscription: shows expired state and renew link; cancel button is not shown.
 - Canceled subscription: shows canceled badge; cancel button is not shown.
 
@@ -601,7 +620,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 ### booking-error-paths: Booking Error Paths
 - Module: booking
 - Priority: P2
-- Route: /book-session, /my-programs/program/:id
+- Route: /book-session, /subscription
 - Roles: user
 - Description: Display booking-related API failures and error states.
 - E2E Coverage: Covered (frontend/e2e/app/booking-error-paths.spec.ts)
@@ -620,13 +639,13 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 ### booking-reschedule: Booking Reschedule
 - Module: booking
 - Priority: P2
-- Route: /my-programs/program/:id
+- Route: /subscription
 - Roles: user
 - Description: Reschedule existing bookings while enforcing time limits.
 - E2E Coverage: Covered (frontend/e2e/app/booking-reschedule.spec.ts)
 
 **Steps**
-1. Open a program detail page.
+1. Open /subscription and select a subscription with sessions.
 2. Open a confirmed session detail modal.
 3. Click Reprogramar to navigate to /book-session.
 
@@ -670,7 +689,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 ### booking-session-detail: Session Detail Modal
 - Module: booking
 - Priority: P2
-- Route: /my-programs/program/:id
+- Route: /subscription
 - Roles: user
 - Description: View and manage session detail modal states.
 - E2E Coverage: Covered (frontend/e2e/app/session-detail.spec.ts)
@@ -689,7 +708,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 ### booking-cancel-flow: Booking Cancel Flow
 - Module: booking
 - Priority: P1
-- Route: /my-programs/program?id=:subscriptionId
+- Route: /subscription
 - Roles: user
 - Description: Full cancel journey from program detail through session detail modal (mocked bookings API).
 - E2E Coverage: Covered (frontend/e2e/app/booking-cancel-flow.spec.ts)
@@ -724,7 +743,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 ### app-coverage-gaps: App Coverage Gaps
 - Module: app
 - Priority: P3
-- Route: multiple (dashboard, subscription, book-session, my-programs)
+- Route: multiple (dashboard, subscription, book-session)
 - Roles: user
 - Description: Exercise UI states that are underserved by existing coverage.
 - E2E Coverage: Covered (frontend/e2e/app/coverage-gaps.spec.ts)
@@ -760,7 +779,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 ### app-store-error-paths: Store Error Paths
 - Module: app
 - Priority: P3
-- Route: /dashboard, /my-programs/program/:id
+- Route: /dashboard, /subscription
 - Roles: user
 - Description: Handle store hydration and API error branches.
 - E2E Coverage: Covered (frontend/e2e/app/store-error-paths.spec.ts)
@@ -1098,9 +1117,9 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Form covers multiple body regions (head, shoulders, spine, pelvis, lower limbs).
 - API failure shows error message.
 
-## Route inventory note (2026-03-31)
+## Route inventory note (2026-04-01)
 
-E2E specs and several unit tests reference `/my-programs` and `@/app/(app)/my-programs/page`, but a tree scan of `frontend/app/**/page.tsx` on this workspace did not list `my-programs` or `my-programs/program` files. If those routes are generated, moved, or live outside this tree, the map should be updated once the canonical path is confirmed.
+Customer subscription and session management live at **`/subscription`** (`frontend/app/(app)/subscription/page.tsx`). Legacy paths such as `/my-programs` may still appear in `robots.txt` or old links; the SPA route used by E2E and the sidebar is `/subscription`.
 
 ## Admin Flows
 - No admin-specific frontend flows mapped in the current codebase or E2E suite.
@@ -1109,13 +1128,13 @@ E2E specs and several unit tests reference `/my-programs` and `@/app/(app)/my-pr
 
 These elements are present across multiple routes and affect the user experience globally.
 
-- **WhatsApp Floating Button**: A fixed green button in the bottom-right corner of all public pages. Opens an external WhatsApp conversation link. Present on all (public) layout pages.
+- **WhatsApp Floating Button**: A fixed green button in the bottom-right corner of allowed public routes (`/`, `/kore-brand`, `/programs`, `/faq`, `/contact`). Opens an external WhatsApp conversation link. E2E flow: `public-whatsapp-cta` (see flow-definitions.json).
 - **ConditionalFooter**: The public Footer is hidden on /login, /register, and /checkout routes. On all other public pages, the Footer renders with navigation links (including /terms) and social links.
 - **Navbar Checkout Funnel**: The public Navbar is hidden when the user is on /register or /checkout with a ?package= query parameter, providing a distraction-free checkout experience.
 
 ## Legend / Conventions
 
-- Priority: P1 (critical), P2 (important), P3 (nice-to-have).
+- Priority: P1 (critical), P2 (important), P3 (nice-to-have), P4 (micro-UX / global elements; tracked in flow definitions but omitted from “missing P1–P3” noise in the flow coverage reporter).
 - Coverage Status:
   - Covered: Explicit E2E spec exists for the flow.
   - Partial: Some branches are covered; flow needs additional coverage.
@@ -1165,6 +1184,7 @@ These elements are present across multiple routes and affect the user experience
 | public-faq | guest | P3 | Covered | frontend/e2e/public/faq.spec.ts |
 | public-faq-errors | guest | P3 | Covered | frontend/e2e/public/faq-error-states.spec.ts |
 | public-terms | guest | P3 | Covered | frontend/e2e/public/terms.spec.ts |
+| public-whatsapp-cta | guest | P4 | Covered | frontend/e2e/public/whatsapp-cta.spec.ts |
 | auth-forgot-password | guest | P1 | Covered | frontend/e2e/public/forgot-password.spec.ts |
 | profile-management | user | P1 | Covered | frontend/e2e/app/profile.spec.ts |
 | profile-password-change | user | P2 | Covered | frontend/e2e/app/profile-password-change.spec.ts |

@@ -1,0 +1,52 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "WebSearch",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(python -m ruff:*)",
+      "Bash(python -c:*)",
+      "Bash(python manage.py:*)",
+      "Bash(pytest:*)",
+      "Bash(npm run:*)",
+      "Bash(npm test:*)",
+      "Bash(npm install:*)",
+      "Bash(npx playwright:*)",
+      "Bash(npx jest:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx next:*)",
+      "Bash(node:*)",
+      "Bash(curl:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(echo:*)",
+      "Bash(cp:*)",
+      "Bash(lsof:*)",
+      "Bash(source:*)",
+      "Bash(xargs:*)",
+      "Bash(git:*)",
+      "Bash(fuser:*)",
+      "Bash(E2E_REUSE_SERVER=1 npx playwright:*)",
+      "Bash(DEBUG=* npx playwright:*)",
+      "Bash(while:*)",
+      "Bash(do:*)",
+      "Bash(done)",
+      "Bash(wc:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(ruff:*)",
+      "Bash(npx eslint:*)",
+      "Bash(jq:*)",
+      "Read(//home/dev-env/**)"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Bash(sudo:*)"
+    ],
+    "ask": []
+  }
+}

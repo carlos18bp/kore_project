@@ -1,5 +1,6 @@
 """Tests for physical evaluation API views."""
 
+from datetime import datetime as dt
 from datetime import timedelta
 
 import pytest
@@ -17,11 +18,13 @@ from core_app.models import (
 from core_app.models.trainer_profile import TrainerProfile
 from core_app.views.physical_evaluation_views import PhysicalEvaluationSerializer
 
+FIXED_BOOKING_NOW = timezone.make_aware(dt(2026, 6, 15, 12, 0, 0))
+
 
 def _make_booking(customer, trainer_profile):
     """Create a valid Booking with all required FKs."""
     pkg = Package.objects.create(title='Test', price=10000, sessions_count=4, category='personalizado')
-    now = timezone.now()
+    now = FIXED_BOOKING_NOW
     slot = AvailabilitySlot.objects.create(
         starts_at=now + timedelta(hours=1),
         ends_at=now + timedelta(hours=2),
