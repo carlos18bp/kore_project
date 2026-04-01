@@ -3,7 +3,6 @@
 import { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
@@ -58,7 +57,6 @@ const ArrowRightIcon = () => (
 );
 
 export default function DashboardPage() {
-  const router = useRouter();
   const { user } = useAuthStore();
   const { activeSubscription: sub, fetchSubscriptions } = useSubscriptionStore();
   const { upcomingReminder, bookings, fetchUpcomingReminder, fetchBookings } = useBookingStore();
@@ -415,25 +413,7 @@ export default function DashboardPage() {
                     <span className="text-[9px] text-kore-gray-dark/50">Estado hoy</span>
                   </div>
                 ) : (
-                  <span
-                    role="link"
-                    tabIndex={0}
-                    className="text-[9px] text-kore-red font-medium cursor-pointer"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      router.push('/profile');
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        router.push('/profile');
-                      }
-                    }}
-                  >
-                    Registrar estado
-                  </span>
+                  <Link href="/profile" onClick={(e) => e.stopPropagation()} className="text-[9px] text-kore-red font-medium">Registrar estado</Link>
                 )}
                 {(() => {
                   const goalValue = profile?.customer_profile?.primary_goal;
