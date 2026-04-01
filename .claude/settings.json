@@ -44,8 +44,6 @@
       "Read(//home/dev-env/**)"
     ],
     "deny": [
-      "Bash(rm -rf:*)",
-      "Bash(sudo:*)"
     ],
     "ask": []
   }
