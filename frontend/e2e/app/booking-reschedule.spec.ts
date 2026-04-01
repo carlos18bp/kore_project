@@ -5,7 +5,7 @@ import { test, expect, mockLoginAsTestUser } from '../fixtures';
  * E2E tests for the booking reschedule flow.
  * Covers bookingStore.rescheduleBooking() (lines 283-301).
  * Uses mocked API responses to exercise success and error paths.
- * Session detail is now a modal opened from the program detail page.
+ * Session detail is a modal opened from the subscription page session list.
  */
 test.describe('Booking Reschedule Flow (mocked)', { tag: [...FlowTags.BOOKING_RESCHEDULE, RoleTags.USER] }, () => {
   test.describe.configure({ mode: 'serial' });
@@ -108,7 +108,7 @@ test.describe('Booking Reschedule Flow (mocked)', { tag: [...FlowTags.BOOKING_RE
   test('reschedule button navigates to book-session page', async ({ page }) => {
     await mockLoginAsTestUser(page);
     await setupMocks(page);
-    await page.goto('/my-programs/program?id=11');
+    await page.goto('/subscription');
     await expect(page.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 10_000 });
 
     await openSessionModal(page);
@@ -122,7 +122,7 @@ test.describe('Booking Reschedule Flow (mocked)', { tag: [...FlowTags.BOOKING_RE
   test('modal shows session details including trainer info', async ({ page }) => {
     await mockLoginAsTestUser(page);
     await setupMocks(page);
-    await page.goto('/my-programs/program?id=11');
+    await page.goto('/subscription');
     await expect(page.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 10_000 });
 
     await openSessionModal(page);
@@ -143,7 +143,7 @@ test.describe('Booking Reschedule Flow (mocked)', { tag: [...FlowTags.BOOKING_RE
 
     await mockLoginAsTestUser(page);
     await setupMocks(page, soonBooking);
-    await page.goto('/my-programs/program?id=11');
+    await page.goto('/subscription');
     await expect(page.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 10_000 });
 
     await openSessionModal(page);

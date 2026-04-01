@@ -27,7 +27,7 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
   test('renders sidebar quick action links', async ({ page }) => {
     const sidebar = page.locator('aside');
     await expect(sidebar.getByRole('link', { name: 'Agendar Sesión' })).toBeVisible();
-    await expect(sidebar.getByRole('link', { name: 'Mis Programas' })).toBeVisible();
+    await expect(sidebar.getByRole('link', { name: 'Mi Diagnóstico' })).toBeVisible();
     await expect(sidebar.getByRole('link', { name: 'Mi Suscripción' })).toBeVisible();
   });
 
@@ -42,7 +42,7 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
   test('sidebar is visible with navigation', async ({ page }) => {
     const sidebar = page.locator('aside');
     await expect(sidebar.getByRole('link', { name: 'Agendar Sesión' })).toBeVisible();
-    await expect(sidebar.getByRole('link', { name: 'Mis Programas' })).toBeVisible();
+    await expect(sidebar.getByRole('link', { name: 'Mi Suscripción' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
   });
 });
@@ -130,7 +130,7 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
 
     await page.goto('/dashboard');
     const main = page.locator('main');
-    await expect(main.getByText('Próxima sesión').first()).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('Próxima sesión').filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
   });
 
   test('recent activity shows confirmed, canceled and pending booking statuses', async ({ page }) => {
@@ -152,7 +152,8 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
 
     await page.goto('/dashboard');
     const main = page.locator('main');
-    await expect(main.getByText('Historial reciente').first()).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('Plan Elite').first()).toBeVisible();
+    await expect(main.getByText('Historial reciente').filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('Completada').filter({ visible: true }).first()).toBeVisible();
+    await expect(main.getByText('Cancelada').filter({ visible: true }).first()).toBeVisible();
   });
 });

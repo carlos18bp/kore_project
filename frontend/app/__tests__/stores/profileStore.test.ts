@@ -2,6 +2,10 @@ import Cookies from 'js-cookie';
 import { useProfileStore } from '@/lib/stores/profileStore';
 import { api } from '@/lib/services/http';
 
+jest.mock('@/lib/utils/compressImage', () => ({
+  compressImage: jest.fn((file: File) => Promise.resolve(file)),
+}));
+
 jest.mock('js-cookie', () => ({
   get: jest.fn(),
   set: jest.fn(),

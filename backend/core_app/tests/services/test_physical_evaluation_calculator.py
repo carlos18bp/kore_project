@@ -22,7 +22,8 @@ class ScoreSquatsTests(TestCase):
         self.assertEqual(score_squats(10, 25, 'masculino'), 1)
 
     def test_male_18_35_low(self):
-        self.assertEqual(score_squats(15, 25, 'masculino'), 2)
+        # Baremo M 18_35: t2=20 → score 2 needs reps in [20, 30)
+        self.assertEqual(score_squats(20, 25, 'masculino'), 2)
 
     def test_male_18_35_intermediate(self):
         self.assertEqual(score_squats(30, 25, 'masculino'), 3)
@@ -37,12 +38,13 @@ class ScoreSquatsTests(TestCase):
         self.assertEqual(score_squats(5, 40, 'femenino'), 1)
 
     def test_female_36_50_intermediate(self):
-        self.assertEqual(score_squats(20, 40, 'femenino'), 3)
+        # F 36_50: t3=22 → score 3 needs reps in [22, 32)
+        self.assertEqual(score_squats(25, 40, 'femenino'), 3)
 
     def test_male_66_plus(self):
         self.assertEqual(score_squats(7, 70, 'masculino'), 1)
-        self.assertEqual(score_squats(8, 70, 'masculino'), 2)
-        self.assertEqual(score_squats(28, 70, 'masculino'), 5)
+        self.assertEqual(score_squats(10, 70, 'masculino'), 2)
+        self.assertEqual(score_squats(34, 70, 'masculino'), 5)
 
     def test_none_returns_none(self):
         self.assertIsNone(score_squats(None, 30, 'masculino'))
@@ -51,29 +53,29 @@ class ScoreSquatsTests(TestCase):
 class ScorePushupsTests(TestCase):
     def test_male_18_35_tiers(self):
         self.assertEqual(score_pushups(3, 25, 'masculino'), 1)
-        self.assertEqual(score_pushups(6, 25, 'masculino'), 2)
-        self.assertEqual(score_pushups(13, 25, 'masculino'), 3)
-        self.assertEqual(score_pushups(25, 25, 'masculino'), 4)
-        self.assertEqual(score_pushups(35, 25, 'masculino'), 5)
+        self.assertEqual(score_pushups(12, 25, 'masculino'), 2)
+        self.assertEqual(score_pushups(22, 25, 'masculino'), 3)
+        self.assertEqual(score_pushups(32, 25, 'masculino'), 4)
+        self.assertEqual(score_pushups(40, 25, 'masculino'), 5)
 
     def test_female_51_65(self):
         self.assertEqual(score_pushups(1, 55, 'femenino'), 1)
-        self.assertEqual(score_pushups(5, 55, 'femenino'), 3)
-        self.assertEqual(score_pushups(15, 55, 'femenino'), 5)
+        self.assertEqual(score_pushups(10, 55, 'femenino'), 3)
+        self.assertEqual(score_pushups(22, 55, 'femenino'), 5)
 
 
 class ScorePlankTests(TestCase):
     def test_male_18_35_tiers(self):
         self.assertEqual(score_plank(10, 25, 'masculino'), 1)
-        self.assertEqual(score_plank(20, 25, 'masculino'), 2)
-        self.assertEqual(score_plank(50, 25, 'masculino'), 3)
-        self.assertEqual(score_plank(70, 25, 'masculino'), 4)
-        self.assertEqual(score_plank(100, 25, 'masculino'), 5)
+        self.assertEqual(score_plank(35, 25, 'masculino'), 2)
+        self.assertEqual(score_plank(60, 25, 'masculino'), 3)
+        self.assertEqual(score_plank(90, 25, 'masculino'), 4)
+        self.assertEqual(score_plank(120, 25, 'masculino'), 5)
 
     def test_female_66_plus(self):
         self.assertEqual(score_plank(5, 70, 'femenino'), 1)
         self.assertEqual(score_plank(20, 70, 'femenino'), 3)
-        self.assertEqual(score_plank(50, 70, 'femenino'), 5)
+        self.assertEqual(score_plank(60, 70, 'femenino'), 5)
 
 
 class ScoreWalkTests(TestCase):
@@ -86,7 +88,7 @@ class ScoreWalkTests(TestCase):
 
     def test_female_18_35(self):
         self.assertEqual(score_walk(300, 25, 'femenino'), 1)
-        self.assertEqual(score_walk(650, 25, 'femenino'), 5)
+        self.assertEqual(score_walk(720, 25, 'femenino'), 5)
 
 
 class ScoreUnipodalTests(TestCase):
@@ -95,12 +97,12 @@ class ScoreUnipodalTests(TestCase):
         self.assertEqual(score_unipodal(15, 25), 2)
         self.assertEqual(score_unipodal(30, 25), 3)
         self.assertEqual(score_unipodal(50, 25), 4)
-        self.assertEqual(score_unipodal(60, 25), 5)
+        self.assertEqual(score_unipodal(70, 25), 5)
 
     def test_66_plus(self):
         self.assertEqual(score_unipodal(2, 70), 1)
         self.assertEqual(score_unipodal(10, 70), 3)
-        self.assertEqual(score_unipodal(30, 70), 5)
+        self.assertEqual(score_unipodal(35, 70), 5)
 
 
 class ClassifyIndexTests(TestCase):
@@ -142,7 +144,7 @@ class ComputeAllTests(TestCase):
     def test_full_evaluation_male_30_individual_scores(self):
         result = compute_all(
             age=30, sex='masculino',
-            squats_reps=30, pushups_reps=15, plank_seconds=50,
+            squats_reps=30, pushups_reps=22, plank_seconds=60,
             walk_meters=550, unipodal_seconds=30,
             hip_mobility=4, shoulder_mobility=3, ankle_mobility=4,
         )
@@ -155,7 +157,7 @@ class ComputeAllTests(TestCase):
     def test_full_evaluation_male_30_composite_indices(self):
         result = compute_all(
             age=30, sex='masculino',
-            squats_reps=30, pushups_reps=15, plank_seconds=50,
+            squats_reps=30, pushups_reps=22, plank_seconds=60,
             walk_meters=550, unipodal_seconds=30,
             hip_mobility=4, shoulder_mobility=3, ankle_mobility=4,
         )
@@ -181,8 +183,8 @@ class ComputeAllTests(TestCase):
     def test_very_good_all(self):
         result = compute_all(
             age=25, sex='masculino',
-            squats_reps=50, pushups_reps=35, plank_seconds=100,
-            walk_meters=750, unipodal_seconds=60,
+            squats_reps=50, pushups_reps=38, plank_seconds=110,
+            walk_meters=750, unipodal_seconds=65,
             hip_mobility=5, shoulder_mobility=5, ankle_mobility=5,
         )
         self.assertEqual(result['general_index'], 5.0)

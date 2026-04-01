@@ -15,7 +15,7 @@ jest.mock('next/navigation', () => ({
 
 jest.mock('next/link', () => ({
   __esModule: true,
-  default: ({ children, href, ...rest }: { children: React.ReactNode; href: string }) => (
+  default: ({ children, href, prefetch: _prefetch, ...rest }: { children: React.ReactNode; href: string; prefetch?: boolean }) => (
     <a href={href} {...rest}>{children}</a>
   ),
 }));
@@ -65,7 +65,7 @@ describe('Sidebar', () => {
     render(<Sidebar />);
     expect(screen.getByText('Inicio')).toBeInTheDocument();
     expect(screen.getByText('Agendar Sesión')).toBeInTheDocument();
-    expect(screen.getByText('Mis Programas')).toBeInTheDocument();
+    expect(screen.getByText('Mi Suscripción')).toBeInTheDocument();
   });
 
   it('highlights active nav item based on pathname', () => {
@@ -75,11 +75,11 @@ describe('Sidebar', () => {
     expect(bookSessionLink).toHaveClass('bg-kore-red/10');
   });
 
-  it('highlights Mis Programas for nested routes', () => {
-    mockPathname = '/my-programs/program/1';
+  it('highlights Mi Suscripción for nested routes', () => {
+    mockPathname = '/subscription';
     render(<Sidebar />);
-    const myProgramsLink = screen.getByText('Mis Programas').closest('a');
-    expect(myProgramsLink).toHaveClass('bg-kore-red/10');
+    const subscriptionLink = screen.getByText('Mi Suscripción').closest('a');
+    expect(subscriptionLink).toHaveClass('bg-kore-red/10');
   });
 
   it('renders Soporte link and Cerrar sesión button', () => {

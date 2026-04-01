@@ -21,12 +21,12 @@ function buildReminderBooking(hoursAhead: number) {
     trainer: {
       id: 1,
       user_id: 1,
-      first_name: 'Germán',
+      first_name: 'Germ\u00e1n',
       last_name: 'Franco',
       email: 'g@kore.com',
       specialty: 'Funcional',
       bio: '',
-      location: 'Bogotá',
+      location: 'Bogot\u00e1',
       session_duration_minutes: 60,
     },
     package: { id: 6, title: 'Paquete Pro', sessions_count: 4, session_duration_minutes: 60, price: '120000', currency: 'COP', validity_days: 60 },
@@ -63,9 +63,8 @@ async function mockBookingsList(page: Page, booking: ReturnType<typeof buildRemi
   });
 }
 
-test.describe('Dashboard — Upcoming Session Reminder', { tag: [...FlowTags.DASHBOARD_REMINDER, RoleTags.USER] }, () => {
+test.describe('Dashboard - Upcoming Session Reminder', { tag: [...FlowTags.DASHBOARD_REMINDER, RoleTags.USER] }, () => {
   test('dashboard calls fetchUpcomingReminder on load', async ({ page }) => {
-    // Track whether the upcoming-reminder API is called during dashboard load
     let reminderCalled = false;
     await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
       reminderCalled = true;
@@ -78,10 +77,9 @@ test.describe('Dashboard — Upcoming Session Reminder', { tag: [...FlowTags.DAS
   });
 
   test('dashboard renders UpcomingSessionReminder when booking exists within 48h', async ({ page }) => {
-    // Mock the upcoming-reminder endpoint to return a session within 48h
     const now = new Date();
-    const futureSlotStart = new Date(now.getTime() + 12 * 60 * 60 * 1000); // 12h from now
-    const futureSlotEnd = new Date(futureSlotStart.getTime() + 60 * 60 * 1000); // +1h
+    const futureSlotStart = new Date(now.getTime() + 12 * 60 * 60 * 1000);
+    const futureSlotEnd = new Date(futureSlotStart.getTime() + 60 * 60 * 1000);
 
     await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
       await route.fulfill({
@@ -97,7 +95,7 @@ test.describe('Dashboard — Upcoming Session Reminder', { tag: [...FlowTags.DAS
             ends_at: futureSlotEnd.toISOString(),
           },
           trainer: {
-            first_name: 'Germán',
+            first_name: 'Germ\u00e1n',
             last_name: 'Franco',
           },
         }),
@@ -106,32 +104,28 @@ test.describe('Dashboard — Upcoming Session Reminder', { tag: [...FlowTags.DAS
 
     await loginAsTestUser(page);
 
-    // Reminder modal should appear
-    await expect(page.getByText('¡Tienes una sesión próxima!')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('Tu sesión está programada para')).toBeVisible();
+    await expect(page.getByText(/Tienes una sesi\u00f3n pr\u00f3xima/)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/Tu sesi\u00f3n est\u00e1 programada para/)).toBeVisible();
 
-    // "Cerrar" button dismisses the modal
     await page.getByRole('button', { name: 'Cerrar', exact: true }).click();
-    await expect(page.getByText('¡Tienes una sesión próxima!')).not.toBeVisible();
+    await expect(page.getByText(/Tienes una sesi\u00f3n pr\u00f3xima/)).not.toBeVisible();
   });
 
-  test('reminder modal "Ver detalle" navigates to session detail', async ({ page }) => {
+  test('reminder modal Ver detalle navigates to subscription', async ({ page }) => {
     const mockBooking = buildReminderBooking(6);
     await setupDefaultApiMocks(page);
     await mockReminderResponse(page, mockBooking);
     await mockBookingsList(page, mockBooking);
 
     await loginAsTestUser(page);
-    await expect(page.getByText('¡Tienes una sesión próxima!')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/Tienes una sesi\u00f3n pr\u00f3xima/)).toBeVisible({ timeout: 10_000 });
 
-    // Click "Ver detalle"
     await page.getByRole('link', { name: 'Ver detalle' }).click();
-    await page.waitForURL(/\/my-programs\/program\?id=\d+/, { timeout: 15_000 });
+    await page.waitForURL(/\/subscription/, { timeout: 15_000 });
   });
 
   test('reminder does NOT show when session is more than 48h away', async ({ page }) => {
     const now = new Date();
-    // Session 72h in the future → hoursUntil > 48 → early return null
     const futureSlotStart = new Date(now.getTime() + 72 * 60 * 60 * 1000);
     const futureSlotEnd = new Date(futureSlotStart.getTime() + 60 * 60 * 1000);
 
@@ -148,16 +142,16 @@ test.describe('Dashboard — Upcoming Session Reminder', { tag: [...FlowTags.DAS
             starts_at: futureSlotStart.toISOString(),
             ends_at: futureSlotEnd.toISOString(),
           },
-          trainer: { first_name: 'Germán', last_name: 'Franco' },
+          trainer: { first_name: 'Germ\u00e1n', last_name: 'Franco' },
         }),
       });
     });
 
     await loginAsTestUser(page);
-    await expect(page.getByText('¡Tienes una sesión próxima!')).not.toBeVisible();
+    await expect(page.getByText(/Tienes una sesi\u00f3n pr\u00f3xima/)).not.toBeVisible();
   });
 
-  test('reminder with null subscription_id_display navigates to /my-programs', async ({ page }) => {
+  test('reminder with null subscription_id_display Ver detalle points to subscription', async ({ page }) => {
     const now = new Date();
     const futureSlotStart = new Date(now.getTime() + 6 * 60 * 60 * 1000);
     const futureSlotEnd = new Date(futureSlotStart.getTime() + 60 * 60 * 1000);
@@ -175,17 +169,16 @@ test.describe('Dashboard — Upcoming Session Reminder', { tag: [...FlowTags.DAS
             starts_at: futureSlotStart.toISOString(),
             ends_at: futureSlotEnd.toISOString(),
           },
-          trainer: { first_name: 'Germán', last_name: 'Franco' },
+          trainer: { first_name: 'Germ\u00e1n', last_name: 'Franco' },
         }),
       });
     });
 
     await loginAsTestUser(page);
-    await expect(page.getByText('¡Tienes una sesión próxima!')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/Tienes una sesi\u00f3n pr\u00f3xima/)).toBeVisible({ timeout: 10_000 });
 
-    // "Ver detalle" link should point to /my-programs (not /my-programs/program/...)
     const detailLink = page.getByRole('link', { name: 'Ver detalle' });
-    await expect(detailLink).toHaveAttribute('href', '/my-programs');
+    await expect(detailLink).toHaveAttribute('href', '/subscription');
   });
 
   test('dismissed reminder does NOT reappear when navigating back to dashboard', async ({ page }) => {
@@ -206,24 +199,21 @@ test.describe('Dashboard — Upcoming Session Reminder', { tag: [...FlowTags.DAS
             starts_at: futureSlotStart.toISOString(),
             ends_at: futureSlotEnd.toISOString(),
           },
-          trainer: { first_name: 'Germán', last_name: 'Franco' },
+          trainer: { first_name: 'Germ\u00e1n', last_name: 'Franco' },
         }),
       });
     });
 
     await loginAsTestUser(page);
-    await expect(page.getByText('¡Tienes una sesión próxima!')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/Tienes una sesi\u00f3n pr\u00f3xima/)).toBeVisible({ timeout: 10_000 });
 
-    // Dismiss the reminder
     await page.getByRole('button', { name: 'Cerrar', exact: true }).click();
-    await expect(page.getByText('¡Tienes una sesión próxima!')).not.toBeVisible();
+    await expect(page.getByText(/Tienes una sesi\u00f3n pr\u00f3xima/)).not.toBeVisible();
 
-    // Navigate away and back to dashboard (use a public page to avoid unmocked API calls)
     await page.goto('/programs', { waitUntil: 'domcontentloaded' });
     await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
 
-    // Reminder should NOT reappear because sessionStorage persists within the tab
-    await expect(page.getByText('¡Tienes una sesión próxima!')).not.toBeVisible();
+    await expect(page.getByText(/Tienes una sesi\u00f3n pr\u00f3xima/)).not.toBeVisible();
   });
 
   test('reminder does NOT show when API returns no upcoming booking', async ({ page }) => {
@@ -237,6 +227,6 @@ test.describe('Dashboard — Upcoming Session Reminder', { tag: [...FlowTags.DAS
 
     await loginAsTestUser(page);
 
-    await expect(page.getByText('¡Tienes una sesión próxima!')).not.toBeVisible();
+    await expect(page.getByText(/Tienes una sesi\u00f3n pr\u00f3xima/)).not.toBeVisible();
   });
 });

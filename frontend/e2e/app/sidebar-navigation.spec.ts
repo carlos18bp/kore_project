@@ -73,10 +73,10 @@ test.describe('Sidebar — Navigation & Active States', { tag: [...FlowTags.APP_
     const agendarLink = sidebar.getByRole('link', { name: 'Agendar Sesión' });
     await expect(agendarLink).toHaveAttribute('class', /text-kore-red/);
 
-    // Navigate to /my-programs — "Mis Programas" should be active
-    await sidebar.getByRole('link', { name: 'Mis Programas' }).click();
-    await page.waitForURL('**/my-programs');
-    const programasLink = sidebar.getByRole('link', { name: 'Mis Programas' });
-    await expect(programasLink).toHaveAttribute('class', /text-kore-red/);
+    // Navigate to /subscription — "Mi Suscripción" should be active
+    await sidebar.getByRole('link', { name: 'Mi Suscripción' }).click();
+    await page.waitForURL('**/subscription');
+    const subscriptionLink = sidebar.getByRole('link', { name: 'Mi Suscripción' });
+    await expect(subscriptionLink).toHaveAttribute('class', /text-kore-red/);
   });
 });

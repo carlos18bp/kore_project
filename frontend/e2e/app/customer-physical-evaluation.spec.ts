@@ -64,22 +64,24 @@ test.describe('Customer Physical Evaluation Page', { tag: [...FlowTags.CUSTOMER_
     await expect(page.getByText(/Última evaluación/i)).toBeVisible();
   });
 
-  test('renders hero summary cards for all fitness components', async ({ page }) => {
+  test('renders index cards for all fitness components', async ({ page }) => {
     await goToPhysicalEvalWithData(page);
 
-    await expect(page.getByText('General', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('Fuerza', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('Resistencia', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('Movilidad', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Tus componentes en detalle')).toBeVisible();
+    await expect(page.getByText('Tu condición física general').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /Fuerza/ }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /Resistencia/ }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /Movilidad/ }).first()).toBeVisible();
   });
 
   test('renders test scores section with individual results', async ({ page }) => {
     await goToPhysicalEvalWithData(page);
 
     await expect(page.getByText('Tus resultados por prueba')).toBeVisible();
-    await expect(page.getByText('Sentadillas').first()).toBeVisible();
-    await expect(page.getByText('Flexiones').first()).toBeVisible();
-    await expect(page.getByText('Plancha').first()).toBeVisible();
+    const scoresBlock = page.locator('div').filter({ hasText: 'Tus resultados por prueba' }).first();
+    await expect(scoresBlock.getByText('Sentadillas', { exact: true })).toBeVisible();
+    await expect(scoresBlock.getByText('Flexiones', { exact: true })).toBeVisible();
+    await expect(scoresBlock.getByText('Plancha', { exact: true })).toBeVisible();
   });
 
   test('renders trainer notes when present', async ({ page }) => {

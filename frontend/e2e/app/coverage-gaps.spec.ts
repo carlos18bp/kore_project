@@ -110,9 +110,9 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // my-programs/page.tsx lines 16-20 — SubscriptionCard with active subscription
+  // subscription/page.tsx — active subscription card
   // ─────────────────────────────────────────────────────────────────────────
-  test('my-programs shows SubscriptionCard with active subscription', async ({ page }) => {
+  test('subscription page shows active subscription card', async ({ page }) => {
     await mockLoginAsTestUser(page);
     const activeSub = {
       id: 11,
@@ -143,16 +143,15 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
     });
 
-    await page.goto('/my-programs');
+    await page.goto('/subscription');
 
-    // Verify SubscriptionCard renders with active subscription details
-    await expect(page.getByText('Paquete Pro')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('Activo')).toBeVisible();
-    await expect(page.getByText('3 de 8 completadas')).toBeVisible();
-    await expect(page.getByText('38%')).toBeVisible(); // progress percentage
+    await expect(page.getByText('Paquete Pro').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('span').filter({ hasText: /^Activa$/ }).first()).toBeVisible();
+    await expect(page.getByText('3 de 8 completadas').first()).toBeVisible();
+    await expect(page.getByText('Avance: 38%').first()).toBeVisible();
   });
 
-  test('my-programs shows SubscriptionCard with expired subscription', async ({ page }) => {
+  test('subscription page shows expired subscription in inactivas', async ({ page }) => {
     await mockLoginAsTestUser(page);
     const expiredSub = {
       id: 12,
@@ -183,14 +182,13 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
     });
 
-    await page.goto('/my-programs');
+    await page.goto('/subscription');
 
-    // Verify SubscriptionCard renders with expired status badge
-    await expect(page.getByText('Paquete Básico')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('Vencido')).toBeVisible();
+    await expect(page.getByText('Paquete Básico').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('span').filter({ hasText: /^Expirada$/ }).first()).toBeVisible();
   });
 
-  test('my-programs shows SubscriptionCard with canceled subscription', async ({ page }) => {
+  test('subscription page shows canceled subscription in inactivas', async ({ page }) => {
     await mockLoginAsTestUser(page);
     const canceledSub = {
       id: 13,
@@ -221,17 +219,16 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
     });
 
-    await page.goto('/my-programs');
+    await page.goto('/subscription');
 
-    // Verify SubscriptionCard renders with canceled status badge
-    await expect(page.getByText('Paquete Premium')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('Cancelado')).toBeVisible();
+    await expect(page.getByText('Paquete Premium').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('span').filter({ hasText: /^Cancelada$/ }).first()).toBeVisible();
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // my-programs/page.tsx line 17 — STATUS_BADGE fallback (unknown status)
+  // subscription/page.tsx — unknown status shows raw value on badge
   // ─────────────────────────────────────────────────────────────────────────
-  test('my-programs SubscriptionCard uses fallback badge for unknown status', async ({ page }) => {
+  test('subscription card shows raw label for unknown status', async ({ page }) => {
     await mockLoginAsTestUser(page);
     const unknownStatusSub = {
       id: 14,
@@ -240,7 +237,7 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
       sessions_total: 6,
       sessions_used: 1,
       sessions_remaining: 5,
-      status: 'archived', // Unknown status should fallback to active badge
+      status: 'archived',
       starts_at: new Date(Date.now() - 5 * 86400000).toISOString(),
       expires_at: new Date(Date.now() + 40 * 86400000).toISOString(),
       next_billing_date: null,
@@ -262,11 +259,10 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
     });
 
-    await page.goto('/my-programs');
+    await page.goto('/subscription');
 
-    // Should render the card with fallback to "Activo" badge since status is unknown
-    await expect(page.getByText('Paquete Especial')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('Activo')).toBeVisible(); // Fallback
+    await expect(page.getByText('Paquete Especial').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('span').filter({ hasText: /^archived$/ }).first()).toBeVisible();
   });
 
   // ─────────────────────────────────────────────────────────────────────────

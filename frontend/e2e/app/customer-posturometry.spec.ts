@@ -57,13 +57,14 @@ test.describe('Customer Posturometry Page', { tag: [...FlowTags.CUSTOMER_POSTURO
     await expect(page.getByText(/Última evaluación/i)).toBeVisible();
   });
 
-  test('renders hero summary cards for all regions', async ({ page }) => {
+  test('renders index cards for all posture regions', async ({ page }) => {
     await goToPosturometryWithData(page);
 
-    await expect(page.getByText('Global', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('Superior', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('Central', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText('Inferior', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Tus zonas en detalle')).toBeVisible();
+    await expect(page.getByText('Tu postura general').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /Zona superior/ }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /Zona central/ }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /Zona inferior/ }).first()).toBeVisible();
   });
 
   test('renders trainer notes when present', async ({ page }) => {

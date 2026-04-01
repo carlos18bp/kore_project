@@ -91,7 +91,7 @@ describe('BookingSuccess', () => {
     render(<BookingSuccess booking={MOCK_BOOKING} onReset={onReset} />);
     const link = screen.getByText('tu programa');
     expect(link).toBeInTheDocument();
-    expect(link.closest('a')).toHaveAttribute('href', '/my-programs/program?id=2');
+    expect(link.closest('a')).toHaveAttribute('href', '/subscription');
   });
 
   it('calls onReset when "Agendar otra sesión" clicked', async () => {
@@ -105,7 +105,7 @@ describe('BookingSuccess', () => {
     const bookingNoSub = { ...MOCK_BOOKING, subscription_id_display: null };
     render(<BookingSuccess booking={bookingNoSub} onReset={onReset} />);
     const link = screen.getByText('tu programa');
-    expect(link.closest('a')).toHaveAttribute('href', '/my-programs/program?id=');
+    expect(link.closest('a')).toHaveAttribute('href', '/subscription');
   });
 
   it('does not render location row when trainer has no location', () => {

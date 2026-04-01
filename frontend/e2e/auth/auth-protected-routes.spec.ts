@@ -13,8 +13,8 @@ test.describe('Auth Protected Routes', { tag: [...FlowTags.AUTH_PROTECTED_ROUTES
   const protectedRoutes = [
     '/dashboard',
     '/book-session',
-    '/my-programs',
     '/subscription',
+    '/my-diagnosis',
   ];
 
   for (const route of protectedRoutes) {

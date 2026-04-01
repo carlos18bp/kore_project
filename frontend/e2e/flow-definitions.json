@@ -140,14 +140,14 @@
       "module": "programs",
       "priority": "P1",
       "roles": ["guest", "user"],
-      "description": "List subscriptions and handle empty states on My Programs."
+      "description": "Mi Suscripción (/subscription): list subscriptions, empty state, sidebar navigation."
     },
     "my-programs-detail": {
       "name": "My Programs Detail",
       "module": "programs",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Navigate program detail and session history."
+      "description": "Subscription detail on /subscription: program cards, session tabs, session rows, modal entry."
     },
     "subscription-page": {
       "name": "Subscription Page",
