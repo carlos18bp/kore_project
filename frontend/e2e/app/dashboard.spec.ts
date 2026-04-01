@@ -32,7 +32,9 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
   });
 
   test('renders recent activity section', async ({ page }) => {
-    await expect(page.getByRole('main').getByRole('heading', { name: 'Historial reciente' })).toBeVisible();
+    await expect(
+      page.getByRole('main').getByRole('heading', { name: 'Historial reciente' }).filter({ visible: true }),
+    ).toBeVisible();
   });
 
   test('renders member since label', async ({ page }) => {
@@ -130,7 +132,7 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
 
     await page.goto('/dashboard');
     const main = page.getByRole('main');
-    await expect(main.getByText('Próxima sesión')).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('Próxima sesión').filter({ visible: true })).toBeVisible({ timeout: 10_000 });
   });
 
   test('recent activity shows confirmed, canceled and pending booking statuses', async ({ page }) => {
@@ -152,8 +154,8 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
 
     await page.goto('/dashboard');
     const main = page.getByRole('main');
-    await expect(main.getByText('Historial reciente')).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('Completada')).toBeVisible();
-    await expect(main.getByText('Cancelada')).toBeVisible();
+    await expect(main.getByText('Historial reciente').filter({ visible: true })).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('Completada').filter({ visible: true })).toBeVisible();
+    await expect(main.getByText('Cancelada').filter({ visible: true })).toBeVisible();
   });
 });

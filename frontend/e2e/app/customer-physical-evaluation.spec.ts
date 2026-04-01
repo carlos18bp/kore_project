@@ -78,9 +78,10 @@ test.describe('Customer Physical Evaluation Page', { tag: [...FlowTags.CUSTOMER_
     await goToPhysicalEvalWithData(page);
 
     await expect(page.getByText('Tus resultados por prueba')).toBeVisible();
-    await expect(page.getByText('Sentadillas', { exact: true })).toBeVisible();
-    await expect(page.getByText('Flexiones', { exact: true })).toBeVisible();
-    await expect(page.getByText('Plancha', { exact: true })).toBeVisible();
+    const main = page.getByRole('main');
+    await expect(main.getByText('Sentadillas', { exact: true }).filter({ visible: true })).toBeVisible();
+    await expect(main.getByText('Flexiones', { exact: true }).filter({ visible: true })).toBeVisible();
+    await expect(main.getByText('Plancha', { exact: true }).filter({ visible: true })).toBeVisible();
   });
 
   test('renders trainer notes when present', async ({ page }) => {

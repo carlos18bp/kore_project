@@ -170,7 +170,9 @@ test.describe('Subscription detail — mocked data branches', { tag: [...FlowTag
     await expect(main.getByText('Paquete Elite')).toBeVisible({ timeout: 10_000 });
     await expect(main.getByRole('heading', { name: 'Detalles' })).toBeVisible();
     await expect(main.getByText('Avance:')).toBeVisible();
-    await expect(main.getByText('Activa', { exact: true })).toBeVisible();
+    await expect(
+      main.getByRole('button').filter({ hasText: 'Paquete Elite' }).getByText('Activa', { exact: true }),
+    ).toBeVisible();
   });
 
   test('upcoming tab shows future confirmed bookings with trainer name', async ({ page }) => {

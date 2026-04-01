@@ -1,5 +1,6 @@
 """Tests for physical evaluation API views."""
 
+from datetime import date
 from datetime import datetime as dt
 from datetime import timedelta
 
@@ -21,13 +22,13 @@ from core_app.views.physical_evaluation_views import PhysicalEvaluationSerialize
 FIXED_BOOKING_NOW = timezone.make_aware(dt(2026, 6, 15, 12, 0, 0))
 
 
-def _make_booking(customer, trainer_profile):
+def _make_booking(customer, trainer_profile, *, slot_hours_offset=0):
     """Create a valid Booking with all required FKs."""
     pkg = Package.objects.create(title='Test', price=10000, sessions_count=4, category='personalizado')
-    now = FIXED_BOOKING_NOW
+    base = FIXED_BOOKING_NOW + timedelta(hours=slot_hours_offset)
     slot = AvailabilitySlot.objects.create(
-        starts_at=now + timedelta(hours=1),
-        ends_at=now + timedelta(hours=2),
+        starts_at=base + timedelta(hours=1),
+        ends_at=base + timedelta(hours=2),
     )
     return Booking.objects.create(
         customer=customer, package=pkg, slot=slot,
@@ -85,7 +86,10 @@ class TestTrainerPhysicalEvalListCreate(TestCase):
         self.assertIsNotNone(data['squats_score'])
         self.assertIsNotNone(data['general_index'])
         self.assertIn(data['general_color'], ('green', 'yellow', 'red'))
-        self.assertEqual(data['age_at_evaluation'], 36)  # born 1990, evaluated ~2026
+        dob = date(1990, 1, 1)
+        today = date.today()
+        expected_age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+        self.assertEqual(data['age_at_evaluation'], expected_age)
         self.assertEqual(data['sex_at_evaluation'], 'femenino')
 
     def test_create_requires_profile(self):
@@ -96,7 +100,7 @@ class TestTrainerPhysicalEvalListCreate(TestCase):
         cp.sex = ''
         cp.date_of_birth = None
         cp.save()
-        _make_booking(customer2, self.trainer_profile)
+        _make_booking(customer2, self.trainer_profile, slot_hours_offset=168)
         resp = self.client.post(
             f'/api/trainer/my-clients/{customer2.id}/physical-evaluation/',
             SAMPLE_DATA, format='json',

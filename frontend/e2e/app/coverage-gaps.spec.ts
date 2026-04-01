@@ -147,7 +147,9 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
 
     const subMain = page.getByRole('main');
     await expect(subMain.getByText('Paquete Pro')).toBeVisible({ timeout: 10_000 });
-    await expect(subMain.getByText('Activa', { exact: true })).toBeVisible();
+    await expect(
+      subMain.getByRole('button').filter({ hasText: 'Paquete Pro' }).getByText('Activa', { exact: true }),
+    ).toBeVisible();
     await expect(subMain.getByText('3 de 8 completadas')).toBeVisible();
     await expect(subMain.getByText('Avance: 38%')).toBeVisible();
   });
@@ -187,7 +189,9 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
 
     const subMainExpired = page.getByRole('main');
     await expect(subMainExpired.getByText('Paquete Básico')).toBeVisible({ timeout: 10_000 });
-    await expect(subMainExpired.getByText('Expirada', { exact: true })).toBeVisible();
+    await expect(
+      subMainExpired.getByRole('button').filter({ hasText: 'Paquete Básico' }).getByText('Expirada', { exact: true }),
+    ).toBeVisible();
   });
 
   test('subscription page shows canceled subscription in inactivas', async ({ page }) => {
@@ -225,7 +229,9 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
 
     const subMainCanceled = page.getByRole('main');
     await expect(subMainCanceled.getByText('Paquete Premium')).toBeVisible({ timeout: 10_000 });
-    await expect(subMainCanceled.getByText('Cancelada', { exact: true })).toBeVisible();
+    await expect(
+      subMainCanceled.getByRole('button').filter({ hasText: 'Paquete Premium' }).getByText('Cancelada', { exact: true }),
+    ).toBeVisible();
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -266,7 +272,9 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
 
     const subMainUnknown = page.getByRole('main');
     await expect(subMainUnknown.getByText('Paquete Especial')).toBeVisible({ timeout: 10_000 });
-    await expect(subMainUnknown.getByText('archived', { exact: true })).toBeVisible();
+    await expect(
+      subMainUnknown.getByRole('button').filter({ hasText: 'Paquete Especial' }).getByText('archived', { exact: true }),
+    ).toBeVisible();
   });
 
   // ─────────────────────────────────────────────────────────────────────────
