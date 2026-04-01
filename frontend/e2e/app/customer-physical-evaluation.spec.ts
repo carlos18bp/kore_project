@@ -6,6 +6,7 @@ import { FlowTags, RoleTags } from '../helpers/flow-tags';
  * Covers hero summary, fitness index cards, test scores, empty state, and progress timeline.
  */
 test.describe('Customer Physical Evaluation Page', { tag: [...FlowTags.CUSTOMER_PHYSICAL_EVALUATION, RoleTags.USER] }, () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
 
   const fakeEvaluation = {
     id: 1,
@@ -67,11 +68,12 @@ test.describe('Customer Physical Evaluation Page', { tag: [...FlowTags.CUSTOMER_
   test('renders index cards for all fitness components', async ({ page }) => {
     await goToPhysicalEvalWithData(page);
 
-    await expect(page.getByText('Tus componentes en detalle')).toBeVisible();
-    await expect(page.getByText('Tu condición física general')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Fuerza/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Resistencia/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Movilidad/ })).toBeVisible();
+    const main = page.getByRole('main');
+    await expect(main.getByText('Tus componentes en detalle').filter({ visible: true })).toBeVisible();
+    await expect(main.getByText('Tu condición física general').filter({ visible: true }).first()).toBeVisible();
+    await expect(main.getByRole('button', { name: /Fuerza/ }).filter({ visible: true }).first()).toBeVisible();
+    await expect(main.getByRole('button', { name: /Resistencia/ }).filter({ visible: true }).first()).toBeVisible();
+    await expect(main.getByRole('button', { name: /Movilidad/ }).filter({ visible: true }).first()).toBeVisible();
   });
 
   test('renders test scores section with individual results', async ({ page }) => {
@@ -87,15 +89,17 @@ test.describe('Customer Physical Evaluation Page', { tag: [...FlowTags.CUSTOMER_
   test('renders trainer notes when present', async ({ page }) => {
     await goToPhysicalEvalWithData(page);
 
-    await expect(page.getByText('Tu entrenador dice')).toBeVisible();
-    await expect(page.getByText(/Buen rendimiento en fuerza/)).toBeVisible();
+    const main = page.getByRole('main');
+    await expect(main.getByText('Tu entrenador dice').filter({ visible: true })).toBeVisible();
+    await expect(main.getByText(/Buen rendimiento en fuerza/).filter({ visible: true })).toBeVisible();
   });
 
   test('renders expandable index cards section', async ({ page }) => {
     await goToPhysicalEvalWithData(page);
 
-    await expect(page.getByText('Tus componentes en detalle')).toBeVisible();
-    await expect(page.getByText('Tu condición física general')).toBeVisible();
+    const main = page.getByRole('main');
+    await expect(main.getByText('Tus componentes en detalle').filter({ visible: true })).toBeVisible();
+    await expect(main.getByText('Tu condición física general').filter({ visible: true }).first()).toBeVisible();
   });
 
   test('empty state shows placeholder when no evaluations exist', async ({ page }) => {

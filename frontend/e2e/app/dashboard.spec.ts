@@ -2,6 +2,8 @@ import { test, expect, E2E_USER, mockLoginAsTestUser } from '../fixtures';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags.USER] }, () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
   test.beforeEach(async ({ page }) => {
     await mockLoginAsTestUser(page);
     await expect(page).toHaveURL(/\/dashboard$/);
@@ -12,16 +14,21 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
   });
 
   test('renders progress card', async ({ page }) => {
-    await expect(page.getByText('Tu progreso', { exact: true })).toBeVisible();
-    await expect(page.getByText(/completadas de \d+/)).toBeVisible();
+    const main = page.getByRole('main');
+    await expect(main.getByText('Tu progreso', { exact: true }).filter({ visible: true })).toBeVisible();
+    await expect(main.getByText(/completadas de \d+/).filter({ visible: true })).toBeVisible();
   });
 
   test('renders sessions remaining', async ({ page }) => {
-    await expect(page.getByText(/completadas de \d+/)).toBeVisible();
+    await expect(
+      page.getByRole('main').getByText(/completadas de \d+/).filter({ visible: true }),
+    ).toBeVisible();
   });
 
   test('renders next session card', async ({ page }) => {
-    await expect(page.getByText('Tu siguiente paso')).toBeVisible();
+    await expect(
+      page.getByRole('main').getByText('Tu siguiente paso').filter({ visible: true }),
+    ).toBeVisible();
   });
 
   test('renders sidebar quick action links', async ({ page }) => {
@@ -38,7 +45,9 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
   });
 
   test('renders member since label', async ({ page }) => {
-    await expect(page.getByText('Miembro desde')).toBeVisible();
+    await expect(
+      page.getByRole('main').getByText('Miembro desde').filter({ visible: true }),
+    ).toBeVisible();
   });
 
   test('sidebar is visible with navigation', async ({ page }) => {
@@ -50,6 +59,8 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
 });
 
 test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags.USER] }, () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
   const activeSub = {
     id: 10,
     customer_email: 'e2e@kore.com',
@@ -155,7 +166,7 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
     await page.goto('/dashboard');
     const main = page.getByRole('main');
     await expect(main.getByText('Historial reciente').filter({ visible: true })).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('Completada').filter({ visible: true })).toBeVisible();
-    await expect(main.getByText('Cancelada').filter({ visible: true })).toBeVisible();
+    await expect(main.getByText('Completada', { exact: true }).filter({ visible: true }).first()).toBeVisible();
+    await expect(main.getByText('Cancelada', { exact: true }).filter({ visible: true }).first()).toBeVisible();
   });
 });

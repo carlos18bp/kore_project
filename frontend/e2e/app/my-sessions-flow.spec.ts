@@ -63,13 +63,13 @@ test.describe('My Programs Flow — Subscription detail & sessions (mocked)', { 
     await page.goto('/subscription');
 
     const main = page.getByRole('main');
-    await expect(main.getByRole('button', { name: 'Próximas' })).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByRole('button', { name: 'Pasadas' })).toBeVisible();
+    await expect(main.getByRole('button', { name: /Próximas\s*\(/ })).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByRole('button', { name: /Pasadas\s*\(/ })).toBeVisible();
 
-    await main.getByRole('button', { name: 'Pasadas' }).click();
+    await main.getByRole('button', { name: /Pasadas\s*\(/ }).click();
     await expect(main.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 5_000 });
 
-    await main.getByRole('button', { name: 'Próximas' }).click();
+    await main.getByRole('button', { name: /Próximas\s*\(/ }).click();
     await expect(main.getByText('No tienes sesiones próximas')).toBeVisible();
   });
 
@@ -167,7 +167,7 @@ test.describe('Subscription detail — mocked data branches', { tag: [...FlowTag
     await setupProgramDetailMocks(page, [upcomingBooking]);
     await page.goto('/subscription');
     const main = page.getByRole('main');
-    await expect(main.getByText('Paquete Elite')).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('Paquete Elite').filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
     await expect(main.getByRole('heading', { name: 'Detalles' })).toBeVisible();
     await expect(main.getByText('Avance:')).toBeVisible();
     await expect(
@@ -179,7 +179,7 @@ test.describe('Subscription detail — mocked data branches', { tag: [...FlowTag
     await setupProgramDetailMocks(page, [upcomingBooking]);
     await page.goto('/subscription');
     const main = page.getByRole('main');
-    await expect(main.getByRole('button', { name: 'Próximas' })).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByRole('button', { name: /Próximas\s*\(/ })).toBeVisible({ timeout: 10_000 });
     await expect(main.getByRole('button', { name: /Confirmada/ })).toBeVisible();
     await expect(main.getByText(/Germán Franco/)).toBeVisible();
   });
@@ -188,9 +188,9 @@ test.describe('Subscription detail — mocked data branches', { tag: [...FlowTag
     await setupProgramDetailMocks(page, [pastBooking]);
     await page.goto('/subscription');
     const main = page.getByRole('main');
-    await expect(main.getByRole('button', { name: 'Próximas' })).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByRole('button', { name: /Próximas\s*\(/ })).toBeVisible({ timeout: 10_000 });
     await expect(main.getByText('No tienes sesiones próximas')).toBeVisible();
-    await main.getByRole('button', { name: 'Pasadas' }).click();
+    await main.getByRole('button', { name: /Pasadas\s*\(/ }).click();
     await expect(main.getByRole('button', { name: /Confirmada/ })).toBeVisible();
   });
 
@@ -198,8 +198,8 @@ test.describe('Subscription detail — mocked data branches', { tag: [...FlowTag
     await setupProgramDetailMocks(page, [canceledBooking]);
     await page.goto('/subscription');
     const main = page.getByRole('main');
-    await expect(main.getByRole('button', { name: 'Pasadas' })).toBeVisible({ timeout: 10_000 });
-    await main.getByRole('button', { name: 'Pasadas' }).click();
+    await expect(main.getByRole('button', { name: /Pasadas\s*\(/ })).toBeVisible({ timeout: 10_000 });
+    await main.getByRole('button', { name: /Pasadas\s*\(/ }).click();
     await expect(main.getByRole('button', { name: /Cancelada/ })).toBeVisible();
   });
 

@@ -182,10 +182,10 @@ test.describe('Session Detail Modal (mocked)', { tag: [...FlowTags.BOOKING_SESSI
     await mockLoginAsTestUser(page);
     await setupMocks(page, canceledBooking);
     await page.goto('/subscription');
-    await expect(page.getByRole('button', { name: 'Pasadas' })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /Pasadas\s*\(/ })).toBeVisible({ timeout: 10_000 });
 
     // Canceled bookings show in "Pasadas" tab
-    await page.getByRole('button', { name: 'Pasadas' }).click();
+    await page.getByRole('button', { name: /Pasadas\s*\(/ }).click();
     await expect(page.getByRole('button', { name: /Cancelada/ })).toBeVisible({ timeout: 10_000 });
 
     const bookingRow = page.getByRole('button', { name: /Cancelada/ });

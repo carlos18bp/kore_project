@@ -83,6 +83,7 @@ async function mockBookSessionCoverageRoutes(page: Page, dateIso: string) {
  */
 test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleTags.USER] }, () => {
   test.describe.configure({ mode: 'serial' });
+  test.use({ viewport: { width: 1440, height: 900 } });
 
   // ─────────────────────────────────────────────────────────────────────────
   // TimeSlotPicker.tsx line 24 — Empty slots fallback
@@ -146,12 +147,12 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
     await page.goto('/subscription');
 
     const subMain = page.getByRole('main');
-    await expect(subMain.getByText('Paquete Pro')).toBeVisible({ timeout: 10_000 });
+    await expect(subMain.getByText('Paquete Pro').filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
     await expect(
       subMain.getByRole('button').filter({ hasText: 'Paquete Pro' }).getByText('Activa', { exact: true }),
     ).toBeVisible();
-    await expect(subMain.getByText('3 de 8 completadas')).toBeVisible();
-    await expect(subMain.getByText('Avance: 38%')).toBeVisible();
+    await expect(subMain.getByText('3 de 8 completadas').filter({ visible: true }).first()).toBeVisible();
+    await expect(subMain.getByText('Avance: 38%').filter({ visible: true }).first()).toBeVisible();
   });
 
   test('subscription page shows expired subscription in inactivas', async ({ page }) => {
@@ -188,7 +189,7 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
     await page.goto('/subscription');
 
     const subMainExpired = page.getByRole('main');
-    await expect(subMainExpired.getByText('Paquete Básico')).toBeVisible({ timeout: 10_000 });
+    await expect(subMainExpired.getByText('Paquete Básico').filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
     await expect(
       subMainExpired.getByRole('button').filter({ hasText: 'Paquete Básico' }).getByText('Expirada', { exact: true }),
     ).toBeVisible();
@@ -228,7 +229,7 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
     await page.goto('/subscription');
 
     const subMainCanceled = page.getByRole('main');
-    await expect(subMainCanceled.getByText('Paquete Premium')).toBeVisible({ timeout: 10_000 });
+    await expect(subMainCanceled.getByText('Paquete Premium').filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
     await expect(
       subMainCanceled.getByRole('button').filter({ hasText: 'Paquete Premium' }).getByText('Cancelada', { exact: true }),
     ).toBeVisible();
@@ -271,7 +272,7 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
     await page.goto('/subscription');
 
     const subMainUnknown = page.getByRole('main');
-    await expect(subMainUnknown.getByText('Paquete Especial')).toBeVisible({ timeout: 10_000 });
+    await expect(subMainUnknown.getByText('Paquete Especial').filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
     await expect(
       subMainUnknown.getByRole('button').filter({ hasText: 'Paquete Especial' }).getByText('archived', { exact: true }),
     ).toBeVisible();
