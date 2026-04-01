@@ -1,4 +1,4 @@
-import { test, expect, E2E_USER, loginAsTestUser, setupDefaultApiMocks, mockCaptchaSiteKey } from '../fixtures';
+import { test, expect, E2E_USER, loginAsTestUser, setupDefaultApiMocks, mockCaptchaSiteKey, mockLoginAsTestUser } from '../fixtures';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 test.describe('Auth Persistence & Cookies', { tag: [...FlowTags.AUTH_SESSION_PERSISTENCE, RoleTags.USER] }, () => {
@@ -31,10 +31,9 @@ test.describe('Auth Persistence & Cookies', { tag: [...FlowTags.AUTH_SESSION_PER
   });
 
   test('logout clears kore_token and kore_user cookies', async ({ page }) => {
-    await setupDefaultApiMocks(page);
-    await loginAsTestUser(page);
+    await mockLoginAsTestUser(page);
 
-    // Verify cookies exist
+    // Verify cookies exist before logout
     let cookies = await page.context().cookies();
     const tokenBeforeLogout = cookies.find((c) => c.name === 'kore_token');
     expect(tokenBeforeLogout?.value ?? '').not.toEqual('');

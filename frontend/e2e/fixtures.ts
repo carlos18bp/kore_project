@@ -61,8 +61,8 @@ export async function injectAuthCookies(page: Page) {
   await mockCaptchaSiteKey(page);
   await mockAuthProfile(page);
   await page.context().addCookies([
-    { name: 'kore_token', value: FAKE_TOKEN, domain: 'localhost', path: '/' },
-    { name: 'kore_user', value: encodeURIComponent(FAKE_USER_COOKIE), domain: 'localhost', path: '/' },
+    { name: 'kore_token', value: FAKE_TOKEN, url: 'http://localhost:3000' },
+    { name: 'kore_user', value: encodeURIComponent(FAKE_USER_COOKIE), url: 'http://localhost:3000' },
   ]);
 }
 
@@ -337,8 +337,8 @@ export async function injectTrainerAuthCookies(page: Page) {
   await mockCaptchaSiteKey(page);
   await mockTrainerAuthProfile(page);
   await page.context().addCookies([
-    { name: 'kore_token', value: FAKE_TOKEN, domain: 'localhost', path: '/' },
-    { name: 'kore_user', value: encodeURIComponent(FAKE_TRAINER_COOKIE), domain: 'localhost', path: '/' },
+    { name: 'kore_token', value: FAKE_TOKEN, url: 'http://localhost:3000' },
+    { name: 'kore_user', value: encodeURIComponent(FAKE_TRAINER_COOKIE), url: 'http://localhost:3000' },
   ]);
 }
 
