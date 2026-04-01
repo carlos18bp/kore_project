@@ -86,6 +86,9 @@ jobs:
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
 
+      - name: Verify E2E flow definitions vs @flow tags
+        run: npm run verify:e2e-flows
+
       - name: Run Jest tests with coverage
         run: npm run test:coverage -- --ci --forceExit --json --outputFile=test-results.json
 

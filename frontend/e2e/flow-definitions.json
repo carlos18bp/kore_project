@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0",
-  "lastUpdated": "2026-07-14",
+  "version": "1.0.1",
+  "lastUpdated": "2026-03-31",
   "flows": {
     "auth-login": {
       "name": "Login",
@@ -259,7 +259,7 @@
       "module": "subscription",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Cancel subscription from subscription page and verify status change."
+      "description": "Subscription page cancel affordances: enabled cancel opens confirmation; expired and canceled subscriptions hide cancel."
     },
     "auth-protected-routes": {
       "name": "Auth Protected Routes",

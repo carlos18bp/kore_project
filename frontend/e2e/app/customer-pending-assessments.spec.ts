@@ -51,7 +51,7 @@ test.describe('Customer Pending Assessments (Dashboard)', { tag: [...FlowTags.CU
     await goToDashboardWithKore(page);
 
     await expect(page.getByText('Calificación KÓRE')).toBeVisible();
-    await expect(page.getByText('Bueno')).toBeVisible();
+    await expect(page.getByText('Bueno').first()).toBeVisible();
     await expect(page.getByText(/Tu progreso es constante/)).toBeVisible();
   });
 

@@ -5,9 +5,8 @@ import { FlowTags, RoleTags } from '../helpers/flow-tags';
  * E2E tests for subscription cancellation flow.
  * @flow:subscription-cancel-flow
  *
- * Covers: view active subscription → attempt cancel → verify UI state.
- * Note: Cancel button is currently disabled in the UI. These tests verify
- * the disabled state and guard against future enablement regressions.
+ * Covers: active subscription shows cancel → opens confirmation dialog;
+ * expired/canceled subscriptions hide cancel (mocked APIs).
  */
 test.describe('Subscription Cancel Flow', { tag: [...FlowTags.SUBSCRIPTION_CANCEL_FLOW, RoleTags.USER] }, () => {
 

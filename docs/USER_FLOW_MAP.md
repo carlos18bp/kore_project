@@ -1,9 +1,9 @@
 # User Flow Map
 
-Version: 1.2
-Last Updated: 2026-03-18
+Version: 1.3
+Last Updated: 2026-03-31
 Description: End-to-end user flows for the Kore frontend, grouped by role with branches for form variants and alternate outcomes.
-Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, frontend/e2e specs, frontend/app routes.
+Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, frontend/e2e specs, frontend/app routes (see audit notes on /my-programs below).
 
 ## System Roles
 - Guest: Unauthenticated visitor.
@@ -99,6 +99,25 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - PSE purchase-alternative API failure shows PSE-specific error.
 - Bancolombia purchase-alternative API failure shows Bancolombia-specific error.
 - purchase-alternative 502 (Wompi gateway failure) shows generic payment error.
+
+### checkout-payment-status-polling: Checkout Payment Status Polling
+- Module: checkout
+- Priority: P2
+- Route: /checkout?package=ID
+- Roles: user
+- Description: Exercise the post-submit payment intent polling cycle until approved or failed (mocked APIs).
+- E2E Coverage: Covered (frontend/e2e/public/checkout-payment-status-polling.spec.ts)
+
+**Steps**
+1. Open checkout as an authenticated user with a valid package id.
+2. Select card payment and submit the inline card form (mock tokenization and purchase APIs).
+3. Observe processing state while the app polls intent status.
+4. Landing state shows success after status becomes approved, or failure messaging when the intent fails.
+
+**Branches / Variations**
+- Polling transitions from pending to approved show the success screen.
+- Failed intent shows rejection feedback without leaving the user stuck in processing.
+- Uses mocked Wompi config, package fetch, and intent endpoints (no live gateway).
 
 ### booking-session-page: Book Session Page Access
 - Module: booking
@@ -404,6 +423,23 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Loading state appears during login submission.
 - mapUser falls back to email when user name is missing.
 
+### auth-protected-routes: Auth Protected Routes
+- Module: auth
+- Priority: P2
+- Route: /dashboard, /book-session, /my-programs, /subscription; /checkout (guest edge case)
+- Roles: guest
+- Description: Ensure authenticated app routes redirect anonymous users to login (or acceptable checkout funnel routes).
+- E2E Coverage: Covered (frontend/e2e/auth/auth-protected-routes.spec.ts)
+
+**Steps**
+1. Clear or omit auth cookies.
+2. Navigate directly to each protected customer route.
+3. App redirects to /login (or allowed checkout/register/programs pattern for bare /checkout).
+
+**Branches / Variations**
+- /dashboard, /book-session, /my-programs, /subscription each land on /login.
+- /checkout without package may redirect to login, register, subscription, or programs per current guards.
+
 ### dashboard-overview: Dashboard Overview
 - Module: dashboard
 - Priority: P1
@@ -482,7 +518,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Empty payment history shows a placeholder.
 - Payment history API failure shows an error message.
 - Selecting a different subscription updates the detail card.
-- Cancel action is disabled and does not surface errors.
+- Cancel subscription UX is covered in subscription-cancel-flow (active: button + confirmation dialog; expired/canceled: no cancel action).
 
 ### subscription-expiry-reminder: Subscription Expiry Reminder
 - Module: subscription
@@ -503,6 +539,24 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - 204 response hides the reminder.
 - API failure keeps reminder hidden but exercises error handling.
 - Ack API failure logs the attempt without blocking dismissal.
+
+### subscription-cancel-flow: Subscription Cancel Flow
+- Module: subscription
+- Priority: P2
+- Route: /subscription
+- Roles: user
+- Description: Cancel subscription affordances on the subscription page (mocked APIs).
+- E2E Coverage: Covered (frontend/e2e/app/subscription-cancel-flow.spec.ts)
+
+**Steps**
+1. Open /subscription with an active subscription (mocked list/detail).
+2. Locate "Cancelar suscripción" and verify visibility/state for the subscription status.
+3. Open the confirmation dialog when cancel is available.
+
+**Branches / Variations**
+- Active subscription: cancel button is visible and enabled; click opens "¿Seguro que deseas cancelar?".
+- Expired subscription: shows expired state and renew link; cancel button is not shown.
+- Canceled subscription: shows canceled badge; cancel button is not shown.
 
 ### booking-session-flow: Book Session Flow
 - Module: booking
@@ -631,6 +685,24 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Cancel action hidden for sessions too close to start time.
 - Pending, confirmed, and canceled states change available actions.
 - Modal can be closed via overlay or close button.
+
+### booking-cancel-flow: Booking Cancel Flow
+- Module: booking
+- Priority: P1
+- Route: /my-programs/program?id=:subscriptionId
+- Roles: user
+- Description: Full cancel journey from program detail through session detail modal (mocked bookings API).
+- E2E Coverage: Covered (frontend/e2e/app/booking-cancel-flow.spec.ts)
+
+**Steps**
+1. Open program detail with upcoming confirmed sessions (mocked).
+2. Open session detail from a confirmed row ("Confirmada").
+3. Start cancel, optionally enter a reason, and confirm cancellation.
+4. Modal closes after successful cancel; booking list reflects canceled state in mocks.
+
+**Branches / Variations**
+- Happy path: reason field optional; confirm sends cancel API and closes dialog.
+- Cancel API error (e.g. 500): dialog remains open for user retry or dismissal.
 
 ### app-sidebar-navigation: Sidebar Navigation
 - Module: navigation
@@ -1025,6 +1097,10 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - No evaluations shows empty state with create button.
 - Form covers multiple body regions (head, shoulders, spine, pelvis, lower limbs).
 - API failure shows error message.
+
+## Route inventory note (2026-03-31)
+
+E2E specs and several unit tests reference `/my-programs` and `@/app/(app)/my-programs/page`, but a tree scan of `frontend/app/**/page.tsx` on this workspace did not list `my-programs` or `my-programs/program` files. If those routes are generated, moved, or live outside this tree, the map should be updated once the canonical path is confirmed.
 
 ## Admin Flows
 - No admin-specific frontend flows mapped in the current codebase or E2E suite.

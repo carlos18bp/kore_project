@@ -32,7 +32,7 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
   });
 
   test('renders recent activity section', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: 'Historial reciente' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Historial reciente' }).first()).toBeVisible();
   });
 
   test('renders member since label', async ({ page }) => {
@@ -152,7 +152,7 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
 
     await page.goto('/dashboard');
     const main = page.locator('main');
-    await expect(main.getByText('Historial reciente')).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('Historial reciente').first()).toBeVisible({ timeout: 10_000 });
     await expect(main.getByText('Plan Elite').first()).toBeVisible();
   });
 });
