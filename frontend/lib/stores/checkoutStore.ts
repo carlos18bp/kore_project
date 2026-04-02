@@ -274,9 +274,11 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
       return null;
     }
 
-    const baseUrl = wompiConfig.environment === 'prod'
-      ? 'https://production.wompi.co/v1'
-      : 'https://sandbox.wompi.co/v1';
+    const normalizedEnv = (wompiConfig.environment || '').trim().toLowerCase();
+    const sandboxAliases = new Set(['test', 'sandbox', 'uat']);
+    const baseUrl = sandboxAliases.has(normalizedEnv)
+      ? 'https://sandbox.wompi.co/v1'
+      : 'https://production.wompi.co/v1';
 
     try {
       const response = await fetch(`${baseUrl}/tokens/cards`, {
@@ -396,29 +398,27 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
   fetchPSEBanks: async () => {
     const { wompiConfig } = get();
     if (!wompiConfig?.public_key) {
-      return [];
+      throw new Error('Configuración de pago no disponible.');
     }
 
-    const baseUrl = wompiConfig.environment === 'prod'
-      ? 'https://production.wompi.co/v1'
-      : 'https://sandbox.wompi.co/v1';
+    const normalizedEnv = (wompiConfig.environment || '').trim().toLowerCase();
+    const sandboxAliases = new Set(['test', 'sandbox', 'uat']);
+    const baseUrl = sandboxAliases.has(normalizedEnv)
+      ? 'https://sandbox.wompi.co/v1'
+      : 'https://production.wompi.co/v1';
 
-    try {
-      const response = await fetch(`${baseUrl}/pse/financial_institutions`, {
-        headers: {
-          'Authorization': `Bearer ${wompiConfig.public_key}`,
-        },
-      });
+    const response = await fetch(`${baseUrl}/pse/financial_institutions`, {
+      headers: {
+        'Authorization': `Bearer ${wompiConfig.public_key}`,
+      },
+    });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch banks');
-      }
-
-      const data = await response.json();
-      return data.data || [];
-    } catch {
-      return [];
+    if (!response.ok) {
+      throw new Error('No se pudieron obtener los bancos.');
     }
+
+    const data = await response.json();
+    return data.data || [];
   },
 
   purchaseWithNequi: async (packageId: number, phoneNumber: string, registrationToken?: string) => {
