@@ -226,9 +226,9 @@ test.describe('Checkout Page — Coverage Gaps', { tag: [...FlowTags.CHECKOUT_CO
     await expect(page.getByRole('heading', { name: 'Resumen del programa' })).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole('button', { name: /PSE/ }).click();
-    // PSEPaymentForm shows loading then empty bank list (fetchPSEBanks returns [])
-    // Since fetchPSEBanks catches errors and returns [], the form should still render
-    await expect(page.getByLabel('Banco')).toBeVisible({ timeout: 10_000 });
+    // fetchPSEBanks now throws on failure, so PSEPaymentForm shows error + retry button
+    await expect(page.getByText('No se pudieron cargar los bancos.')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('Reintentar')).toBeVisible();
   });
 
   // ─────────────────────────────────────────────────────────────────────────

@@ -802,16 +802,18 @@ describe('checkoutStore', () => {
       global.fetch = originalFetch;
     });
 
-    it('returns empty array when wompi config is missing', async () => {
+    it('throws when wompi config is missing', async () => {
       useCheckoutStore.setState({ wompiConfig: null });
-      const result = await useCheckoutStore.getState().fetchPSEBanks();
-      expect(result).toEqual([]);
+      await expect(useCheckoutStore.getState().fetchPSEBanks()).rejects.toThrow(
+        'Configuración de pago no disponible.',
+      );
     });
 
-    it('returns empty array when public key is empty', async () => {
+    it('throws when public key is empty', async () => {
       useCheckoutStore.setState({ wompiConfig: { public_key: '', environment: 'sandbox' } });
-      const result = await useCheckoutStore.getState().fetchPSEBanks();
-      expect(result).toEqual([]);
+      await expect(useCheckoutStore.getState().fetchPSEBanks()).rejects.toThrow(
+        'Configuración de pago no disponible.',
+      );
     });
 
     it('fetches banks from sandbox URL', async () => {
@@ -861,23 +863,23 @@ describe('checkoutStore', () => {
       expect(result).toEqual([]);
     });
 
-    it('returns empty array when fetch response is not ok', async () => {
+    it('throws when fetch response is not ok', async () => {
       useCheckoutStore.setState({ wompiConfig: MOCK_WOMPI_CONFIG });
       global.fetch = jest.fn().mockResolvedValueOnce({
         ok: false,
         status: 500,
       } as Response);
 
-      const result = await useCheckoutStore.getState().fetchPSEBanks();
-      expect(result).toEqual([]);
+      await expect(useCheckoutStore.getState().fetchPSEBanks()).rejects.toThrow(
+        'No se pudieron obtener los bancos.',
+      );
     });
 
-    it('returns empty array on network error', async () => {
+    it('throws on network error', async () => {
       useCheckoutStore.setState({ wompiConfig: MOCK_WOMPI_CONFIG });
       global.fetch = jest.fn().mockRejectedValueOnce(new Error('Network'));
 
-      const result = await useCheckoutStore.getState().fetchPSEBanks();
-      expect(result).toEqual([]);
+      await expect(useCheckoutStore.getState().fetchPSEBanks()).rejects.toThrow('Network');
     });
   });
 

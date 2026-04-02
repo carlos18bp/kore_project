@@ -40,9 +40,19 @@ describe('PSEPaymentForm', () => {
     render(<PSEPaymentForm {...defaultProps} onFetchBanks={failingFetch} />);
 
     await waitFor(() => {
-      expect(screen.getByText('No se pudieron cargar los bancos. Intenta de nuevo.')).toBeInTheDocument();
+      expect(screen.getByText('No se pudieron cargar los bancos.')).toBeInTheDocument();
     });
-    expect(screen.getByText('Recargar página')).toBeInTheDocument();
+    expect(screen.getByText('Reintentar')).toBeInTheDocument();
+  });
+
+  it('shows error when bank fetch returns empty array', async () => {
+    const emptyFetch = jest.fn().mockResolvedValue([]);
+    render(<PSEPaymentForm {...defaultProps} onFetchBanks={emptyFetch} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('No se encontraron bancos disponibles.')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Reintentar')).toBeInTheDocument();
   });
 
   it('renders user type selector with both options', async () => {
@@ -194,17 +204,24 @@ describe('PSEPaymentForm', () => {
     expect(screen.getByLabelText('Número de documento')).toBeDisabled();
   });
 
-  it('shows reload button and allows click when bank fetch fails', async () => {
+  it('retries bank fetch when retry button is clicked', async () => {
     const user = userEvent.setup();
-    const failingFetch = jest.fn().mockRejectedValue(new Error('fetch error'));
+    const failingFetch = jest.fn()
+      .mockRejectedValueOnce(new Error('fetch error'))
+      .mockResolvedValueOnce(MOCK_BANKS);
     render(<PSEPaymentForm {...defaultProps} onFetchBanks={failingFetch} />);
 
     await waitFor(() => {
-      expect(screen.getByText('Recargar página')).toBeInTheDocument();
+      expect(screen.getByText('Reintentar')).toBeInTheDocument();
     });
 
-    await user.click(screen.getByText('Recargar página'));
-    expect(screen.getByText('Recargar página')).toBeInTheDocument();
+    await user.click(screen.getByText('Reintentar'));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Banco')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Banco de Bogotá')).toBeInTheDocument();
+    expect(failingFetch).toHaveBeenCalledTimes(2);
   });
 
   it('renders redirect informational text', async () => {

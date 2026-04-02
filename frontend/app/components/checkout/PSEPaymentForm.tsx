@@ -47,6 +47,7 @@ export default function PSEPaymentForm({
   const [banks, setBanks] = useState<FinancialInstitution[]>([]);
   const [loadingBanks, setLoadingBanks] = useState(true);
   const [bankError, setBankError] = useState('');
+  const [retryCount, setRetryCount] = useState(0);
 
   const [bankCode, setBankCode] = useState('');
   const [userType, setUserType] = useState<number>(0);
@@ -58,18 +59,24 @@ export default function PSEPaymentForm({
 
   useEffect(() => {
     const loadBanks = async () => {
+      setLoadingBanks(true);
+      setBankError('');
       try {
         const data = await onFetchBanks();
-        setBanks(data);
-        setBankError('');
+        if (!data || data.length === 0) {
+          setBankError('No se encontraron bancos disponibles.');
+        } else {
+          setBanks(data);
+          setBankError('');
+        }
       } catch {
-        setBankError('No se pudieron cargar los bancos. Intenta de nuevo.');
+        setBankError('No se pudieron cargar los bancos.');
       } finally {
         setLoadingBanks(false);
       }
     };
     loadBanks();
-  }, [onFetchBanks]);
+  }, [onFetchBanks, retryCount]);
 
   const validateForm = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
@@ -118,10 +125,10 @@ export default function PSEPaymentForm({
       <div className="text-center py-4">
         <p className="text-sm text-kore-red mb-2">{bankError}</p>
         <button
-          onClick={() => window.location.reload()}
+          onClick={() => setRetryCount((c) => c + 1)}
           className="text-kore-red text-sm hover:text-kore-red-dark transition-colors cursor-pointer"
         >
-          Recargar página
+          Reintentar
         </button>
       </div>
     );
