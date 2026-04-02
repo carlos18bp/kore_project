@@ -362,11 +362,25 @@ function PhotoBottomSheet({ ev, initialIndex, onClose }: {
   if (views.length === 0) return null;
   const current = views[activeIdx] || views[0];
 
+  const goPrev = () => { if (activeIdx > 0) setActiveIdx(activeIdx - 1); };
+  const goNext = () => { if (activeIdx < views.length - 1) setActiveIdx(activeIdx + 1); };
+
   // Lock body scroll
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = 'unset'; };
   }, []);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') goPrev();
+      else if (e.key === 'ArrowRight') goNext();
+      else if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  });
 
   const handleSwipe = (endX: number) => {
     const diff = endX - touchStartX.current;
@@ -381,6 +395,66 @@ function PhotoBottomSheet({ ev, initialIndex, onClose }: {
         .sort((a, b) => b[1].score - a[1].score)
         .slice(0, 6)
     : [];
+
+  /* ── Shared summary content ── */
+  const SummaryContent = () => (
+    <div className="space-y-3">
+      {current.observations && (
+        <div className="bg-kore-cream/40 rounded-xl p-3.5">
+          <p className="text-xs text-kore-gray-dark/50 uppercase tracking-wider font-medium mb-1">Observaciones</p>
+          <p className="text-sm text-kore-gray-dark/70 leading-relaxed">{current.observations}</p>
+        </div>
+      )}
+
+      {current.findings.length > 0 && (
+        <div className="bg-amber-50/60 rounded-xl p-3.5 border border-amber-200/40">
+          <p className="text-xs text-amber-800 uppercase tracking-wider font-medium mb-2">Hallazgos en esta vista</p>
+          <div className="space-y-1">
+            {current.findings.map((f, i) => (
+              <div key={i} className="flex items-start gap-2 text-xs text-amber-800/80">
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 flex-shrink-0" />
+                <span>{f}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {viewSegments.length > 0 && (
+        <div className="bg-white rounded-xl p-3.5 border border-kore-gray-light/30">
+          <p className="text-xs text-kore-gray-dark/50 uppercase tracking-wider font-medium mb-2">Segmentos evaluados</p>
+          <div className="space-y-1.5">
+            {viewSegments.map(([key, seg]) => {
+              const score = seg.views[current.key] || 0;
+              const scoreColor = score === 0 ? 'text-green-600' : score <= 1 ? 'text-amber-600' : score <= 2 ? 'text-orange-600' : 'text-red-600';
+              const scoreLabel = score === 0 ? 'Normal' : score <= 1 ? 'Leve' : score <= 2 ? 'Moderado' : 'Importante';
+              return (
+                <div key={key} className="flex items-center justify-between text-xs">
+                  <span className="text-kore-gray-dark/70">{seg.label}</span>
+                  <span className={`font-semibold ${scoreColor}`}>{scoreLabel}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  /* ── Navigation arrow button ── */
+  const NavArrow = ({ direction, onClick, disabled }: { direction: 'prev' | 'next'; onClick: () => void; disabled: boolean }) => (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${disabled ? 'bg-kore-gray-dark/5 text-kore-gray-dark/15 cursor-not-allowed' : 'bg-kore-gray-dark/10 hover:bg-kore-gray-dark/20 text-kore-gray-dark/60'}`}
+    >
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+        {direction === 'prev'
+          ? <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          : <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />}
+      </svg>
+    </button>
+  );
 
   return (
     <AnimatePresence>
@@ -397,15 +471,19 @@ function PhotoBottomSheet({ ev, initialIndex, onClose }: {
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
         className="fixed inset-x-0 bottom-0 z-50 flex flex-col"
-        style={{ maxHeight: '92vh' }}
+        style={{ maxHeight: '90vh' }}
         onTouchStart={e => { touchStartX.current = e.touches[0].clientX; }}
         onTouchEnd={e => handleSwipe(e.changedTouches[0].clientX)}
       >
-        {/* Handle + close */}
+        {/* Handle + close + nav arrows */}
         <div className="flex-shrink-0 pt-3 pb-2 px-5 bg-white rounded-t-[28px]">
           <div className="w-12 h-1.5 bg-kore-gray-light rounded-full mx-auto mb-2" />
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-kore-gray-dark">{current.label}</p>
+            <div className="flex items-center gap-2">
+              {views.length > 1 && <NavArrow direction="prev" onClick={goPrev} disabled={activeIdx === 0} />}
+              <p className="text-sm font-semibold text-kore-gray-dark">{current.label}</p>
+              {views.length > 1 && <NavArrow direction="next" onClick={goNext} disabled={activeIdx === views.length - 1} />}
+            </div>
             <button onClick={onClose} className="w-7 h-7 rounded-full bg-kore-gray-dark/5 flex items-center justify-center cursor-pointer">
               <svg className="w-4 h-4 text-kore-gray-dark/50" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -414,70 +492,60 @@ function PhotoBottomSheet({ ev, initialIndex, onClose }: {
           </div>
         </div>
 
-        {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto bg-white pb-8">
-          {/* Photo */}
-          <div className="px-5 pt-2">
-            <img src={current.photo} alt={current.label} className="w-full rounded-2xl object-cover max-h-[50vh] border border-kore-gray-light/30" />
+        {/* ═══ DESKTOP / TABLET: 2-column layout ═══ */}
+        <div className="hidden md:flex flex-1 overflow-hidden bg-white">
+          {/* Left column — Photo with full visibility */}
+          <div className="w-1/2 flex flex-col items-center justify-center p-5 bg-kore-gray-dark/[0.02]">
+            <img
+              src={current.photo}
+              alt={current.label}
+              className="max-w-full max-h-[calc(90vh-100px)] rounded-2xl object-contain border border-kore-gray-light/30"
+            />
+            {/* Dot indicators */}
+            {views.length > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-3">
+                {views.map((v, i) => (
+                  <button key={v.key} onClick={() => setActiveIdx(i)} className={`rounded-full transition-all cursor-pointer ${i === activeIdx ? 'w-6 h-2 bg-kore-red' : 'w-2 h-2 bg-kore-gray-dark/20'}`} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Right column — Summary (scrollable) */}
+          <div className="w-1/2 overflow-y-auto p-5 pb-8">
+            <SummaryContent />
+          </div>
+        </div>
+
+        {/* ═══ MOBILE: single-column layout (photo top, summary bottom) ═══ */}
+        <div className="flex md:hidden flex-1 overflow-y-auto bg-white pb-8 flex-col">
+          {/* Photo — full visibility, no cropping */}
+          <div className="px-5 pt-2 flex-shrink-0">
+            <img
+              src={current.photo}
+              alt={current.label}
+              className="w-full rounded-2xl object-contain max-h-[55vh] border border-kore-gray-light/30"
+            />
           </div>
 
           {/* Dot indicators */}
-          <div className="flex items-center justify-center gap-2 py-3">
-            {views.map((v, i) => (
-              <button key={v.key} onClick={() => setActiveIdx(i)} className={`rounded-full transition-all cursor-pointer ${i === activeIdx ? 'w-6 h-2 bg-kore-red' : 'w-2 h-2 bg-kore-gray-dark/20'}`} />
-            ))}
+          {views.length > 1 && (
+            <div className="flex items-center justify-center gap-2 py-3 flex-shrink-0">
+              {views.map((v, i) => (
+                <button key={v.key} onClick={() => setActiveIdx(i)} className={`rounded-full transition-all cursor-pointer ${i === activeIdx ? 'w-6 h-2 bg-kore-red' : 'w-2 h-2 bg-kore-gray-dark/20'}`} />
+              ))}
+            </div>
+          )}
+
+          {/* Results summary */}
+          <div className="px-5">
+            <SummaryContent />
           </div>
 
-          {/* Results summary for this view */}
-          <div className="px-5 space-y-3">
-            {/* Observations */}
-            {current.observations && (
-              <div className="bg-kore-cream/40 rounded-xl p-3.5">
-                <p className="text-xs text-kore-gray-dark/50 uppercase tracking-wider font-medium mb-1">Observaciones</p>
-                <p className="text-sm text-kore-gray-dark/70 leading-relaxed">{current.observations}</p>
-              </div>
-            )}
-
-            {/* Findings for this view */}
-            {current.findings.length > 0 && (
-              <div className="bg-amber-50/60 rounded-xl p-3.5 border border-amber-200/40">
-                <p className="text-xs text-amber-800 uppercase tracking-wider font-medium mb-2">Hallazgos en esta vista</p>
-                <div className="space-y-1">
-                  {current.findings.map((f, i) => (
-                    <div key={i} className="flex items-start gap-2 text-xs text-amber-800/80">
-                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 flex-shrink-0" />
-                      <span>{f}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Segments affected in this view */}
-            {viewSegments.length > 0 && (
-              <div className="bg-white rounded-xl p-3.5 border border-kore-gray-light/30">
-                <p className="text-xs text-kore-gray-dark/50 uppercase tracking-wider font-medium mb-2">Segmentos evaluados</p>
-                <div className="space-y-1.5">
-                  {viewSegments.map(([key, seg]) => {
-                    const score = seg.views[current.key] || 0;
-                    const scoreColor = score === 0 ? 'text-green-600' : score <= 1 ? 'text-amber-600' : score <= 2 ? 'text-orange-600' : 'text-red-600';
-                    const scoreLabel = score === 0 ? 'Normal' : score <= 1 ? 'Leve' : score <= 2 ? 'Moderado' : 'Importante';
-                    return (
-                      <div key={key} className="flex items-center justify-between text-xs">
-                        <span className="text-kore-gray-dark/70">{seg.label}</span>
-                        <span className={`font-semibold ${scoreColor}`}>{scoreLabel}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Swipe hint */}
-            {views.length > 1 && (
-              <p className="text-[10px] text-kore-gray-dark/30 text-center pt-1">Desliza para ver las otras vistas</p>
-            )}
-          </div>
+          {/* Swipe hint */}
+          {views.length > 1 && (
+            <p className="text-[10px] text-kore-gray-dark/30 text-center pt-3 px-5">Desliza para ver las otras vistas</p>
+          )}
         </div>
       </motion.div>
     </AnimatePresence>
