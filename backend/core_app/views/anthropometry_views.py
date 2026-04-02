@@ -73,7 +73,7 @@ class TrainerAnthropometryListCreateView(APIView):
 
         evals = AnthropometryEvaluation.objects.filter(
             customer_id=customer_id, trainer=trainer_profile,
-        ).order_by('-created_at')
+        ).order_by('-evaluation_date')
         return Response(AnthropometrySerializer(evals, many=True).data)
 
     def post(self, request, customer_id):
@@ -199,7 +199,7 @@ class ClientAnthropometryListView(APIView):
     def get(self, request):
         evals = AnthropometryEvaluation.objects.filter(
             customer=request.user,
-        ).order_by('-created_at')
+        ).order_by('-evaluation_date')
         return Response(AnthropometrySerializer(evals, many=True).data)
 
 

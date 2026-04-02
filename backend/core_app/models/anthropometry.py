@@ -106,7 +106,7 @@ class AnthropometryEvaluation(TimestampedModel):
     asymmetries = models.JSONField(default=dict, blank=True, help_text='Detected bilateral asymmetries >10%.')
 
     class Meta:
-        ordering = ('-created_at',)
+        ordering = ('-evaluation_date',)
 
     def __str__(self):
         return f"Antropometría #{self.pk} — {self.customer.email} ({self.created_at.date()})"

@@ -124,7 +124,7 @@ class PosturometryEvaluation(TimestampedModel):
     )
 
     class Meta:
-        ordering = ('-created_at',)
+        ordering = ('-evaluation_date',)
 
     def __str__(self):
         return f"Posturometría #{self.pk} — {self.customer.email} ({self.created_at.date()})"

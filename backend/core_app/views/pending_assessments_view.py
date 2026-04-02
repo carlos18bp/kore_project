@@ -54,15 +54,15 @@ class PendingAssessmentsView(APIView):
         # ── Trainer-created modules: latest evaluations ──
         latest_anthro = AnthropometryEvaluation.objects.filter(
             customer=user,
-        ).order_by('-created_at').first()
+        ).order_by('-evaluation_date').first()
 
         latest_posturo = PosturometryEvaluation.objects.filter(
             customer=user,
-        ).order_by('-created_at').first()
+        ).order_by('-evaluation_date').first()
 
         latest_physical = PhysicalEvaluation.objects.filter(
             customer=user,
-        ).order_by('-created_at').first()
+        ).order_by('-evaluation_date').first()
 
         # ── Profile incomplete ──
         cp = getattr(user, 'customer_profile', None)
