@@ -82,21 +82,25 @@ const INDEX_INFO: Record<string, IndexInfo> = {
     result: {
       green: 'Tu peso está dentro del rango saludable. Esto significa que la relación entre tu peso y estatura es adecuada. Sigue así.',
       yellow: 'Tu peso está ligeramente por encima del rango ideal. Esto no significa que estés mal — muchas personas con buena masa muscular caen aquí. Lo importante es complementar con otros indicadores.',
+      yellow_low: 'Tu peso está por debajo del rango saludable. Esto puede indicar que necesitas ganar peso de forma saludable, especialmente masa muscular.',
       red: 'Tu peso está en un rango que puede representar un riesgo para tu salud. No te preocupes, con tu programa de entrenamiento y hábitos saludables puedes mejorar progresivamente.',
     },
     importance: {
       green: 'Este dato ayuda a entender tu estado general de peso. Al estar en rango saludable, se convierte en una base sólida para tu proceso.',
       yellow: 'Este dato es un primer filtro. No define por sí solo tu estado completo, por eso se complementa con grasa corporal, cintura y masa libre de grasa.',
+      yellow_low: 'Un peso bajo puede afectar tu energía, tu fuerza y tu sistema inmune. Aumentar tu masa muscular mejoraría tu estado general.',
       red: 'Este dato señala un área de atención importante. Tu entrenador lo analiza junto con tus otros indicadores para diseñar un plan adecuado.',
     },
     nextStep: {
       green: 'Tu entrenador seguirá monitoreando este indicador junto con tu composición corporal para asegurar que mantienes tu buen estado.',
       yellow: 'Tu entrenador tendrá este resultado en cuenta junto con tus otros indicadores para ajustar tu proceso de forma personalizada.',
+      yellow_low: 'Tu entrenador diseñará un programa enfocado en ganar masa muscular con la intensidad adecuada para tu nivel.',
       red: 'Tu entrenador usará este dato junto con el resto de tu evaluación para definir las prioridades de tu programa.',
     },
     action: {
       green: 'Mantén tus hábitos actuales de alimentación y ejercicio. La constancia es tu mejor aliada.',
       yellow: 'Enfócate en tu composición corporal: no se trata solo de peso, sino de cuánto es músculo y cuánto es grasa. Tu entrenador puede ajustar tu programa.',
+      yellow_low: 'Prioriza una alimentación suficiente y entrenamientos de fuerza. Ganar músculo es la mejor forma de subir de peso saludablemente.',
       red: 'Combina tu entrenamiento con una alimentación consciente. Los cambios pequeños y sostenidos generan los mejores resultados a largo plazo.',
     },
   },
@@ -130,21 +134,25 @@ const INDEX_INFO: Record<string, IndexInfo> = {
     result: {
       green: 'Tu porcentaje de grasa está en un rango saludable. Esto indica una buena composición corporal.',
       yellow: 'Tu grasa corporal está un poco por encima del rango ideal. Con constancia en tu entrenamiento, puedes mejorar esta proporción.',
+      yellow_low: 'Tu porcentaje de grasa está por debajo del rango saludable. Un nivel muy bajo de grasa puede afectar tu energía y funciones hormonales.',
       red: 'Tu porcentaje de grasa está elevado. Cada sesión de entrenamiento contribuye a mejorar tu composición corporal — el progreso es gradual pero real.',
     },
     importance: {
       green: 'Este es uno de los indicadores más valiosos de tu proceso. Tener un buen porcentaje de grasa significa que tu cuerpo tiene una composición saludable.',
       yellow: 'Este dato es más revelador que el peso solo. Ayuda a ver si tu proceso está mejorando la proporción entre grasa y músculo, que es lo que realmente importa.',
+      yellow_low: 'Un mínimo de grasa corporal es necesario para funciones hormonales, protección de órganos y regulación de temperatura. Mantenerlo en rango es importante.',
       red: 'La composición corporal es el indicador central de tu recomposición. Cada mejora aquí se traduce en mejor salud, más energía y mejor rendimiento.',
     },
     nextStep: {
       green: 'Tu entrenador seguirá monitoreando tu composición para asegurar que mantienes o mejoras estos niveles.',
       yellow: 'Tu entrenador ajustará la intensidad y tipo de ejercicio para optimizar tu composición corporal de forma progresiva.',
+      yellow_low: 'Tu entrenador monitoreará que tu porcentaje de grasa no siga bajando y ajustará tu programa si es necesario.',
       red: 'Tu entrenador diseñará un programa que priorice la pérdida de grasa manteniendo tu masa muscular. Los hábitos sostenibles son más efectivos que las dietas extremas.',
     },
     action: {
       green: 'Para mantener o mejorar, combina entrenamientos de fuerza (que aumentan masa muscular) con alimentación balanceada.',
       yellow: 'Enfócate en entrenamientos de fuerza combinados con actividad cardiovascular. La alimentación es clave: no se trata de hacer dieta, sino de nutrir bien tu cuerpo.',
+      yellow_low: 'Asegúrate de tener una alimentación suficiente. No se trata solo de bajar grasa — también hay un mínimo saludable que tu cuerpo necesita.',
       red: 'Combina entrenamiento de fuerza con alimentación consciente. Los hábitos sostenibles son más efectivos que las dietas extremas.',
     },
   },
@@ -202,21 +210,25 @@ const INDEX_INFO: Record<string, IndexInfo> = {
     result: {
       green: 'Tu masa grasa está en un nivel adecuado. La cantidad de grasa corporal es proporcionada para tu peso.',
       yellow: 'Tu masa grasa está un poco por encima del rango ideal. Con tu programa puedes reducirla de forma progresiva.',
+      yellow_low: 'Tu masa grasa está por debajo del rango saludable. Un nivel muy bajo de grasa corporal puede afectar tu energía y funciones hormonales.',
       red: 'Tu masa grasa está elevada. Cada kilo de grasa que reduzcas mejora tu composición corporal y tu salud.',
     },
     importance: {
       green: 'Una masa grasa adecuada significa que tu cuerpo tiene una buena proporción de tejido graso. Esto se refleja en mejor energía y rendimiento.',
       yellow: 'Reducir la masa grasa sin perder músculo es uno de los objetivos centrales de tu programa. Cada kilo cuenta.',
+      yellow_low: 'Un mínimo de grasa corporal es necesario para funciones vitales. Tener demasiada poca grasa también puede ser un riesgo para tu salud.',
       red: 'La masa grasa elevada impacta tu metabolismo, tu energía y tu salud general. Es una área clave de mejora.',
     },
     nextStep: {
       green: 'Tu entrenador seguirá monitoreando que mantengas esta buena proporción de grasa corporal.',
       yellow: 'Tu entrenador ajustará tu programa para favorecer la pérdida de grasa manteniendo tu masa muscular.',
+      yellow_low: 'Tu entrenador se asegurará de que tu nivel de grasa no siga bajando y ajustará tu programa según corresponda.',
       red: 'Tu entrenador priorizará la reducción de grasa corporal con un plan de entrenamiento y hábitos personalizado.',
     },
     action: {
       green: 'Sigue con tu entrenamiento de fuerza y alimentación equilibrada.',
       yellow: 'Combina fuerza y cardio con una alimentación consciente. No se trata de dietas, sino de hábitos sostenibles.',
+      yellow_low: 'Asegúrate de tener una alimentación suficiente y equilibrada. Tu entrenador te orientará para mantener un nivel saludable.',
       red: 'El ejercicio regular y la alimentación adecuada son la mejor combinación. Tu entrenador te guiará en el proceso.',
     },
   },
@@ -250,21 +262,25 @@ const INDEX_INFO: Record<string, IndexInfo> = {
     result: {
       green: 'Tu masa libre de grasa se mantiene o crece mientras reduces grasa. Esto es exactamente lo que buscamos: recomposición corporal.',
       yellow: 'Estás en un proceso de cambio. Vigila que tu masa libre de grasa no baje demasiado — eso indicaría que estás perdiendo músculo en vez de grasa.',
+      yellow_low: 'Tu proporción de grasa corporal es muy baja. Es importante mantener un mínimo saludable de grasa mientras construyes masa muscular.',
       red: 'Es importante ganar masa muscular y reducir grasa. Tu entrenador puede ajustar la intensidad y el tipo de ejercicio para optimizar tu composición.',
     },
     importance: {
       green: 'Saber cuánto de tu peso es grasa y cuánto es músculo es clave. Una recomposición corporal exitosa se mide aquí, no en la báscula.',
       yellow: 'Este indicador te muestra si estás perdiendo lo que debes perder. Es el complemento más importante de tu porcentaje de grasa.',
+      yellow_low: 'La proporción entre grasa y músculo es clave. Muy poca grasa también puede ser un riesgo para tu salud y rendimiento.',
       red: 'Mejorar la proporción entre grasa y músculo es el objetivo central de tu programa. Cada kilo de músculo que ganes mejora tu metabolismo y tu salud.',
     },
     nextStep: {
       green: 'Tu entrenador seguirá ajustando tu programa para mantener esta buena proporción entre grasa y músculo.',
       yellow: 'Tu entrenador revisará tu alimentación y tipo de ejercicio para asegurar que conserves masa muscular mientras pierdes grasa.',
+      yellow_low: 'Tu entrenador evaluará si es necesario ajustar tu alimentación o tu plan de entrenamiento para mantener un equilibrio saludable.',
       red: 'Tu entrenador diseñará un plan que priorice el aumento de masa muscular con la intensidad adecuada para tu nivel.',
     },
     action: {
       green: 'Sigue así. El entrenamiento de fuerza es tu mejor herramienta para mantener y construir masa muscular.',
       yellow: 'Asegúrate de consumir suficiente proteína y no recortar calorías excesivamente. El músculo necesita nutrientes para mantenerse.',
+      yellow_low: 'Asegúrate de nutrir bien tu cuerpo. El objetivo no es eliminar toda la grasa, sino tener una proporción saludable.',
       red: 'Prioriza el entrenamiento de fuerza y una ingesta adecuada de proteína. Tu entrenador puede orientarte sobre la intensidad correcta.',
     },
   },
@@ -326,16 +342,31 @@ function IndexCard({ id, ev, prev }: { id: string; ev: AnthropometryEvaluation; 
     value = `${ev.fat_mass_kg} / ${ev.lean_mass_kg}`; unit = ' kg'; color = ev.bf_color;
   }
 
-  const colorKey = color || 'green';
+  const styleColor = color || 'green';
   const science = INDEX_SCIENCE[id];
+
+  // Resolve yellow ambiguity: yellow can mean "too low" or "too high" for some metrics
+  let messageKey = styleColor;
+  if (messageKey === 'yellow') {
+    if (id === 'bmi' && ev.bmi_category === 'Bajo peso') {
+      messageKey = 'yellow_low';
+    } else if ((id === 'bf' || id === 'fat_mass' || id === 'mass') && ev.bf_category === 'Muy bajo') {
+      messageKey = 'yellow_low';
+    }
+  }
 
   const recs = ev.recommendations || {};
   const recKey = id === 'waist' ? 'waist' : id;
   const customRec = recs[recKey];
-  const resultText = customRec?.result || info.result[colorKey] || info.result.green;
-  const importanceText = info.importance[colorKey] || info.importance.green;
-  const nextStepText = info.nextStep[colorKey] || info.nextStep.green;
-  const actionText = customRec?.action || info.action[colorKey] || info.action.green;
+  // For yellow_low, always use corrected frontend messages (backend doesn't distinguish low vs high yellow)
+  const resultText = (messageKey === 'yellow_low')
+    ? (info.result.yellow_low || info.result.green)
+    : (customRec?.result || info.result[messageKey] || info.result.green);
+  const importanceText = info.importance[messageKey] || info.importance.green;
+  const nextStepText = info.nextStep[messageKey] || info.nextStep.green;
+  const actionText = (messageKey === 'yellow_low')
+    ? (info.action.yellow_low || info.action.green)
+    : (customRec?.action || info.action[messageKey] || info.action.green);
 
   // GSAP accordion toggle
   const toggle = useCallback(() => {
@@ -370,19 +401,19 @@ function IndexCard({ id, ev, prev }: { id: string; ev: AnthropometryEvaluation; 
   }, []);
 
   return (
-    <div className={`idx-card bg-white/70 backdrop-blur-sm rounded-2xl border shadow-sm overflow-hidden ${CBorder[colorKey]}`}>
+    <div className={`idx-card bg-white/70 backdrop-blur-sm rounded-2xl border shadow-sm overflow-hidden ${CBorder[styleColor]}`}>
       <button type="button" onClick={toggle} className="w-full flex items-center gap-4 p-5 cursor-pointer hover:bg-kore-cream/20 transition-colors text-left">
         {/* Pulsating dot with ring */}
         <div className="relative w-10 h-10 flex items-center justify-center flex-shrink-0">
-          <div className={`absolute inset-0 rounded-full ${CB[colorKey]}`} />
+          <div className={`absolute inset-0 rounded-full ${CB[styleColor]}`} />
           <div
             ref={ringRef}
             className="absolute rounded-full"
-            style={{ width: 12, height: 12, backgroundColor: RING_HEX[colorKey] || RING_HEX.green, opacity: 0.4 }}
+            style={{ width: 12, height: 12, backgroundColor: RING_HEX[styleColor] || RING_HEX.green, opacity: 0.4 }}
           />
           <div
             className="relative w-3 h-3 rounded-full z-10"
-            style={{ backgroundColor: DOT_HEX[colorKey] || DOT_HEX.green }}
+            style={{ backgroundColor: DOT_HEX[styleColor] || DOT_HEX.green }}
           />
         </div>
         <div className="flex-1 min-w-0">
@@ -400,7 +431,7 @@ function IndexCard({ id, ev, prev }: { id: string; ev: AnthropometryEvaluation; 
         </div>
         <div className="flex items-center gap-2">
           {diffEl}
-          <span className={`font-heading text-xl font-bold ${CT[colorKey]}`}>{value}<span className="text-xs font-normal">{unit}</span></span>
+          <span className={`font-heading text-xl font-bold ${CT[styleColor]}`}>{value}<span className="text-xs font-normal">{unit}</span></span>
         </div>
         <svg ref={arrowRef} className="w-5 h-5 text-kore-gray-dark/30 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -412,9 +443,9 @@ function IndexCard({ id, ev, prev }: { id: string; ev: AnthropometryEvaluation; 
             <p className="text-xs text-kore-gray-dark/50 uppercase tracking-wider font-medium mb-1.5">¿Qué significa esto?</p>
             <p className="text-sm text-kore-gray-dark/80 leading-relaxed">{info.whatIs}</p>
           </div>
-          <div className={`idx-panel ${CB[colorKey]} rounded-xl p-4`}>
-            <p className={`text-xs ${CT[colorKey]} uppercase tracking-wider font-medium mb-1.5`}>Tu resultado</p>
-            <p className={`text-sm ${CT[colorKey]}/80 leading-relaxed`}>{resultText}</p>
+          <div className={`idx-panel ${CB[styleColor]} rounded-xl p-4`}>
+            <p className={`text-xs ${CT[styleColor]} uppercase tracking-wider font-medium mb-1.5`}>Tu resultado</p>
+            <p className={`text-sm ${CT[styleColor]}/80 leading-relaxed`}>{resultText}</p>
           </div>
           <div className="idx-panel bg-white rounded-xl p-4 border border-kore-gray-light/30">
             <p className="text-xs text-kore-gray-dark/50 uppercase tracking-wider font-medium mb-1.5">¿Qué importancia tiene en tu proceso?</p>
