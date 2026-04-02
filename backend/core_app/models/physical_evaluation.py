@@ -160,7 +160,7 @@ class PhysicalEvaluation(TimestampedModel):
     )
 
     class Meta:
-        ordering = ('-created_at',)
+        ordering = ('-evaluation_date',)
 
     def __str__(self):
         return f"Evaluación física #{self.pk} — {self.customer.email} ({self.created_at.date()})"
@@ -191,7 +191,7 @@ class PhysicalEvaluation(TimestampedModel):
         from core_app.models.anthropometry import AnthropometryEvaluation
         latest = AnthropometryEvaluation.objects.filter(
             customer=self.customer,
-        ).order_by('-created_at').first()
+        ).order_by('-evaluation_date').first()
         if not latest:
             return None
         return {
@@ -205,7 +205,7 @@ class PhysicalEvaluation(TimestampedModel):
         from core_app.models.posturometry import PosturometryEvaluation
         latest = PosturometryEvaluation.objects.filter(
             customer=self.customer,
-        ).order_by('-created_at').first()
+        ).order_by('-evaluation_date').first()
         if not latest:
             return None
         return {
