@@ -293,6 +293,10 @@ _REC_TEXTS = {
             'result': 'Tu peso está ligeramente por encima del rango ideal. Muchas personas con buena masa muscular caen aquí.',
             'action': 'Enfócate en tu composición corporal: no se trata solo de peso, sino de cuánto es músculo y cuánto es grasa.',
         },
+        'yellow_low': {
+            'result': 'Tu peso está por debajo del rango saludable. Esto puede indicar que necesitas ganar peso de forma saludable.',
+            'action': 'Prioriza una alimentación suficiente y entrenamientos de fuerza. Ganar músculo es la mejor forma de subir de peso saludablemente.',
+        },
         'red': {
             'result': 'Tu peso está en un rango que puede representar un riesgo para tu salud.',
             'action': 'Combina tu entrenamiento con una alimentación consciente. Los cambios pequeños y sostenidos generan los mejores resultados.',
@@ -320,6 +324,10 @@ _REC_TEXTS = {
         'yellow': {
             'result': 'Tu grasa corporal está un poco por encima del rango ideal.',
             'action': 'Enfócate en entrenamientos de fuerza combinados con actividad cardiovascular.',
+        },
+        'yellow_low': {
+            'result': 'Tu porcentaje de grasa está por debajo del rango saludable. Un nivel muy bajo puede afectar tu energía y funciones hormonales.',
+            'action': 'Asegúrate de tener una alimentación suficiente. También hay un mínimo saludable que tu cuerpo necesita.',
         },
         'red': {
             'result': 'Tu porcentaje de grasa está elevado.',
@@ -349,6 +357,10 @@ _REC_TEXTS = {
             'result': 'Estás en un proceso de cambio. Vigila que tu masa libre de grasa no baje demasiado.',
             'action': 'Asegúrate de consumir suficiente proteína y no recortar calorías excesivamente.',
         },
+        'yellow_low': {
+            'result': 'Tu proporción de grasa corporal es muy baja. Es importante mantener un mínimo saludable de grasa.',
+            'action': 'Asegúrate de nutrir bien tu cuerpo. El objetivo no es eliminar toda la grasa, sino tener una proporción saludable.',
+        },
         'red': {
             'result': 'Es importante ganar masa muscular y reducir grasa.',
             'action': 'Prioriza el entrenamiento de fuerza y una ingesta adecuada de proteína.',
@@ -366,13 +378,22 @@ def generate_default_recommendations(evaluation):
         texts = _REC_TEXTS.get(index_key, {}).get(color, _REC_TEXTS.get(index_key, {}).get('green', {}))
         return texts if texts else {'result': '', 'action': ''}
 
-    recs['bmi'] = _pick('bmi', evaluation.bmi_color)
+    # Resolve yellow ambiguity: yellow can mean "too low" or "too high"
+    bmi_color = evaluation.bmi_color
+    if bmi_color == 'yellow' and getattr(evaluation, 'bmi_category', '') == 'Bajo peso':
+        bmi_color = 'yellow_low'
+
+    bf_color = evaluation.bf_color
+    if bf_color == 'yellow' and getattr(evaluation, 'bf_category', '') == 'Muy bajo':
+        bf_color = 'yellow_low'
+
+    recs['bmi'] = _pick('bmi', bmi_color)
     if evaluation.whr_color:
         recs['whr'] = _pick('whr', evaluation.whr_color)
     if evaluation.bf_color:
-        recs['bf'] = _pick('bf', evaluation.bf_color)
+        recs['bf'] = _pick('bf', bf_color)
     if evaluation.waist_risk_color:
         recs['waist'] = _pick('waist', evaluation.waist_risk_color)
-    recs['mass'] = _pick('mass', evaluation.bf_color)
+    recs['mass'] = _pick('mass', bf_color)
 
     return recs
