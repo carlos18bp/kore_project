@@ -1,6 +1,7 @@
 """Tests for SubscriptionViewSet (authenticated, own subscriptions only)."""
 
 from datetime import datetime, timedelta
+from unittest.mock import patch
 
 import pytest
 from django.urls import reverse
@@ -118,7 +119,9 @@ class TestSubscriptionViews:
         results = get_results(response.data)
         assert len(results) == 2
 
-    def test_retrieve_own_subscription(self, api_client, customer, active_subscription):
+    @patch('core_app.serializers.subscription_serializers.timezone.now',
+           return_value=FIXED_NOW)
+    def test_retrieve_own_subscription(self, _mock_now, api_client, customer, active_subscription):
         """Allow customers to retrieve their own subscription details."""
         api_client.force_authenticate(user=customer)
         url = reverse('subscription-detail', args=[active_subscription.pk])

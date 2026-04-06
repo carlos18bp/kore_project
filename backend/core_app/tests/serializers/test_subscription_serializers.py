@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta
 from datetime import timezone as dt_timezone
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 
@@ -93,7 +94,9 @@ class TestSubscriptionSerializer:
         )
         assert serializer.is_valid(), serializer.errors
 
-    def test_status_values(self, customer, package):
+    @patch('core_app.serializers.subscription_serializers.timezone.now',
+           return_value=FIXED_NOW)
+    def test_status_values(self, _mock_now, customer, package):
         """Serialize different status values correctly."""
         for status_choice in Subscription.Status:
             sub = Subscription.objects.create(
