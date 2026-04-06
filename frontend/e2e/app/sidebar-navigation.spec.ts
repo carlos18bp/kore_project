@@ -30,10 +30,10 @@ test.describe('Sidebar — Navigation & Active States', { tag: [...FlowTags.APP_
     const bottomNav = page.locator('nav.fixed.bottom-0');
     await bottomNav.getByText('Evaluar').click();
 
-    // Bottom sheet should show the 3 evaluation options
-    await expect(page.getByText('Mi Diagnóstico')).toBeVisible();
-    await expect(page.getByText('Evaluación Postural')).toBeVisible();
-    await expect(page.getByText('Evaluación Física')).toBeVisible();
+    // Bottom sheet should show the 3 evaluation options (use getByRole to avoid sidebar duplicates)
+    await expect(page.getByRole('button', { name: 'Mi Diagnóstico' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Evaluación Postural' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Evaluación Física' })).toBeVisible();
   });
 
   test('sidebar shows user info, logo, soporte, and active link highlighting', async ({ page }) => {
