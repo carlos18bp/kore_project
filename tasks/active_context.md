@@ -17,7 +17,13 @@ The KÓRE platform is **fully functional in production** at `korehealths.com`. A
 
 ## 2. Recent Focus Areas
 
-- **Quality gate 100/100 — zero issues** (latest):
+- **Fix: Evaluation ordering by exam date** (latest):
+  - Progress analysis in anthropometry, posturometry, and physical evaluation was ordering records by `created_at` (upload date) instead of `evaluation_date` (exam date)
+  - When trainer uploaded a 2026 record first and then a 2025 record, the system treated the older record as "current", making it appear the client regressed
+  - Changed `-created_at` → `-evaluation_date` in: 3 model Meta classes, 6 list view queries, 2 cross-module lookups, 3 pending assessments queries
+  - Branch: `fix/progress-ordering-by-exam-date` — 7 files changed, 14 substitutions
+  - Frontend required no changes — it correctly relies on the API sort order
+- **Quality gate 100/100 — zero issues** (previous):
   - Confirmed all 16 "failing" E2E flows were actually passing (stale `flow-coverage.json` report)
   - Fixed 2 E2E flakiness issues: checkout heading timeout (10s→15s), sidebar close button visibility wait
   - Added 7 docstrings to complex tests flagged by `missing_docstring`

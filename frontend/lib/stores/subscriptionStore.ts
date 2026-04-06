@@ -16,6 +16,7 @@ export type PaymentRecord = {
 type SubscriptionState = {
   subscriptions: Subscription[];
   activeSubscription: Subscription | null;
+  hasActiveSubscription: boolean;
   selectedSubscriptionId: number | null;
   payments: PaymentRecord[];
   expiryReminder: Subscription | null;
@@ -38,6 +39,7 @@ function authHeaders() {
 export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   subscriptions: [],
   activeSubscription: null,
+  hasActiveSubscription: false,
   selectedSubscriptionId: null,
   payments: [],
   expiryReminder: null,
@@ -53,7 +55,7 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       });
       const list: Subscription[] = data.results ?? data;
       const active = list.find((s) => s.status === 'active') ?? null;
-      set({ subscriptions: list, activeSubscription: active, loading: false });
+      set({ subscriptions: list, activeSubscription: active, hasActiveSubscription: active !== null, loading: false });
     } catch {
       set({ error: 'No se pudieron cargar las suscripciones.', loading: false });
     }
@@ -71,7 +73,7 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       });
       const subs = get().subscriptions.map((s) => (s.id === id ? { ...s, ...data } : s));
       const active = subs.find((s) => s.status === 'active') ?? null;
-      set({ subscriptions: subs, activeSubscription: active, actionLoading: false });
+      set({ subscriptions: subs, activeSubscription: active, hasActiveSubscription: active !== null, actionLoading: false });
       return true;
     } catch {
       set({ error: 'No se pudo cancelar la suscripción.', actionLoading: false });

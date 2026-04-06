@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useProfileStore } from '@/lib/stores/profileStore';
+import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
 import { WHATSAPP_URL } from '@/lib/constants';
 import { GOAL_OPTIONS } from '@/app/components/profile/ProfileIcons';
 import { usePendingAssessmentsStore } from '@/lib/stores/pendingAssessmentsStore';
@@ -85,11 +86,14 @@ const navItems = [
   },
 ];
 
+const ALLOWED_WITHOUT_SUBSCRIPTION = ['/subscription', '/profile'];
+
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const { profile } = useProfileStore();
+  const { hasActiveSubscription, subscriptions } = useSubscriptionStore();
   const userGoal = profile?.customer_profile?.primary_goal;
   const goalLabel = GOAL_OPTIONS.find((g) => g.value === userGoal)?.label;
   const [isOpen, setIsOpen] = useState(false);
@@ -99,6 +103,7 @@ export default function Sidebar() {
     profileIncomplete, subscriptionExpiring,
     loaded: pendingLoaded, fetchPending, markSeen,
   } = usePendingAssessmentsStore();
+  const subscriptionExpired = subscriptions.length > 0 && !hasActiveSubscription;
 
   useEffect(() => {
     setIsOpen(false);
@@ -195,8 +200,10 @@ export default function Sidebar() {
         <ul className="space-y-1">
           {navItems.map((item) => {
             const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+            const isItemAllowed = !subscriptionExpired || ALLOWED_WITHOUT_SUBSCRIPTION.some((p) => item.href.startsWith(p));
             return (
               <li key={item.href}>
+                {isItemAllowed ? (
                 <Link
                   href={item.href}
                   prefetch={false}
@@ -236,6 +243,15 @@ export default function Sidebar() {
                     <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
                   )}
                 </Link>
+                ) : (
+                <span
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-kore-gray-dark/25 cursor-not-allowed"
+                  title="Renueva tu suscripción para acceder"
+                >
+                  {item.icon}
+                  {item.label}
+                </span>
+                )}
               </li>
             );
           })}
