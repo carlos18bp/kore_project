@@ -4,52 +4,36 @@ import { FlowTags, RoleTags } from '../helpers/flow-tags';
 test.describe('Sidebar — Navigation & Active States', { tag: [...FlowTags.APP_SIDEBAR_NAVIGATION, RoleTags.USER] }, () => {
   test.describe.configure({ mode: 'serial' });
 
-  test('mobile sidebar opens with hamburger and closes with backdrop click', async ({ page }) => {
-    // Set mobile viewport to test mobile-specific sidebar behavior (lines 77-85)
+  test('mobile bottom nav renders 5 tabs and sidebar is hidden', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
     await mockLoginAsTestUser(page);
 
+    // Sidebar should be hidden on mobile (hidden xl:flex)
     const sidebar = page.locator('aside');
+    await expect(sidebar).not.toBeVisible();
 
-    // Sidebar should have -translate-x-full class on mobile (hidden)
-    await expect(sidebar).toHaveClass(/-translate-x-full/);
-
-    // Click hamburger button to open sidebar
-    await page.getByRole('button', { name: 'Abrir menú' }).click();
-
-    // Sidebar should have translate-x-0 class (visible)
-    await expect(sidebar).toHaveClass(/translate-x-0/);
-
-    // Backdrop should be visible
-    const backdrop = page.locator('div.fixed.inset-0.bg-black\\/30');
-    await expect(backdrop).toBeVisible();
-
-    // Click backdrop to close sidebar (exercises line 80)
-    // Click on the right side of the viewport to avoid the sidebar (which is 256px wide)
-    await backdrop.click({ position: { x: 350, y: 300 } });
-
-    // Sidebar should be hidden again
-    await expect(sidebar).toHaveClass(/-translate-x-full/);
+    // Bottom nav should be visible with all 5 tabs
+    const bottomNav = page.locator('nav.fixed.bottom-0');
+    await expect(bottomNav).toBeVisible();
+    await expect(bottomNav.getByText('Inicio')).toBeVisible();
+    await expect(bottomNav.getByText('Agendar')).toBeVisible();
+    await expect(bottomNav.getByText('Evaluar')).toBeVisible();
+    await expect(bottomNav.getByText('Perfil')).toBeVisible();
+    await expect(bottomNav.getByText('Más')).toBeVisible();
   });
 
-  test('mobile sidebar closes with close button', async ({ page }) => {
-    // Set mobile viewport
+  test('mobile bottom nav Evaluar tab opens bottom sheet with evaluations', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
     await mockLoginAsTestUser(page);
 
-    const sidebar = page.locator('aside');
+    // Click Evaluar tab to open bottom sheet
+    const bottomNav = page.locator('nav.fixed.bottom-0');
+    await bottomNav.getByText('Evaluar').click();
 
-    // Open sidebar
-    await page.getByRole('button', { name: 'Abrir menú' }).click();
-    await expect(sidebar).toHaveClass(/translate-x-0/);
-
-    // Click close button inside sidebar (exercises line 95)
-    const closeBtn = page.getByRole('button', { name: 'Cerrar menú' });
-    await expect(closeBtn).toBeVisible({ timeout: 5_000 });
-    await closeBtn.click();
-
-    // Sidebar should be hidden
-    await expect(sidebar).toHaveClass(/-translate-x-full/);
+    // Bottom sheet should show the 3 evaluation options
+    await expect(page.getByText('Mi Diagnóstico')).toBeVisible();
+    await expect(page.getByText('Evaluación Postural')).toBeVisible();
+    await expect(page.getByText('Evaluación Física')).toBeVisible();
   });
 
   test('sidebar shows user info, logo, soporte, and active link highlighting', async ({ page }) => {
