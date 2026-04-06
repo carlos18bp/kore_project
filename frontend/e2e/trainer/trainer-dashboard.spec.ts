@@ -55,7 +55,7 @@ test.describe('Trainer Dashboard Page', { tag: [...FlowTags.TRAINER_DASHBOARD, R
     await setupDashboardMocks(page);
     await page.goto('/trainer/dashboard');
 
-    await expect(page.getByText('Clientes', { exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('main').getByText('Clientes', { exact: true })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('8', { exact: true })).toBeVisible();
     await expect(page.getByText('activos')).toBeVisible();
   });

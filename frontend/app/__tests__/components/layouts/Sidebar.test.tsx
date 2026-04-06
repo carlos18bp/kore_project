@@ -106,55 +106,6 @@ describe('Sidebar', () => {
     expect(screen.queryByText('Customer10 Kore')).not.toBeInTheDocument();
   });
 
-  it('renders mobile backdrop with pointer cursor when menu is open', async () => {
-    const user = userEvent.setup();
-    const { container } = render(<Sidebar />);
-
-    await user.click(screen.getByLabelText('Abrir menú'));
-
-    const backdrop = container.querySelector('div[class*="bg-black/30"]');
-    expect(backdrop).toHaveClass('cursor-pointer');
-  });
-
-  it('closes the mobile menu when backdrop is clicked', async () => {
-    const user = userEvent.setup();
-    const { container } = render(<Sidebar />);
-    const aside = container.querySelector('aside');
-
-    await user.click(screen.getByLabelText('Abrir menú'));
-    expect(aside).toHaveClass('translate-x-0');
-
-    const backdrop = container.querySelector('div[class*="bg-black/30"]');
-    expect(backdrop).not.toBeNull();
-    await user.click(backdrop!);
-
-    expect(aside).toHaveClass('-translate-x-full');
-  });
-
-  it('closes the mobile menu when a nav item is clicked', async () => {
-    const user = userEvent.setup();
-    const { container } = render(<Sidebar />);
-    const aside = container.querySelector('aside');
-
-    await user.click(screen.getByLabelText('Abrir menú'));
-    expect(aside).toHaveClass('translate-x-0');
-
-    await user.click(screen.getByText('Agendar Sesión'));
-    expect(aside).toHaveClass('-translate-x-full');
-  });
-
-  it('closes the mobile menu when the close button is clicked', async () => {
-    const user = userEvent.setup();
-    const { container } = render(<Sidebar />);
-    const aside = container.querySelector('aside');
-
-    await user.click(screen.getByLabelText('Abrir menú'));
-    expect(aside).toHaveClass('translate-x-0');
-
-    await user.click(screen.getByLabelText('Cerrar menú'));
-    expect(aside).toHaveClass('-translate-x-full');
-  });
-
   it('renders avatar image when user has avatar_url', () => {
     useAuthStore.setState({
       user: { ...mockUser, avatar_url: 'https://cdn.kore.com/avatar.jpg' },

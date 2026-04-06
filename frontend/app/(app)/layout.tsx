@@ -6,6 +6,8 @@ import { useAuthStore } from '@/lib/stores/authStore';
 import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
 import Sidebar from '@/app/components/layouts/Sidebar';
 import TrainerSidebar from '@/app/components/layouts/TrainerSidebar';
+import MobileBottomNav from '@/app/components/layouts/MobileBottomNav';
+import TrainerMobileBottomNav from '@/app/components/layouts/TrainerMobileBottomNav';
 import ProfileCompletionCTA from '@/app/components/profile/ProfileCompletionCTA';
 import MoodCheckIn from '@/app/components/profile/MoodCheckIn';
 
@@ -63,7 +65,8 @@ export default function AppLayout({
   return (
     <div className="min-h-screen bg-kore-cream">
       {isTrainer ? <TrainerSidebar /> : <Sidebar />}
-      <main className="xl:ml-64">
+      {isTrainer ? <TrainerMobileBottomNav /> : <MobileBottomNav />}
+      <main className="xl:ml-64 pb-20 xl:pb-0">
         {children}
       </main>
       {!isTrainer && <ProfileCompletionCTA />}

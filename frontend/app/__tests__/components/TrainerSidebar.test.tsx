@@ -120,40 +120,6 @@ describe('TrainerSidebar', () => {
     expect(mockPush).toHaveBeenCalledWith('/');
   });
 
-  it('opens mobile menu when hamburger is clicked', () => {
-    setupStore();
-    render(<TrainerSidebar />);
-
-    const hamburger = screen.getByLabelText('Abrir menú');
-    fireEvent.click(hamburger);
-
-    const backdrop = document.querySelector('.bg-black\\/30');
-    expect(backdrop).toBeInTheDocument();
-  });
-
-  it('closes mobile menu when close button is clicked', () => {
-    setupStore();
-    render(<TrainerSidebar />);
-
-    fireEvent.click(screen.getByLabelText('Abrir menú'));
-    expect(document.querySelector('.bg-black\\/30')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByLabelText('Cerrar menú'));
-    expect(document.querySelector('.bg-black\\/30')).not.toBeInTheDocument();
-  });
-
-  it('closes mobile menu when backdrop is clicked', () => {
-    setupStore();
-    render(<TrainerSidebar />);
-
-    fireEvent.click(screen.getByLabelText('Abrir menú'));
-    const backdrop = document.querySelector('.bg-black\\/30');
-    expect(backdrop).toBeInTheDocument();
-
-    fireEvent.click(backdrop!);
-    expect(document.querySelector('.bg-black\\/30')).not.toBeInTheDocument();
-  });
-
   it('highlights active nav item for current pathname', () => {
     mockPathname = '/trainer/clients';
     setupStore();

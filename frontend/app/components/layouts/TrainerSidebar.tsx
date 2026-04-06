@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/authStore';
@@ -31,11 +30,6 @@ export default function TrainerSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
-  const [isOpen, setIsOpen] = useState(false);
-
-  useEffect(() => {
-    setIsOpen(false);
-  }, [pathname]);
 
   const handleLogout = () => {
     logout();
@@ -44,44 +38,14 @@ export default function TrainerSidebar() {
 
   return (
     <>
-      {/* Mobile hamburger button */}
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed top-4 left-4 z-50 xl:hidden p-2 rounded-xl bg-white/80 backdrop-blur-sm border border-kore-gray-light/40 text-kore-gray-dark/60 hover:text-kore-gray-dark transition-colors"
-        aria-label="Abrir menú"
-      >
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-        </svg>
-      </button>
-
-      {/* Backdrop overlay for mobile */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 xl:hidden cursor-pointer"
-          onClick={() => setIsOpen(false)}
-        />
-      )}
-
-      <aside className={`fixed left-0 top-0 h-dvh w-64 bg-white border-r border-kore-gray-light/40 flex flex-col z-50 transition-transform duration-300 ease-in-out ${
-        isOpen ? 'translate-x-0' : '-translate-x-full'
-      } xl:translate-x-0`}>
+      <aside className="fixed left-0 top-0 h-dvh w-64 bg-white border-r border-kore-gray-light/40 flex-col z-50 hidden xl:flex">
       {/* Logo */}
-      <div className="px-6 pt-8 pb-6 flex items-center justify-between">
+      <div className="px-6 pt-8 pb-6">
         <Link href="/trainer/dashboard" prefetch={false}>
           <span className="font-heading text-2xl font-semibold text-kore-gray-dark tracking-tight">
             KÓRE
           </span>
         </Link>
-        <button
-          onClick={() => setIsOpen(false)}
-          className="xl:hidden p-1 rounded-lg text-kore-gray-dark/40 hover:text-kore-gray-dark transition-colors"
-          aria-label="Cerrar menú"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
       </div>
 
       {/* User Info */}
@@ -111,7 +75,6 @@ export default function TrainerSidebar() {
                 <Link
                   href={item.href}
                   prefetch={false}
-                  onClick={() => setIsOpen(false)}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                     isActive
                       ? 'bg-kore-red/10 text-kore-red'

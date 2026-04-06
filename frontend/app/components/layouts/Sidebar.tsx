@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -96,7 +96,6 @@ export default function Sidebar() {
   const { hasActiveSubscription, subscriptions } = useSubscriptionStore();
   const userGoal = profile?.customer_profile?.primary_goal;
   const goalLabel = GOAL_OPTIONS.find((g) => g.value === userGoal)?.label;
-  const [isOpen, setIsOpen] = useState(false);
   const {
     nutritionDue, parqDue,
     anthropometryUnseen, posturometryUnseen, physicalEvalUnseen,
@@ -104,10 +103,6 @@ export default function Sidebar() {
     loaded: pendingLoaded, fetchPending, markSeen,
   } = usePendingAssessmentsStore();
   const subscriptionExpired = subscriptions.length > 0 && !hasActiveSubscription;
-
-  useEffect(() => {
-    setIsOpen(false);
-  }, [pathname]);
 
   useEffect(() => {
     if (user && !pendingLoaded) {
@@ -122,44 +117,14 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile hamburger button */}
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed top-4 left-4 z-50 xl:hidden p-2 rounded-xl bg-white/80 backdrop-blur-sm border border-kore-gray-light/40 text-kore-gray-dark/60 hover:text-kore-gray-dark transition-colors"
-        aria-label="Abrir menú"
-      >
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-        </svg>
-      </button>
-
-      {/* Backdrop overlay for mobile */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 xl:hidden cursor-pointer"
-          onClick={() => setIsOpen(false)}
-        />
-      )}
-
-      <aside className={`fixed left-0 top-0 h-dvh w-64 bg-white border-r border-kore-gray-light/40 flex flex-col z-50 transition-transform duration-300 ease-in-out ${
-        isOpen ? 'translate-x-0' : '-translate-x-full'
-      } xl:translate-x-0`}>
+      <aside className="fixed left-0 top-0 h-dvh w-64 bg-white border-r border-kore-gray-light/40 flex-col z-50 hidden xl:flex">
       {/* Logo */}
-      <div className="px-6 pt-8 pb-6 flex items-center justify-between">
+      <div className="px-6 pt-8 pb-6">
         <Link href="/dashboard" prefetch={false}>
           <span className="font-heading text-2xl font-semibold text-kore-gray-dark tracking-tight">
             KÓRE
           </span>
         </Link>
-        <button
-          onClick={() => setIsOpen(false)}
-          className="xl:hidden p-1 rounded-lg text-kore-gray-dark/40 hover:text-kore-gray-dark transition-colors"
-          aria-label="Cerrar menú"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
       </div>
 
       {/* User Info — clickable to profile */}
@@ -168,7 +133,6 @@ export default function Sidebar() {
           <Link
             href="/profile"
             prefetch={false}
-            onClick={() => setIsOpen(false)}
             className="flex items-center gap-3 group cursor-pointer"
           >
             <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-kore-red/20 to-kore-burgundy/10 flex items-center justify-center flex-shrink-0 ring-2 ring-white shadow-sm overflow-hidden group-hover:ring-kore-red/30 transition-all">
@@ -208,7 +172,6 @@ export default function Sidebar() {
                   href={item.href}
                   prefetch={false}
                   onClick={() => {
-                    setIsOpen(false);
                     if (item.href === '/my-diagnosis') markSeen('anthropometry');
                     if (item.href === '/my-posturometry') markSeen('posturometry');
                     if (item.href === '/my-physical-evaluation') markSeen('physical_eval');
