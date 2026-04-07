@@ -264,6 +264,64 @@ def send_subscription_expiry_reminder(subscription):
 
 
 # ------------------------------------------------------------------
+# Welcome email sender (guest checkout)
+# ------------------------------------------------------------------
+
+def send_welcome_email(user, package):
+    """Send a welcome email after guest checkout creates the user account.
+
+    Args:
+        user: Newly created User instance.
+        package: The Package the user purchased.
+
+    Returns:
+        bool: True if the email was sent successfully.
+    """
+    customer_name = f'{user.first_name} {user.last_name}'.strip() or user.email
+    login_url = getattr(settings, 'FRONTEND_LOGIN_URL', 'https://korehealths.com/login')
+
+    return send_template_email(
+        template_name='welcome',
+        subject='¡Bienvenido/a a KÓRE!',
+        to_emails=[user.email],
+        context={
+            'customer_name': customer_name,
+            'customer_email': user.email,
+            'package_title': package.title if package else 'Suscripción KÓRE',
+            'sessions_count': package.sessions_count if package else '-',
+            'validity_days': package.validity_days if package else '-',
+            'login_url': login_url,
+        },
+    )
+
+
+# ------------------------------------------------------------------
+# Registration verification code sender
+# ------------------------------------------------------------------
+
+def send_registration_verification_code(email, code, customer_name=''):
+    """Send a 6-digit verification code for registration email verification.
+
+    Args:
+        email: The email address to verify.
+        code: The 6-digit verification code string.
+        customer_name: Optional display name for the greeting.
+
+    Returns:
+        bool: True if the email was sent successfully.
+    """
+    return send_template_email(
+        template_name='registration_verification',
+        subject='Código de verificación de registro — KÓRE',
+        to_emails=[email],
+        context={
+            'customer_name': customer_name or email,
+            'code': code,
+        },
+    )
+
+
+# ------------------------------------------------------------------
 # Password reset code sender
 # ------------------------------------------------------------------
 

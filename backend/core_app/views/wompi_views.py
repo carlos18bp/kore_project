@@ -19,7 +19,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from core_app.models import Payment, PaymentIntent, Subscription, User
-from core_app.services.email_service import send_payment_receipt
+from core_app.services.email_service import send_payment_receipt, send_welcome_email
 from core_app.services.wompi_service import (
     generate_integrity_signature,
     verify_event_checksum,
@@ -206,8 +206,9 @@ def _handle_transaction_updated(data):
 def _resolve_payment_intent(intent, txn_status, payment_method_type=''):
     """Resolve a PaymentIntent based on webhook transaction status.
 
-    On APPROVED: creates Payment + Subscription in a single atomic
-    transaction and marks the intent as approved.
+    On APPROVED: creates User (for guest checkout) + Payment + Subscription
+    in a single atomic transaction with ``select_for_update`` locking and
+    marks the intent as approved.
     On DECLINED/ERROR: marks the intent as failed.
     Idempotent: if the intent is already resolved, does nothing.
 
@@ -244,77 +245,105 @@ def _resolve_payment_intent(intent, txn_status, payment_method_type=''):
         if is_recurring:
             next_billing_date = (now + timedelta(days=package.validity_days)).date()
 
-        customer = intent.customer
-        if customer is None:
-            if not intent.pending_email or not intent.pending_password_hash:
-                logger.error(
-                    'PaymentIntent %s approved without pending registration payload',
-                    intent.pk,
+        is_guest_creation = False
+        try:
+            with db_transaction.atomic():
+                locked_intent = (
+                    PaymentIntent.objects.select_for_update()
+                    .select_related('customer', 'package')
+                    .get(pk=intent.pk)
                 )
-                intent.status = PaymentIntent.Status.FAILED
-                intent.pending_password_hash = ''
-                intent.save(update_fields=['status', 'pending_password_hash', 'updated_at'])
-                return
-
-            try:
-                customer = User.objects.create(
-                    email=intent.pending_email,
-                    first_name=intent.pending_first_name,
-                    last_name=intent.pending_last_name,
-                    phone=intent.pending_phone,
-                    role=User.Role.CUSTOMER,
-                    password=intent.pending_password_hash,
-                )
-            except IntegrityError:
-                customer = User.objects.filter(email=intent.pending_email).first()
-                if customer is None:
-                    logger.error(
-                        'Failed to resolve customer for PaymentIntent %s (email=%s)',
-                        intent.pk,
-                        intent.pending_email,
+                if locked_intent.status != PaymentIntent.Status.PENDING:
+                    logger.info(
+                        'PaymentIntent %s already resolved (%s) after lock, skipping',
+                        locked_intent.pk, locked_intent.status,
                     )
-                    intent.status = PaymentIntent.Status.FAILED
-                    intent.pending_password_hash = ''
-                    intent.save(update_fields=['status', 'pending_password_hash', 'updated_at'])
                     return
 
-            intent.customer = customer
-            intent.pending_password_hash = ''
-            intent.save(update_fields=['customer', 'pending_password_hash', 'updated_at'])
+                customer = locked_intent.customer
+                if customer is None:
+                    if not locked_intent.pending_email or not locked_intent.pending_password_hash:
+                        logger.error(
+                            'PaymentIntent %s approved without pending registration payload',
+                            locked_intent.pk,
+                        )
+                        locked_intent.status = PaymentIntent.Status.FAILED
+                        locked_intent.pending_password_hash = ''
+                        locked_intent.save(update_fields=['status', 'pending_password_hash', 'updated_at'])
+                        return
 
-        with db_transaction.atomic():
-            subscription = Subscription.objects.create(
-                customer=customer,
-                package=package,
-                sessions_total=package.sessions_count,
-                sessions_used=0,
-                status=Subscription.Status.ACTIVE,
-                starts_at=now,
-                expires_at=now + timedelta(days=package.validity_days),
-                payment_source_id=intent.payment_source_id,
-                payment_method_type=normalized_method,
-                is_recurring=is_recurring,
-                wompi_transaction_id=intent.wompi_transaction_id,
-                next_billing_date=next_billing_date,
+                    try:
+                        customer = User.objects.create(
+                            email=locked_intent.pending_email,
+                            first_name=locked_intent.pending_first_name,
+                            last_name=locked_intent.pending_last_name,
+                            phone=locked_intent.pending_phone,
+                            role=User.Role.CUSTOMER,
+                            password=locked_intent.pending_password_hash,
+                        )
+                        is_guest_creation = True
+                    except IntegrityError:
+                        customer = User.objects.filter(
+                            email=locked_intent.pending_email,
+                        ).first()
+                        if customer is None:
+                            logger.error(
+                                'Failed to resolve customer for PaymentIntent %s (email=%s)',
+                                locked_intent.pk,
+                                locked_intent.pending_email,
+                            )
+                            locked_intent.status = PaymentIntent.Status.FAILED
+                            locked_intent.pending_password_hash = ''
+                            locked_intent.save(
+                                update_fields=['status', 'pending_password_hash', 'updated_at'],
+                            )
+                            return
+
+                    locked_intent.customer = customer
+                    locked_intent.pending_password_hash = ''
+
+                subscription = Subscription.objects.create(
+                    customer=customer,
+                    package=package,
+                    sessions_total=package.sessions_count,
+                    sessions_used=0,
+                    status=Subscription.Status.ACTIVE,
+                    starts_at=now,
+                    expires_at=now + timedelta(days=package.validity_days),
+                    payment_source_id=locked_intent.payment_source_id,
+                    payment_method_type=normalized_method,
+                    is_recurring=is_recurring,
+                    wompi_transaction_id=locked_intent.wompi_transaction_id,
+                    next_billing_date=next_billing_date,
+                )
+
+                payment = Payment.objects.create(
+                    customer=customer,
+                    subscription=subscription,
+                    amount=locked_intent.amount,
+                    currency=locked_intent.currency,
+                    provider=Payment.Provider.WOMPI,
+                    provider_reference=locked_intent.wompi_transaction_id,
+                    status=Payment.Status.CONFIRMED,
+                    confirmed_at=now,
+                    metadata={
+                        'wompi_reference': locked_intent.reference,
+                        'payment_source_id': locked_intent.payment_source_id,
+                    },
+                )
+
+                locked_intent.status = PaymentIntent.Status.APPROVED
+                locked_intent.save(update_fields=[
+                    'status', 'customer', 'pending_password_hash', 'updated_at',
+                ])
+        except Exception:
+            logger.exception(
+                'Failed to resolve PaymentIntent %s (txn %s)',
+                intent.pk, intent.wompi_transaction_id,
             )
+            return
 
-            payment = Payment.objects.create(
-                customer=customer,
-                subscription=subscription,
-                amount=intent.amount,
-                currency=intent.currency,
-                provider=Payment.Provider.WOMPI,
-                provider_reference=intent.wompi_transaction_id,
-                status=Payment.Status.CONFIRMED,
-                confirmed_at=now,
-                metadata={
-                    'wompi_reference': intent.reference,
-                    'payment_source_id': intent.payment_source_id,
-                },
-            )
-
-            intent.status = PaymentIntent.Status.APPROVED
-            intent.save(update_fields=['status', 'updated_at'])
+        intent.refresh_from_db()
 
         logger.info(
             'PaymentIntent %s approved → subscription %s created (txn %s)',
@@ -322,6 +351,8 @@ def _resolve_payment_intent(intent, txn_status, payment_method_type=''):
         )
 
         send_payment_receipt(payment)
+        if is_guest_creation:
+            send_welcome_email(customer, package)
 
     elif txn_status in ('DECLINED', 'ERROR', 'VOIDED'):
         intent.status = PaymentIntent.Status.FAILED

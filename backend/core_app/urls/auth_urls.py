@@ -8,14 +8,18 @@ from core_app.views import (
     pre_register_user,
     register_user,
     request_password_reset_code,
+    resend_verification_code,
     reset_password_with_code,
     upload_avatar,
     verify_password_reset_code,
+    verify_registration,
     weight_view,
 )
 
 urlpatterns = [
     path('pre-register/', pre_register_user, name='pre-register-user'),
+    path('verify-registration/', verify_registration, name='verify-registration'),
+    path('resend-verification-code/', resend_verification_code, name='resend-verification-code'),
     path('register/', register_user, name='register-user'),
     path('login/', login_user, name='login-user'),
     path('profile/', get_user_profile, name='get-user-profile'),

@@ -1,0 +1,26 @@
+<h2 style="color:#c8102e; margin-top:0;">¡Bienvenido/a a KÓRE!</h2>
+
+<p>Hola <strong>{{ customer_name }}</strong>,</p>
+
+<p>Tu cuenta ha sido creada exitosamente y tu suscripción al programa <strong>{{ package_title }}</strong> ya está activa.</p>
+
+<div style="background-color:#f5f0eb; border-radius:12px; padding:20px; margin:24px 0;">
+  <p style="margin:0 0 8px 0;"><strong>Detalles de tu programa:</strong></p>
+  <ul style="margin:0; padding-left:20px;">
+    <li>Programa: <strong>{{ package_title }}</strong></li>
+    <li>Sesiones incluidas: <strong>{{ sessions_count }}</strong></li>
+    <li>Vigencia: <strong>{{ validity_days }} días</strong></li>
+  </ul>
+</div>
+
+<p>Puedes iniciar sesión con tu correo electrónico <strong>{{ customer_email }}</strong> y la contraseña que elegiste durante el registro.</p>
+
+<p style="text-align:center; margin:24px 0;">
+  <a href="{{ login_url }}" style="display:inline-block; background-color:#c8102e; color:#ffffff; padding:12px 32px; border-radius:8px; text-decoration:none; font-weight:bold;">Iniciar sesión</a>
+</p>
+
+<p style="color:#888888; font-size:14px;">
+  Si tienes alguna pregunta, no dudes en contactarnos.
+</p>
+
+<p>Tu equipo KÓRE</p>

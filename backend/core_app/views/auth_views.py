@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.hashers import make_password
 from django.core import signing
 from django.utils import timezone
@@ -8,7 +9,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from core_app.models import MoodEntry, PasswordResetCode, User, WeightEntry
+from core_app.models import (
+    MoodEntry, PasswordResetCode, RegistrationVerificationCode, User, WeightEntry,
+)
 from core_app.serializers import LoginSerializer, RegisterUserSerializer, UserSerializer
 from core_app.serializers.profile_serializers import (
     AvatarUploadSerializer,
@@ -18,19 +21,23 @@ from core_app.serializers.profile_serializers import (
     UpdateProfileSerializer,
     WeightEntrySerializer,
 )
+from core_app.services.email_service import send_registration_verification_code
 from core_app.views.captcha_views import verify_recaptcha
 
 REGISTRATION_TOKEN_SALT = 'kore-pre-register-v1'
+PRE_REGISTRATION_TOKEN_SALT = 'kore-pre-register-pending-v1'
+MAX_VERIFICATION_CODES_PER_HOUR = 5
 
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def pre_register_user(request):
-    """Validate registration data and return a signed token for guest checkout.
+    """Validate registration data, send a verification code, and return a pending token.
 
     This endpoint does not create a user yet. It validates captcha + form data,
-    then returns a short-lived signed token consumed by the checkout purchase
-    endpoint. The user account is created only after payment approval.
+    sends a 6-digit verification code to the email, and returns a
+    ``pre_registration_token`` that must be verified via
+    ``/auth/verify-registration/`` before proceeding to checkout.
     """
     captcha_token = request.data.get('captcha_token', '')
     if not verify_recaptcha(captcha_token):
@@ -50,7 +57,17 @@ def pre_register_user(request):
     serializer.is_valid(raise_exception=True)
     validated = serializer.validated_data
 
-    registration_token = signing.dumps(
+    if RegistrationVerificationCode.recent_count(email) >= MAX_VERIFICATION_CODES_PER_HOUR:
+        return Response(
+            {'detail': 'Has solicitado demasiados códigos. Intenta de nuevo más tarde.'},
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+
+    verification = RegistrationVerificationCode.create_for_email(email)
+    customer_name = f"{validated['first_name']} {validated['last_name']}".strip()
+    send_registration_verification_code(email, verification.code, customer_name)
+
+    pre_registration_token = signing.dumps(
         {
             'email': validated['email'],
             'first_name': validated['first_name'],
@@ -58,10 +75,111 @@ def pre_register_user(request):
             'phone': validated.get('phone', ''),
             'password_hash': make_password(validated['password']),
         },
-        salt=REGISTRATION_TOKEN_SALT,
+        salt=PRE_REGISTRATION_TOKEN_SALT,
     )
 
+    return Response({
+        'verification_pending': True,
+        'pre_registration_token': pre_registration_token,
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verify_registration(request):
+    """Verify the 6-digit code and return the real registration_token for checkout.
+
+    Accepts: { "pre_registration_token": "...", "code": "123456" }
+    Returns: { "registration_token": "..." } on success.
+    """
+    pre_token = str(request.data.get('pre_registration_token', '')).strip()
+    code = str(request.data.get('code', '')).strip()
+
+    if not pre_token or not code:
+        return Response(
+            {'detail': 'Token y código son requeridos.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    max_age = int(getattr(settings, 'REGISTRATION_TOKEN_MAX_AGE_SECONDS', 3600))
+    try:
+        payload = signing.loads(pre_token, salt=PRE_REGISTRATION_TOKEN_SALT, max_age=max_age)
+    except (signing.SignatureExpired, signing.BadSignature):
+        return Response(
+            {'detail': 'El registro expiró o es inválido. Completa el formulario de nuevo.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    email = str(payload.get('email', '')).strip().lower()
+    if not email:
+        return Response(
+            {'detail': 'Token de registro inválido.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    verification = RegistrationVerificationCode.objects.filter(
+        email=email, code=code, used=False,
+    ).order_by('-created_at').first()
+
+    if not verification or not verification.is_valid:
+        return Response(
+            {'detail': 'Código inválido o expirado.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    verification.used = True
+    verification.save(update_fields=['used', 'updated_at'])
+
+    registration_token = signing.dumps(payload, salt=REGISTRATION_TOKEN_SALT)
+
     return Response({'registration_token': registration_token}, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def resend_verification_code(request):
+    """Resend the 6-digit verification code for registration.
+
+    Accepts: { "pre_registration_token": "..." }
+    Rate-limited to MAX_VERIFICATION_CODES_PER_HOUR per email.
+    """
+    pre_token = str(request.data.get('pre_registration_token', '')).strip()
+    if not pre_token:
+        return Response(
+            {'detail': 'Token de registro es requerido.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    max_age = int(getattr(settings, 'REGISTRATION_TOKEN_MAX_AGE_SECONDS', 3600))
+    try:
+        payload = signing.loads(pre_token, salt=PRE_REGISTRATION_TOKEN_SALT, max_age=max_age)
+    except (signing.SignatureExpired, signing.BadSignature):
+        return Response(
+            {'detail': 'El registro expiró o es inválido. Completa el formulario de nuevo.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    email = str(payload.get('email', '')).strip().lower()
+    if not email:
+        return Response(
+            {'detail': 'Token de registro inválido.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if RegistrationVerificationCode.recent_count(email) >= MAX_VERIFICATION_CODES_PER_HOUR:
+        return Response(
+            {'detail': 'Has solicitado demasiados códigos. Intenta de nuevo más tarde.'},
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+
+    verification = RegistrationVerificationCode.create_for_email(email)
+    customer_name = f"{payload.get('first_name', '')} {payload.get('last_name', '')}".strip()
+    send_registration_verification_code(email, verification.code, customer_name)
+
+    return Response({
+        'detail': 'Código reenviado exitosamente.',
+        'verification_pending': True,
+    }, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
