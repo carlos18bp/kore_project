@@ -115,7 +115,7 @@ export default function CheckoutClient() {
     const prev = prevPaymentStatusRef.current;
     prevPaymentStatusRef.current = paymentStatus;
 
-    if (prev !== null && prev !== paymentStatus && (paymentStatus === 'success' || paymentStatus === 'error')) {
+    if (prev !== null && prev !== paymentStatus && paymentStatus === 'success') {
       sessionStorage.removeItem(CHECKOUT_REGISTRATION_TOKEN_KEY);
       sessionStorage.removeItem(CHECKOUT_REGISTRATION_PACKAGE_KEY);
     }
