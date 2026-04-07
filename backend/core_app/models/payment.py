@@ -19,6 +19,7 @@ class Payment(TimestampedModel):
         PAYU = 'payu', 'PayU'
         EPAYCO = 'epayco', 'ePayco'
         PAYPAL = 'paypal', 'PayPal'
+        CASH = 'cash', 'Efectivo'
 
     booking = models.ForeignKey(
         'core_app.Booking',

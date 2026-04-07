@@ -1,6 +1,11 @@
 from django import forms
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
+from django.http import HttpResponseRedirect
+from django.template.response import TemplateResponse
+from django.urls import path, reverse
+from django.utils import timezone
+from django.utils.html import format_html
 
 from core_app.forms import UserChangeForm, UserCreationForm
 from core_app.models.posturometry import PosturometryEvaluation
@@ -172,7 +177,7 @@ class TrainerProfileAdmin(admin.ModelAdmin):
 @admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
     form = SubscriptionAdminForm
-    list_display = ('id', 'customer', 'package', 'package_program', 'status', 'sessions_total', 'sessions_used', 'starts_at', 'expires_at', 'next_billing_date')
+    list_display = ('id', 'customer', 'package', 'package_program', 'status', 'sessions_total', 'sessions_used', 'starts_at', 'expires_at', 'next_billing_date', 'renew_link')
     list_filter = ('status',)
     search_fields = ('customer__email', 'package__title')
     autocomplete_fields = ('customer', 'package')
@@ -181,6 +186,90 @@ class SubscriptionAdmin(admin.ModelAdmin):
     @admin.display(description='Program')
     def package_program(self, obj):
         return obj.package.get_category_display()
+
+    @admin.display(description='Renovar')
+    def renew_link(self, obj):
+        is_expired = (
+            obj.status == Subscription.Status.EXPIRED
+            or (obj.status == Subscription.Status.ACTIVE and obj.expires_at <= timezone.now())
+        )
+        if not is_expired:
+            return '-'
+        url = reverse('admin:core_app_subscription_renew', args=[obj.pk])
+        return format_html(
+            '<a class="button" style="background:#28a745;color:#fff;padding:4px 12px;'
+            'border-radius:4px;text-decoration:none;font-size:12px;" '
+            'href="{}">Renovar</a>',
+            url,
+        )
+
+    def get_urls(self):
+        custom_urls = [
+            path(
+                '<int:subscription_id>/renew/',
+                self.admin_site.admin_view(self.renew_subscription_view),
+                name='core_app_subscription_renew',
+            ),
+        ]
+        return custom_urls + super().get_urls()
+
+    def renew_subscription_view(self, request, subscription_id):
+        from datetime import timedelta
+
+        old_sub = Subscription.objects.select_related('package', 'customer').get(pk=subscription_id)
+
+        if request.method == 'POST':
+            now = timezone.now()
+
+            new_sub = Subscription.objects.create(
+                customer=old_sub.customer,
+                package=old_sub.package,
+                sessions_total=old_sub.package.sessions_count,
+                sessions_used=0,
+                status=Subscription.Status.ACTIVE,
+                starts_at=now,
+                expires_at=now + timedelta(days=old_sub.package.validity_days),
+                is_recurring=False,
+            )
+
+            if old_sub.status != Subscription.Status.EXPIRED:
+                old_sub.status = Subscription.Status.EXPIRED
+                old_sub.save(update_fields=['status'])
+
+            Payment.objects.create(
+                subscription=new_sub,
+                customer=old_sub.customer,
+                status=Payment.Status.CONFIRMED,
+                amount=old_sub.package.price,
+                currency=old_sub.package.currency,
+                provider=Payment.Provider.CASH,
+                confirmed_at=now,
+                metadata={'renewed_from_subscription_id': old_sub.pk},
+            )
+
+            self.message_user(
+                request,
+                f'Suscripción renovada exitosamente. '
+                f'Nueva suscripción #{new_sub.pk} creada para {old_sub.customer.email}.',
+            )
+            return HttpResponseRedirect(
+                reverse('admin:core_app_subscription_changelist')
+            )
+
+        # GET — show confirmation page
+        new_expires = timezone.now() + timedelta(days=old_sub.package.validity_days)
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Confirmar renovación de suscripción',
+            'subscription': old_sub,
+            'new_expires': new_expires,
+            'opts': self.model._meta,
+        }
+        return TemplateResponse(
+            request,
+            'admin/core_app/subscription/renew_confirm.html',
+            context,
+        )
 
     def save_model(self, request, obj, form, change):
         if obj.package_id:

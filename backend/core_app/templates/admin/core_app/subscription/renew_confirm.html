@@ -1,0 +1,53 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Confirmar renovación{% endblock %}
+
+{% block content %}
+<div style="max-width:600px;margin:20px auto;">
+  <h2 style="margin-bottom:20px;">Confirmar renovación de suscripción</h2>
+
+  <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+    <tr>
+      <td style="padding:8px 12px;font-weight:bold;background:#f8f8f8;border:1px solid #ddd;">Cliente</td>
+      <td style="padding:8px 12px;border:1px solid #ddd;">{{ subscription.customer.email }} ({{ subscription.customer.get_full_name }})</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px;font-weight:bold;background:#f8f8f8;border:1px solid #ddd;">Paquete</td>
+      <td style="padding:8px 12px;border:1px solid #ddd;">{{ subscription.package.title }} ({{ subscription.package.get_category_display }})</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px;font-weight:bold;background:#f8f8f8;border:1px solid #ddd;">Sesiones</td>
+      <td style="padding:8px 12px;border:1px solid #ddd;">{{ subscription.package.sessions_count }}</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px;font-weight:bold;background:#f8f8f8;border:1px solid #ddd;">Vigencia</td>
+      <td style="padding:8px 12px;border:1px solid #ddd;">{{ subscription.package.validity_days }} días (hasta {{ new_expires|date:"d/m/Y" }})</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px;font-weight:bold;background:#f8f8f8;border:1px solid #ddd;">Monto</td>
+      <td style="padding:8px 12px;border:1px solid #ddd;">${{ subscription.package.price|floatformat:0 }} {{ subscription.package.currency }}</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px;font-weight:bold;background:#f8f8f8;border:1px solid #ddd;">Medio de pago</td>
+      <td style="padding:8px 12px;border:1px solid #ddd;">Efectivo</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px;font-weight:bold;background:#f8f8f8;border:1px solid #ddd;">Suscripción anterior</td>
+      <td style="padding:8px 12px;border:1px solid #ddd;">#{{ subscription.pk }} — {{ subscription.get_status_display }} (venció {{ subscription.expires_at|date:"d/m/Y" }})</td>
+    </tr>
+  </table>
+
+  <form method="post">
+    {% csrf_token %}
+    <div style="display:flex;gap:12px;">
+      <button type="submit" style="background:#28a745;color:#fff;padding:10px 24px;border:none;border-radius:4px;cursor:pointer;font-size:14px;font-weight:bold;">
+        Confirmar renovación
+      </button>
+      <a href="{% url 'admin:core_app_subscription_changelist' %}" style="background:#6c757d;color:#fff;padding:10px 24px;border-radius:4px;text-decoration:none;font-size:14px;font-weight:bold;display:inline-flex;align-items:center;">
+        Cancelar
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}
