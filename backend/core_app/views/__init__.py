@@ -6,9 +6,11 @@ from .auth_views import (
     pre_register_user,
     register_user,
     request_password_reset_code,
+    resend_verification_code,
     reset_password_with_code,
     upload_avatar,
     verify_password_reset_code,
+    verify_registration,
     weight_view,
 )
 from .analytics_views import AnalyticsEventViewSet
@@ -45,7 +47,9 @@ __all__ = [
     'upload_avatar',
     'weight_view',
     'request_password_reset_code',
+    'resend_verification_code',
     'verify_password_reset_code',
+    'verify_registration',
     'reset_password_with_code',
     'SiteSettingsView',
     'SubscriptionViewSet',

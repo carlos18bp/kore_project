@@ -40,7 +40,8 @@ jest.mock('@/lib/services/http', () => ({
 const mockedApi = api as jest.Mocked<typeof api>;
 
 const MOCK_PRE_REGISTER_RESPONSE = {
-  registration_token: 'signed-registration-token-123',
+  verification_pending: true,
+  pre_registration_token: 'signed-pre-registration-token-123',
 };
 
 jest.setTimeout(15000);
@@ -73,7 +74,7 @@ describe('RegisterPage', () => {
 
   it('renders the submit button', () => {
     render(<RegisterPage />);
-    expect(screen.getByRole('button', { name: 'Continuar al pago' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Continuar' })).toBeInTheDocument();
   });
 
   it('renders link to login page', () => {
@@ -91,7 +92,7 @@ describe('RegisterPage', () => {
     await user.type(screen.getByLabelText(/Correo electrónico/i), 'new@example.com');
     await user.type(screen.getByLabelText(/^Contraseña$/i), 'password123');
     await user.type(screen.getByLabelText(/Confirmar contraseña/i), 'different123');
-    await user.click(screen.getByRole('button', { name: 'Continuar al pago' }));
+    await user.click(screen.getByRole('button', { name: 'Continuar' }));
 
     expect(screen.getByText('Las contraseñas no coinciden')).toBeInTheDocument();
     expect(mockedApi.post).not.toHaveBeenCalled();
@@ -106,12 +107,12 @@ describe('RegisterPage', () => {
     await user.type(screen.getByLabelText(/Correo electrónico/i), 'new@example.com');
     await user.type(screen.getByLabelText(/^Contraseña$/i), 'short');
     await user.type(screen.getByLabelText(/Confirmar contraseña/i), 'short');
-    await user.click(screen.getByRole('button', { name: 'Continuar al pago' }));
+    await user.click(screen.getByRole('button', { name: 'Continuar' }));
 
     expect(screen.getByText('La contraseña debe tener al menos 8 caracteres')).toBeInTheDocument();
   });
 
-  it('stores registration token and redirects to checkout on successful pre-register', async () => {
+  it('shows verification step after successful pre-register', async () => {
     mockedApi.post.mockResolvedValueOnce({ data: MOCK_PRE_REGISTER_RESPONSE });
 
     render(<RegisterPage />);
@@ -122,14 +123,14 @@ describe('RegisterPage', () => {
     await user.type(screen.getByLabelText(/Correo electrónico/i), 'new@example.com');
     await user.type(screen.getByLabelText(/^Contraseña$/i), 'password123');
     await user.type(screen.getByLabelText(/Confirmar contraseña/i), 'password123');
-    await user.click(screen.getByRole('button', { name: 'Continuar al pago' }));
+    await user.click(screen.getByRole('button', { name: 'Continuar' }));
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/checkout?package=5');
+      expect(screen.getByText(/Enviamos un código de 6 dígitos/i)).toBeInTheDocument();
     });
 
-    expect(window.sessionStorage.getItem('kore_checkout_registration_token')).toBe('signed-registration-token-123');
-    expect(window.sessionStorage.getItem('kore_checkout_registration_package')).toBe('5');
+    expect(screen.getByLabelText(/Código de verificación/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Verificar código' })).toBeInTheDocument();
   });
 
   it('redirects to programs when package param is missing', async () => {
@@ -144,7 +145,7 @@ describe('RegisterPage', () => {
     await user.type(screen.getByLabelText(/Correo electrónico/i), 'new@example.com');
     await user.type(screen.getByLabelText(/^Contraseña$/i), 'password123');
     await user.type(screen.getByLabelText(/Confirmar contraseña/i), 'password123');
-    await user.click(screen.getByRole('button', { name: 'Continuar al pago' }));
+    await user.click(screen.getByRole('button', { name: 'Continuar' }));
 
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith('/programs');
@@ -171,7 +172,7 @@ describe('RegisterPage', () => {
     await user.type(screen.getByLabelText(/Correo electrónico/i), 'existing@example.com');
     await user.type(screen.getByLabelText(/^Contraseña$/i), 'password123');
     await user.type(screen.getByLabelText(/Confirmar contraseña/i), 'password123');
-    await user.click(screen.getByRole('button', { name: 'Continuar al pago' }));
+    await user.click(screen.getByRole('button', { name: 'Continuar' }));
 
     await waitFor(() => {
       expect(screen.getByText('Ya existe una cuenta con este correo. Redirigiendo a iniciar sesión...')).toBeInTheDocument();
@@ -197,7 +198,7 @@ describe('RegisterPage', () => {
     await user.type(screen.getByLabelText(/Correo electrónico/i), 'new@example.com');
     await user.type(screen.getByLabelText(/^Contraseña$/i), 'password123');
     await user.type(screen.getByLabelText(/Confirmar contraseña/i), 'password123');
-    const submitBtn = screen.getByRole('button', { name: 'Continuar al pago' });
+    const submitBtn = screen.getByRole('button', { name: 'Continuar' });
     fireEvent.submit(submitBtn.closest('form')!);
 
     expect(mockedApi.post).toHaveBeenCalledTimes(1);

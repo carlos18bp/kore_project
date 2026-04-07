@@ -293,6 +293,6 @@ test.describe('Checkout Page — Coverage Gaps', { tag: [...FlowTags.CHECKOUT_CO
     await payBtn.click();
 
     // After polling resolves with 'failed' → error message shown
-    await expect(page.getByText('El pago fue rechazado. Intenta con otro método de pago.')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('El pago fue rechazado. No se realizó ningún cobro ni se creó tu cuenta. Puedes intentar con otro método de pago.')).toBeVisible({ timeout: 15_000 });
   });
 });
