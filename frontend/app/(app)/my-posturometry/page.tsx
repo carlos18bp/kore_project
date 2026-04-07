@@ -752,6 +752,7 @@ export default function MyPosturometryPage() {
   const timelineRef = useRef<HTMLDivElement>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetInitialIdx, setSheetInitialIdx] = useState(0);
+  const [compareMode, setCompareMode] = useState<'after' | 'before'>('after');
   useHeroAnimation(sectionRef);
 
   useEffect(() => {
@@ -864,37 +865,114 @@ export default function MyPosturometryPage() {
 
             {/* ══ Photos — tap to open bottom sheet ══ */}
             {(latest.anterior_photo || latest.lateral_right_photo || latest.lateral_left_photo || latest.posterior_photo) && (() => {
+              const first = evaluations.length > 1 ? evaluations[evaluations.length - 1] : null;
+              const hasComparison = first && (first.anterior_photo || first.lateral_right_photo || first.lateral_left_photo || first.posterior_photo);
+              const activeEv = hasComparison && compareMode === 'before' ? first : latest;
               const photoViews = VIEW_KEYS.map((key, i) => ({
                 key, idx: i,
                 label: VIEW_LABELS[key],
-                photo: String((latest as unknown as Record<string, unknown>)[`${key}_photo`] ?? ''),
+                photo: String((activeEv as unknown as Record<string, unknown>)[`${key}_photo`] ?? ''),
               })).filter(v => v.photo);
+
+              const firstDate = first?.evaluation_date
+                ? new Date(first.evaluation_date + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })
+                : first ? new Date(first.created_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }) : '';
+              const latestDate = latest.evaluation_date
+                ? new Date(latest.evaluation_date + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })
+                : new Date(latest.created_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+
+              const PhotoCard = ({ viewKey, label, photo }: { viewKey: string; label: string; photo: string }) => (
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => { setSheetInitialIdx(VIEW_KEYS.indexOf(viewKey as typeof VIEW_KEYS[number])); setSheetOpen(true); }}
+                    className="relative group w-full rounded-xl overflow-hidden cursor-pointer"
+                  >
+                    <img src={photo} alt={label} className="rounded-xl w-full h-48 object-cover border border-kore-gray-light/30" />
+                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="bg-white/90 rounded-full px-3 py-1.5 flex items-center gap-1.5">
+                        <svg className="w-4 h-4 text-kore-gray-dark" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zm3.75 11.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                        </svg>
+                        <span className="text-xs font-medium text-kore-gray-dark">Ver resultados</span>
+                      </div>
+                    </div>
+                  </button>
+                  <p className="text-xs text-kore-gray-dark/50 mt-1">{label}</p>
+                </div>
+              );
+
               return (
                 <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm">
                   <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-1">Tus fotos de evaluación</p>
                   <p className="text-xs text-kore-gray-dark/50 mb-3">Toca una foto para ver los resultados de esa vista.</p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {photoViews.map((p) => (
-                      <div key={p.key} className="text-center">
+
+                  {/* ── Before/After pill toggle (mobile) ── */}
+                  {hasComparison && (
+                    <div className="flex md:hidden items-center justify-center mb-4">
+                      <div className="inline-flex bg-kore-cream/60 rounded-full p-1 border border-kore-gray-light/30">
                         <button
                           type="button"
-                          onClick={() => { setSheetInitialIdx(photoViews.findIndex(v => v.key === p.key)); setSheetOpen(true); }}
-                          className="relative group w-full rounded-xl overflow-hidden cursor-pointer"
+                          onClick={() => setCompareMode('before')}
+                          className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${compareMode === 'before' ? 'bg-white text-kore-gray-dark shadow-sm' : 'text-kore-gray-dark/50'}`}
                         >
-                          <img src={p.photo} alt={p.label} className="rounded-xl w-full h-48 object-cover border border-kore-gray-light/30" />
-                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <div className="bg-white/90 rounded-full px-3 py-1.5 flex items-center gap-1.5">
-                              <svg className="w-4 h-4 text-kore-gray-dark" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zm3.75 11.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-                              </svg>
-                              <span className="text-xs font-medium text-kore-gray-dark">Ver resultados</span>
-                            </div>
-                          </div>
+                          Antes · {firstDate}
                         </button>
-                        <p className="text-xs text-kore-gray-dark/50 mt-1">{p.label}</p>
+                        <button
+                          type="button"
+                          onClick={() => setCompareMode('after')}
+                          className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${compareMode === 'after' ? 'bg-white text-kore-gray-dark shadow-sm' : 'text-kore-gray-dark/50'}`}
+                        >
+                          Después · {latestDate}
+                        </button>
                       </div>
-                    ))}
+                    </div>
+                  )}
+
+                  {/* ── Mobile: single grid (toggleable via pill) ── */}
+                  <div className={hasComparison ? 'md:hidden' : ''}>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {photoViews.map((p) => (
+                        <PhotoCard key={p.key} viewKey={p.key} label={p.label} photo={p.photo} />
+                      ))}
+                    </div>
                   </div>
+
+                  {/* ── Desktop: side-by-side comparison ── */}
+                  {hasComparison && (
+                    <div className="hidden md:block">
+                      <div className="grid grid-cols-2 gap-5">
+                        {/* Before column */}
+                        <div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="w-2 h-2 rounded-full bg-kore-gray-dark/30" />
+                            <p className="text-xs font-medium text-kore-gray-dark/60">Antes · {firstDate}</p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            {VIEW_KEYS.map((key) => {
+                              const photo = String((first as unknown as Record<string, unknown>)[`${key}_photo`] ?? '');
+                              if (!photo) return null;
+                              return <PhotoCard key={key} viewKey={key} label={VIEW_LABELS[key]} photo={photo} />;
+                            })}
+                          </div>
+                        </div>
+                        {/* After column */}
+                        <div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="w-2 h-2 rounded-full bg-kore-red" />
+                            <p className="text-xs font-medium text-kore-gray-dark/60">Después · {latestDate}</p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            {VIEW_KEYS.map((key) => {
+                              const photo = String((latest as unknown as Record<string, unknown>)[`${key}_photo`] ?? '');
+                              if (!photo) return null;
+                              return <PhotoCard key={key} viewKey={key} label={VIEW_LABELS[key]} photo={photo} />;
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })()}
