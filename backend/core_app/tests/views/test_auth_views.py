@@ -29,7 +29,8 @@ def test_pre_register_user_success_without_creating_account(mock_captcha, api_cl
     )
 
     assert response.status_code == status.HTTP_200_OK
-    assert 'registration_token' in response.data
+    assert response.data['verification_pending'] is True
+    assert 'pre_registration_token' in response.data
     assert User.objects.filter(email='pre_register@example.com').count() == 0
 
 

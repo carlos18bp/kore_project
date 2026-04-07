@@ -384,7 +384,7 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
           return true;
         }
         if (data.status === 'failed') {
-          set({ paymentStatus: 'error', error: 'El pago fue rechazado. Intenta con otro método de pago.' });
+          set({ paymentStatus: 'error', error: 'El pago fue rechazado. No se realizó ningún cobro ni se creó tu cuenta. Puedes intentar con otro método de pago.' });
           return false;
         }
       } catch {

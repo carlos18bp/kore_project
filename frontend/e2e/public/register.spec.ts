@@ -47,7 +47,7 @@ test.describe('Register Page', { tag: [...FlowTags.AUTH_REGISTER, RoleTags.GUEST
     await page.goto('/register');
 
     await expect(page.getByText('Crea tu cuenta')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Continuar al pago' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Continuar' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Inicia sesión' })).toBeVisible();
   });
 
@@ -77,7 +77,7 @@ test.describe('Register Page', { tag: [...FlowTags.AUTH_REGISTER, RoleTags.GUEST
     await page.getByLabel(/Correo electrónico/i).fill('test@example.com');
     await page.getByLabel('Contraseña', { exact: true }).fill('securepass123');
     await page.getByLabel('Confirmar contraseña').fill('differentpass');
-    await page.getByRole('button', { name: 'Continuar al pago' }).click();
+    await page.getByRole('button', { name: 'Continuar' }).click();
 
     await expect(page.getByText('Las contraseñas no coinciden')).toBeVisible({ timeout: 5_000 });
   });
@@ -95,7 +95,7 @@ test.describe('Register Page', { tag: [...FlowTags.AUTH_REGISTER, RoleTags.GUEST
     await page.evaluate(() => {
       document.querySelectorAll('input[minlength]').forEach((el) => el.removeAttribute('minlength'));
     });
-    await page.getByRole('button', { name: 'Continuar al pago' }).click();
+    await page.getByRole('button', { name: 'Continuar' }).click();
 
     await expect(page.getByText('La contraseña debe tener al menos 8 caracteres')).toBeVisible({ timeout: 5_000 });
   });
@@ -117,7 +117,7 @@ test.describe('Register Page', { tag: [...FlowTags.AUTH_REGISTER, RoleTags.GUEST
     await page.getByLabel(/Correo electrónico/i).fill('existing@example.com');
     await page.getByLabel('Contraseña', { exact: true }).fill('securepass123');
     await page.getByLabel('Confirmar contraseña').fill('securepass123');
-    await page.getByRole('button', { name: 'Continuar al pago' }).click();
+    await page.getByRole('button', { name: 'Continuar' }).click();
 
     await expect(page.getByText(/Ya existe una cuenta|Error al crear la cuenta/)).toBeVisible({ timeout: 10_000 });
   });
@@ -131,19 +131,20 @@ test.describe('Register Page', { tag: [...FlowTags.AUTH_REGISTER, RoleTags.GUEST
     await page.getByLabel(/Correo electrónico/i).fill('newuser@example.com');
     await page.getByLabel('Contraseña', { exact: true }).fill('securepass123');
     await page.getByLabel('Confirmar contraseña').fill('securepass123');
-    await page.getByRole('button', { name: 'Continuar al pago' }).click();
+    await page.getByRole('button', { name: 'Continuar' }).click();
 
     await expect(page).toHaveURL(/\/programs(?:\?.*)?$/, { timeout: 15_000 });
   });
 
-  test('successful pre-register with package param redirects to checkout', async ({ page }) => {
+  test('successful pre-register with package param shows verification step', async ({ page }) => {
     await mockCaptchaSiteKey(page);
     await page.route('**/api/auth/pre-register/**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          registration_token: 'signed-token-e2e-123',
+          verification_pending: true,
+          pre_registration_token: 'signed-pre-token-e2e-123',
         }),
       });
     });
@@ -155,11 +156,12 @@ test.describe('Register Page', { tag: [...FlowTags.AUTH_REGISTER, RoleTags.GUEST
     await page.getByLabel(/Correo electrónico/i).fill('newuser@example.com');
     await page.getByLabel('Contraseña', { exact: true }).fill('securepass123');
     await page.getByLabel('Confirmar contraseña').fill('securepass123');
-    await page.getByRole('button', { name: 'Continuar al pago' }).click();
+    await page.getByRole('button', { name: 'Continuar' }).click();
 
-    await page.waitForURL(/\/checkout\?package=6/, { timeout: 15_000 });
-    const sessionToken = await page.evaluate(() => sessionStorage.getItem('kore_checkout_registration_token'));
-    expect(sessionToken).toBe('signed-token-e2e-123');
+    await expect(page.getByText(/Enviamos un código de 6 dígitos/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByLabel(/Código de verificación/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Verificar código' })).toBeVisible();
+    await expect(page.getByText('Reenviar código')).toBeVisible();
   });
 
   test('server-side string error (non-array) is displayed', async ({ page }) => {
@@ -181,7 +183,7 @@ test.describe('Register Page', { tag: [...FlowTags.AUTH_REGISTER, RoleTags.GUEST
     await page.getByLabel(/Correo electrónico/i).fill('existing@example.com');
     await page.getByLabel('Contraseña', { exact: true }).fill('securepass123');
     await page.getByLabel('Confirmar contraseña').fill('securepass123');
-    await page.getByRole('button', { name: 'Continuar al pago' }).click();
+    await page.getByRole('button', { name: 'Continuar' }).click();
 
     await expect(page.getByText('Ya existe una cuenta con este correo. Redirigiendo a iniciar sesión...')).toBeVisible({ timeout: 10_000 });
     await page.waitForURL('**/login', { timeout: 10_000 });

@@ -19,6 +19,7 @@ from .posturometry import PosturometryEvaluation
 from .physical_evaluation import PhysicalEvaluation
 from .nutrition_habit import NutritionHabit
 from .parq_assessment import ParqAssessment
+from .registration_verification_code import RegistrationVerificationCode
 
 __all__ = [
     'User',
@@ -45,4 +46,5 @@ __all__ = [
     'PhysicalEvaluation',
     'NutritionHabit',
     'ParqAssessment',
+    'RegistrationVerificationCode',
 ]

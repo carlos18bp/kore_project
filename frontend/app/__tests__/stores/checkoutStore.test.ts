@@ -423,7 +423,7 @@ describe('checkoutStore', () => {
       expect(result).toBe(false);
       const state = useCheckoutStore.getState();
       expect(state.paymentStatus).toBe('error');
-      expect(state.error).toBe('El pago fue rechazado. Intenta con otro método de pago.');
+      expect(state.error).toBe('El pago fue rechazado. No se realizó ningún cobro ni se creó tu cuenta. Puedes intentar con otro método de pago.');
     });
 
     it('sets error from API detail on purchase failure', async () => {

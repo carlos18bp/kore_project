@@ -313,7 +313,7 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
 
     await openCheckoutAndPay(page);
     await expect(
-      page.getByText('El pago fue rechazado. Intenta con otro método de pago.'),
+      page.getByText('El pago fue rechazado. No se realizó ningún cobro ni se creó tu cuenta. Puedes intentar con otro método de pago.'),
     ).toBeVisible({ timeout: 15_000 });
   });
 
