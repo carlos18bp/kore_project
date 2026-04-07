@@ -94,7 +94,8 @@ test.describe('Book Session Flow', { tag: [...FlowTags.BOOKING_SESSION_FLOW, Rol
 
         // Back button should return to step 1
         await page.getByRole('button', { name: 'Atrás' }).click();
-        await expect(page.getByText('Selecciona un día')).toBeVisible();
+        await expect(page.getByText('Confirmar reserva')).not.toBeVisible();
+        await expect(slotButton).toBeVisible();
       }
     }
   });
