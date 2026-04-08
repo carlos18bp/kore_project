@@ -525,7 +525,7 @@ function PhotoBottomSheet({ latest, first, initialViewKey, initialMode, firstDat
               <p className="text-sm font-semibold text-kore-gray-dark">{current.label}</p>
               {views.length > 1 && renderNavArrow('next', goNext, activeIdx === views.length - 1)}
             </div>
-            <button onClick={onClose} className="w-7 h-7 rounded-full bg-kore-gray-dark/5 flex items-center justify-center cursor-pointer">
+            <button aria-label="Cerrar" onClick={onClose} className="w-7 h-7 rounded-full bg-kore-gray-dark/5 flex items-center justify-center cursor-pointer">
               <svg className="w-4 h-4 text-kore-gray-dark/50" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
