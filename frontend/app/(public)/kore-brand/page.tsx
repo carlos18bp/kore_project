@@ -191,7 +191,7 @@ export default function KoreBrandPage() {
                 </svg>
               </a>
               <a
-                href="https://wa.me/573238122373?text=Hola,%20me%20interesa%20el%20diagnóstico%20gratis"
+                href="https://wa.me/573014645272?text=Hola,%20me%20interesa%20el%20diagnóstico%20gratis"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-2 bg-white text-kore-gray-dark border-2 border-kore-gray-dark/20 px-6 py-3 rounded-full text-sm font-semibold hover:border-kore-red hover:text-kore-red transition-colors"
