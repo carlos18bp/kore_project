@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useAuthStore } from '@/lib/stores/authStore';
@@ -169,6 +169,8 @@ const VIEW_LABELS: Record<string, string> = {
   lateral_left: 'Lateral Izquierda', posterior: 'Posterior (espalda)',
 };
 const VIEW_KEYS = ['anterior', 'lateral_right', 'lateral_left', 'posterior'] as const;
+type ViewKey = typeof VIEW_KEYS[number];
+type PhotoCompareMode = 'before' | 'after';
 
 /* ── Sparkline for posturometry ── */
 function PostureSparkline({ values, inverted = true }: { values: number[]; inverted?: boolean }) {
@@ -345,30 +347,66 @@ function PostureMetricRow({ label, emoji, tip, current, initial, color, category
 }
 
 /* ── Photo bottom sheet with swipeable views ── */
-function PhotoBottomSheet({ ev, initialIndex, onClose }: {
-  ev: PosturometryEvaluation; initialIndex: number; onClose: () => void;
+function PhotoBottomSheet({ latest, first, initialViewKey, initialMode, firstDate, latestDate, onClose }: {
+  latest: PosturometryEvaluation;
+  first: PosturometryEvaluation | null;
+  initialViewKey: ViewKey;
+  initialMode: PhotoCompareMode;
+  firstDate: string;
+  latestDate: string;
+  onClose: () => void;
 }) {
-  const [activeIdx, setActiveIdx] = useState(initialIndex);
+  const [activeMode, setActiveMode] = useState<PhotoCompareMode>(initialMode);
   const touchStartX = useRef(0);
 
-  const views = VIEW_KEYS.map(key => ({
+  const views = useMemo(() => VIEW_KEYS.map(key => ({
     key,
     label: VIEW_LABELS[key],
-    photo: String((ev as unknown as Record<string, unknown>)[`${key}_photo`] ?? ''),
-    observations: String((ev as unknown as Record<string, unknown>)[`${key}_observations`] ?? ''),
-    findings: ev.findings?.[key] || [],
-  })).filter(v => v.photo);
+    beforePhoto: first ? String((first as unknown as Record<string, unknown>)[`${key}_photo`] ?? '') : '',
+    afterPhoto: String((latest as unknown as Record<string, unknown>)[`${key}_photo`] ?? ''),
+  })).filter(v => v.beforePhoto || v.afterPhoto), [first, latest]);
+  const initialIndex = Math.max(0, views.findIndex(v => v.key === initialViewKey));
+  const [activeIdx, setActiveIdx] = useState(initialIndex);
 
-  if (views.length === 0) return null;
   const current = views[activeIdx] || views[0];
+  const canCompare = Boolean(first);
+  const hasBeforePhoto = Boolean(current?.beforePhoto);
+  const hasAfterPhoto = Boolean(current?.afterPhoto);
+  const resolvedMode = activeMode === 'before' && !hasBeforePhoto && hasAfterPhoto
+    ? 'after'
+    : activeMode === 'after' && !hasAfterPhoto && hasBeforePhoto
+      ? 'before'
+      : activeMode;
+  const activeEval = resolvedMode === 'before' && first ? first : latest;
+  const currentPhoto = current ? (resolvedMode === 'before' ? current.beforePhoto : current.afterPhoto) : '';
+  const currentObservation = current ? String((activeEval as unknown as Record<string, unknown>)[`${current.key}_observations`] ?? '') : '';
+  const currentFindings = current ? activeEval.findings?.[current.key] || [] : [];
 
   const goPrev = () => { if (activeIdx > 0) setActiveIdx(activeIdx - 1); };
   const goNext = () => { if (activeIdx < views.length - 1) setActiveIdx(activeIdx + 1); };
 
-  // Lock body scroll
+  // Lock the underlying page scroll while keeping the sheet content scrollable.
   useEffect(() => {
+    const scrollY = window.scrollY;
+    const previous = {
+      overflow: document.body.style.overflow,
+      position: document.body.style.position,
+      top: document.body.style.top,
+      width: document.body.style.width,
+    };
+
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = 'unset'; };
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+
+    return () => {
+      document.body.style.overflow = previous.overflow;
+      document.body.style.position = previous.position;
+      document.body.style.top = previous.top;
+      document.body.style.width = previous.width;
+      window.scrollTo(0, scrollY);
+    };
   }, []);
 
   // Keyboard navigation
@@ -388,29 +426,31 @@ function PhotoBottomSheet({ ev, initialIndex, onClose }: {
     else if (diff > 50 && activeIdx > 0) setActiveIdx(activeIdx - 1);
   };
 
+  if (!current) return null;
+
   // Region scores for this view
-  const viewSegments = ev.segment_scores
-    ? Object.entries(ev.segment_scores)
+  const viewSegments = activeEval.segment_scores
+    ? Object.entries(activeEval.segment_scores)
         .filter(([, s]) => s.views && current.key in s.views && s.views[current.key] > 0)
         .sort((a, b) => b[1].score - a[1].score)
         .slice(0, 6)
     : [];
 
   /* ── Shared summary content ── */
-  const SummaryContent = () => (
+  const renderSummaryContent = () => (
     <div className="space-y-3">
-      {current.observations && (
+      {currentObservation && (
         <div className="bg-kore-cream/40 rounded-xl p-3.5">
           <p className="text-xs text-kore-gray-dark/50 uppercase tracking-wider font-medium mb-1">Observaciones</p>
-          <p className="text-sm text-kore-gray-dark/70 leading-relaxed">{current.observations}</p>
+          <p className="text-sm text-kore-gray-dark/70 leading-relaxed">{currentObservation}</p>
         </div>
       )}
 
-      {current.findings.length > 0 && (
+      {currentFindings.length > 0 && (
         <div className="bg-amber-50/60 rounded-xl p-3.5 border border-amber-200/40">
           <p className="text-xs text-amber-800 uppercase tracking-wider font-medium mb-2">Hallazgos en esta vista</p>
           <div className="space-y-1">
-            {current.findings.map((f, i) => (
+            {currentFindings.map((f, i) => (
               <div key={i} className="flex items-start gap-2 text-xs text-amber-800/80">
                 <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 flex-shrink-0" />
                 <span>{f}</span>
@@ -442,7 +482,7 @@ function PhotoBottomSheet({ ev, initialIndex, onClose }: {
   );
 
   /* ── Navigation arrow button ── */
-  const NavArrow = ({ direction, onClick, disabled }: { direction: 'prev' | 'next'; onClick: () => void; disabled: boolean }) => (
+  const renderNavArrow = (direction: 'prev' | 'next', onClick: () => void, disabled: boolean) => (
     <button
       onClick={onClick}
       disabled={disabled}
@@ -470,6 +510,7 @@ function PhotoBottomSheet({ ev, initialIndex, onClose }: {
         animate={{ y: 0 }}
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        data-testid="posturometry-photo-sheet"
         className="fixed inset-x-0 bottom-0 z-50 flex flex-col"
         style={{ maxHeight: '90vh' }}
         onTouchStart={e => { touchStartX.current = e.touches[0].clientX; }}
@@ -480,9 +521,9 @@ function PhotoBottomSheet({ ev, initialIndex, onClose }: {
           <div className="w-12 h-1.5 bg-kore-gray-light rounded-full mx-auto mb-2" />
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {views.length > 1 && <NavArrow direction="prev" onClick={goPrev} disabled={activeIdx === 0} />}
+              {views.length > 1 && renderNavArrow('prev', goPrev, activeIdx === 0)}
               <p className="text-sm font-semibold text-kore-gray-dark">{current.label}</p>
-              {views.length > 1 && <NavArrow direction="next" onClick={goNext} disabled={activeIdx === views.length - 1} />}
+              {views.length > 1 && renderNavArrow('next', goNext, activeIdx === views.length - 1)}
             </div>
             <button onClick={onClose} className="w-7 h-7 rounded-full bg-kore-gray-dark/5 flex items-center justify-center cursor-pointer">
               <svg className="w-4 h-4 text-kore-gray-dark/50" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -497,8 +538,9 @@ function PhotoBottomSheet({ ev, initialIndex, onClose }: {
           {/* Left column — Photo with full visibility */}
           <div className="w-1/2 flex flex-col items-center justify-center p-5 bg-kore-gray-dark/[0.02]">
             <img
-              src={current.photo}
+              src={currentPhoto}
               alt={current.label}
+              data-testid="posturometry-photo-sheet-image"
               className="max-w-full max-h-[calc(90vh-100px)] rounded-2xl object-contain border border-kore-gray-light/30"
             />
             {/* Dot indicators */}
@@ -513,17 +555,41 @@ function PhotoBottomSheet({ ev, initialIndex, onClose }: {
 
           {/* Right column — Summary (scrollable) */}
           <div className="w-1/2 overflow-y-auto p-5 pb-8">
-            <SummaryContent />
+            {renderSummaryContent()}
           </div>
         </div>
 
         {/* ═══ MOBILE: single-column layout (photo top, summary bottom) ═══ */}
-        <div className="flex md:hidden flex-1 overflow-y-auto bg-white pb-8 flex-col">
+        <div data-testid="posturometry-photo-sheet-scroll" className="flex md:hidden flex-1 overflow-y-auto bg-white pb-8 flex-col">
+          {canCompare && (
+            <div className="flex items-center justify-center px-5 pt-3 pb-2 flex-shrink-0">
+              <div className="inline-flex bg-kore-cream/60 rounded-full p-1 border border-kore-gray-light/30">
+                <button
+                  type="button"
+                  onClick={() => setActiveMode('before')}
+                  disabled={!hasBeforePhoto}
+                  className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${resolvedMode === 'before' ? 'bg-white text-kore-gray-dark shadow-sm' : 'text-kore-gray-dark/50'} ${!hasBeforePhoto ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                  Antes · {firstDate}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveMode('after')}
+                  disabled={!hasAfterPhoto}
+                  className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${resolvedMode === 'after' ? 'bg-white text-kore-gray-dark shadow-sm' : 'text-kore-gray-dark/50'} ${!hasAfterPhoto ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                  Después · {latestDate}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Photo — full visibility, no cropping */}
           <div className="px-5 pt-2 flex-shrink-0">
             <img
-              src={current.photo}
+              src={currentPhoto}
               alt={current.label}
+              data-testid="posturometry-photo-sheet-image"
               className="w-full rounded-2xl object-contain max-h-[55vh] border border-kore-gray-light/30"
             />
           </div>
@@ -539,7 +605,7 @@ function PhotoBottomSheet({ ev, initialIndex, onClose }: {
 
           {/* Results summary */}
           <div className="px-5">
-            <SummaryContent />
+            {renderSummaryContent()}
           </div>
 
           {/* Swipe hint */}
@@ -627,8 +693,8 @@ function RegionCard({ id, ev }: { id: string; ev: PosturometryEvaluation }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const arrowRef = useRef<SVGSVGElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
-  const info = REGION_INFO[id];
-  if (!info) return null;
+  const hasRegionInfo = Boolean(REGION_INFO[id]);
+  const info = REGION_INFO[id] || REGION_INFO.global;
 
   const getField = (key: string): string => String((ev as unknown as Record<string, unknown>)[key] ?? '');
 
@@ -666,6 +732,8 @@ function RegionCard({ id, ev }: { id: string; ev: PosturometryEvaluation }) {
     tl.fromTo(ringRef.current, { scale: 1, opacity: 0.6 }, { scale: 2.2, opacity: 0, duration: 1.2, ease: 'power1.out' });
     return () => { tl.kill(); };
   }, []);
+
+  if (!hasRegionInfo) return null;
 
   return (
     <div className={`idx-card bg-white/70 backdrop-blur-sm rounded-2xl border shadow-sm overflow-hidden ${CBorder[color]}`}>
@@ -750,8 +818,7 @@ export default function MyPosturometryPage() {
   const heroRef = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [sheetInitialIdx, setSheetInitialIdx] = useState(0);
+  const [sheetState, setSheetState] = useState<{ initialViewKey: ViewKey; initialMode: PhotoCompareMode } | null>(null);
   const [compareMode, setCompareMode] = useState<'after' | 'before'>('after');
   useHeroAnimation(sectionRef);
 
@@ -881,11 +948,11 @@ export default function MyPosturometryPage() {
                 ? new Date(latest.evaluation_date + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })
                 : new Date(latest.created_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
 
-              const PhotoCard = ({ viewKey, label, photo }: { viewKey: string; label: string; photo: string }) => (
+              const PhotoCard = ({ viewKey, label, photo, mode }: { viewKey: ViewKey; label: string; photo: string; mode: PhotoCompareMode }) => (
                 <div className="text-center">
                   <button
                     type="button"
-                    onClick={() => { setSheetInitialIdx(VIEW_KEYS.indexOf(viewKey as typeof VIEW_KEYS[number])); setSheetOpen(true); }}
+                    onClick={() => { setSheetState({ initialViewKey: viewKey, initialMode: mode }); }}
                     className="relative group w-full rounded-xl overflow-hidden cursor-pointer"
                   >
                     <img src={photo} alt={label} className="rounded-xl w-full h-48 object-cover border border-kore-gray-light/30" />
@@ -933,7 +1000,7 @@ export default function MyPosturometryPage() {
                   <div className={hasComparison ? 'md:hidden' : ''}>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       {photoViews.map((p) => (
-                        <PhotoCard key={p.key} viewKey={p.key} label={p.label} photo={p.photo} />
+                        <PhotoCard key={p.key} viewKey={p.key} label={p.label} photo={p.photo} mode={compareMode} />
                       ))}
                     </div>
                   </div>
@@ -952,7 +1019,7 @@ export default function MyPosturometryPage() {
                             {VIEW_KEYS.map((key) => {
                               const photo = String((first as unknown as Record<string, unknown>)[`${key}_photo`] ?? '');
                               if (!photo) return null;
-                              return <PhotoCard key={key} viewKey={key} label={VIEW_LABELS[key]} photo={photo} />;
+                              return <PhotoCard key={key} viewKey={key} label={VIEW_LABELS[key]} photo={photo} mode="before" />;
                             })}
                           </div>
                         </div>
@@ -966,7 +1033,7 @@ export default function MyPosturometryPage() {
                             {VIEW_KEYS.map((key) => {
                               const photo = String((latest as unknown as Record<string, unknown>)[`${key}_photo`] ?? '');
                               if (!photo) return null;
-                              return <PhotoCard key={key} viewKey={key} label={VIEW_LABELS[key]} photo={photo} />;
+                              return <PhotoCard key={key} viewKey={key} label={VIEW_LABELS[key]} photo={photo} mode="after" />;
                             })}
                           </div>
                         </div>
@@ -1033,11 +1100,21 @@ export default function MyPosturometryPage() {
       </div>
 
       {/* Photo bottom sheet */}
-      {sheetOpen && latest && (
+      {sheetState && latest && (
         <PhotoBottomSheet
-          ev={latest}
-          initialIndex={sheetInitialIdx}
-          onClose={() => setSheetOpen(false)}
+          latest={latest}
+          first={evaluations.length > 1 ? evaluations[evaluations.length - 1] : null}
+          initialViewKey={sheetState.initialViewKey}
+          initialMode={sheetState.initialMode}
+          firstDate={evaluations.length > 1
+            ? (evaluations[evaluations.length - 1].evaluation_date
+              ? new Date(evaluations[evaluations.length - 1].evaluation_date + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })
+              : new Date(evaluations[evaluations.length - 1].created_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }))
+            : ''}
+          latestDate={latest.evaluation_date
+            ? new Date(latest.evaluation_date + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })
+            : new Date(latest.created_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
+          onClose={() => setSheetState(null)}
         />
       )}
     </section>
