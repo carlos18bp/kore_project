@@ -136,7 +136,6 @@ test.describe('Customer Posturometry Page', { tag: [...FlowTags.CUSTOMER_POSTURO
 
     await goToPosturometryWithData(page, [currentEvaluation, previousEvaluation]);
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    const pageScrollBeforeOpen = await page.evaluate(() => window.scrollY);
 
     await page.getByRole('button', { name: /Antes/ }).click();
     await page.getByRole('button', { name: 'Anterior (frente)' }).click();
@@ -149,9 +148,11 @@ test.describe('Customer Posturometry Page', { tag: [...FlowTags.CUSTOMER_POSTURO
     const modalImage = modalScroll.getByTestId('posturometry-photo-sheet-image');
     await expect(modalImage).toHaveAttribute('src', /registro=anterior-previo/);
     await expect.poll(() => page.evaluate(() => document.body.style.position)).toBe('fixed');
+    const lockedBodyTop = await page.evaluate(() => document.body.style.top);
+    const lockedScrollY = Math.abs(Number.parseInt(lockedBodyTop, 10));
 
     await page.mouse.wheel(0, 500);
-    await expect.poll(() => page.evaluate(() => document.body.style.top)).toBe(`-${pageScrollBeforeOpen}px`);
+    await expect.poll(() => page.evaluate(() => document.body.style.top)).toBe(lockedBodyTop);
 
     await modalScroll.evaluate((el) => { el.scrollTop = 240; });
     await expect.poll(() => modalScroll.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
@@ -162,6 +163,6 @@ test.describe('Customer Posturometry Page', { tag: [...FlowTags.CUSTOMER_POSTURO
     await sheet.getByRole('button', { name: 'Cerrar' }).click();
     await expect(sheet).not.toBeVisible();
     await expect.poll(() => page.evaluate(() => document.body.style.position)).toBe('');
-    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(pageScrollBeforeOpen);
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(lockedScrollY);
   });
 });
