@@ -193,13 +193,13 @@ kore_project/
 ├── backend/
 │   ├── core_project/          # Django project config (settings, urls, wsgi)
 │   ├── core_app/              # Main Django app
-│   │   ├── models/            # 22 model files (21 domain + 1 base) → 24 models
+│   │   ├── models/            # 23 model files (22 domain + 1 base) → 25 models
 │   │   ├── views/             # 20 view files
 │   │   ├── serializers/       # 12 serializer files
 │   │   ├── services/          # 12 service files (5 core + 6 calculators + 1 schedule)
 │   │   ├── urls/              # 4 URL config files
 │   │   ├── management/commands/ # 18 management commands
-│   │   ├── tests/             # 72 test files
+│   │   ├── tests/             # 84 test files
 │   │   ├── templates/         # Email templates, admin overrides
 │   │   ├── admin.py           # 23 Admin classes (22 ModelAdmin + 1 Form)
 │   │   ├── permissions.py     # Custom DRF permissions (IsAdminRole, IsAdminOrReadOnly, IsTrainerRole)
@@ -211,22 +211,24 @@ kore_project/
 ├── frontend/
 │   ├── app/
 │   │   ├── (public)/          # 10 public pages (home, programs, checkout, login, register, faq, contact, kore-brand, terms, forgot-password)
-│   │   ├── (app)/             # 20 authenticated pages (customer dashboard + assessments + trainer views)
-│   │   ├── components/        # 36 React components
+│   │   ├── (app)/             # 18 authenticated pages (customer dashboard + assessments + trainer views)
+│   │   ├── components/        # 40 React components
 │   │   │   ├── booking/       # 8 booking components
 │   │   │   ├── checkout/      # 5 payment form components
+│   │   │   ├── dashboard/     # 1 dashboard component
 │   │   │   ├── faq/           # 1 FAQ component
-│   │   │   ├── layouts/       # 6 layout components (incl. TrainerSidebar)
+│   │   │   ├── layouts/       # 8 layout components (incl. TrainerSidebar, MobileBottomNav, TrainerMobileBottomNav)
 │   │   │   ├── profile/       # 4 profile components (MoodCheckIn, PasswordResetModal, ProfileCompletionCTA, ProfileIcons)
+│   │   │   ├── shared/        # 1 shared component
 │   │   │   └── subscription/  # 2 subscription components
 │   │   ├── composables/       # 1 composable (useScrollAnimations)
-│   │   ├── __tests__/         # 66 unit/component test files
+│   │   ├── __tests__/         # 74 unit/component test files
 │   │   └── layout.tsx         # Root layout
 │   ├── lib/
 │   │   ├── stores/            # 12 Zustand stores
 │   │   ├── services/          # HTTP client (axios)
 │   │   └── constants.ts
-│   ├── e2e/                   # 38 Playwright E2E spec files
+│   ├── e2e/                   # 56 Playwright E2E spec files
 │   ├── package.json
 │   ├── next.config.ts
 │   └── playwright.config.ts

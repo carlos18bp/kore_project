@@ -754,3 +754,39 @@ class TestWebhookPaymentIntentResolution:
         assert pending_intent.status == PaymentIntent.Status.PENDING
         assert Subscription.objects.filter(customer=pending_intent.customer).count() == 0
         assert Payment.objects.count() == 0
+
+    @override_settings(**WOMPI_SETTINGS)
+    def test_locked_intent_already_resolved_skips_creation(self, pending_intent):
+        """Race condition: DB row resolved between in-memory check and select_for_update lock — skip cleanly."""
+        from core_app.views.wompi_views import _resolve_payment_intent
+
+        # Simulate concurrent resolution: another worker updates the intent
+        # status in the DB after this request loaded the row but before the lock.
+        PaymentIntent.objects.filter(pk=pending_intent.pk).update(
+            status=PaymentIntent.Status.APPROVED,
+        )
+        # The in-memory intent still reports PENDING (stale snapshot)
+        pending_intent.status = PaymentIntent.Status.PENDING
+
+        _resolve_payment_intent(pending_intent, 'APPROVED', 'CARD')
+
+        # The lock check (lines 256-261) caught the race and skipped creation
+        assert Subscription.objects.filter(customer=pending_intent.customer).count() == 0
+        assert Payment.objects.filter(customer=pending_intent.customer).count() == 0
+
+    @override_settings(**WOMPI_SETTINGS)
+    def test_unexpected_exception_during_atomic_block_is_caught(self, pending_intent):
+        """Unexpected exception inside the atomic block is logged and rolled back without side effects."""
+        from core_app.views.wompi_views import _resolve_payment_intent
+
+        with patch(
+            'core_app.views.wompi_views.Subscription.objects.create',
+            side_effect=RuntimeError('database boom'),
+        ):
+            _resolve_payment_intent(pending_intent, 'APPROVED', 'CARD')
+
+        # Atomic block rolled back: intent still PENDING, no subscription, no payment
+        pending_intent.refresh_from_db()
+        assert pending_intent.status == PaymentIntent.Status.PENDING
+        assert Subscription.objects.filter(customer=pending_intent.customer).count() == 0
+        assert Payment.objects.filter(customer=pending_intent.customer).count() == 0

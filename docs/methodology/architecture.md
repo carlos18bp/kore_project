@@ -533,13 +533,14 @@ erDiagram
 | MoodEntry | `models/mood_entry.py` | 4 | User | unique_together (user, date) |
 | WeightEntry | `models/weight_entry.py` | 3 | User | unique_together (user, date) |
 | PasswordResetCode | `models/password_reset_code.py` | 4 | User | 10-min expiry, single-use |
+| RegistrationVerificationCode | `models/registration_verification_code.py` | 4 | User | 6-digit code, single-use, expiry tracking |
 | TermsAcceptance | `models/terms_acceptance.py` | 5 | User | unique_together (user, terms_version) |
 | SiteSettings | `models/content.py` | 10 | — | SingletonModel (pk=1) |
 | FAQCategory | `models/content.py` | 4 | — | slug unique |
 | FAQItem | `models/content.py` | 5 | FAQCategory | — |
 | ContactMessage | `models/content.py` | 5 | — | — |
 
-**Total: 24 models** across 22 files (21 domain + 1 base; content.py has 4 models).
+**Total: 25 models** across 23 files (22 domain + 1 base; content.py has 4 models).
 
 ---
 
@@ -581,8 +582,6 @@ erDiagram
 | `(app)` | `/dashboard` | Customer dashboard | Yes |
 | `(app)` | `/calendar` | Session calendar view | Yes |
 | `(app)` | `/book-session` | Book a new session | Yes |
-| `(app)` | `/my-programs` | My programs/subscriptions | Yes |
-| `(app)` | `/my-programs/program` | Single program detail | Yes |
 | `(app)` | `/subscription` | Subscription management | Yes |
 | `(app)` | `/profile` | Customer profile management | Yes |
 | `(app)` | `/my-diagnosis` | Diagnosis overview (KORE index) | Yes |
@@ -599,7 +598,7 @@ erDiagram
 | `(app)` | `/trainer/clients/client/physical-evaluation` | Client physical eval CRUD | Yes (trainer) |
 | `(app)` | `/trainer/clients/client/posturometry` | Client posturometry CRUD | Yes (trainer) |
 
-**Total: 30 pages** (10 public + 12 customer + 8 trainer).
+**Total: 28 pages** (10 public + 10 customer + 8 trainer).
 
 ---
 

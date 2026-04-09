@@ -5,7 +5,13 @@ from types import SimpleNamespace
 import pytest
 
 from core_app.models import User
-from core_app.permissions import IsAdminOrReadOnly, IsAdminRole, is_admin_user
+from core_app.permissions import (
+    IsAdminOrReadOnly,
+    IsAdminRole,
+    IsTrainerRole,
+    is_admin_user,
+    is_trainer_user,
+)
 
 
 class TestIsAdminUserHelper:
@@ -119,3 +125,61 @@ class TestIsAdminOrReadOnly:
         anon = SimpleNamespace(is_authenticated=False)
         perm = IsAdminOrReadOnly()
         assert perm.has_permission(_make_request(anon, 'DELETE'), None) is False
+
+
+@pytest.mark.django_db
+class TestIsTrainerUserHelper:
+    """Covers is_trainer_user helper across user shapes."""
+
+    def test_returns_true_for_trainer_role(self):
+        """Helper returns True when user has TRAINER role."""
+        user = User.objects.create_user(
+            email='trainer_helper@example.com', password='p',
+            role=User.Role.TRAINER,
+        )
+        assert is_trainer_user(user) is True
+
+    def test_returns_false_for_customer_role(self):
+        """Helper returns False for authenticated customer users."""
+        user = User.objects.create_user(email='cust_trainer@example.com', password='p')
+        assert is_trainer_user(user) is False
+
+    def test_returns_false_for_unauthenticated(self):
+        """Helper returns False for unauthenticated anonymous objects."""
+        anon = SimpleNamespace(is_authenticated=False)
+        assert is_trainer_user(anon) is False
+
+
+@pytest.mark.django_db
+class TestIsTrainerRole:
+    """Covers IsTrainerRole permission outcomes for common request users."""
+
+    def test_trainer_allowed(self):
+        """IsTrainerRole allows authenticated trainer users."""
+        user = User.objects.create_user(
+            email='trainer_role@example.com', password='p',
+            role=User.Role.TRAINER,
+        )
+        perm = IsTrainerRole()
+        assert perm.has_permission(_make_request(user), None) is True
+
+    def test_customer_denied(self):
+        """IsTrainerRole denies authenticated non-trainer customers."""
+        user = User.objects.create_user(email='cust_trainer_role@example.com', password='p')
+        perm = IsTrainerRole()
+        assert perm.has_permission(_make_request(user), None) is False
+
+    def test_admin_denied(self):
+        """IsTrainerRole denies authenticated admin users (admin != trainer)."""
+        user = User.objects.create_user(
+            email='admin_trainer_role@example.com', password='p',
+            role=User.Role.ADMIN, is_staff=True,
+        )
+        perm = IsTrainerRole()
+        assert perm.has_permission(_make_request(user), None) is False
+
+    def test_anonymous_denied(self):
+        """IsTrainerRole denies anonymous requests."""
+        anon = SimpleNamespace(is_authenticated=False)
+        perm = IsTrainerRole()
+        assert perm.has_permission(_make_request(anon), None) is False

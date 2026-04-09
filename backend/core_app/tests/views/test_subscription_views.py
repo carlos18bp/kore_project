@@ -121,7 +121,7 @@ class TestSubscriptionViews:
 
     @patch('core_app.serializers.subscription_serializers.timezone.now',
            return_value=FIXED_NOW)
-    def test_retrieve_own_subscription(self, _mock_now, api_client, customer, active_subscription):
+    def test_retrieve_own_subscription(self, _mock_now, api_client, customer, active_subscription):  # noqa: PT019
         """Allow customers to retrieve their own subscription details."""
         api_client.force_authenticate(user=customer)
         url = reverse('subscription-detail', args=[active_subscription.pk])

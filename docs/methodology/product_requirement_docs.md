@@ -143,7 +143,7 @@ A comprehensive health evaluation system with 5 assessment modules, each with au
 - Unique constraint on (user, terms_version)
 
 ### 4.17 Admin Panel
-- Full Django admin with 23 Admin classes (22 ModelAdmin + 1 Form) for all 24 models
+- Full Django admin with 23 Admin classes (22 ModelAdmin + 1 Form) for all 25 models
 - Autocomplete fields, filters, search, readonly fields
 
 ---

@@ -30,6 +30,7 @@ This file tracks known errors, their context, and resolutions. When a reusable f
 - **Root Cause**: The useEffect at line 126 of `CheckoutClient.tsx` has `isAuthenticated` in its dependency array. When auto_login changes `isAuthenticated` from false→true, the effect re-fires and calls `reset()`, wiping `paymentStatus: 'success'` before the success screen renders.
 - **Resolution**: Guard `reset()` with a payment status check: `if (ps !== 'processing' && ps !== 'polling' && ps !== 'success') { reset(); }`
 - **Files Affected**: `frontend/app/(public)/checkout/CheckoutClient.tsx`
+- **Regression Test (2026-04-09)**: `frontend/app/__tests__/stores/checkoutStore.test.ts` → `describe('race conditions') > it('regression ERROR-001: auto_login during pollIntentStatus does not lose success state')` — validates that after `pollIntentStatus` resolves with `auto_login` payload, both `paymentStatus === 'success'` and `isAuthenticated === true` coexist in the store.
 
 ### [ERROR-002] Playwright strict mode violations in assessment/dashboard pages
 - **Date**: 2025-03-19

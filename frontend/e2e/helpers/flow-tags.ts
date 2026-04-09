@@ -20,6 +20,8 @@ export const FlowTags = {
   APP_EDGE_CASE_BRANCHES: ['@flow:app-edge-case-branches', '@module:app', '@priority:P3'],
   APP_STORE_ERROR_PATHS: ['@flow:app-store-error-paths', '@module:app', '@priority:P3'],
   APP_SIDEBAR_NAVIGATION: ['@flow:app-sidebar-navigation', '@module:navigation', '@priority:P3'],
+  MOBILE_BOTTOM_NAV: ['@flow:mobile-bottom-nav', '@module:navigation', '@priority:P2'],
+  TRAINER_MOBILE_BOTTOM_NAV: ['@flow:trainer-mobile-bottom-nav', '@module:navigation', '@priority:P3'],
 
   DASHBOARD_OVERVIEW: ['@flow:dashboard-overview', '@module:dashboard', '@priority:P1'],
   DASHBOARD_REMINDER: ['@flow:dashboard-reminder', '@module:dashboard', '@priority:P2'],
@@ -30,6 +32,7 @@ export const FlowTags = {
   SUBSCRIPTION_PAGE: ['@flow:subscription-page', '@module:subscription', '@priority:P1'],
   SUBSCRIPTION_EXPIRY_REMINDER: ['@flow:subscription-expiry-reminder', '@module:subscription', '@priority:P2'],
   SUBSCRIPTION_CANCEL_FLOW: ['@flow:subscription-cancel-flow', '@module:subscription', '@priority:P2'],
+  SUBSCRIPTION_BILLING_FAILED_RECOVERY: ['@flow:subscription-billing-failed-recovery', '@module:subscription', '@priority:P2'],
 
   CHECKOUT_FLOW: ['@flow:checkout-flow', '@module:checkout', '@priority:P1'],
   CHECKOUT_GUEST_REDIRECT: ['@flow:checkout-guest-redirect', '@module:checkout', '@priority:P2'],
@@ -50,6 +53,7 @@ export const FlowTags = {
 
   PROFILE_MANAGEMENT: ['@flow:profile-management', '@module:profile', '@priority:P1'],
   PROFILE_PASSWORD_CHANGE: ['@flow:profile-password-change', '@module:profile', '@priority:P2'],
+  PROFILE_MOOD_ENTRY: ['@flow:profile-mood-entry', '@module:profile', '@priority:P3'],
 
   CUSTOMER_DIAGNOSIS: ['@flow:customer-diagnosis', '@module:assessments', '@priority:P2'],
   CUSTOMER_NUTRITION: ['@flow:customer-nutrition', '@module:assessments', '@priority:P2'],

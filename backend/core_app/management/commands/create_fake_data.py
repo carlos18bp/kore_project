@@ -49,6 +49,9 @@ class Command(BaseCommand):
         parser.add_argument('--analytics-events', type=int, default=100)
         parser.add_argument('--skip-analytics-events', action='store_true', default=False)
 
+        parser.add_argument('--diagnostics-per-customer', type=int, default=1)
+        parser.add_argument('--skip-diagnostics', action='store_true', default=False)
+
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS('=' * 70))
         self.stdout.write(self.style.SUCCESS('Starting fake data creation...'))
@@ -141,6 +144,16 @@ class Command(BaseCommand):
             executed.append('analytics_events')
         else:
             self.stdout.write(self.style.WARNING('Skipped analytics events'))
+
+        if not options['skip_diagnostics']:
+            call_command(
+                'create_fake_diagnostics',
+                per_customer=options['diagnostics_per_customer'],
+                stdout=self.stdout,
+            )
+            executed.append('diagnostics')
+        else:
+            self.stdout.write(self.style.WARNING('Skipped diagnostics'))
 
         self.stdout.write('')
         self.stdout.write(self.style.SUCCESS('=' * 70))
