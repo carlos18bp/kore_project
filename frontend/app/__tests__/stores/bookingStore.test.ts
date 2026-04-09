@@ -547,4 +547,58 @@ describe('bookingStore', () => {
       expect(useBookingStore.getState().error).toBe('No se pudo reprogramar la reserva.');
     });
   });
+
+  // ----------------------------------------------------------------
+  // race conditions
+  // ----------------------------------------------------------------
+  describe('race conditions', () => {
+    it('handles slot taken between fetchSlots and createBooking gracefully', async () => {
+      // 1. fetchSlots returns a free slot
+      mockedApi.get.mockResolvedValueOnce({ data: { results: [MOCK_SLOT] } });
+      await useBookingStore.getState().fetchSlots('2025-03-01', 1);
+      expect(useBookingStore.getState().slots).toHaveLength(1);
+
+      // 2. createBooking against that slot is rejected because the backend
+      //    confirms it was taken between the fetch and the booking attempt.
+      mockedApi.post.mockRejectedValueOnce({
+        response: { data: { slot_id: ['El horario ya no está disponible.'] } },
+      });
+      const result = await useBookingStore.getState().createBooking({
+        package_id: 1, slot_id: 5, trainer_id: 1, subscription_id: 2,
+      });
+
+      expect(result).toBeNull();
+      // The error message surfaces the backend validation cleanly
+      expect(useBookingStore.getState().error).toBe('El horario ya no está disponible.');
+      // Store stays in a non-corrupted state — bookingResult is unchanged
+      expect(useBookingStore.getState().bookingResult).toBeNull();
+    });
+
+    it('two overlapping fetchSlots calls leave the store in a consistent state', async () => {
+      const SLOT_A = { ...MOCK_SLOT, id: 5 };
+      const SLOT_B = { ...MOCK_SLOT, id: 6 };
+      const SLOT_C = { ...MOCK_SLOT, id: 7 };
+
+      // First fetch: slow (returns 1 slot)
+      // Second fetch: fast (returns 2 slots, different IDs)
+      mockedApi.get
+        .mockResolvedValueOnce({ data: { results: [SLOT_A] } })
+        .mockResolvedValueOnce({ data: { results: [SLOT_B, SLOT_C] } });
+
+      const promiseA = useBookingStore.getState().fetchSlots('2025-03-01', 1);
+      const promiseB = useBookingStore.getState().fetchSlots('2025-03-02', 1);
+
+      await Promise.all([promiseA, promiseB]);
+
+      // After both calls resolve, the store is consistent (not partial / mixed)
+      const state = useBookingStore.getState();
+      expect(Array.isArray(state.slots)).toBe(true);
+      expect(state.loading).toBe(false);
+      // One of the two responses won — the slot list matches one of them, not a mix
+      const slotIds = state.slots.map((s) => s.id);
+      const matchesA = slotIds.length === 1 && slotIds[0] === 5;
+      const matchesB = slotIds.length === 2 && slotIds.includes(6) && slotIds.includes(7);
+      expect(matchesA || matchesB).toBe(true);
+    });
+  });
 });

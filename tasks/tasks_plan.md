@@ -16,7 +16,7 @@
 | **Notifications** (email, status tracking) | ✅ Complete | 9 notification types |
 | **Content** (SiteSettings, FAQ, ContactMessage) | ✅ Complete | Singleton settings, admin-managed |
 | **Analytics Events** (tracking) | ✅ Complete | 4 event types |
-| **Admin Panel** (all models registered) | ✅ Complete | 23 Admin classes (22 ModelAdmin + 1 Form) for 24 models |
+| **Admin Panel** (all models registered) | ✅ Complete | 23 Admin classes (22 ModelAdmin + 1 Form) for 25 models |
 | **Google reCAPTCHA** | ✅ Complete | Site key + verification endpoints |
 | **Trainer Profiles** | ✅ Complete | 1:1 with User (role=trainer) |
 | **Customer Profiles** | ✅ Complete | 1:1 with User (role=customer), avatar, goals, ID, profile completion |
@@ -66,43 +66,42 @@
 
 | Category | Test Files | Coverage Area |
 |----------|-----------|---------------|
-| Models | 14 | All 24 models (incl. customer_profile, password_reset_code, subscription_model) |
-| Views | 22 | All 20 view modules + admin forms + admin index sections |
-| Serializers | 11 | 11 serializer modules |
-| Services | 11 | All 12 services (incl. 6 calculators, slot_schedule, kore_index) |
-| Tasks | 2 | Recurring billing + expiry reminders |
-| Commands | 8 | Management commands (incl. backfill, maintain_slots, mgmt_core_flows) |
+| Models | 23 | All 25 models (incl. mood, weight, registration_verification_code, terms_acceptance, posturometry, physical, nutrition, parq) |
+| Views | 26 | All 20 view modules + admin forms + admin index sections + extended booking views |
+| Serializers | 12 | All 12 serializer modules |
+| Services | 12 | All 12 services (incl. 6 calculators, slot_schedule, kore_index, subscription_cleanup) |
+| Tasks | 6 | Recurring billing, expiry reminders, auto-complete bookings, maintain slots, nutrition reminders, parq reminders |
+| Commands | 11 | Management commands (incl. backfill, maintain_slots, mgmt_core_flows, silk_garbage_collect, resend_booking_invites, create_fake_diagnostics) |
 | Permissions | 1 | Custom permissions (IsAdminRole, IsAdminOrReadOnly, IsTrainerRole) |
 | Utils | 2 | Forms + test suite runner |
-| Helpers | 1 | Test helpers module |
-| **Total** | **72 files** | |
+| **Total** | **93 files** | |
 
 ### Frontend Unit (Jest)
 
 | Category | Test Files | Coverage Area |
 |----------|-----------|---------------|
-| Components | 32 | All components (booking, checkout, faq, layouts, subscription, profile) |
+| Components | 42 | All components (booking, checkout, faq, layouts, subscription, profile, dashboard, shared) |
 | Stores | 12 | All 12 Zustand stores (auth, booking, checkout, subscription, profile, anthropometry, nutrition, parq, physicalEvaluation, posturometry, pendingAssessments, trainer) |
-| Views/Pages | 17 | All page-level tests (incl. MySessionsPage, ProgramDetailPage) |
+| Views/Pages | 15 | All page-level tests (incl. MySessionsPage, ProgramDetailPage) |
 | Services | 1 | HTTP client |
 | Composables | 1 | useScrollAnimations |
 | Styles | 1 | Cursor styles |
 | Reporters | 1 | Flow reporter |
 | Scripts | 1 | E2E module CLI |
-| **Total** | **66 files** | |
+| **Total** | **74 files** | |
 
 ### E2E (Playwright)
 
 | Category | Test Files | Coverage Area |
 |----------|-----------|---------------|
-| App (authenticated) | 22 | Dashboard, calendar, booking, subscription, sessions, cancel flows, profile |
+| App (authenticated) | 32 | Dashboard, calendar, booking, subscription, sessions, cancel flows, profile, mobile bottom nav, billing recovery, mood entry |
 | Auth | 4 | Login, logout, persistence, protected routes |
-| Public | 14 | Home, programs, checkout, contact, FAQ, register, navbar, terms, brand, payment polling, forgot-password |
-| Trainer | 8 | Trainer dashboard, clients list, client detail, anthropometry, nutrition, parq, physical-eval, posturometry |
-| **Total** | **55 files** | |
+| Public | 15 | Home, programs, checkout, contact, FAQ, register, navbar, terms, brand, payment polling, forgot-password |
+| Trainer | 9 | Trainer dashboard, clients list, client detail, anthropometry, nutrition, parq, physical-eval, posturometry, mobile bottom nav |
+| **Total** | **60 files** | |
 
-### Grand Total: 180 test files
-### Flow Definitions: 55 flows (0 uncovered, 55 covered by existing specs)
+### Grand Total: 227 test files
+### Flow Definitions: 60 flows (59 covered + 4 newly registered, 1 flaky `auth-session-persistence` unrelated)
 
 ### E2E Coverage Gaps (0 uncovered flows — all waves complete)
 

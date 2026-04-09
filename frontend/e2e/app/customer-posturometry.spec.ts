@@ -96,6 +96,7 @@ test.describe('Customer Posturometry Page', { tag: [...FlowTags.CUSTOMER_POSTURO
     await expect(page.getByText(/Tu entrenador realizará tu primera evaluación postural/)).toBeVisible();
   });
 
+  // quality: disable test_too_long (mobile photo sheet flow needs full setup, scroll-lock verification, and Antes/Después switch in one test)
   test('mobile photo sheet compares previous and current photos without scrolling the page behind it', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 600 });
     const longObservation = Array(12).fill('Observación detallada para forzar scroll interno del modal.').join(' ');

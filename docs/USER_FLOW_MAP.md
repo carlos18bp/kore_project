@@ -1,7 +1,7 @@
 # User Flow Map
 
-Version: 1.4
-Last Updated: 2026-04-01
+Version: 1.5
+Last Updated: 2026-04-09
 Description: End-to-end user flows for the Kore frontend, grouped by role with branches for form variants and alternate outcomes.
 Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, frontend/e2e specs, frontend/app routes. Canonical customer subscription URL is `/subscription` (flow IDs `my-programs-*` are historical).
 
@@ -577,6 +577,27 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Expired subscription: shows expired state and renew link; cancel button is not shown.
 - Canceled subscription: shows canceled badge; cancel button is not shown.
 
+### subscription-billing-failed-recovery: Subscription Billing Failed Recovery
+- Module: subscription
+- Priority: P2
+- Route: /dashboard (toast on load)
+- Roles: user
+- Description: Recover from a failed recurring billing attempt by updating the payment method via the dashboard toast.
+- E2E Coverage: Covered (frontend/e2e/app/subscription-billing-failed-recovery.spec.ts)
+
+**Steps**
+1. Backend recurring billing fails for an active subscription; backend marks the subscription as `pending_payment_update`.
+2. User opens /dashboard.
+3. SubscriptionDashboardToast renders the failed-billing variant with a CTA to update payment.
+4. User clicks "Actualizar pago" → app navigates to /checkout with the package and an `update=1` flag.
+5. After completing a new payment method, backend clears the flag and the toast no longer appears on subsequent /dashboard loads.
+
+**Branches / Variations**
+- User dismisses the toast manually; dismiss persists in sessionStorage and the toast does not reappear within the same session.
+- New payment also fails: toast reappears on next /dashboard load.
+- Subscription without `pending_payment_update`: toast is not rendered.
+- Loading state suppresses the toast while the subscription list is fetching.
+
 ### booking-session-flow: Book Session Flow
 - Module: booking
 - Priority: P1
@@ -740,6 +761,51 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Active link highlights reflect current route.
 - Mobile toggle opens and closes the navigation drawer.
 
+### mobile-bottom-nav: Mobile Bottom Navigation (Customer)
+- Module: navigation
+- Priority: P2
+- Route: any authenticated customer route on mobile viewport
+- Roles: user
+- Description: Navigate the customer mobile bottom bar (Inicio, Agendar, Más sheet, Logout) on small viewports.
+- E2E Coverage: Covered (frontend/e2e/app/mobile-bottom-nav.spec.ts)
+
+**Steps**
+1. Open /dashboard on a mobile viewport (≤640px width).
+2. MobileBottomNav renders fixed at the bottom of the screen with navigation tabs.
+3. Tap "Inicio" → /dashboard with active state highlight.
+4. Tap "Agendar" → /book-session.
+5. Tap "Más" → bottom sheet opens with extra options (Mi Suscripción, Evaluaciones list, Cerrar sesión).
+6. Tap "Cerrar sesión" → store logout → redirect to /.
+
+**Branches / Variations**
+- Active state matches current pathname.
+- Pending assessments badge appears when there are uncompleted modules.
+- Tapping the backdrop or close button closes the "Más" sheet without navigation.
+- Sheet items navigate to subscription or assessment routes.
+- On desktop viewports, MobileBottomNav is hidden.
+
+### trainer-mobile-bottom-nav: Mobile Bottom Navigation (Trainer)
+- Module: navigation
+- Priority: P3
+- Route: any authenticated trainer route on mobile viewport
+- Roles: trainer
+- Description: Navigate the trainer mobile bottom bar (Inicio, Clientes, Más sheet) on small viewports.
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-mobile-bottom-nav.spec.ts)
+
+**Steps**
+1. Trainer opens /trainer/dashboard on a mobile viewport.
+2. TrainerMobileBottomNav renders fixed at the bottom with the trainer-specific tabs.
+3. Tap "Inicio" → /trainer/dashboard with active highlight.
+4. Tap "Clientes" → /trainer/clients.
+5. Tap "Más" → sheet opens with secondary options including Cerrar sesión.
+6. Tap "Cerrar sesión" → logout → redirect to /.
+
+**Branches / Variations**
+- Active state highlight reflects the current trainer route.
+- Trainer nav lacks the customer "Evaluaciones" sheet entry.
+- Sheet close via backdrop or close button.
+- On desktop viewports, the trainer mobile nav is hidden in favor of the sidebar.
+
 ### app-coverage-gaps: App Coverage Gaps
 - Module: app
 - Priority: P3
@@ -838,6 +904,27 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Request code API failure shows inline error message.
 - Loading state disables button and shows "Enviando código..." spinner.
 - Modal close returns to profile without completing reset.
+
+### profile-mood-entry: Profile Mood Entry
+- Module: profile
+- Priority: P3
+- Route: /profile (modal overlay)
+- Roles: user
+- Description: Record a daily mood (1-10) entry from the MoodCheckIn modal that auto-opens on the profile page when no mood has been logged today.
+- E2E Coverage: Covered (frontend/e2e/app/profile-mood-entry.spec.ts)
+
+**Steps**
+1. Authenticated user with `profile_completed=true` and no mood registered today opens /profile.
+2. MoodCheckIn modal opens automatically as an overlay.
+3. User picks a score 1-10 (default 7), optionally writes a note.
+4. User clicks the submit button → POST /api/auth/mood/ → store updates `todayMood`.
+5. Confirmation view appears for ~2 seconds, then the modal closes.
+
+**Branches / Variations**
+- Today's mood already exists: modal does NOT open.
+- User dismisses via backdrop click or X: sessionStorage `kore_mood_dismissed` is set so the modal stays hidden for the rest of the session.
+- User without `profile_completed=true`: modal does NOT open (the profile completion CTA takes precedence).
+- Weight tracking is currently NOT exposed in the profile UI; the `/auth/weight/` endpoint and `submitWeight` store action exist but no component invokes them. Tracked as future work.
 
 ## Assessment Flows
 

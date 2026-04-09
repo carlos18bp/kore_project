@@ -96,7 +96,7 @@ class TestSubscriptionSerializer:
 
     @patch('core_app.serializers.subscription_serializers.timezone.now',
            return_value=FIXED_NOW)
-    def test_status_values(self, _mock_now, customer, package):
+    def test_status_values(self, _mock_now, customer, package):  # noqa: PT019
         """Serialize different status values correctly."""
         for status_choice in Subscription.Status:
             sub = Subscription.objects.create(

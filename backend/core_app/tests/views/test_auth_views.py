@@ -163,3 +163,17 @@ def test_get_user_profile_requires_auth(api_client):
     url = reverse('get-user-profile')
     response = api_client.get(url)
     assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
+
+
+@pytest.mark.django_db
+def test_resend_verification_code_returns_400_on_invalid_pre_registration_token(api_client):
+    """Returns 400 when pre_registration_token has an invalid or expired signature."""
+    url = reverse('resend-verification-code')
+    response = api_client.post(
+        url,
+        {'pre_registration_token': 'tampered.invalid.token'},
+        format='json',
+    )
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    detail = response.data.get('detail', '')
+    assert 'expiró' in detail or 'inválido' in detail

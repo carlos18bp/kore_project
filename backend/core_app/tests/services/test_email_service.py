@@ -287,3 +287,78 @@ class TestSubscriptionExpiryReminderEmail:
 
         assert result is None
         assert Notification.objects.count() == 0
+
+
+@pytest.mark.django_db
+class TestWelcomeEmail:
+    """Cover send_welcome_email helper paths."""
+
+    def test_send_welcome_email_with_package(self):
+        """send_welcome_email sends welcome email when package is provided."""
+        from core_app.services.email_service import send_welcome_email
+        user = User.objects.create_user(
+            email='welcome@example.com', password='pass',
+            first_name='Ana', last_name='Torres',
+        )
+        pkg = Package.objects.create(title='Premium', sessions_count=12, validity_days=30)
+        with patch('core_app.services.email_service.send_template_email', return_value=True) as mock_send:
+            result = send_welcome_email(user, pkg)
+        assert result is True
+        ctx = mock_send.call_args.kwargs['context']
+        assert ctx['package_title'] == 'Premium'
+
+    def test_send_welcome_email_with_none_package_uses_fallback_strings(self):
+        """send_welcome_email sends welcome email when package is None."""
+        from core_app.services.email_service import send_welcome_email
+        user = User.objects.create_user(
+            email='welcome_none@example.com', password='pass',
+            first_name='Bob', last_name='Smith',
+        )
+        with patch('core_app.services.email_service.send_template_email', return_value=True) as mock_send:
+            result = send_welcome_email(user, None)
+        assert result is True
+        ctx = mock_send.call_args.kwargs['context']
+        assert ctx['package_title'] == 'Suscripción KÓRE'
+
+    def test_send_welcome_email_uses_default_login_url_when_setting_absent(self):
+        """send_welcome_email falls back to hardcoded URL when FRONTEND_LOGIN_URL is absent."""
+        from django.test import override_settings
+
+        from core_app.services.email_service import send_welcome_email
+        user = User.objects.create_user(
+            email='welcome_url@example.com', password='pass',
+            first_name='Luis', last_name='Perez',
+        )
+        with override_settings(FRONTEND_LOGIN_URL='https://korehealths.com/login'):
+            with patch('core_app.services.email_service.send_template_email', return_value=True) as mock_send:
+                result = send_welcome_email(user, None)
+        assert result is True
+        ctx = mock_send.call_args.kwargs['context']
+        assert 'korehealths.com' in ctx['login_url']
+
+
+@pytest.mark.django_db
+class TestPasswordResetCodeEmail:
+    """Cover send_password_reset_code helper."""
+
+    def test_send_password_reset_code_returns_true_on_success(self):
+        """send_password_reset_code returns True when email sends successfully."""
+        from core_app.services.email_service import send_password_reset_code
+        user = User.objects.create_user(
+            email='reset@example.com', password='pass',
+            first_name='Carlos', last_name='Ruiz',
+        )
+        with patch('core_app.services.email_service.send_template_email', return_value=True):
+            result = send_password_reset_code(user, '123456')
+        assert result is True
+
+    def test_send_password_reset_code_returns_false_when_send_fails(self):
+        """send_password_reset_code returns False when underlying email send fails."""
+        from core_app.services.email_service import send_password_reset_code
+        user = User.objects.create_user(
+            email='reset_fail@example.com', password='pass',
+            first_name='Maria', last_name='Lopez',
+        )
+        with patch('core_app.services.email_service.send_template_email', return_value=False):
+            result = send_password_reset_code(user, '654321')
+        assert result is False

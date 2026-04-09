@@ -1356,3 +1356,126 @@ class TestExpiryReminderAck:
         url = reverse('subscription-expiry-reminder-ack', args=[non_recurring_active_subscription.id])
         response = api_client.post(url)
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+# ── _extract_async_payment_url unit tests ──
+
+
+class TestExtractAsyncPaymentUrl:
+    """Unit tests for the _extract_async_payment_url helper (non-dict fallback paths)."""
+
+    def test_returns_empty_when_payment_method_not_dict(self):
+        """Returns empty string when payment_method value is not a dict."""
+        from core_app.views.subscription_views import _extract_async_payment_url
+        result = _extract_async_payment_url({'payment_method': 'string-not-dict'})
+        assert result == ''
+
+    def test_returns_empty_when_extra_not_dict(self):
+        """Returns empty string when extra field inside payment_method is not a dict."""
+        from core_app.views.subscription_views import _extract_async_payment_url
+        result = _extract_async_payment_url({'payment_method': {'extra': 42}})
+        assert result == ''
+
+
+# ── _poll_async_payment_url unit tests ──
+
+
+class TestPollAsyncPaymentUrl:
+    """Unit tests for the _poll_async_payment_url helper (error and exhaustion paths)."""
+
+    @patch('core_app.views.subscription_views.time.sleep', return_value=None)
+    @patch('core_app.views.subscription_views.get_transaction_by_id')
+    def test_returns_empty_on_wompi_error(self, mock_get_txn, mock_sleep):
+        """Returns empty string when Wompi raises WompiError on first poll."""
+        from core_app.services.wompi_service import WompiError
+        from core_app.views.subscription_views import _poll_async_payment_url
+        mock_get_txn.side_effect = WompiError('connection failed')
+        result = _poll_async_payment_url('txn-001', max_attempts=3, wait_seconds=0)
+        assert result == ''
+
+    @patch('core_app.views.subscription_views.time.sleep', return_value=None)
+    @patch('core_app.views.subscription_views.get_transaction_by_id')
+    def test_returns_empty_when_max_attempts_exhausted(self, mock_get_txn, mock_sleep):
+        """Returns empty string when all polling attempts return no async_payment_url."""
+        from core_app.views.subscription_views import _poll_async_payment_url
+        mock_get_txn.return_value = {'id': 'txn-001', 'payment_method': {'extra': {}}}
+        result = _poll_async_payment_url('txn-001', max_attempts=2, wait_seconds=0)
+        assert result == ''
+        assert mock_get_txn.call_count == 2
+
+
+# ── purchase_alternative token validation ──
+
+
+@pytest.mark.django_db
+class TestPurchaseAlternativeTokenValidation:
+    """Token validation edge cases for the purchase_alternative endpoint."""
+
+    def test_returns_400_on_expired_token(self, api_client, package):
+        """Expired registration token is rejected with 400 on purchase_alternative."""
+        with patch(
+            'core_app.views.subscription_views.signing.loads',
+            side_effect=signing.SignatureExpired('expired'),
+        ):
+            url = reverse('subscription-purchase-alternative')
+            response = api_client.post(url, {
+                'package_id': package.id,
+                'payment_method': 'NEQUI',
+                'phone_number': '3107654321',
+                'registration_token': 'expired-token',
+            }, format='json')
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'expiró' in response.data['detail']
+
+    def test_returns_400_on_bad_signature(self, api_client, package):
+        """Tampered registration token is rejected with 400 on purchase_alternative."""
+        with patch(
+            'core_app.views.subscription_views.signing.loads',
+            side_effect=signing.BadSignature('bad'),
+        ):
+            url = reverse('subscription-purchase-alternative')
+            response = api_client.post(url, {
+                'package_id': package.id,
+                'payment_method': 'NEQUI',
+                'phone_number': '3107654321',
+                'registration_token': 'bad-token',
+            }, format='json')
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'inválido' in response.data['detail']
+
+    def test_returns_400_when_required_fields_missing(self, api_client, package):
+        """Token missing required registration fields returns 400 on purchase_alternative."""
+        with patch(
+            'core_app.views.subscription_views.signing.loads',
+            return_value={'email': 'g@example.com'},
+        ):
+            url = reverse('subscription-purchase-alternative')
+            response = api_client.post(url, {
+                'package_id': package.id,
+                'payment_method': 'NEQUI',
+                'phone_number': '3107654321',
+                'registration_token': 'incomplete-token',
+            }, format='json')
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'inválido' in response.data['detail']
+
+    def test_returns_400_when_email_already_registered(self, api_client, existing_user, package):
+        """Guest purchase_alternative rejected when registration token email already exists."""
+        token = signing.dumps(
+            {
+                'email': existing_user.email,
+                'first_name': 'Guest',
+                'last_name': 'Alt',
+                'password_hash': 'pbkdf2_sha256$dummy_hash',
+            },
+            salt=REGISTRATION_TOKEN_SALT,
+        )
+        url = reverse('subscription-purchase-alternative')
+        response = api_client.post(url, {
+            'package_id': package.id,
+            'payment_method': 'NEQUI',
+            'phone_number': '3107654321',
+            'registration_token': token,
+        }, format='json')
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'correo' in response.data['detail']

@@ -1,13 +1,18 @@
 """Service tests for ICS calendar generation from booking data."""
 
 from datetime import datetime, timedelta
+from datetime import timezone as dt_tz
 
 import pytest
 from django.test import override_settings
 from django.utils import timezone
 
 from core_app.models import AvailabilitySlot, Booking, Package, TrainerProfile, User
-from core_app.services.ics_generator import generate_ics
+from core_app.services.ics_generator import (
+    _format_dt_bogota,
+    _format_dt_utc,
+    generate_ics,
+)
 
 FIXED_NOW = timezone.make_aware(datetime(2024, 1, 15, 10, 0, 0))
 
@@ -133,3 +138,66 @@ class TestIcsGenerator:
         ics = generate_ics(booking).decode('utf-8')
         assert 'Entrenamiento KÓRE' in ics
         assert 'BEGIN:VCALENDAR' in ics
+
+    def test_deduplicates_attendees_when_customer_and_trainer_share_email(self):
+        """Attendee appears only once when customer and trainer have the same email."""
+        # quality: disable unverified_mock (mocks are input data structs; assertion is on rendered ICS output)
+        from unittest.mock import MagicMock
+        shared_email = 'shared@example.com'
+
+        customer_mock = MagicMock()
+        customer_mock.first_name = 'John'
+        customer_mock.last_name = 'Doe'
+        customer_mock.email = shared_email
+
+        trainer_user_mock = MagicMock()
+        trainer_user_mock.first_name = 'John'
+        trainer_user_mock.last_name = 'Doe'
+        trainer_user_mock.email = shared_email
+
+        trainer_mock = MagicMock()
+        trainer_mock.user = trainer_user_mock
+        trainer_mock.location = 'Gym A'
+
+        slot_mock = MagicMock()
+        slot_mock.starts_at = datetime(2024, 6, 1, 10, 0, tzinfo=dt_tz.utc)
+        slot_mock.ends_at = datetime(2024, 6, 1, 11, 0, tzinfo=dt_tz.utc)
+
+        booking_mock = MagicMock()
+        booking_mock.slot = slot_mock
+        booking_mock.trainer = trainer_mock
+        booking_mock.customer = customer_mock
+
+        ics = generate_ics(booking_mock).decode('utf-8')
+        assert ics.count(f'mailto:{shared_email}') == 1
+
+
+class TestFormatDtUtc:
+    """Unit tests for the _format_dt_utc helper."""
+
+    def test_with_naive_datetime_treats_as_utc(self):
+        """Naive datetime is treated as UTC and formatted with trailing Z."""
+        result = _format_dt_utc(datetime(2024, 6, 1, 10, 30, 0))
+        assert result == '20240601T103000Z'
+
+    def test_with_aware_utc_datetime(self):
+        """Aware UTC datetime is formatted correctly with trailing Z."""
+        dt = datetime(2024, 6, 1, 10, 30, 0, tzinfo=dt_tz.utc)
+        result = _format_dt_utc(dt)
+        assert result == '20240601T103000Z'
+
+
+class TestFormatDtBogota:
+    """Unit tests for the _format_dt_bogota helper."""
+
+    def test_with_aware_utc_datetime_converts_to_bogota(self):
+        """Aware UTC datetime is converted to Bogotá local time (UTC-5)."""
+        dt = datetime(2024, 6, 1, 20, 0, 0, tzinfo=dt_tz.utc)
+        result = _format_dt_bogota(dt)
+        # Bogotá is UTC-5, so 20:00 UTC → 15:00 Bogotá
+        assert result == '20240601T150000'
+
+    def test_with_naive_datetime_localizes_to_bogota(self):
+        """Naive datetime is localized to Bogotá without UTC conversion."""
+        result = _format_dt_bogota(datetime(2024, 6, 1, 10, 0, 0))
+        assert result == '20240601T100000'

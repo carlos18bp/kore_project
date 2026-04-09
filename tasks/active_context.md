@@ -9,15 +9,38 @@ The KÓRE platform is **fully functional in production** at `korehealths.com`. A
 - **Client Management**: Customer profiles, trainer client views, mood/weight tracking, pending assessments dashboard
 - **Account**: Password reset (6-digit code), terms acceptance tracking, profile completion
 - **Backend**: Django 6 + DRF + Huey + 12 services (incl. 6 calculators) + MySQL (prod)
-- **Frontend**: Next.js 16 (static export) + 12 Zustand stores + 30 pages + 36 components
-- **Testing**: 193 test files (72 backend + 66 frontend unit + 55 E2E)
+- **Frontend**: Next.js 16 (static export) + 12 Zustand stores + 28 pages + 40 components
+- **Testing**: 227 test files (93 backend + 74 frontend unit + 60 E2E)
 - **Deployment**: Gunicorn + Nginx + systemd on Ubuntu
 
 ---
 
 ## 2. Recent Focus Areas
 
-- **Fix: Evaluation ordering by exam date** (latest):
+- **E2E user flows audit — 4 new flows registered + spec'd (2026-04-09)** (latest):
+  - Systematic enumeration of user flows from PRD, frontend routes, backend endpoints, and existing flow-definitions
+  - Identified 4 real flows missing from coverage; registered all 4 in `flow-definitions.json` (56 → 60), `helpers/flow-tags.ts`, and `docs/USER_FLOW_MAP.md` (version bumped 1.4 → 1.5, 1.0.2 → 1.0.3)
+  - Wrote 4 spec files with 21 tests total — all passing:
+    - `subscription-billing-failed-recovery.spec.ts` (5 tests) — toast appears + Actualizar pago link + dismiss persistence
+    - `mobile-bottom-nav.spec.ts` (6 tests) — customer mobile bottom nav (Inicio, Agendar, Evaluar, Perfil, Más sheet, logout)
+    - `trainer-mobile-bottom-nav.spec.ts` (5 tests) — trainer mobile bottom nav (3 tabs + Más sheet + logout)
+    - `profile-mood-entry.spec.ts` (5 tests) — MoodCheckIn modal opens + scores + Registrar submit + Ahora no dismiss
+  - **Discovery**: Originally planned `profile-mood-weight-entry`. Found that `submitWeight` and `/auth/weight/` exist but no UI surface invokes them. Renamed flow to `profile-mood-entry` and documented weight tracking as future work in USER_FLOW_MAP.
+- **Audit follow-up — 5 sprints completed (2026-04-09)** (previous):
+  - **Sprint 1.1**: +4 tests for `IsTrainerRole` permission class in `tests/permissions/test_permissions.py`
+  - **Sprint 1.2**: Regenerated `flow-coverage.json` (55/56 covered; 1 flaky `auth-session-persistence` unrelated)
+  - **Sprint 2**: +2 tests for `wompi_views.py` race conditions (locked intent already resolved + atomic block exception); both `wompi_service.py` and `wompi_views.py` now at 100% coverage
+  - **Sprint 3**: New `create_fake_diagnostics.py` management command + `test_create_fake_diagnostics.py` (8 tests). Wired into `create_fake_data.py` orchestrator. Generates medically realistic anthropometry/posturometry/physical/nutrition/PARQ data for all customers
+  - **Sprint 4.1**: 4 new test files for simple models (`test_mood_entry.py`, `test_weight_entry.py`, `test_registration_verification_code.py`, `test_terms_acceptance.py`) — 40 tests total
+  - **Sprint 4.2**: 4 new test files for diagnostic models (`test_posturometry.py`, `test_physical_evaluation.py`, `test_nutrition_habit.py`, `test_parq_assessment.py`) — 39 tests total
+  - **Sprint 5**: +5 race-condition tests in frontend stores (3 in `checkoutStore.test.ts`, 2 in `bookingStore.test.ts`) — including ERROR-001 regression test
+  - **Result**: Backend 84 → 93 test files (+9 files / ~93 new tests), frontend unit +5 tests in existing files. Total tests 214 → 223 files
+- **Memory Bank refresh — 2026-04-09** (previous):
+  - Re-audited entire codebase against documented counts; +21 test files added since last refresh (84 backend / 74 frontend unit / 56 E2E)
+  - +1 backend model (`RegistrationVerificationCode`), +4 frontend components, +1 E2E flow definition
+  - Updated `tasks/active_context.md` Section 6 inventory and `tasks/tasks_plan.md` testing tables
+  - Architecture diagrams, design patterns, and known issues left untouched (still accurate)
+- **Fix: Evaluation ordering by exam date** (previous):
   - Progress analysis in anthropometry, posturometry, and physical evaluation was ordering records by `created_at` (upload date) instead of `evaluation_date` (exam date)
   - When trainer uploaded a 2026 record first and then a 2025 record, the system treated the older record as "current", making it appear the client regressed
   - Changed `-created_at` → `-evaluation_date` in: 3 model Meta classes, 6 list view queries, 2 cross-module lookups, 3 pending assessments queries
@@ -99,7 +122,7 @@ The KÓRE platform is **fully functional in production** at `korehealths.com`. A
 | Database (SQLite dev) | ✅ Available |
 | Redis (Huey broker) | ⚠️ Optional in dev (`HUEY_IMMEDIATE=true`) |
 | Fake data commands | ✅ Available (18 management commands) |
-| Testing tools | ✅ pytest (72 files), Jest (66 files), Playwright (55 files) |
+| Testing tools | ✅ pytest (93 files), Jest (74 files), Playwright (60 files) |
 
 ---
 
@@ -118,17 +141,18 @@ The KÓRE platform is **fully functional in production** at `korehealths.com`. A
 
 | Layer | Count |
 |-------|-------|
-| Models | 24 across 22 files |
+| Models | 25 across 23 files |
 | Views | 20 files |
 | Serializers | 12 files |
 | Services | 12 files |
 | URLs | 4 files |
 | Management commands | 18 |
 | Admin classes | 23 (22 ModelAdmin + 1 Form) |
-| Frontend pages | 30 (10 public + 20 authenticated) |
-| Frontend components | 36 |
+| Frontend pages | 28 (10 public + 18 authenticated) |
+| Frontend components | 40 |
 | Zustand stores | 12 |
-| Backend test files | 72 |
-| Frontend unit test files | 66 |
-| E2E spec files | 55 |
-| **Total test files** | **193** |
+| Backend test files | 93 |
+| Frontend unit test files | 74 |
+| E2E spec files | 60 |
+| Flow definitions | 60 |
+| **Total test files** | **227** |

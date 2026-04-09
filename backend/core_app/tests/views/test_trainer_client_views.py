@@ -295,3 +295,56 @@ class TestTrainerDashboardStatsView:
         response = api_client.get(reverse('trainer-dashboard-stats'))
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+# ── Avatar URL branches ──
+
+
+@pytest.mark.django_db
+class TestTrainerClientAvatarUrl:
+    """Cover avatar_url branches in list and detail client views."""
+
+    def test_client_list_includes_avatar_url_when_avatar_set(
+        self, api_client, trainer, customer, booking_with_slot
+    ):
+        """Client list returns non-null avatar_url when customer profile has an avatar."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        cp = customer.customer_profile
+        cp.avatar = SimpleUploadedFile('av.jpg', b'\xff\xd8\xff' + b'\x00' * 20, content_type='image/jpeg')
+        cp.save(update_fields=['avatar'])
+
+        api_client.force_authenticate(user=trainer.user)
+        response = api_client.get(reverse('trainer-client-list'))
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data[0]['avatar_url'] is not None
+
+    def test_client_detail_returns_404_when_customer_role_changed(
+        self, api_client, trainer, customer, booking_with_slot
+    ):
+        """Detail view returns 404 when the user no longer has CUSTOMER role."""
+        customer.role = User.Role.TRAINER
+        customer.save(update_fields=['role'])
+
+        api_client.force_authenticate(user=trainer.user)
+        url = reverse('trainer-client-detail', args=[customer.id])
+        response = api_client.get(url)
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_client_detail_includes_absolute_avatar_url_when_avatar_set(
+        self, api_client, trainer, customer, booking_with_slot
+    ):
+        """Detail view builds absolute URI for customer avatar when avatar is set."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        cp = customer.customer_profile
+        # Use a real SimpleUploadedFile to satisfy hasattr check
+        cp.avatar = SimpleUploadedFile('av.jpg', b'\xff\xd8\xff' + b'\x00' * 20, content_type='image/jpeg')
+        cp.save(update_fields=['avatar'])
+
+        api_client.force_authenticate(user=trainer.user)
+        url = reverse('trainer-client-detail', args=[customer.id])
+        response = api_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data.get('avatar_url') is not None

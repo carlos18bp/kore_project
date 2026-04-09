@@ -311,3 +311,66 @@ class TestGenerateDefaultRecommendations:
         recs = generate_default_recommendations(FakeEval())
         # Should fall back to green texts
         assert 'funcional' in recs['global']['result'].lower()
+
+
+# ── _extract_severity edge cases ──
+
+
+class TestExtractSeverityEdgeCases:
+    def test_returns_zero_for_non_int_severity(self):
+        """Returns 0 when severity value cannot be converted to int."""
+        from core_app.services.posturometry_calculator import _extract_severity
+        segment = {'is_normal': False, 'severity': 'not-a-number', 'sub_fields': {}}
+        result = _extract_severity(segment)
+        assert result == 0
+
+
+# ── compute_indices edge cases ──
+
+
+class TestComputeIndicesEdgeCases:
+    def test_global_index_is_zero_when_segment_scores_empty(self):
+        """Global index defaults to 0.0 when segment_scores dict is empty."""
+        indices = compute_indices({})
+        assert indices['global_index'] == 0.0
+
+    def test_regional_index_is_zero_when_no_segments_in_region(self):
+        """Regional index defaults to 0.0 when no segments match that region."""
+        scores = {'cabeza': {'score': 1.0, 'region': 'upper'}}
+        indices = compute_indices(scores)
+        assert indices['central_index'] == 0.0
+        assert indices['lower_index'] == 0.0
+
+
+# ── _format_finding edge cases ──
+
+
+class TestFormatFindingEdgeCases:
+    def test_returns_none_for_sub_key_not_in_templates(self):
+        """Returns None when sub_key is absent from the templates dict."""
+        from core_app.services.posturometry_calculator import _format_finding
+        result = _format_finding(
+            'Cabeza', 'nonexistent_field', 'M',
+            {'inclinacion': 'inclinación {severity}'},
+        )
+        assert result is None
+
+    def test_returns_none_for_falsy_severity_sub_field_value(self):
+        """Returns None when severity sub_field value is an empty string."""
+        from core_app.services.posturometry_calculator import _format_finding
+        result = _format_finding(
+            'Cabeza', 'inclinacion', '',
+            {'inclinacion': 'inclinación {severity}'},
+        )
+        assert result is None
+
+
+# ── generate_findings skips non-dict entries ──
+
+
+class TestGenerateFindingsEdgeCases:
+    def test_skips_non_dict_segment_entry(self):
+        """generate_findings skips view entries that are not dicts."""
+        anterior = {'cabeza': 'not-a-dict', 'rodillas': _normal()}
+        findings = generate_findings(anterior, {}, {}, {})
+        assert findings['anterior'] == []
