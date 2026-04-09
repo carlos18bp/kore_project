@@ -17,7 +17,7 @@ Run these steps on the production server at `/home/ryzepeck/webapps/kore_project
 
 1. Quick status snapshot before deploy:
 ```bash
-bash ~/scripts/quick-status.sh
+bash /home/ryzepeck/webapps/ops/vps/scripts/diagnostics/quick-status.sh
 ```
 
 ## Deploy Steps
@@ -44,21 +44,21 @@ cd /home/ryzepeck/webapps/kore_project/backend && source venv/bin/activate && DJ
 
 6. Restart services:
 ```bash
-sudo systemctl restart kore_project && sudo systemctl restart kore_project-huey
+sudo systemctl restart kore_project && sudo systemctl restart kore-huey
 ```
 
 ## Post-Deploy Verification
 
 7. Run post-deploy check for kore_project:
 ```bash
-bash ~/scripts/post-deploy-check.sh kore_project
+bash /home/ryzepeck/webapps/ops/vps/scripts/deployment/post-deploy-check.sh kore_project
 ```
 Expected: PASS on all checks, FAIL=0.
 
 8. If something fails, check the logs:
 ```bash
 sudo journalctl -u kore_project.service --no-pager -n 30
-sudo journalctl -u kore_project-huey.service --no-pager -n 30
+sudo journalctl -u kore-huey.service --no-pager -n 30
 sudo tail -20 /var/log/nginx/error.log
 ```
 
@@ -67,7 +67,7 @@ sudo tail -20 /var/log/nginx/error.log
 - **Domain**: `korehealths.com` / `www.korehealths.com`
 - **Backend**: Django (`core_project` module), prod settings activated via `DJANGO_ENV=production` (auto-imported from `settings_prod.py`)
 - **Frontend**: Next.js SSG → `next build` exports to `out/`, then moved to `backend/templates/` (served by Django catch-all)
-- **Services**: `kore_project.service` (Gunicorn via socket), `kore_project.socket`, `kore_project-huey.service`
+- **Services**: `kore_project.service` (Gunicorn via socket), `kore_project.socket`, `kore-huey.service`
 - **Nginx**: `/etc/nginx/sites-available/kore_project`
 - **Socket**: `/run/kore_project.sock`
 - **Static**: `/home/ryzepeck/webapps/kore_project/backend/staticfiles/`
@@ -83,7 +83,7 @@ rm -rf /home/ryzepeck/webapps/kore_project/frontend/node_modules
 
 ## Notes
 
-- `~/scripts` is a symlink to `/home/ryzepeck/webapps/ops/vps/`.
+- VPS operations scripts live in `/home/ryzepeck/webapps/ops/vps/scripts/`.
 - `npm run build` runs `next build && rm -rf ../backend/templates && mv out ../backend/templates`.
 - `DJANGO_ENV=production` must be set for `migrate` and `collectstatic` (settings.py defaults to development).
 - The systemd unit for `kore_project.service` sets `DJANGO_ENV=production` automatically for the running service.

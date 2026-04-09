@@ -24,7 +24,7 @@ Run these steps on the staging server at `/home/ryzepeck/webapps/kore_project_st
 // turbo
 1. Verify staging server health before deploying:
 ```bash
-bash ~/scripts/quick-status.sh
+bash /home/ryzepeck/webapps/ops/vps/scripts/diagnostics/quick-status.sh
 ```
 If any service is down or disk >85%, **stop and fix before deploying**.
 

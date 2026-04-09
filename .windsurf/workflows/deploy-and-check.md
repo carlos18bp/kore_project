@@ -11,7 +11,7 @@ Run these steps on the production server at `/home/ryzepeck/webapps/kore_project
 // turbo
 1. Quick status snapshot before deploy:
 ```bash
-bash ~/scripts/quick-status.sh
+bash /home/ryzepeck/webapps/ops/vps/scripts/diagnostics/quick-status.sh
 ```
 
 ## Deploy Steps
@@ -47,7 +47,7 @@ sudo systemctl restart kore_project && sudo systemctl restart kore-huey
 // turbo
 7. Run post-deploy check for kore_project:
 ```bash
-bash ~/scripts/post-deploy-check.sh kore_project
+bash /home/ryzepeck/webapps/ops/vps/scripts/deployment/post-deploy-check.sh kore_project
 ```
 Expected: PASS on all checks, FAIL=0.
 
@@ -60,16 +60,16 @@ sudo tail -20 /var/log/nginx/error.log
 
 9. (Optional) Full server diagnostic with score:
 ```bash
-bash ~/scripts/full-diagnostic.sh
+bash /home/ryzepeck/webapps/ops/vps/scripts/diagnostics/full-diagnostic.sh
 ```
 
 ## Verification Scripts Reference
 
 | Script | Purpose | When to use |
 |--------|---------|-------------|
-| `bash ~/scripts/quick-status.sh` | Snapshot rápido: RAM, disco, servicios, SSL | Pre-deploy, sanity check |
-| `bash ~/scripts/full-diagnostic.sh` | Diagnóstico completo con score | Auditorías, debugging profundo |
-| `bash ~/scripts/post-deploy-check.sh kore_project` | Verificación post-deploy | Después de cada deploy |
+| `bash /home/ryzepeck/webapps/ops/vps/scripts/diagnostics/quick-status.sh` | Snapshot rápido: RAM, disco, servicios, SSL | Pre-deploy, sanity check |
+| `bash /home/ryzepeck/webapps/ops/vps/scripts/diagnostics/full-diagnostic.sh` | Diagnóstico completo con score | Auditorías, debugging profundo |
+| `bash /home/ryzepeck/webapps/ops/vps/scripts/deployment/post-deploy-check.sh kore_project` | Verificación post-deploy | Después de cada deploy |
 
 ## Architecture Reference
 
@@ -92,6 +92,6 @@ rm -rf /home/ryzepeck/webapps/kore_project/frontend/node_modules
 
 ## Notes
 
-- `~/scripts` is a symlink to `/home/ryzepeck/webapps/ops/vps/`.
+- VPS operations scripts live in `/home/ryzepeck/webapps/ops/vps/scripts/`.
 - Frontend `npm ci` may take a few minutes; the backend stays up during build.
 - If MemoryMax is hit during deploy, the service will be killed and restarted automatically.
