@@ -106,6 +106,7 @@ class TestCreateFakeData:
             skip_payments=True,
             skip_notifications=True,
             skip_analytics_events=True,
+            skip_diagnostics=True,
             stdout=out,
         )
         output = out.getvalue()
@@ -126,6 +127,7 @@ class TestCreateFakeData:
                 skip_payments=True,
                 skip_notifications=True,
                 skip_analytics_events=True,
+                skip_diagnostics=True,
                 stdout=out,
             )
 
@@ -150,6 +152,7 @@ class TestCreateFakeData:
                 skip_payments=True,
                 skip_notifications=True,
                 skip_analytics_events=True,
+                skip_diagnostics=True,
                 slot_step_minutes=20,
                 stdout=out,
             )
@@ -159,3 +162,28 @@ class TestCreateFakeData:
             and call.kwargs.get('slot_step_minutes') == 20
             for call in mock_call.call_args_list
         )
+
+    def test_diagnostics_runs_when_not_skipped_and_other_steps_are_skipped(self):
+        """Run diagnostics when all other generation steps are explicitly skipped."""
+        out = StringIO()
+        with patch('core_app.management.commands.create_fake_data.call_command') as mock_call:
+            call_command(
+                'create_fake_data',
+                skip_users=True,
+                skip_content=True,
+                skip_trainers=True,
+                skip_packages=True,
+                skip_subscriptions=True,
+                skip_slots=True,
+                skip_bookings=True,
+                skip_payments=True,
+                skip_notifications=True,
+                skip_analytics_events=True,
+                stdout=out,
+            )
+
+        assert any(
+            call.args and call.args[0] == 'create_fake_diagnostics'
+            for call in mock_call.call_args_list
+        )
+        assert '- diagnostics' in out.getvalue()
