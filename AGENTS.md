@@ -47,7 +47,7 @@ load_dotenv()
 
 SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
 DATABASE_URL = os.environ['DATABASE_URL']
-STRIPE_API_KEY = os.environ['STRIPE_SECRET_KEY']
+WOMPI_PRIVATE_KEY = os.environ['WOMPI_PRIVATE_KEY']
 
 # ❌ NEVER do this
 SECRET_KEY = 'django-insecure-abc123xyz'
@@ -55,18 +55,13 @@ DATABASE_URL = 'mysql://root:password123@localhost/mydb'
 ```
 
 ```typescript
-// ✅ Next.js / Nuxt — use env vars
+// ✅ Next.js — use env vars
 const apiUrl = process.env.NEXT_PUBLIC_API_URL
 const secretKey = process.env.API_SECRET_KEY  // server-only, no NEXT_PUBLIC_ prefix
 
-// Nuxt
-const config = useRuntimeConfig()
-const apiKey = config.apiSecret  // server only
-const publicUrl = config.public.apiBase  // client safe
-
 // ❌ NEVER do this
 const API_KEY = 'sk-live-abc123xyz'
-fetch('https://api.stripe.com/v1/charges', {
+fetch('https://api.example.com/v1/charges', {
   headers: { Authorization: 'Bearer sk-live-abc123xyz' }
 })
 ```
@@ -78,7 +73,6 @@ fetch('https://api.stripe.com/v1/charges', {
 - Separate env files per environment: `.env.local`, `.env.staging`, `.env.production`
 - Server secrets (API keys, DB passwords) NEVER go in client-side env vars
 - In Next.js: only `NEXT_PUBLIC_*` vars are exposed to the browser
-- In Nuxt: only `runtimeConfig.public.*` is exposed to the browser
 
 ### Input Validation
 
@@ -104,7 +98,7 @@ def create_order(request):
     Order.objects.create(product_id=product_id)  # SQL injection risk
 ```
 
-#### React/Vue
+#### React
 
 ```typescript
 // ✅ Validate before sending
@@ -147,14 +141,8 @@ cursor.execute(f"SELECT * FROM users WHERE email = '{user_input}'")
 // ✅ React auto-escapes by default — JSX is safe
 return <p>{userInput}</p>
 
-// ✅ Vue auto-escapes with {{ }}
-// <p>{{ userInput }}</p>
-
 // ❌ NEVER use dangerouslySetInnerHTML with user input
 return <div dangerouslySetInnerHTML={{ __html: userInput }} />
-
-// ❌ NEVER use v-html with user input
-// <div v-html="userInput" />
 
 // If you MUST render HTML, sanitize first
 import DOMPurify from 'dompurify'
@@ -255,7 +243,7 @@ def validate_upload(file):
 - [ ] `.env` is in `.gitignore`
 - [ ] All user input is validated (server + client)
 - [ ] No raw SQL with user input
-- [ ] No `dangerouslySetInnerHTML` / `v-html` with user data
+- [ ] No `dangerouslySetInnerHTML` with user data
 - [ ] CSRF protection enabled
 - [ ] Authentication required on all sensitive endpoints
 - [ ] Serializers exclude sensitive fields

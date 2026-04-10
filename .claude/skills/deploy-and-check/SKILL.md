@@ -32,7 +32,7 @@ cd /home/ryzepeck/webapps/kore_project && git pull origin master
 cd /home/ryzepeck/webapps/kore_project/backend && source venv/bin/activate && pip install -r requirements.txt && DJANGO_SETTINGS_MODULE=core_project.settings_prod python manage.py migrate
 ```
 
-4. Build the frontend (Nuxt generate + copy to Django static):
+4. Build the frontend (Next.js static export to backend/templates/):
 ```bash
 cd /home/ryzepeck/webapps/kore_project/frontend && npm ci && npm run build
 ```
@@ -65,8 +65,8 @@ sudo tail -20 /var/log/nginx/error.log
 ## Architecture Reference
 
 - **Domain**: `korehealths.com` / `www.korehealths.com`
-- **Backend**: Django (`kore_project` module), settings selected via `DJANGO_SETTINGS_MODULE=core_project.settings_prod` in systemd unit
-- **Frontend**: Nuxt 3 SSG → `backend/static/frontend/` + Django `serve_nuxt` catch-all view
+- **Backend**: Django (`core_project` module), settings selected via `DJANGO_SETTINGS_MODULE=core_project.settings_prod` in systemd unit
+- **Frontend**: Next.js 16 SSG → `backend/templates/` + Django catch-all view
 - **Services**: `kore_project.service` (Gunicorn via socket), `kore_project.socket`, `kore-huey.service`
 - **Nginx**: `/etc/nginx/sites-available/kore_project`
 - **Socket**: `/run/kore_project.sock`
@@ -84,5 +84,5 @@ rm -rf /home/ryzepeck/webapps/kore_project/frontend/node_modules
 ## Notes
 
 - VPS operations scripts live in `/home/ryzepeck/webapps/ops/vps/scripts/`.
-- Frontend uses `npm run build` which runs `nuxi generate` with `NUXT_APP_CDN_URL=/static/frontend/` and copies output to `backend/static/frontend/`.
+- Frontend uses `npm run build` which runs `next build` with `output: 'export'` and moves the `out/` directory to `backend/templates/`.
 - `DJANGO_SETTINGS_MODULE=core_project.settings_prod` must be set for migrate and collectstatic commands (manage.py defaults to settings_dev).
