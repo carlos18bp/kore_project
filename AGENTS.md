@@ -9,7 +9,7 @@
 
 - **Name**: Kore Project
 - **Domain**: `korehealths.com` / `www.korehealths.com`
-- **Stack**: Django 5 + DRF (backend) / Nuxt 3 + Vue 3 (frontend) / MySQL 8 / Redis / Huey
+- **Stack**: Django 6.0+ + DRF (backend) / Next.js 16 + React 19 static export (frontend) / MySQL 8 / Redis / Huey
 - **Server path**: `/home/ryzepeck/webapps/kore_project`
 - **Services**: `kore_project.service` (Gunicorn), `kore_project.socket`, `kore-huey.service`
 - **Settings module**: `DJANGO_SETTINGS_MODULE=core_project.settings_prod`
