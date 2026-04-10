@@ -25,7 +25,7 @@
 
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| Next.js | 16.1.6 | React framework (App Router) |
+| Next.js | 16.1.7 | React framework (App Router) |
 | React | 19.2.3 | UI library |
 | TypeScript | 5.x | Type safety |
 | Tailwind CSS | 4.x | Styling |
@@ -48,7 +48,7 @@
 | pytest-django | 4.12.x | Django test integration |
 | pytest-cov / coverage | 7.x | Backend coverage |
 | ruff | 0.15.x | Python linting |
-| Jest | 29.7.x | Frontend unit/component tests |
+| Jest | 30.x | Frontend unit/component tests |
 | @testing-library/react | 16.3.x | React component testing |
 | @testing-library/user-event | 14.5.x | User interaction simulation |
 | Playwright | 1.42.x | End-to-end browser tests |
@@ -159,7 +159,7 @@ All secrets via environment variables (`python-decouple` on backend, `process.en
 | **Wompi as payment gateway** | Colombian market standard; supports card, Nequi, PSE, Bancolombia |
 | **PaymentIntent pattern** | Decouples user checkout from payment confirmation (webhook-driven) |
 | **Huey over Celery** | Lightweight task queue; sufficient for 2 periodic tasks (billing + reminders) |
-| **Zustand over Redux** | Simpler API, smaller bundle, sufficient for 4 stores |
+| **Zustand over Redux** | Simpler API, smaller bundle, sufficient for 12 stores |
 | **Email-based auth (no username)** | Business requirement; custom `AbstractBaseUser` with email as `USERNAME_FIELD` |
 | **SingletonModel for SiteSettings** | Ensures exactly one row; `pk=1` enforced on save |
 | **JWT in cookies (js-cookie)** | Stored client-side for SPA-like navigation in static export |
