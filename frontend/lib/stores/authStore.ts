@@ -113,6 +113,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       Cookies.set('kore_refresh', data.tokens.refresh, { expires: 7 });
       Cookies.set('kore_user', JSON.stringify(user), { expires: 7 });
 
+      /* istanbul ignore else -- @preserve: SSR guard; login only runs from client interactions */
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem('kore_reminder_dismissed');
       }
@@ -162,6 +163,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: () => {
     clearAuthCookies();
+    /* istanbul ignore else -- @preserve: SSR guard; logout only runs from client interactions */
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('kore_reminder_dismissed');
     }

@@ -3,10 +3,14 @@
 
 from django.test import TestCase
 
+from types import SimpleNamespace
+
 from core_app.services.physical_evaluation_calculator import (
+    _age_group,
     classify_index,
     compute_all,
     generate_cross_module_alerts,
+    generate_default_recommendations,
     score_plank,
     score_pushups,
     score_squats,
@@ -264,3 +268,38 @@ class CrossModuleAlertsTests(TestCase):
             posturometry_ctx={'lower_color': 'green', 'upper_color': 'green'},
         )
         self.assertEqual(alerts, {})
+
+
+class AgeGroupEdgeCasesTests(TestCase):
+    """Edge cases for _age_group helper."""
+
+    def test_none_age_defaults_to_18_35_bucket(self):
+        """_age_group treats None age as 30 (18-35 bucket)."""
+        self.assertEqual(_age_group(None), '18_35')
+
+    def test_below_18_clamps_to_18(self):
+        """_age_group clamps sub-18 ages into the 18-35 bucket."""
+        self.assertEqual(_age_group(15), '18_35')
+
+
+class GenerateDefaultRecommendationsTests(TestCase):
+    """Covers the default recommendations builder across available index keys."""
+
+    def test_returns_dict_with_all_five_index_keys(self):
+        """Output includes every pillar key (general/strength/endurance/mobility/balance)."""
+        ev = SimpleNamespace(
+            general_color='green', strength_color='yellow', endurance_color='red',
+            mobility_color='green', balance_color='yellow',
+        )
+        recs = generate_default_recommendations(ev)
+        self.assertEqual(
+            set(recs.keys()),
+            {'general', 'strength', 'endurance', 'mobility', 'balance'},
+        )
+
+    def test_missing_color_attribute_defaults_to_green_bucket(self):
+        """Absent/empty color attributes fall back to the green copy for that key."""
+        ev = SimpleNamespace()
+        recs = generate_default_recommendations(ev)
+        self.assertIn('general', recs)
+        self.assertTrue(recs['general'].get('result', '') != '')

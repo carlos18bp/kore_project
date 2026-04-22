@@ -223,4 +223,16 @@ describe('SessionDetailModal', () => {
     );
     expect(screen.getByText('Cancelando...')).toBeInTheDocument();
   });
+
+  it('keeps cancel confirmation visible when cancelBooking resolves falsy', async () => {
+    const user = userEvent.setup();
+    mockCancelBooking.mockResolvedValue(false);
+    setupStore();
+    render(<SessionDetailModal booking={buildBooking(48)} subscriptionId={2} onClose={onClose} onCanceled={onCanceled} />);
+    await user.click(screen.getByText('Cancelar'));
+    await user.click(screen.getByText('Confirmar cancelación'));
+    expect(mockCancelBooking).toHaveBeenCalledWith(100, '');
+    expect(onCanceled).not.toHaveBeenCalled();
+    expect(screen.getByText('Cancelar sesión')).toBeInTheDocument();
+  });
 });

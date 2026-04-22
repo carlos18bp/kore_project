@@ -263,6 +263,19 @@ describe('profileStore', () => {
       expect(result.success).toBe(false);
       expect(result.error).toBe('Error al cambiar la contraseña.');
     });
+
+    it('uses fallback error for unsupported response value type', async () => {
+      mockedApi.post.mockRejectedValueOnce({
+        response: { data: { meta: { code: 500 } } },
+      });
+      const result = await useProfileStore.getState().changePassword({
+        current_password: 'old',
+        new_password: 'new',
+        new_password_confirm: 'new',
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Error al cambiar la contraseña.');
+    });
   });
 
   describe('syncAuthStoreUser - null customer_profile', () => {

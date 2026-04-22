@@ -530,4 +530,30 @@ class TestGenerateDefaultRecommendations:
         )
         recs = generate_default_recommendations(ev)
         assert 'bmi' in recs
-        assert recs['bmi']['result'] != ''
+
+    def test_bmi_yellow_with_bajo_peso_resolves_to_yellow_low(self):
+        """Yellow BMI with 'Bajo peso' category picks the yellow_low recommendation variant."""
+        ev = SimpleNamespace(
+            bmi_color='yellow', bmi_category='Bajo peso',
+            whr_color='', bf_color='green',
+            waist_risk_color='',
+        )
+        recs = generate_default_recommendations(ev)
+        assert 'por debajo del rango saludable' in recs['bmi']['result']
+
+    def test_bf_yellow_with_muy_bajo_resolves_to_yellow_low(self):
+        """Yellow body-fat with 'Muy bajo' category picks the yellow_low recommendation variant."""
+        ev = SimpleNamespace(
+            bmi_color='green', whr_color='',
+            bf_color='yellow', bf_category='Muy bajo',
+            waist_risk_color='',
+        )
+        recs = generate_default_recommendations(ev)
+        assert 'por debajo del rango saludable' in recs['bf']['result']
+
+
+def test_jackson_pollock_returns_none_when_density_is_non_positive():
+    """Returns None when the formula yields a non-positive density (age=10000, zero skinfolds)."""
+    skinfolds = {'triceps': 0, 'pecho': 0, 'subescapular': 0, 'abdominal': 0}
+    result = calculate_body_fat_jackson_pollock(skinfolds, age=10000, sex='masculino')
+    assert result is None

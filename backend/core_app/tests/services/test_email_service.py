@@ -362,3 +362,41 @@ class TestPasswordResetCodeEmail:
         with patch('core_app.services.email_service.send_template_email', return_value=False):
             result = send_password_reset_code(user, '654321')
         assert result is False
+
+
+class TestSendRegistrationVerificationCode:
+    """Cover send_registration_verification_code function body."""
+
+    def test_delegates_to_send_template_email(self):
+        """send_registration_verification_code calls send_template_email and returns its result."""
+        from core_app.services.email_service import send_registration_verification_code
+        with patch('core_app.services.email_service.send_template_email', return_value=True) as mock_send:
+            result = send_registration_verification_code('user@example.com', '123456', 'Carlos')
+        assert result is True
+        mock_send.assert_called_once()
+        call_kwargs = mock_send.call_args.kwargs
+        assert call_kwargs['template_name'] == 'registration_verification'
+        assert 'user@example.com' in call_kwargs['to_emails']
+
+
+@pytest.mark.django_db
+class TestBuildBookingConfirmationRecipientsDeduplicate:
+    """Cover the deduplication continue-branch in _build_booking_confirmation_recipients."""
+
+    def test_deduplicates_when_customer_and_trainer_share_email(self):
+        """continue branch fires when trainer email equals customer email — list is deduplicated."""
+        from core_app.services.email_service import _build_booking_confirmation_recipients
+        shared_email = 'shared@example.com'
+        customer = User.objects.create_user(email=shared_email, password='p')
+        trainer_user = User.objects.create_user(
+            email=shared_email.upper(), password='p2', role=User.Role.TRAINER,
+        )
+        trainer = TrainerProfile.objects.create(user=trainer_user)
+        package = Package.objects.create(title='Pkg', is_active=True)
+        now = timezone.now()
+        slot = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=24), ends_at=now + timedelta(hours=25),
+        )
+        booking = Booking.objects.create(customer=customer, package=package, slot=slot, trainer=trainer)
+        recipients = _build_booking_confirmation_recipients(booking)
+        assert recipients.count(shared_email) == 1

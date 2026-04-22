@@ -461,6 +461,20 @@ describe('bookingStore', () => {
       expect(result).toBeNull();
       expect(useBookingStore.getState().error).toBe('No se pudo crear la reserva.');
     });
+
+    it('falls through to generic error when detail is an object', async () => {
+      mockedApi.post.mockRejectedValueOnce({ response: { data: { detail: { code: 500 } } } });
+      const result = await useBookingStore.getState().createBooking({ package_id: 1, slot_id: 5 });
+      expect(result).toBeNull();
+      expect(useBookingStore.getState().error).toBe('No se pudo crear la reserva.');
+    });
+
+    it('falls through to generic error when non_field_errors is an object', async () => {
+      mockedApi.post.mockRejectedValueOnce({ response: { data: { non_field_errors: { reason: 'x' } } } });
+      const result = await useBookingStore.getState().createBooking({ package_id: 1, slot_id: 5 });
+      expect(result).toBeNull();
+      expect(useBookingStore.getState().error).toBe('No se pudo crear la reserva.');
+    });
   });
 
   // ----------------------------------------------------------------

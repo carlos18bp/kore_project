@@ -3,6 +3,7 @@
 
 
 from core_app.services.nutrition_calculator import (
+    RECOMMENDATION_TEXTS,
     _score_breakfast,
     _score_fruit,
     _score_meals,
@@ -13,7 +14,18 @@ from core_app.services.nutrition_calculator import (
     _score_water,
     classify_score,
     compute_all,
+    generate_default_recommendation,
 )
+
+
+class TestGenerateDefaultRecommendation:
+    def test_red_color_returns_red_bucket(self):
+        """generate_default_recommendation returns the red-bucket copy for red."""
+        assert generate_default_recommendation('red') == RECOMMENDATION_TEXTS['red']
+
+    def test_unknown_color_falls_back_to_red(self):
+        """generate_default_recommendation falls back to red bucket for unknown colors."""
+        assert generate_default_recommendation('lime') == RECOMMENDATION_TEXTS['red']
 
 
 class TestScoreMeals:

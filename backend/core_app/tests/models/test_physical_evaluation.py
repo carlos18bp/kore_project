@@ -153,3 +153,49 @@ class TestPhysicalEvaluationMeta:
         trainer.delete()
         ev.refresh_from_db()
         assert ev.trainer is None
+
+
+@pytest.mark.django_db
+def test_get_posturometry_context_returns_none_when_no_posturometry(trainer, customer):
+    """_get_posturometry_context returns None when no posturometry row exists for the customer."""
+    ev = PhysicalEvaluation.objects.create(customer=customer, trainer=trainer, squats_reps=10)
+    assert ev._get_posturometry_context() is None
+
+
+@pytest.mark.django_db
+def test_get_posturometry_context_returns_dict_when_posturometry_exists(trainer, customer):
+    """_get_posturometry_context returns color/findings dict when a posturometry row exists."""
+    from core_app.models.posturometry import PosturometryEvaluation
+    PosturometryEvaluation.objects.create(
+        customer=customer, trainer=trainer,
+        anterior_data={'head': {'deviation': 'none'}},
+        lower_color='green', central_color='yellow',
+    )
+    ev = PhysicalEvaluation.objects.create(customer=customer, trainer=trainer, squats_reps=20)
+    ctx = ev._get_posturometry_context()
+    assert ctx is not None
+    assert 'lower_color' in ctx
+
+
+@pytest.mark.django_db
+def test_fill_default_recommendations_skips_when_already_set(trainer, customer):
+    """_fill_default_recommendations returns early without overwriting existing recommendations."""
+    ev = PhysicalEvaluation.objects.create(
+        customer=customer, trainer=trainer, squats_reps=30,
+    )
+    existing = ev.recommendations.copy()
+    ev._fill_default_recommendations()
+    assert ev.recommendations == existing
+
+
+@pytest.mark.django_db
+def test_fill_default_recommendations_populates_when_empty(trainer, customer):
+    """_fill_default_recommendations fills recommendations when the field is empty."""
+    ev = PhysicalEvaluation.objects.create(
+        customer=customer, trainer=trainer,
+        squats_reps=30, pushups_reps=20, plank_seconds=60,
+        walk_meters=500, unipodal_seconds=30,
+    )
+    ev.recommendations = {}
+    ev._fill_default_recommendations()
+    assert ev.recommendations

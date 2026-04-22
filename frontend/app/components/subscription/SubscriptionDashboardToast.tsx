@@ -35,6 +35,7 @@ export default function SubscriptionDashboardToast() {
   }, [fetchSubscriptions]);
 
   useEffect(() => {
+    /* istanbul ignore else -- @preserve: defensive SSR guard; useEffect only fires client-side */
     if (typeof window !== 'undefined') {
       const dismissedValue = sessionStorage.getItem('kore_dashboard_toast_dismissed');
       if (dismissedValue === 'expiry' || dismissedValue === 'billing_failed') {
@@ -47,6 +48,7 @@ export default function SubscriptionDashboardToast() {
 
   const handleDismiss = (type: ToastType) => {
     setDismissed(type);
+    /* istanbul ignore else -- @preserve: defensive SSR guard; only fires from client click handlers */
     if (typeof window !== 'undefined' && type) {
       sessionStorage.setItem('kore_dashboard_toast_dismissed', type);
     }

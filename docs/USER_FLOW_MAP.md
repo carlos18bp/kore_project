@@ -1,7 +1,7 @@
 # User Flow Map
 
-Version: 1.5
-Last Updated: 2026-04-09
+Version: 1.6
+Last Updated: 2026-04-22
 Description: End-to-end user flows for the Kore frontend, grouped by role with branches for form variants and alternate outcomes.
 Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, frontend/e2e specs, frontend/app routes. Canonical customer subscription URL is `/subscription` (flow IDs `my-programs-*` are historical).
 
@@ -585,6 +585,27 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Description: Recover from a failed recurring billing attempt by updating the payment method via the dashboard toast.
 - E2E Coverage: Covered (frontend/e2e/app/subscription-billing-failed-recovery.spec.ts)
 
+### subscription-gated-routes: Subscription Gated Routes
+- Module: subscription
+- Priority: P2
+- Route: any gated `(app)` route (e.g. /book-session, /my-diagnosis)
+- Roles: user
+- Description: Access control enforced by `(app)/layout.tsx`: customers whose subscription list is non-empty and has no active subscription are redirected to /subscription. Only /subscription and /profile remain accessible without an active subscription.
+- E2E Coverage: Covered (frontend/e2e/app/subscription-gated-routes.spec.ts)
+
+**Steps**
+1. Authenticated customer whose subscriptions are all expired/canceled navigates to a gated route (e.g. /book-session).
+2. `(app)/layout.tsx` detects `subscriptions.length > 0 && !hasActiveSubscription && !ALLOWED_WITHOUT_SUBSCRIPTION.includes(pathname)`.
+3. `router.replace('/subscription')` fires and the page redirects.
+4. Subscription page renders with the expired subscription details.
+
+**Branches / Variations**
+- /subscription is accessible — no redirect.
+- /profile is accessible — no redirect.
+- User with **no subscriptions at all** (`subscriptions.length === 0`): layout skips the gating check entirely, allowing access to all routes (new users before their first purchase).
+- User with an **active** subscription: `hasActiveSubscription = true`, no redirect.
+- Once the customer purchases or renews a subscription (`status === 'active'`), the gating resolves on the next layout effect cycle.
+
 **Steps**
 1. Backend recurring billing fails for an active subscription; backend marks the subscription as `pending_payment_update`.
 2. User opens /dashboard.
@@ -912,6 +933,28 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Roles: user
 - Description: Record a daily mood (1-10) entry from the MoodCheckIn modal that auto-opens on the profile page when no mood has been logged today.
 - E2E Coverage: Covered (frontend/e2e/app/profile-mood-entry.spec.ts)
+
+### profile-completion-cta: Profile Completion CTA
+- Module: profile
+- Priority: P2
+- Route: any `(app)` authenticated route (typically /dashboard on first login)
+- Roles: user
+- Description: Onboarding modal that auto-appears for customers with `profile_completed = false`. Lists missing fields and prompts the user to navigate to /profile.
+- E2E Coverage: Covered (frontend/e2e/app/profile-completion-cta.spec.ts)
+
+**Steps**
+1. Customer with incomplete profile opens any authenticated page (e.g. /dashboard).
+2. `ProfileCompletionCTA` component detects `profile.customer_profile.profile_completed === false`.
+3. Modal appears with heading "Queremos conocerte mejor" and a list of missing fields.
+4. Customer clicks "Completar mi perfil" → navigates to /profile.
+5. Modal auto-hides when pathname changes to /profile.
+
+**Branches / Variations**
+- "Ahora no" button dismisses the modal without navigation; the modal does not re-appear in the same page lifecycle (shownRef prevents re-trigger).
+- Clicking the backdrop also dismisses the modal.
+- Modal does not appear on /profile even when profile is incomplete (suppress logic in component).
+- Modal is not rendered for trainer users (conditional in `(app)/layout.tsx`).
+- Once `profile_completed = true`, the modal never appears regardless of route.
 
 **Steps**
 1. Authenticated user with `profile_completed=true` and no mood registered today opens /profile.
@@ -1289,3 +1332,5 @@ These elements are present across multiple routes and affect the user experience
 | trainer-client-parq | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-parq.spec.ts |
 | trainer-client-physical-eval | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-physical-eval.spec.ts |
 | trainer-client-posturometry | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-posturometry.spec.ts |
+| profile-completion-cta | user | P2 | Covered | frontend/e2e/app/profile-completion-cta.spec.ts |
+| subscription-gated-routes | user | P2 | Covered | frontend/e2e/app/subscription-gated-routes.spec.ts |

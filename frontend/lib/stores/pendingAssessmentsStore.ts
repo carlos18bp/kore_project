@@ -5,6 +5,7 @@ import { api } from '@/lib/services/http';
 const LS_PREFIX = 'kore_seen_';
 
 function getSeenAt(key: string): string | null {
+  /* istanbul ignore if -- @preserve: SSR guard; store methods only run client-side */
   if (typeof window === 'undefined') return null;
   return localStorage.getItem(`${LS_PREFIX}${key}`);
 }
@@ -78,6 +79,7 @@ export const usePendingAssessmentsStore = create<PendingAssessmentsState>((set, 
   },
 
   markSeen: (key: string) => {
+    /* istanbul ignore if -- @preserve: SSR guard; markSeen only fires from client interactions */
     if (typeof window === 'undefined') return;
     localStorage.setItem(`${LS_PREFIX}${key}`, new Date().toISOString());
     // Update the corresponding flag

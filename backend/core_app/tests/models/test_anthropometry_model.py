@@ -166,3 +166,17 @@ class TestAnthropometryEvaluationFemale:
         assert ev.body_fat_pct is not None
         assert ev.waist_hip_ratio is not None
         assert ev.bmi is not None
+
+
+@pytest.mark.django_db
+def test_age_defaults_to_30_when_no_date_of_birth(trainer):
+    """age_at_evaluation defaults to 30 when the customer profile has no date_of_birth."""
+    user = User.objects.create_user(
+        email='no-dob@test.com', password='pass', role=User.Role.CUSTOMER,
+    )
+    user.customer_profile.date_of_birth = None
+    user.customer_profile.save()
+    ev = AnthropometryEvaluation.objects.create(
+        customer=user, trainer=trainer, weight_kg=70, height_cm=175,
+    )
+    assert ev.age_at_evaluation == 30

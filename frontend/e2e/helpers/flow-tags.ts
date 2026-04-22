@@ -33,6 +33,7 @@ export const FlowTags = {
   SUBSCRIPTION_EXPIRY_REMINDER: ['@flow:subscription-expiry-reminder', '@module:subscription', '@priority:P2'],
   SUBSCRIPTION_CANCEL_FLOW: ['@flow:subscription-cancel-flow', '@module:subscription', '@priority:P2'],
   SUBSCRIPTION_BILLING_FAILED_RECOVERY: ['@flow:subscription-billing-failed-recovery', '@module:subscription', '@priority:P2'],
+  SUBSCRIPTION_GATED_ROUTES: ['@flow:subscription-gated-routes', '@module:subscription', '@priority:P2'],
 
   CHECKOUT_FLOW: ['@flow:checkout-flow', '@module:checkout', '@priority:P1'],
   CHECKOUT_GUEST_REDIRECT: ['@flow:checkout-guest-redirect', '@module:checkout', '@priority:P2'],
@@ -54,6 +55,7 @@ export const FlowTags = {
   PROFILE_MANAGEMENT: ['@flow:profile-management', '@module:profile', '@priority:P1'],
   PROFILE_PASSWORD_CHANGE: ['@flow:profile-password-change', '@module:profile', '@priority:P2'],
   PROFILE_MOOD_ENTRY: ['@flow:profile-mood-entry', '@module:profile', '@priority:P3'],
+  PROFILE_COMPLETION_CTA: ['@flow:profile-completion-cta', '@module:profile', '@priority:P2'],
 
   CUSTOMER_DIAGNOSIS: ['@flow:customer-diagnosis', '@module:assessments', '@priority:P2'],
   CUSTOMER_NUTRITION: ['@flow:customer-nutrition', '@module:assessments', '@priority:P2'],

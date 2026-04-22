@@ -408,6 +408,22 @@ class TestBookingSerializerValidation:
         )
         assert serializer.is_valid(), serializer.errors
 
+    def test_slot_within_16_hours_rejected(self, customer, package):
+        """Serializer rejects slots starting within 16 hours of now."""
+        now = FIXED_NOW
+        slot = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=8),
+            ends_at=now + timedelta(hours=9),
+        )
+        request = _make_request(customer)
+        serializer = BookingSerializer(
+            data={'package_id': package.id, 'slot_id': slot.id},
+            context={'request': request},
+        )
+        assert not serializer.is_valid()
+        assert 'slot_id' in serializer.errors
+        assert '16 horas' in str(serializer.errors['slot_id'])
+
     def test_validate_without_slot_in_attrs(self, customer, package):
         """Validate with no slot in attrs skips slot checks (branch 106→109)."""
         request = _make_request(customer)

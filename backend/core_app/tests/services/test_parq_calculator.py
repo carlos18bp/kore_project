@@ -4,9 +4,21 @@
 
 from core_app.services.parq_calculator import (
     PARQ_QUESTION_KEYS,
+    RECOMMENDATION_TEXTS,
     classify_risk,
     compute_all,
+    generate_default_recommendation,
 )
+
+
+class TestGenerateDefaultRecommendation:
+    def test_green_color_returns_green_bucket(self):
+        """generate_default_recommendation returns the green-bucket copy for green."""
+        assert generate_default_recommendation('green') == RECOMMENDATION_TEXTS['green']
+
+    def test_unknown_color_falls_back_to_red(self):
+        """generate_default_recommendation falls back to red bucket for unknown colors."""
+        assert generate_default_recommendation('purple') == RECOMMENDATION_TEXTS['red']
 
 
 class TestClassifyRisk:

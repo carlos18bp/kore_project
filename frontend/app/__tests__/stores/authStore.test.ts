@@ -214,6 +214,24 @@ describe('authStore', () => {
       });
       expect(result).toEqual({ success: false, error: 'Error al registrar la cuenta' });
     });
+
+    it('falls back to generic error for non-string non-array response value', async () => {
+      const axiosError = new AxiosError('Request failed', 'ERR_BAD_REQUEST');
+      axiosError.response = {
+        data: { meta: { code: 500 } },
+        status: 400,
+        statusText: 'Bad Request',
+        headers: {},
+        config: { headers: new AxiosHeaders() },
+      };
+      mockedApi.post.mockRejectedValueOnce(axiosError);
+
+      const result = await useAuthStore.getState().register({
+        email: 'x@kore.com', password: 'p', password_confirm: 'p',
+        first_name: 'A', last_name: 'B',
+      });
+      expect(result).toEqual({ success: false, error: 'Error al registrar la cuenta' });
+    });
   });
 
   describe('hydrate', () => {
@@ -240,6 +258,13 @@ describe('authStore', () => {
       const state = useAuthStore.getState();
       expect(state.hydrated).toBe(true);
       expect(mockedApi.get).not.toHaveBeenCalled();
+    });
+
+    it('returns early without re-running when already hydrated', () => {
+      useAuthStore.setState({ hydrated: true });
+      useAuthStore.getState().hydrate();
+      expect(mockedApi.get).not.toHaveBeenCalled();
+      expect(mockedCookies.get).not.toHaveBeenCalled();
     });
 
     it('restores session from valid cookies after backend profile check', async () => {

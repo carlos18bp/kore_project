@@ -342,6 +342,39 @@ describe('anthropometryStore', () => {
         expect.anything(),
       );
     });
+
+    it('sends evaluation_date as undefined when empty string', async () => {
+      useAnthropometryStore.setState({ evaluations: [MOCK_EVALUATION] });
+      mockedApi.put.mockResolvedValueOnce({ data: MOCK_EVALUATION });
+      const form = { ...MOCK_FORM_DATA, evaluation_date: '' };
+      await useAnthropometryStore.getState().fullUpdateEvaluation(10, 1, form);
+      const payload = mockedApi.put.mock.calls[0][1] as Record<string, unknown>;
+      expect(payload.evaluation_date).toBeUndefined();
+    });
+
+    it('preserves non-matching evaluations in state when updating one', async () => {
+      const other = { ...MOCK_EVALUATION, id: 2, notes: 'Other client' };
+      useAnthropometryStore.setState({ evaluations: [MOCK_EVALUATION, other] });
+      const updated = { ...MOCK_EVALUATION, notes: 'Replaced' };
+      mockedApi.put.mockResolvedValueOnce({ data: updated });
+      await useAnthropometryStore.getState().fullUpdateEvaluation(10, 1, MOCK_FORM_DATA);
+      const { evaluations } = useAnthropometryStore.getState();
+      expect(evaluations.find((e) => e.id === 1)?.notes).toBe('Replaced');
+      expect(evaluations.find((e) => e.id === 2)?.notes).toBe('Other client');
+    });
+  });
+
+  describe('updateEvaluation branch coverage', () => {
+    it('preserves non-matching evaluations in state when patching one', async () => {
+      const other = { ...MOCK_EVALUATION, id: 2, notes: 'Other client' };
+      useAnthropometryStore.setState({ evaluations: [MOCK_EVALUATION, other] });
+      const updated = { ...MOCK_EVALUATION, notes: 'Patched' };
+      mockedApi.patch.mockResolvedValueOnce({ data: updated });
+      await useAnthropometryStore.getState().updateEvaluation(10, 1, { notes: 'Patched' });
+      const { evaluations } = useAnthropometryStore.getState();
+      expect(evaluations.find((e) => e.id === 1)?.notes).toBe('Patched');
+      expect(evaluations.find((e) => e.id === 2)?.notes).toBe('Other client');
+    });
   });
 
   describe('fetchMyEvaluations', () => {

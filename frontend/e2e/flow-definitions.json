@@ -1,6 +1,6 @@
 {
-  "version": "1.0.3",
-  "lastUpdated": "2026-04-09",
+  "version": "1.0.4",
+  "lastUpdated": "2026-04-22",
   "documentation": "Step-by-step user journeys (branches, variations) are maintained in docs/USER_FLOW_MAP.md. This file defines flow IDs and metadata for Playwright @flow: tags and e2e/reporters/flow-coverage-reporter.mjs.",
   "flows": {
     "auth-login": {
@@ -422,6 +422,20 @@
       "priority": "P3",
       "roles": ["user"],
       "description": "Record daily mood (1-10) entry from the MoodCheckIn modal that opens on the profile page."
+    },
+    "profile-completion-cta": {
+      "name": "Profile Completion CTA",
+      "module": "profile",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "Onboarding modal that prompts new customers with incomplete profiles to navigate to /profile and complete their information."
+    },
+    "subscription-gated-routes": {
+      "name": "Subscription Gated Routes",
+      "module": "subscription",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "Access control enforced by (app)/layout.tsx: customers without an active subscription are redirected to /subscription when accessing gated routes; /subscription and /profile remain accessible."
     }
   }
 }
