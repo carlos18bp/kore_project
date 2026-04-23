@@ -62,6 +62,7 @@ test-reports/
 /backend/coverage_*.json
 /backend/pytest-results.xml
 /.pytest_cache/
+/coverage-report.md
 
 # IDE & tooling
 .windsurf/plans/
@@ -73,6 +74,3 @@ test-reports/
 # OS
 .DS_Store
 Thumbs.db
-
-# Windsuft
-.windsurf/plans/.claude/settings.local.json
