@@ -57,7 +57,11 @@ jobs:
         run: python manage.py migrate --no-input
 
       - name: Run pytest with coverage
-        run: pytest -v --tb=short --cov-report=json:coverage.json --junitxml=pytest-results.xml
+        run: pytest -v --tb=short --junitxml=pytest-results.xml --cov=core_app --cov-branch --cov-report=json:coverage.json
+
+      - name: Backend coverage summary
+        if: always()
+        run: python3 "$GITHUB_WORKSPACE/scripts/ci/backend-job-summary.py" >> "$GITHUB_STEP_SUMMARY" || true
 
       - name: Upload backend coverage
         if: always()
@@ -101,22 +105,27 @@ jobs:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
 
       - name: Run Jest tests with coverage
-        run: npm run test:coverage -- --ci --forceExit --json --outputFile=test-results.json
+        run: |
+          NODE_OPTIONS='--no-deprecation' npx jest --config jest.config.cjs --coverage --ci --forceExit --json --outputFile=jest-results.json || true
+          node scripts/coverage-summary.cjs
+          node --input-type=commonjs -e "const r=require('./jest-results.json'); if(!r.success) process.exit(1);"
+
+      - name: Copy test results alongside coverage
+        if: always()
+        run: cp jest-results.json coverage/ 2>/dev/null || true
+
+      - name: Frontend unit coverage summary
+        if: always()
+        run: node "$GITHUB_WORKSPACE/scripts/ci/frontend-job-summary.cjs" >> "$GITHUB_STEP_SUMMARY" || true
 
       - name: Upload frontend unit coverage
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-frontend-unit
-          path: frontend/coverage/coverage-summary.json
-          retention-days: 5
-
-      - name: Upload frontend unit test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-frontend-unit
-          path: frontend/test-results.json
+          path: |
+            frontend/coverage/coverage-summary.json
+            frontend/coverage/jest-results.json
           retention-days: 5
 
   # ───────────────────────────────────────────
@@ -211,13 +220,20 @@ jobs:
         run: npx playwright merge-reports --reporter='json,./e2e/reporters/flow-coverage-reporter.mjs' all-blob-reports
         env:
           CI: 'true'
+          PLAYWRIGHT_JSON_OUTPUT_NAME: e2e-results/playwright-results.json
+
+      - name: E2E flow coverage — job summary + P1 missing gate
+        if: always()
+        run: npm run ci:e2e-flow-summary
 
       - name: Upload E2E flow coverage
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-frontend-e2e
-          path: frontend/e2e-results/flow-coverage.json
+          path: |
+            frontend/e2e-results/flow-coverage.json
+            frontend/e2e-results/playwright-results.json
           retention-days: 5
 
   # ───────────────────────────────────────────
@@ -266,13 +282,6 @@ jobs:
         with:
           name: test-results-backend
           path: coverage-artifacts/test-results-backend
-        continue-on-error: true
-
-      - name: Download frontend unit test results
-        uses: actions/download-artifact@v4
-        with:
-          name: test-results-frontend-unit
-          path: coverage-artifacts/test-results-frontend-unit
         continue-on-error: true
 
       - name: Generate coverage summary

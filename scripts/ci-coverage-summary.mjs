@@ -25,7 +25,7 @@ const PATHS = {
   unit: 'coverage-artifacts/frontend-unit/coverage-summary.json',
   e2e: 'coverage-artifacts/frontend-e2e/flow-coverage.json',
   backendResults: 'coverage-artifacts/test-results-backend/pytest-results.xml',
-  unitResults: 'coverage-artifacts/test-results-frontend-unit/test-results.json',
+  unitResults: 'coverage-artifacts/frontend-unit/jest-results.json',
 };
 const OUTPUT = 'coverage-report.md';
 

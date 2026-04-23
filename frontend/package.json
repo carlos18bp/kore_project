@@ -16,7 +16,8 @@
     "test:e2e:ui": "playwright test --ui",
     "e2e:coverage": "FORCE_COLOR=true playwright test",
     "e2e:clean": "rm -rf test-results playwright-report coverage-e2e .nyc_output blob-report monocart-report",
-    "check:e2e-flow-sync": "node scripts/check-flow-definitions-sync.mjs"
+    "check:e2e-flow-sync": "node scripts/check-flow-definitions-sync.mjs",
+    "ci:e2e-flow-summary": "node scripts/report-e2e-flow-coverage-ci.mjs"
   },
   "dependencies": {
     "@types/react-google-recaptcha": "^2.1.9",
