@@ -32,12 +32,12 @@ test.describe('Programs Page — Guest', { tag: [...FlowTags.PUBLIC_PROGRAMS, Ro
     await expect(page.getByText('Programa Básico')).toBeVisible();
   });
 
-  test('switches to Semi-personalizado tab and shows its plans', async ({ page }) => {
+  test('switches to Pareja tab and shows its plans', async ({ page }) => {
     await openProgramsPage(page);
     await expect(page.getByText('Sesión Individual')).toBeVisible({ timeout: 10_000 });
-    await page.getByRole('button', { name: 'Semi-personalizado', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Semi-personalizado FLW' })).toBeVisible();
-    await expect(page.getByText('Evolucionar en compañía').first()).toBeVisible();
+    await page.getByRole('button', { name: 'Pareja', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Pareja FLW' })).toBeVisible();
+    await expect(page.getByText('Entrena en pareja. Progresa juntos.').first()).toBeVisible();
     await expect(page.getByText('Programa Inicial')).toBeVisible();
   });
 

@@ -34,7 +34,7 @@ describe('PricingTable', () => {
   it('renders the three program tab buttons', async () => {
     render(<PricingTable />);
     expect(screen.getByRole('button', { name: 'Personalizado' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Semi-personalizado' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pareja' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Terapéutico' })).toBeInTheDocument();
   });
 
@@ -47,14 +47,14 @@ describe('PricingTable', () => {
     });
   });
 
-  it('switches to Semi-personalizado plans when tab is clicked', async () => {
+  it('switches to Pareja plans when tab is clicked', async () => {
     render(<PricingTable />);
     const user = userEvent.setup();
 
     await waitFor(() => expect(screen.getByText('Sesión Individual')).toBeInTheDocument());
-    await user.click(screen.getByRole('button', { name: 'Semi-personalizado' }));
+    await user.click(screen.getByRole('button', { name: 'Pareja' }));
 
-    expect(screen.getByText('Semi-personalizado FLW')).toBeInTheDocument();
+    expect(screen.getByText('Pareja FLW')).toBeInTheDocument();
     expect(screen.getByText('Programa Inicial')).toBeInTheDocument();
   });
 
