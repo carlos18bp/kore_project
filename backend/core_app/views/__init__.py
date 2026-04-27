@@ -1,5 +1,6 @@
 from .auth_views import (
     change_password,
+    complete_invite_registration,
     get_user_profile,
     login_user,
     mood_view,
@@ -36,6 +37,7 @@ __all__ = [
     'FAQCategoryViewSet',
     'FAQItemViewSet',
     'change_password',
+    'complete_invite_registration',
     'get_user_profile',
     'login_user',
     'mood_view',

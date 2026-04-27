@@ -8,7 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from core_app.models import AvailabilitySlot, Booking, Subscription
+from core_app.models import AvailabilitySlot, Booking, Subscription, SubscriptionGuest
 from core_app.permissions import IsAdminRole, is_admin_user
 from core_app.serializers.booking_serializers import BookingSerializer
 from core_app.services.booking_rules import (
@@ -24,6 +24,48 @@ from core_app.services.email_service import (
 
 CANCEL_RESCHEDULE_HOURS = 24
 BUSINESS_TIMEZONE = ZoneInfo('America/Bogota')
+
+
+def _maybe_create_guest_booking(host_booking):
+    """Auto-create a parallel booking for an accepted guest on a duo plan."""
+    try:
+        gl = host_booking.subscription.guest_link
+    except (AttributeError, Exception):
+        return
+    if gl.status != SubscriptionGuest.STATUS_ACCEPTED or not gl.guest_id:
+        return
+    guest_booking = Booking.objects.create(
+        customer=gl.guest,
+        package=host_booking.package,
+        slot=host_booking.slot,
+        trainer=host_booking.trainer,
+        subscription=None,
+        status=Booking.Status.PENDING,
+    )
+    send_booking_confirmation(guest_booking)
+
+
+def _cancel_guest_booking_for_slot(host_booking):
+    """Cancel the guest's booking in the same slot when the host cancels or reschedules."""
+    try:
+        gl = host_booking.subscription.guest_link
+    except (AttributeError, Exception):
+        return
+    if not gl.guest_id:
+        return
+    guest_booking = (
+        Booking.objects.filter(
+            slot=host_booking.slot,
+            customer=gl.guest,
+        )
+        .exclude(status=Booking.Status.CANCELED)
+        .first()
+    )
+    if guest_booking:
+        guest_booking.status = Booking.Status.CANCELED
+        guest_booking.canceled_reason = 'Sesión cancelada por el anfitrión.'
+        guest_booking.save(update_fields=['status', 'canceled_reason', 'updated_at'])
+        send_booking_cancellation(guest_booking)
 
 
 def _local_day_bounds(day):
@@ -83,14 +125,23 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         return qs
 
-    def perform_create(self, serializer):
-        """Delegate creation to the serializer, then send confirmation email.
+    def create(self, request, *args, **kwargs):
+        """Block active guests from creating bookings directly."""
+        if SubscriptionGuest.objects.filter(
+            guest=request.user,
+            status=SubscriptionGuest.STATUS_ACCEPTED,
+        ).exists():
+            return Response(
+                {'detail': 'Los invitados no pueden agendar sesiones directamente.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().create(request, *args, **kwargs)
 
-        Args:
-            serializer: Validated BookingSerializer instance.
-        """
+    def perform_create(self, serializer):
+        """Save booking, send confirmation, and auto-create guest booking if duo plan."""
         booking = serializer.save()
         send_booking_confirmation(booking)
+        _maybe_create_guest_booking(booking)
 
     # ------------------------------------------------------------------
     # Custom actions
@@ -142,6 +193,9 @@ class BookingViewSet(viewsets.ModelViewSet):
                 sub = Subscription.objects.select_for_update().get(pk=booking.subscription_id)
                 sub.sessions_used = db_models.F('sessions_used') - 1
                 sub.save(update_fields=['sessions_used', 'updated_at'])
+
+            # Cascade cancel to guest booking if duo plan
+            _cancel_guest_booking_for_slot(booking)
 
         booking.refresh_from_db()
         send_booking_cancellation(booking)
@@ -277,6 +331,10 @@ class BookingViewSet(viewsets.ModelViewSet):
                 subscription=booking.subscription,
                 status=Booking.Status.PENDING,
             )
+
+            # Cascade reschedule to guest if duo plan
+            _cancel_guest_booking_for_slot(booking)
+            _maybe_create_guest_booking(new_booking)
 
         send_booking_reschedule(booking, new_booking)
         serializer = self.get_serializer(new_booking)

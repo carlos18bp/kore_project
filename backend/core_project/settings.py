@@ -214,6 +214,7 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='KÓRE <noreply@korehealths.com>')
+FRONTEND_BASE_URL = config('FRONTEND_BASE_URL', default='https://korehealths.com')
 
 
 # Wompi payment gateway configuration

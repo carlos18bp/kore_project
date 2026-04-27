@@ -349,6 +349,48 @@ def send_password_reset_code(user, code):
 
 
 # ------------------------------------------------------------------
+# Duo invitation sender
+# ------------------------------------------------------------------
+
+def send_duo_invitation(subscription_guest, host_name, accept_url):
+    """Send a duo plan invitation email to the invited guest.
+
+    Args:
+        subscription_guest: SubscriptionGuest instance.
+        host_name: Display name of the host user.
+        accept_url: Full URL the guest clicks to accept the invitation.
+
+    Returns:
+        bool: True if the email was sent successfully.
+    """
+    package_title = subscription_guest.subscription.package.title
+
+    success = send_template_email(
+        template_name='duo_invitation',
+        subject=f'{host_name} te invita a entrenar juntos — KÓRE',
+        to_emails=[subscription_guest.invited_email],
+        context={
+            'host_name': host_name,
+            'invited_email': subscription_guest.invited_email,
+            'package_title': package_title,
+            'accept_url': accept_url,
+        },
+    )
+
+    Notification.objects.create(
+        notification_type=Notification.Type.DUO_INVITATION,
+        status=Notification.Status.SENT if success else Notification.Status.FAILED,
+        sent_to=subscription_guest.invited_email,
+        payload={
+            'subscription_id': subscription_guest.subscription_id,
+            'host_name': host_name,
+        },
+    )
+
+    return success
+
+
+# ------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------
 

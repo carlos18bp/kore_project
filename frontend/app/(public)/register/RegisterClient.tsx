@@ -6,6 +6,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ReCAPTCHA from 'react-google-recaptcha';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
+import Cookies from 'js-cookie';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { api } from '@/lib/services/http';
 
@@ -41,6 +42,7 @@ export default function RegisterClient() {
   const { isAuthenticated, hydrate, hydrated } = useAuthStore();
 
   const packageId = searchParams.get('package');
+  const inviteToken = searchParams.get('invite_token');
 
   useHeroAnimation(sectionRef);
 
@@ -128,7 +130,7 @@ export default function RegisterClient() {
       return;
     }
 
-    if (!packageId) {
+    if (!packageId && !inviteToken) {
       setError('Selecciona un programa antes de continuar al pago.');
       setIsLoading(false);
       router.push('/programs');
@@ -187,6 +189,18 @@ export default function RegisterClient() {
         '/auth/verify-registration/',
         { pre_registration_token: preRegistrationToken, code },
       );
+
+      if (inviteToken) {
+        const { data: inviteData } = await api.post('/auth/complete-invite-registration/', {
+          registration_token: data.registration_token,
+          invite_token: inviteToken,
+        });
+        Cookies.set('kore_token', inviteData.tokens.access, { expires: 7 });
+        Cookies.set('kore_refresh', inviteData.tokens.refresh, { expires: 7 });
+        Cookies.set('kore_user', JSON.stringify(inviteData.user), { expires: 7 });
+        router.push('/subscription');
+        return;
+      }
 
       if (typeof window !== 'undefined' && packageId) {
         sessionStorage.setItem(CHECKOUT_REGISTRATION_TOKEN_KEY, data.registration_token);

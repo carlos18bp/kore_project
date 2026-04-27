@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from core_app.models import (
-    MoodEntry, PasswordResetCode, RegistrationVerificationCode, User, WeightEntry,
+    MoodEntry, PasswordResetCode, RegistrationVerificationCode, SubscriptionGuest, User, WeightEntry,
 )
 from core_app.serializers import LoginSerializer, RegisterUserSerializer, UserSerializer
 from core_app.serializers.profile_serializers import (
@@ -202,6 +202,83 @@ def register_user(request):
         'tokens': {'refresh': str(refresh), 'access': str(refresh.access_token)},
     }
     return Response(data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def complete_invite_registration(request):
+    """Create a user account from a pre-verified registration token and accept a duo invite.
+
+    Accepts: { "registration_token": "...", "invite_token": "..." }
+
+    Creates the user if the email is new, then accepts the SubscriptionGuest invitation.
+    Returns JWT tokens + user data so the frontend can auto-login.
+    """
+    reg_token = str(request.data.get('registration_token', '')).strip()
+    invite_token = str(request.data.get('invite_token', '')).strip()
+
+    if not reg_token or not invite_token:
+        return Response(
+            {'detail': 'Los campos registration_token e invite_token son obligatorios.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    max_age = int(getattr(settings, 'REGISTRATION_TOKEN_MAX_AGE_SECONDS', 3600))
+    try:
+        payload = signing.loads(reg_token, salt=REGISTRATION_TOKEN_SALT, max_age=max_age)
+    except signing.SignatureExpired:
+        return Response(
+            {'detail': 'El registro expiró. Completa el formulario de nuevo.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except signing.BadSignature:
+        return Response(
+            {'detail': 'El registro es inválido.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        guest_link = SubscriptionGuest.objects.select_related('subscription__customer').get(
+            token=invite_token,
+        )
+    except SubscriptionGuest.DoesNotExist:
+        return Response({'detail': 'Invitación no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if guest_link.status == SubscriptionGuest.STATUS_REVOKED:
+        return Response({'detail': 'Esta invitación ha sido revocada.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    email = str(payload.get('email', '')).strip().lower()
+    if email != guest_link.invited_email.lower():
+        return Response(
+            {'detail': 'El correo del registro no coincide con la invitación.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    user, created = User.objects.get_or_create(
+        email=email,
+        defaults={
+            'first_name': str(payload.get('first_name', '')).strip(),
+            'last_name': str(payload.get('last_name', '')).strip(),
+            'phone': str(payload.get('phone', '')).strip(),
+            'role': User.Role.CUSTOMER,
+            'is_active': True,
+        },
+    )
+    if created:
+        user.password = str(payload.get('password_hash', ''))
+        user.save(update_fields=['password'])
+
+    guest_link.guest = user
+    guest_link.status = SubscriptionGuest.STATUS_ACCEPTED
+    guest_link.accepted_at = timezone.now()
+    guest_link.save(update_fields=['guest', 'status', 'accepted_at', 'updated_at'])
+
+    refresh = RefreshToken.for_user(user)
+    return Response({
+        'user': UserSerializer(user).data,
+        'tokens': {'refresh': str(refresh), 'access': str(refresh.access_token)},
+        'subscription_id': guest_link.subscription_id,
+    }, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])

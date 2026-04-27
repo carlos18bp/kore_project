@@ -12,7 +12,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from core_app.models import Package, Payment, PaymentIntent, Subscription, User
+from django.db.models import Q
+
+from core_app.models import Package, Payment, PaymentIntent, Subscription, SubscriptionGuest, User
 from core_app.permissions import is_admin_user
 from core_app.serializers import UserSerializer
 from core_app.serializers.subscription_serializers import SubscriptionSerializer
@@ -242,18 +244,19 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
     def get_queryset(self):
-        """Return subscriptions filtered by the current user's role.
+        """Return subscriptions for the current user.
 
-        Admin users receive the full queryset.  Customers receive only
-        their own subscriptions.
-
-        Returns:
-            QuerySet: Subscription instances with related customer and package.
+        Admin users receive all subscriptions.  Customers receive their own
+        subscriptions plus any active guest subscription they have been
+        accepted into.
         """
         qs = Subscription.objects.select_related('customer', 'package').all()
         if is_admin_user(self.request.user):
             return qs
-        return qs.filter(customer=self.request.user)
+        return qs.filter(
+            Q(customer=self.request.user) |
+            Q(guest_link__guest=self.request.user, guest_link__status=SubscriptionGuest.STATUS_ACCEPTED)
+        ).distinct()
 
     def create(self, request, *args, **kwargs):
         """Disallow direct subscription creation via the collection endpoint.
@@ -671,6 +674,107 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
             subscription.expiry_ui_sent_at = timezone.now()
             subscription.save(update_fields=['expiry_ui_sent_at', 'updated_at'])
         return Response({'status': 'ok'})
+
+    @action(detail=True, methods=['post'], url_path='invite-guest')
+    def invite_guest(self, request, pk=None):
+        """Invite a guest to share this duo subscription.
+
+        Only the host (owner) of an active semi_personalizado plan can invite.
+        Creates or replaces the SubscriptionGuest record and sends the email.
+
+        Body: { "email": "guest@example.com" }
+        Returns 201 with { "status": "pending", "invited_email": "..." }
+        """
+        from core_app.services.email_service import send_duo_invitation
+
+        subscription = self.get_object()
+
+        if subscription.customer_id != request.user.pk:
+            return Response(
+                {'detail': 'Solo el anfitrión puede invitar a un compañero/a.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if subscription.status != Subscription.Status.ACTIVE:
+            return Response(
+                {'detail': 'La suscripción debe estar activa para invitar.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if subscription.package.category != 'semi_personalizado':
+            return Response(
+                {'detail': 'Solo el plan Pareja permite invitar a un compañero/a.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        email = str(request.data.get('email', '')).strip().lower()
+        if not email:
+            return Response({'detail': 'El campo email es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
+        if email == request.user.email.lower():
+            return Response(
+                {'detail': 'No puedes invitarte a ti mismo/a.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            existing = subscription.guest_link
+            if existing.status == SubscriptionGuest.STATUS_ACCEPTED:
+                return Response(
+                    {'detail': 'Ya hay un compañero/a activo/a en esta suscripción.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            existing.invited_email = email
+            existing.guest = None
+            existing.token = SubscriptionGuest.generate_token()
+            existing.status = SubscriptionGuest.STATUS_PENDING
+            existing.accepted_at = None
+            existing.save()
+            guest_link = existing
+        except SubscriptionGuest.DoesNotExist:
+            guest_link = SubscriptionGuest.objects.create(
+                subscription=subscription,
+                invited_email=email,
+                token=SubscriptionGuest.generate_token(),
+                status=SubscriptionGuest.STATUS_PENDING,
+            )
+
+        from django.conf import settings as django_settings
+        base_url = getattr(django_settings, 'FRONTEND_BASE_URL', 'https://korehealths.com')
+        accept_url = f'{base_url}/accept-invite?token={guest_link.token}'
+        host_name = f'{request.user.first_name} {request.user.last_name}'.strip() or request.user.email
+        send_duo_invitation(guest_link, host_name, accept_url)
+
+        return Response(
+            {'status': 'pending', 'invited_email': email},
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=['post'], url_path='revoke-guest')
+    def revoke_guest(self, request, pk=None):
+        """Revoke the guest invitation for this subscription.
+
+        Sets guest_link status to 'revoked' and clears the guest FK.
+
+        Returns 200 with { "status": "revoked" }
+        """
+        subscription = self.get_object()
+
+        if subscription.customer_id != request.user.pk:
+            return Response(
+                {'detail': 'Solo el anfitrión puede revocar la invitación.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            guest_link = subscription.guest_link
+        except SubscriptionGuest.DoesNotExist:
+            return Response(
+                {'detail': 'Esta suscripción no tiene invitado.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        guest_link.status = SubscriptionGuest.STATUS_REVOKED
+        guest_link.guest = None
+        guest_link.save(update_fields=['status', 'guest', 'updated_at'])
+        return Response({'status': 'revoked'})
 
     @action(detail=True, methods=['get'], url_path='payments')
     def payment_history(self, request, pk=None):

@@ -27,6 +27,7 @@ from core_app.models import (
     Payment,
     SiteSettings,
     Subscription,
+    SubscriptionGuest,
     TermsAcceptance,
     TrainerProfile,
     User,
@@ -376,3 +377,11 @@ class ParqAssessmentAdmin(admin.ModelAdmin):
     list_filter = ('risk_color', 'created_at')
     search_fields = ('customer__email', 'customer__first_name')
     readonly_fields = ('yes_count', 'risk_classification', 'risk_label', 'risk_color')
+
+
+@admin.register(SubscriptionGuest)
+class SubscriptionGuestAdmin(admin.ModelAdmin):
+    list_display = ('subscription', 'invited_email', 'guest', 'status', 'accepted_at', 'created_at')
+    list_filter = ('status', 'created_at')
+    search_fields = ('invited_email', 'guest__email', 'subscription__customer__email')
+    readonly_fields = ('token', 'accepted_at', 'created_at', 'updated_at')

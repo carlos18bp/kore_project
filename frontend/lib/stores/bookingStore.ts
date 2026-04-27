@@ -37,11 +37,19 @@ export type OccupiedDaySlot = {
 export type PackageInfo = {
   id: number;
   title: string;
+  category: string;
   sessions_count: number;
   session_duration_minutes: number;
   price: string;
   currency: string;
   validity_days: number;
+};
+
+export type GuestInfo = {
+  status: 'pending' | 'accepted' | 'revoked';
+  invited_email: string;
+  guest_name: string | null;
+  guest_user_id: number | null;
 };
 
 export type Subscription = {
@@ -57,6 +65,8 @@ export type Subscription = {
   next_billing_date: string | null;
   is_recurring: boolean;
   billing_failed_at: string | null;
+  is_guest?: boolean;
+  guest_info?: GuestInfo | null;
 };
 
 export type BookingData = {

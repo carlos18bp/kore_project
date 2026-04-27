@@ -29,6 +29,8 @@ type SubscriptionState = {
   fetchPaymentHistory: (id: number) => Promise<void>;
   fetchExpiryReminder: () => Promise<void>;
   acknowledgeExpiryReminder: (id: number) => Promise<boolean>;
+  inviteGuest: (subscriptionId: number, email: string) => Promise<{ success: boolean; error?: string }>;
+  revokeGuest: (subscriptionId: number) => Promise<boolean>;
 };
 
 function authHeaders() {
@@ -112,6 +114,38 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       set({ expiryReminder: null });
       return true;
     } catch {
+      return false;
+    }
+  },
+
+  inviteGuest: async (subscriptionId: number, email: string) => {
+    set({ actionLoading: true, error: '' });
+    try {
+      await api.post(`/subscriptions/${subscriptionId}/invite-guest/`, { email }, {
+        headers: authHeaders(),
+      });
+      await get().fetchSubscriptions();
+      set({ actionLoading: false });
+      return { success: true };
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        ?? 'No se pudo enviar la invitación.';
+      set({ actionLoading: false, error: msg });
+      return { success: false, error: msg };
+    }
+  },
+
+  revokeGuest: async (subscriptionId: number) => {
+    set({ actionLoading: true, error: '' });
+    try {
+      await api.post(`/subscriptions/${subscriptionId}/revoke-guest/`, {}, {
+        headers: authHeaders(),
+      });
+      await get().fetchSubscriptions();
+      set({ actionLoading: false });
+      return true;
+    } catch {
+      set({ actionLoading: false, error: 'No se pudo revocar la invitación.' });
       return false;
     }
   },
