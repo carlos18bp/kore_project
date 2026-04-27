@@ -101,6 +101,7 @@ class TestCreateFakeData:
             skip_trainers=True,
             skip_packages=True,
             skip_subscriptions=True,
+            skip_duo=True,
             skip_slots=True,
             skip_bookings=True,
             skip_payments=True,

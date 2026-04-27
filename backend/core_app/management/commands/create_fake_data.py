@@ -29,6 +29,8 @@ class Command(BaseCommand):
             help='Do not force at least one inactive subscription per customer.',
         )
 
+        parser.add_argument('--skip-duo', action='store_true', default=False)
+
         parser.add_argument('--days', type=int, default=30)
         parser.add_argument('--start-hour', type=int, default=9)
         parser.add_argument('--end-hour', type=int, default=18)
@@ -105,6 +107,12 @@ class Command(BaseCommand):
             executed.append('subscriptions')
         else:
             self.stdout.write(self.style.WARNING('Skipped subscriptions'))
+
+        if not options['skip_duo']:
+            call_command('create_fake_duo_invitations', stdout=self.stdout)
+            executed.append('duo_invitations')
+        else:
+            self.stdout.write(self.style.WARNING('Skipped duo invitations'))
 
         if not options['skip_slots']:
             call_command(
