@@ -61,31 +61,40 @@ describe('MoodCheckIn', () => {
   });
 
   it('renders nothing when todayMood already exists', async () => {
-    setupStores({ profile: { todayMood: { score: 8 } } });
+    const { mockFetchProfile } = setupStores({ profile: { todayMood: { score: 8 } } });
     const { container } = render(<MoodCheckIn />);
 
-    await waitFor(() => {
-      expect(container.firstChild).toBeNull();
+    await waitFor(() => expect(mockFetchProfile).toHaveBeenCalled());
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
     });
+    expect(container.firstChild).toBeNull();
   });
 
   it('renders nothing when profile is not completed', async () => {
-    setupStores({ auth: { user: { id: '1', profile_completed: false } } });
+    const { mockFetchProfile } = setupStores({ auth: { user: { id: '1', profile_completed: false } } });
     const { container } = render(<MoodCheckIn />);
 
-    await waitFor(() => {
-      expect(container.firstChild).toBeNull();
+    await waitFor(() => expect(mockFetchProfile).toHaveBeenCalled());
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
     });
+    expect(container.firstChild).toBeNull();
   });
 
   it('renders nothing when mood was dismissed this session', async () => {
     sessionStorage.setItem('kore_mood_dismissed', '1');
-    setupStores();
+    const { mockFetchProfile } = setupStores();
     const { container } = render(<MoodCheckIn />);
 
-    await waitFor(() => {
-      expect(container.firstChild).toBeNull();
+    await waitFor(() => expect(mockFetchProfile).toHaveBeenCalled());
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
     });
+    expect(container.firstChild).toBeNull();
   });
 
   it('renders mood check-in modal when eligible', async () => {

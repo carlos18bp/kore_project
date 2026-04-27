@@ -197,3 +197,21 @@ class TestPosturometryEvaluationMeta:
         )
         customer.delete()
         assert PosturometryEvaluation.objects.count() == 0
+
+
+def test_posturometry_photo_path_with_customer_id():
+    """posturometry_photo_path returns the expected upload path."""
+    from types import SimpleNamespace
+    from core_app.models.posturometry import posturometry_photo_path
+    instance = SimpleNamespace(customer_id=42)
+    path = posturometry_photo_path(instance, 'front.jpg')
+    assert path == 'posturometry/42/front.jpg'
+
+
+def test_posturometry_photo_path_without_customer_id():
+    """posturometry_photo_path uses 'unknown' when customer_id is not set."""
+    from types import SimpleNamespace
+    from core_app.models.posturometry import posturometry_photo_path
+    instance = SimpleNamespace(customer_id=None)
+    path = posturometry_photo_path(instance, 'side.jpg')
+    assert path == 'posturometry/unknown/side.jpg'

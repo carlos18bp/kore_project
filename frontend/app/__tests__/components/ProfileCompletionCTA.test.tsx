@@ -199,4 +199,27 @@ describe('ProfileCompletionCTA', () => {
 
     expect(mockFetchProfile).toHaveBeenCalled();
   });
+
+  it('excludes filled optional fields from the missing list', () => {
+    setupStores({
+      auth: { user: { id: '1', first_name: '', last_name: '' } },
+      profile: {
+        profile: {
+          customer_profile: {
+            profile_completed: false,
+            sex: 'masculino',
+            date_of_birth: '1990-01-01',
+            city: 'Bogotá',
+            primary_goal: 'fat_loss',
+          },
+        },
+      },
+    });
+    render(<ProfileCompletionCTA />);
+
+    expect(screen.getByText('Te falta completar:')).toBeInTheDocument();
+    expect(screen.getByText('Nombre')).toBeInTheDocument();
+    expect(screen.queryByText('Ciudad')).not.toBeInTheDocument();
+    expect(screen.queryByText('Objetivo principal')).not.toBeInTheDocument();
+  });
 });

@@ -104,3 +104,16 @@ class TestWeightEntry:
         user = User.objects.create_user(email='u@example.com', password='p')
         entry = WeightEntry.objects.create(user=user, weight_kg=80.0)
         assert entry.weight_kg == pytest.approx(80.0, abs=0.1)
+
+
+@pytest.mark.django_db
+class TestCustomerProfileStr:
+    def test_str_contains_first_and_last_name(self):
+        """__str__ returns 'FirstName LastName — perfil cliente'."""
+        user = User.objects.create_user(
+            email='str_test@example.com', password='p',
+            first_name='Ana', last_name='García',
+        )
+        profile = user.customer_profile
+        assert 'Ana' in str(profile)
+        assert 'García' in str(profile)

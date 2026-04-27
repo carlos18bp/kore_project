@@ -192,6 +192,7 @@ export default function PricingTable() {
   }
 
   const activeMeta = programMeta[activeTab];
+  /* istanbul ignore next -- @preserve: programPlans is fully populated for every programMeta id above, so ?? [] is unreachable */
   const activePlans = programPlans[activeMeta.id] ?? [];
 
   return (
@@ -214,6 +215,7 @@ export default function PricingTable() {
         {/* ===== MOBILE: Compact Program Cards ===== */}
         <div data-animate="fade-up" data-delay="0.3" className="md:hidden flex flex-col gap-3 mb-6">
           {programMeta.map((program, index) => {
+            /* istanbul ignore next -- @preserve: programPlans is populated for every programMeta id above */
             const plans = programPlans[program.id] ?? [];
             const minPrice = plans[0]?.total ?? '';
             return (

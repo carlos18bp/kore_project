@@ -5,9 +5,11 @@ from datetime import timezone as dt_timezone
 from unittest.mock import MagicMock
 
 import pytest
+from django.contrib.admin import AdminSite
+from django.test import RequestFactory, TestCase
 
 from core_app.admin import SubscriptionAdmin, SubscriptionAdminForm
-from core_app.models import Package, Subscription, User
+from core_app.models import Package, Payment, Subscription, User
 
 FIXED_NOW = datetime(2025, 6, 15, 12, 0, 0, tzinfo=dt_timezone.utc)
 
@@ -112,3 +114,90 @@ class TestSubscriptionAdminMethods:
 
         subscription.refresh_from_db()
         assert subscription.sessions_total == 20
+
+
+@pytest.mark.django_db
+class TestSubscriptionAdminRenewLink:
+    """Cover renew_link() both branches — admin.py lines 192-199."""
+
+    def _make_admin(self):
+        return SubscriptionAdmin(Subscription, AdminSite())
+
+    def test_renew_link_returns_dash_when_subscription_is_active_and_not_expired(self, subscription):
+        """renew_link returns '-' for an active subscription that hasn't expired yet."""
+        from django.utils import timezone
+        subscription.status = Subscription.Status.ACTIVE
+        subscription.expires_at = timezone.now() + timedelta(days=30)
+        subscription.save(update_fields=['status', 'expires_at'])
+        result = self._make_admin().renew_link(subscription)
+        assert result == '-'
+
+    def test_renew_link_returns_button_html_when_subscription_is_expired(self, subscription):
+        """renew_link returns the renovation button HTML for an expired subscription."""
+        subscription.status = Subscription.Status.EXPIRED
+        subscription.save(update_fields=['status'])
+        result = str(self._make_admin().renew_link(subscription))
+        assert 'href=' in result
+        assert 'Renovar' in result
+
+
+@pytest.mark.django_db
+class TestSubscriptionAdminRenewView(TestCase):
+    """Cover renew_subscription_view() GET and POST paths — admin.py lines 217-268."""
+
+    def setUp(self):
+        self.staff = User.objects.create_user(
+            email='staff@kore.com', password='staffpass',
+            role=User.Role.ADMIN, is_staff=True, is_superuser=True,
+        )
+        self.customer = User.objects.create_user(
+            email='renew-cust@kore.com', password='p', role=User.Role.CUSTOMER,
+        )
+        self.package = Package.objects.create(
+            title='Renew Pkg', sessions_count=8, price='80000',
+            currency='COP', validity_days=30, is_active=True,
+        )
+        from django.utils import timezone
+        now = timezone.now()
+        self.subscription = Subscription.objects.create(
+            customer=self.customer,
+            package=self.package,
+            sessions_total=8,
+            starts_at=now - timedelta(days=31),
+            expires_at=now - timedelta(days=1),
+            status=Subscription.Status.ACTIVE,
+        )
+        self.client.force_login(self.staff)
+        self.url = f'/admin/core_app/subscription/{self.subscription.pk}/renew/'
+
+    def test_get_shows_confirmation_page(self):
+        """GET /renew/ renders the confirmation template with subscription context."""
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('subscription', response.context)
+
+    def test_post_creates_new_subscription_and_payment(self):
+        """POST /renew/ creates a new active subscription and a cash payment record."""
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Subscription.objects.filter(customer=self.customer).count(), 2)
+        new_sub = Subscription.objects.filter(
+            customer=self.customer, status=Subscription.Status.ACTIVE,
+        ).exclude(pk=self.subscription.pk).first()
+        self.assertIsNotNone(new_sub)
+        self.assertTrue(Payment.objects.filter(subscription=new_sub).exists())
+
+    def test_post_marks_old_active_subscription_as_expired(self):
+        """POST /renew/ transitions the old active subscription to EXPIRED status."""
+        self.client.post(self.url)
+        self.subscription.refresh_from_db()
+        self.assertEqual(self.subscription.status, Subscription.Status.EXPIRED)
+
+    def test_post_does_not_double_mark_already_expired_subscription(self):
+        """POST /renew/ skips the status update when old subscription is already EXPIRED."""
+        self.subscription.status = Subscription.Status.EXPIRED
+        self.subscription.save(update_fields=['status'])
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, 302)
+        self.subscription.refresh_from_db()
+        self.assertEqual(self.subscription.status, Subscription.Status.EXPIRED)

@@ -25,7 +25,7 @@ const PATHS = {
   unit: 'coverage-artifacts/frontend-unit/coverage-summary.json',
   e2e: 'coverage-artifacts/frontend-e2e/flow-coverage.json',
   backendResults: 'coverage-artifacts/test-results-backend/pytest-results.xml',
-  unitResults: 'coverage-artifacts/test-results-frontend-unit/test-results.json',
+  unitResults: 'coverage-artifacts/frontend-unit/jest-results.json',
 };
 const OUTPUT = 'coverage-report.md';
 
@@ -227,6 +227,34 @@ function build(be, fe, e2e, beFiles, feFiles, e2eFlows, beResults, feResults) {
 
   lines.push('## 📊 Coverage Report', '');
 
+  // ── Summary table ──
+  lines.push('| Suite | Coverage | Bar | Details |');
+  lines.push('|-------|----------|-----|---------|');
+
+  if (be) {
+    const details = `${be.stmtsCov}/${be.stmtsTotal} stmts, ${pctFmt(be.branchPct)} branches, ${pctFmt(be.funcsPct)} funcs`;
+    lines.push(`| Backend (pytest) | ${dot(be.stmtsPct)} ${pctFmt(be.stmtsPct)} | \`${bar(be.stmtsPct)}\` | ${details} |`);
+  } else {
+    lines.push('| Backend (pytest) | ⚪ N/A | | *data unavailable* |');
+  }
+
+  if (fe) {
+    const details = `${fe.stmts.covered}/${fe.stmts.total} stmts, ${pctFmt(fe.branches.pct)} branches, ${pctFmt(fe.funcs.pct)} funcs`;
+    lines.push(`| Frontend Unit (Jest) | ${dot(fe.stmts.pct)} ${pctFmt(fe.stmts.pct)} | \`${bar(fe.stmts.pct)}\` | ${details} |`);
+  } else {
+    lines.push('| Frontend Unit (Jest) | ⚪ N/A | | *data unavailable* |');
+  }
+
+  if (e2e) {
+    const covPct = e2e.total > 0 ? (e2e.covered / e2e.total) * 100 : 0;
+    const details = `${e2e.covered}/${e2e.total} flows covered, ${e2e.failing} failing, ${e2e.missing} missing`;
+    lines.push(`| Frontend E2E (Playwright) | ${dot(covPct)} ${pctFmt(covPct)} | \`${bar(covPct)}\` | ${details} |`);
+  } else {
+    lines.push('| Frontend E2E (Playwright) | ⚪ N/A | | *data unavailable* |');
+  }
+
+  lines.push('');
+
   // ── Test Results ──
   let e2ePassed = 0, e2eFailed = 0, e2eSkipped = 0, e2eTotal = 0;
   for (const f of e2eFlows) {
@@ -258,34 +286,6 @@ function build(be, fe, e2e, beFiles, feFiles, e2eFlows, beResults, feResults) {
   } else {
     lines.push('| Frontend E2E (Playwright) | — | — | — | — |');
   }
-  lines.push('');
-
-  // ── Summary table ──
-  lines.push('| Suite | Coverage | Bar | Details |');
-  lines.push('|-------|----------|-----|---------|');
-
-  if (be) {
-    const details = `${be.stmtsCov}/${be.stmtsTotal} stmts, ${pctFmt(be.branchPct)} branches, ${pctFmt(be.funcsPct)} funcs`;
-    lines.push(`| Backend (pytest) | ${dot(be.stmtsPct)} ${pctFmt(be.stmtsPct)} | \`${bar(be.stmtsPct)}\` | ${details} |`);
-  } else {
-    lines.push('| Backend (pytest) | ⚪ N/A | | *data unavailable* |');
-  }
-
-  if (fe) {
-    const details = `${fe.stmts.covered}/${fe.stmts.total} stmts, ${pctFmt(fe.branches.pct)} branches, ${pctFmt(fe.funcs.pct)} funcs`;
-    lines.push(`| Frontend Unit (Jest) | ${dot(fe.stmts.pct)} ${pctFmt(fe.stmts.pct)} | \`${bar(fe.stmts.pct)}\` | ${details} |`);
-  } else {
-    lines.push('| Frontend Unit (Jest) | ⚪ N/A | | *data unavailable* |');
-  }
-
-  if (e2e) {
-    const covPct = e2e.total > 0 ? (e2e.covered / e2e.total) * 100 : 0;
-    const details = `${e2e.covered}/${e2e.total} flows covered, ${e2e.failing} failing, ${e2e.missing} missing`;
-    lines.push(`| Frontend E2E (Playwright) | ${dot(covPct)} ${pctFmt(covPct)} | \`${bar(covPct)}\` | ${details} |`);
-  } else {
-    lines.push('| Frontend E2E (Playwright) | ⚪ N/A | | *data unavailable* |');
-  }
-
   lines.push('');
 
   // ── Backend Details ──

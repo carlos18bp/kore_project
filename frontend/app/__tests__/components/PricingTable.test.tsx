@@ -150,4 +150,51 @@ describe('PricingTable', () => {
 
     expect(mockedApi.get).toHaveBeenCalledTimes(1);
   });
+
+  it('aborts state update when component unmounts before fetch resolves', async () => {
+    mockedApi.get.mockReset();
+    let resolveFetch: (value: { data: typeof FAKE_PACKAGES }) => void = () => {};
+    mockedApi.get.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveFetch = resolve;
+      }),
+    );
+
+    const { unmount } = render(<PricingTable />);
+    unmount();
+    resolveFetch({ data: FAKE_PACKAGES });
+
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByText('Sesión Individual')).not.toBeInTheDocument();
+  });
+
+  it('aborts post-loop state update when component unmounts between error and commit', async () => {
+    mockedApi.get.mockReset();
+    let rejectFetch: (reason?: unknown) => void = () => {};
+    mockedApi.get.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        rejectFetch = reject;
+      }),
+    );
+
+    const { unmount } = render(<PricingTable />);
+    unmount();
+    rejectFetch(new Error('Network'));
+
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByText('Sesión Individual')).not.toBeInTheDocument();
+  });
+
+  it('renders mobile program cards when some program categories have no packages', async () => {
+    mockedApi.get.mockReset();
+    mockedApi.get.mockResolvedValue({
+      data: FAKE_PACKAGES.filter((p) => p.category === 'terapeutico'),
+    });
+
+    render(<PricingTable />);
+
+    await waitFor(() => expect(mockedApi.get).toHaveBeenCalled());
+    const programLinks = screen.getAllByRole('link').filter((a) => a.getAttribute('href')?.startsWith('/programs?program='));
+    expect(programLinks.length).toBe(3);
+  });
 });
