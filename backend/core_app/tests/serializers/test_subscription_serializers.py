@@ -53,6 +53,7 @@ class TestSubscriptionSerializer:
             'sessions_used', 'sessions_remaining', 'status',
             'starts_at', 'expires_at', 'next_billing_date',
             'is_recurring', 'billing_failed_at',
+            'is_guest', 'guest_info',
             'created_at', 'updated_at',
         }
         assert set(data.keys()) == expected_fields
