@@ -79,6 +79,9 @@ function defaultSubscriptionState(overrides: Record<string, unknown> = {}) {
   return {
     subscriptions: [] as typeof baseSubscription[],
     activeSubscription: null as typeof baseSubscription | null,
+    hasOwnActiveSubscription: false,
+    subscriptionsLoaded: false,
+    pendingInvitation: null,
     selectedSubscriptionId: null as number | null,
     payments: [],
     loading: false,
@@ -88,6 +91,10 @@ function defaultSubscriptionState(overrides: Record<string, unknown> = {}) {
     setSelectedSubscriptionId: mockSetSelectedSubscriptionId,
     cancelSubscription: mockCancelSubscription,
     fetchPaymentHistory: mockFetchPaymentHistory,
+    fetchPendingInvitation: jest.fn().mockResolvedValue(undefined),
+    acceptPendingInvitation: jest.fn().mockResolvedValue({ success: false }),
+    inviteGuest: jest.fn().mockResolvedValue({ success: true }),
+    revokeGuest: jest.fn().mockResolvedValue(true),
     ...overrides,
   };
 }

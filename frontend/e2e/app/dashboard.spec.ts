@@ -101,7 +101,8 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
     await page.route('**/api/auth/profile/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ user: { id: 999, email: 'e2e@kore.com', first_name: 'Usuario', last_name: 'Prueba', phone: '', role: 'customer', profile_completed: true, avatar_url: null, customer_profile: { profile_completed: true, sex: 'M', date_of_birth: '1990-01-15', city: 'Bogotá', primary_goal: 'health' }, today_mood: { score: 7, notes: '', date: new Date().toISOString().slice(0, 10) } } }) }));
     await page.route('**/api/google-captcha/site-key/', (r) => r.fulfill({ status: 404, body: '' }));
     await page.route('**/api/subscriptions/expiry-reminder/**', (r) => r.fulfill({ status: 204 }));
-    await page.route('**/api/trainers/', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0, results: [] }) }));
+    await page.route('**/api/subscriptions/pending-invitation/**', (r) => r.fulfill({ status: 204 }));
+    await page.route('**/api/trainers/',(r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0, results: [] }) }));
     await page.route('**/api/availability-slots/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0, results: [] }) }));
   }
 
