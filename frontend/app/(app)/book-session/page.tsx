@@ -2,8 +2,10 @@
 
 import { Suspense, useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useBookingStore, type Slot } from '@/lib/stores/bookingStore';
+import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
 import { WHATSAPP_URL } from '@/lib/constants';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 import TrainerInfoPanel from '@/app/components/booking/TrainerInfoPanel';
@@ -52,6 +54,7 @@ function hasTravelBufferConflict(
 
 function BookSessionContent() {
   const { user } = useAuthStore();
+  const { hasOwnActiveSubscription, subscriptionsLoaded } = useSubscriptionStore();
   const router = useRouter();
   const searchParams = useSearchParams();
   const sectionRef = useRef<HTMLElement>(null);
@@ -402,6 +405,33 @@ function BookSessionContent() {
     return (
       <section className="min-h-screen bg-kore-cream flex items-center justify-center">
         <div className="animate-spin h-8 w-8 border-2 border-kore-red border-t-transparent rounded-full" />
+      </section>
+    );
+  }
+
+  if (subscriptionsLoaded && !hasOwnActiveSubscription) {
+    return (
+      <section className="min-h-screen bg-kore-cream flex items-center justify-center px-6">
+        <div className="w-full max-w-sm text-center">
+          <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-kore-cream border-2 border-kore-gray-light/40 flex items-center justify-center">
+            <svg className="w-8 h-8 text-kore-gray-dark/30" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5" />
+            </svg>
+          </div>
+          <h2 className="font-heading text-xl font-semibold text-kore-gray-dark mb-2">Necesitas un plan activo</h2>
+          <p className="text-sm text-kore-gray-dark/55 mb-6 leading-relaxed">
+            Para agendar sesiones debes tener un plan activo. Elige el que mejor se adapte a tus metas.
+          </p>
+          <Link
+            href="/programs"
+            className="inline-flex items-center gap-2 bg-kore-red hover:bg-kore-red-dark text-white font-medium px-6 py-3 rounded-xl transition-colors text-sm"
+          >
+            Ver programas
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </Link>
+        </div>
       </section>
     );
   }

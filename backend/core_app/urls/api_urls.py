@@ -14,7 +14,7 @@ from core_app.views.notification_views import NotificationViewSet
 from core_app.views.package_views import PackageViewSet
 from core_app.views.payment_views import PaymentViewSet
 from core_app.views.subscription_views import SubscriptionViewSet
-from core_app.views.duo_invite_views import accept_invite
+from core_app.views.duo_invite_views import accept_invite, pending_invitation
 from core_app.views.terms_views import TermsAcceptanceCreateView, TermsAcceptanceStatusView
 from core_app.views.anthropometry_views import (
     ClientAnthropometryDetailView,
@@ -70,6 +70,7 @@ router.register('analytics-events', AnalyticsEventViewSet, basename='analytics-e
 
 urlpatterns = [
     path('subscriptions/accept-invite/', accept_invite, name='subscription-accept-invite'),
+    path('subscriptions/pending-invitation/', pending_invitation, name='subscription-pending-invitation'),
     path('', include(router.urls)),
     path('site-settings/', SiteSettingsView.as_view(), name='site-settings'),
     path('terms-acceptance/status/', TermsAcceptanceStatusView.as_view(), name='terms-acceptance-status'),

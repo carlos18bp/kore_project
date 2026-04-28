@@ -15,6 +15,10 @@ export default function SubscriptionPage() {
   const {
     subscriptions,
     activeSubscription,
+    hasOwnActiveSubscription,
+    pendingInvitation,
+    fetchPendingInvitation,
+    acceptPendingInvitation,
     selectedSubscriptionId,
     payments,
     loading,
@@ -35,12 +39,15 @@ export default function SubscriptionPage() {
   const [sessionModalBooking, setSessionModalBooking] = useState<BookingData | null>(null);
   const [guestEmail, setGuestEmail] = useState('');
   const [guestError, setGuestError] = useState('');
+  const [inviteAccepting, setInviteAccepting] = useState(false);
+  const [inviteAccepted, setInviteAccepted] = useState<{ host_name: string; package_title: string } | null>(null);
   useHeroAnimation(sectionRef);
 
   useEffect(() => {
     fetchSubscriptions();
     fetchBookings();
-  }, [fetchSubscriptions, fetchBookings]);
+    fetchPendingInvitation();
+  }, [fetchSubscriptions, fetchBookings, fetchPendingInvitation]);
 
   const activeSubscriptions = useMemo(
     () => subscriptions.filter((item) => item.status === 'active'),
@@ -168,6 +175,55 @@ export default function SubscriptionPage() {
           </h1>
         </div>
 
+        {/* Pending invitation banner */}
+        {inviteAccepted ? (
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-5 mb-6 flex items-start gap-4">
+            <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-green-800">¡Invitación aceptada!</p>
+              <p className="text-xs text-green-700 mt-0.5">Ahora entrenas en el plan <strong>{inviteAccepted.package_title}</strong> junto a <strong>{inviteAccepted.host_name}</strong>.</p>
+            </div>
+          </div>
+        ) : pendingInvitation ? (
+          <div className="bg-kore-red/5 border border-kore-red/20 rounded-2xl p-5 mb-6">
+            <div className="flex items-start gap-4">
+              <div className="w-9 h-9 rounded-full bg-kore-red/10 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-kore-red" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-kore-gray-dark mb-0.5">
+                  Tienes una invitación pendiente
+                </p>
+                <p className="text-xs text-kore-gray-dark/60">
+                  <strong>{pendingInvitation.host_name}</strong> te invita a entrenar en el plan <strong>{pendingInvitation.package_title}</strong>.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-4 ml-13 pl-0 sm:pl-13">
+              <button
+                onClick={async () => {
+                  setInviteAccepting(true);
+                  const result = await acceptPendingInvitation();
+                  setInviteAccepting(false);
+                  if (result.success && result.host_name && result.package_title) {
+                    setInviteAccepted({ host_name: result.host_name, package_title: result.package_title });
+                  }
+                }}
+                disabled={inviteAccepting}
+                className="inline-flex items-center gap-1.5 bg-kore-red hover:bg-kore-red-dark disabled:opacity-60 text-white font-medium px-4 py-2 rounded-lg transition-colors text-xs"
+              >
+                {inviteAccepting ? 'Aceptando...' : 'Aceptar invitación'}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         {/* Error */}
         {error && (
           <div className="bg-kore-red/5 border border-kore-red/20 rounded-lg px-4 py-3 mb-6">
@@ -209,6 +265,15 @@ export default function SubscriptionPage() {
           </div>
         ) : (
           <div className="space-y-10">
+            {!hasOwnActiveSubscription && subscriptions.some((s) => s.is_guest) && (
+              <p className="text-xs text-kore-gray-dark/45">
+                Estás entrenando como invitado/a.{' '}
+                <Link href="/programs" className="text-kore-gray-dark/60 hover:text-kore-red underline underline-offset-2 transition-colors">
+                  Ver planes propios
+                </Link>
+                {' '}para tener sesiones personalizadas.
+              </p>
+            )}
             <div className="space-y-6">
               <div className="grid gap-6 lg:grid-cols-2">
                 <div className="space-y-4">

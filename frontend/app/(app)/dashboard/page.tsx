@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import gsap from 'gsap';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -57,8 +58,9 @@ const ArrowRightIcon = () => (
 );
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { user } = useAuthStore();
-  const { activeSubscription: sub, fetchSubscriptions } = useSubscriptionStore();
+  const { activeSubscription: sub, fetchSubscriptions, subscriptions, hasOwnActiveSubscription, subscriptionsLoaded } = useSubscriptionStore();
   const { upcomingReminder, bookings, fetchUpcomingReminder, fetchBookings } = useBookingStore();
   const { profile, todayMood, fetchProfile } = useProfileStore();
   const { evaluations: anthroEvals, fetchMyEvaluations } = useAnthropometryStore();
@@ -262,6 +264,43 @@ export default function DashboardPage() {
     );
   }
 
+  const isGuestDashboard = subscriptionsLoaded && !hasOwnActiveSubscription && subscriptions.some((s) => s.is_guest && s.status === 'active');
+
+  if (subscriptionsLoaded && !hasOwnActiveSubscription && subscriptions.length === 0) {
+    return (
+      <section className="min-h-screen bg-kore-cream flex items-center justify-center px-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 opacity-[0.03] pointer-events-none lg:w-96 lg:h-96">
+          <Image src="/images/flower_leaves.webp" alt="" fill className="object-contain" />
+        </div>
+        <div className="w-full max-w-md text-center">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-kore-red/10 flex items-center justify-center">
+            <svg className="w-10 h-10 text-kore-red" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+            </svg>
+          </div>
+          <h1 className="font-heading text-2xl font-semibold text-kore-gray-dark mb-3">
+            Bienvenido/a, {user.name.split(' ')[0]}
+          </h1>
+          <p className="text-sm text-kore-gray-dark/60 mb-2 leading-relaxed">
+            Tu cuenta está lista. Para comenzar tu transformación y acceder a todas las funciones de KÓRE, activa tu plan.
+          </p>
+          <p className="text-xs text-kore-gray-dark/40 mb-8">
+            Sesiones, evaluaciones, calendario y más — todo disponible con tu plan activo.
+          </p>
+          <Link
+            href="/programs"
+            className="inline-flex items-center gap-2 bg-kore-red hover:bg-kore-red-dark text-white font-medium px-8 py-3.5 rounded-xl transition-colors text-sm"
+          >
+            Ver programas
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
   const quickActions = [
     { label: 'Mi suscripción', icon: <CardIcon />, href: '/subscription' },
     { label: 'Mi suscripción', icon: <ClipboardIcon />, href: '/subscription' },
@@ -319,7 +358,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
-          ) : (
+          ) : isGuestDashboard ? null : (
             <Link href="/book-session" className="group relative block rounded-2xl p-4 text-white overflow-hidden shadow-lg">
               <div className="absolute inset-0 bg-gradient-to-br from-kore-red via-kore-crimson to-kore-burgundy" />
               <div ref={mobileBubblesRef} className="absolute inset-0 pointer-events-none">
@@ -413,7 +452,7 @@ export default function DashboardPage() {
                     <span className="text-[9px] text-kore-gray-dark/50">Estado hoy</span>
                   </div>
                 ) : (
-                  <Link href="/profile" onClick={(e) => e.stopPropagation()} className="text-[9px] text-kore-red font-medium">Registrar estado</Link>
+                  <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push('/profile'); }} className="text-[9px] text-kore-red font-medium">Registrar estado</button>
                 )}
                 {(() => {
                   const goalValue = profile?.customer_profile?.primary_goal;
@@ -579,7 +618,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
-            ) : (
+            ) : isGuestDashboard ? null : (
               <Link href="/book-session" className="group relative block rounded-2xl p-5 text-white overflow-hidden hover:shadow-lg transition-shadow flex-1">
                 {/* Base gradient */}
                 <div className="absolute inset-0 bg-gradient-to-br from-kore-red via-kore-crimson to-kore-burgundy" />
@@ -623,7 +662,7 @@ export default function DashboardPage() {
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-heading text-sm font-semibold text-kore-gray-dark">Próximas sesiones</h2>
-                <Link href="/book-session" className="text-[10px] text-kore-red font-medium hover:underline">Agendar nueva</Link>
+                {!isGuestDashboard && <Link href="/book-session" className="text-[10px] text-kore-red font-medium hover:underline">Agendar nueva</Link>}
               </div>
               {(() => {
                 const upcoming = bookings.filter(
@@ -655,7 +694,7 @@ export default function DashboardPage() {
                   <div className="text-center py-4">
                     <div className="w-10 h-10 rounded-full bg-kore-cream mx-auto mb-1.5 flex items-center justify-center"><CalendarIcon /></div>
                     <p className="text-sm text-kore-gray-dark/50 mb-1">No tienes sesiones próximas</p>
-                    <Link href="/book-session" className="text-xs text-kore-red font-medium hover:underline">Agenda tu siguiente sesión</Link>
+                    {!isGuestDashboard && <Link href="/book-session" className="text-xs text-kore-red font-medium hover:underline">Agenda tu siguiente sesión</Link>}
                   </div>
                 );
               })()}
@@ -1215,7 +1254,7 @@ export default function DashboardPage() {
         <div className="xl:hidden bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-lg mb-3">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-heading text-sm font-semibold text-kore-gray-dark">Próximas sesiones</h2>
-            <Link href="/book-session" className="text-[10px] text-kore-red font-medium hover:underline">Agendar</Link>
+            {!isGuestDashboard && <Link href="/book-session" className="text-[10px] text-kore-red font-medium hover:underline">Agendar</Link>}
           </div>
           {(() => {
             const upcoming = bookings.filter(
@@ -1248,7 +1287,7 @@ export default function DashboardPage() {
                   <CalendarIcon />
                 </div>
                 <p className="text-xs text-kore-gray-dark/50 mb-1">No tienes sesiones próximas</p>
-                <Link href="/book-session" className="text-[10px] text-kore-red font-medium hover:underline">Agenda ahora</Link>
+                {!isGuestDashboard && <Link href="/book-session" className="text-[10px] text-kore-red font-medium hover:underline">Agenda ahora</Link>}
               </div>
             );
           })()}

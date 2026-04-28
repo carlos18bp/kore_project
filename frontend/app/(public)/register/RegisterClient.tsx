@@ -130,13 +130,6 @@ export default function RegisterClient() {
       return;
     }
 
-    if (!packageId && !inviteToken) {
-      setError('Selecciona un programa antes de continuar al pago.');
-      setIsLoading(false);
-      router.push('/programs');
-      return;
-    }
-
     setIsLoading(true);
 
     try {
@@ -207,7 +200,11 @@ export default function RegisterClient() {
         sessionStorage.setItem(CHECKOUT_REGISTRATION_PACKAGE_KEY, packageId);
       }
 
-      router.push(`/checkout?package=${packageId}`);
+      if (packageId) {
+        router.push(`/checkout?package=${packageId}`);
+      } else {
+        router.push('/dashboard');
+      }
     } catch {
       setError('Código inválido o expirado.');
     } finally {

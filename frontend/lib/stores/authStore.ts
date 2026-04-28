@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import Cookies from 'js-cookie';
 import { api } from '@/lib/services/http';
 import { AxiosError } from 'axios';
+import { useSubscriptionStore } from './subscriptionStore';
+import { useBookingStore } from './bookingStore';
 
 export type User = {
   id: string;
@@ -167,6 +169,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('kore_reminder_dismissed');
     }
+    useSubscriptionStore.getState().reset();
+    useBookingStore.setState({
+      subscriptions: [],
+      bookings: [],
+      upcomingReminder: null,
+      bookingDetail: null,
+      step: 1,
+      selectedDate: null,
+      selectedSlot: null,
+      bookingResult: null,
+    });
     set({ user: null, accessToken: null, isAuthenticated: false });
   },
 

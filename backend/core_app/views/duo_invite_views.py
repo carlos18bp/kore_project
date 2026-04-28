@@ -1,6 +1,6 @@
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 
@@ -69,4 +69,26 @@ def accept_invite(request):
         'requires_registration': True,
         'invited_email': invited_email,
         'token': token,
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def pending_invitation(request):
+    """Return the first pending duo invitation for the authenticated user's email."""
+    guest_link = (
+        SubscriptionGuest.objects
+        .filter(invited_email__iexact=request.user.email, status=SubscriptionGuest.STATUS_PENDING)
+        .select_related('subscription__customer', 'subscription__package')
+        .first()
+    )
+    if not guest_link:
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    host = guest_link.subscription.customer
+    return Response({
+        'token': guest_link.token,
+        'host_name': f'{host.first_name} {host.last_name}'.strip() or host.email,
+        'package_title': guest_link.subscription.package.title,
+        'invited_email': guest_link.invited_email,
     })
