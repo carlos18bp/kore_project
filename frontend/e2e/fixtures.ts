@@ -158,6 +158,11 @@ export async function setupDefaultApiMocks(page: Page, exclude: string[] = []) {
     await route.fulfill({ status: 204 });
   });
 
+  // Pending duo invitation — none by default
+  await page.route('**/api/subscriptions/pending-invitation/**', async (route) => {
+    await route.fulfill({ status: 204 });
+  });
+
   // Upcoming reminder — no upcoming booking
   await page.route('**/api/bookings/upcoming-reminder/', async (route) => {
     await route.fulfill({

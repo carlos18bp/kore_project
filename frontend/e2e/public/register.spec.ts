@@ -122,8 +122,15 @@ test.describe('Register Page', { tag: [...FlowTags.AUTH_REGISTER, RoleTags.GUEST
     await expect(page.getByText(/Ya existe una cuenta|Error al crear la cuenta/)).toBeVisible({ timeout: 10_000 });
   });
 
-  test('register without package redirects to programs', async ({ page }) => {
+  test('register without package proceeds to verification step', async ({ page }) => {
     await mockCaptchaSiteKey(page);
+    await page.route('**/api/auth/pre-register/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ verification_pending: true, pre_registration_token: 'fake-pre-reg-token' }),
+      });
+    });
     await page.goto('/register');
 
     await page.getByLabel('Nombre').fill('New');
@@ -133,7 +140,7 @@ test.describe('Register Page', { tag: [...FlowTags.AUTH_REGISTER, RoleTags.GUEST
     await page.getByLabel('Confirmar contraseña').fill('securepass123');
     await page.getByRole('button', { name: 'Continuar' }).click();
 
-    await expect(page).toHaveURL(/\/programs(?:\?.*)?$/, { timeout: 15_000 });
+    await expect(page.getByText('Verifica tu correo')).toBeVisible({ timeout: 15_000 });
   });
 
   test('successful pre-register with package param shows verification step', async ({ page }) => {

@@ -60,6 +60,9 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
       page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
       }),
+      page.route('**/api/subscriptions/pending-invitation/**', async (route) => {
+        await route.fulfill({ status: 204 });
+      }),
       page.route('**/api/subscriptions/*/payments/**', async (route) => {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(payments) });
       }),
@@ -135,7 +138,7 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
 
     await expect(page.getByText('Historial de pagos')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('Confirmado')).toBeVisible();
-    await expect(page.getByText('Pendiente')).toBeVisible();
+    await expect(page.getByText('Pendiente', { exact: true })).toBeVisible();
     await expect(page.getByText('Fallido')).toBeVisible();
   });
 
