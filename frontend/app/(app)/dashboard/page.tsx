@@ -81,8 +81,8 @@ export default function DashboardPage() {
   // Computed variables (must be before GSAP effects that depend on them)
   const sessionsRemaining = sub?.sessions_remaining ?? 0;
   const sessionsTotal = sub?.sessions_total ?? 0;
-  const sessionsUsed = sub?.sessions_used ?? 0;
-  const progressPercent = sessionsTotal > 0 ? Math.round((sessionsUsed / sessionsTotal) * 100) : 0;
+  const sessionsCompleted = sub?.sessions_completed ?? 0;
+  const progressPercent = sessionsTotal > 0 ? Math.round((sessionsCompleted / sessionsTotal) * 100) : 0;
   const program = sub?.package?.title ?? 'Sin programa activo';
   const formattedDate = upcomingReminder?.slot
     ? new Date(upcomingReminder.slot.starts_at).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -440,7 +440,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div>
-                  <p className="font-heading text-sm font-bold text-kore-gray-dark">{sessionsUsed}/{sessionsTotal}</p>
+                  <p className="font-heading text-sm font-bold text-kore-gray-dark">{sessionsCompleted}/{sessionsTotal}</p>
                   <p className="text-[9px] text-kore-gray-dark/40">sesiones</p>
                 </div>
               </div>
@@ -495,7 +495,7 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div>
-                <p className="font-heading text-sm md:text-base font-semibold text-kore-gray-dark">{sessionsUsed} sesiones</p>
+                <p className="font-heading text-sm md:text-base font-semibold text-kore-gray-dark">{sessionsCompleted} sesiones</p>
                 <p className="text-[10px] md:text-xs text-kore-gray-dark/50">completadas de {sessionsTotal}</p>
               </div>
             </div>
@@ -568,7 +568,7 @@ export default function DashboardPage() {
               </div>
               <div className="flex-1">
                 <p className="text-xs text-purple-600/80 uppercase tracking-wider font-semibold mb-0.5">Tu motivación</p>
-                <p className="text-xs text-kore-gray-dark/70 leading-relaxed">{getProgressMessage(sessionsUsed, progressPercent)}</p>
+                <p className="text-xs text-kore-gray-dark/70 leading-relaxed">{getProgressMessage(sessionsCompleted, progressPercent)}</p>
               </div>
             </div>
             {/* Miembro desde - Desktop only */}

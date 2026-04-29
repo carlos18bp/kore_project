@@ -59,6 +59,7 @@ export type Subscription = {
   sessions_total: number;
   sessions_used: number;
   sessions_remaining: number;
+  sessions_completed: number;
   status: 'active' | 'expired' | 'canceled';
   starts_at: string;
   expires_at: string;
