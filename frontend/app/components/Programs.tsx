@@ -21,18 +21,18 @@ const programs = [
     accent: 'bg-kore-red-bright',
   },
   {
-    name: 'Semi-personalizado FLW',
-    tagline: 'Comparte el camino',
+    name: 'Pareja FLW',
+    tagline: 'Entrena en pareja. Progresa juntos.',
     description:
-      'Entrena en un grupo reducido de 2 a 3 personas. Cada uno con objetivos propios, pero en un entorno cercano, guiado y consciente.',
+      'Un plan para dos personas que entrenan juntas: sesiones simultáneas, evaluaciones individuales y acceso compartido bajo la misma estructura profesional.',
     features: [
-      'Grupos de 2-3 personas',
+      'Acceso para dos personas',
+      'Sesiones simultáneas',
+      'Evaluaciones individuales',
       'Acompañamiento técnico constante',
-      'Mayor motivación y adherencia',
-      'Costo más accesible',
     ],
     image: '/images/pose/pose-12.webp',
-    alt: 'Entrenamiento semi-personalizado',
+    alt: 'Entrenamiento en pareja',
     accent: 'bg-kore-red-light',
   },
   {

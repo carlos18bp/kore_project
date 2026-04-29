@@ -133,7 +133,7 @@ describe('RegisterPage', () => {
     expect(screen.getByRole('button', { name: 'Verificar código' })).toBeInTheDocument();
   });
 
-  it('redirects to programs when package param is missing', async () => {
+  it('proceeds to verification step when package param is missing', async () => {
     mockGet.mockReturnValue(null);
     mockedApi.post.mockResolvedValueOnce({ data: MOCK_PRE_REGISTER_RESPONSE });
 
@@ -148,10 +148,9 @@ describe('RegisterPage', () => {
     await user.click(screen.getByRole('button', { name: 'Continuar' }));
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/programs');
+      expect(mockedApi.post).toHaveBeenCalledWith('/auth/pre-register/', expect.any(Object));
     });
-
-    expect(mockedApi.post).not.toHaveBeenCalled();
+    expect(screen.getByText('Verifica tu correo')).toBeInTheDocument();
   });
 
   it('redirects to login when email already exists', async () => {

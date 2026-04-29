@@ -2,6 +2,7 @@ from django.urls import path
 
 from core_app.views import (
     change_password,
+    complete_invite_registration,
     get_user_profile,
     login_user,
     mood_view,
@@ -21,6 +22,7 @@ urlpatterns = [
     path('verify-registration/', verify_registration, name='verify-registration'),
     path('resend-verification-code/', resend_verification_code, name='resend-verification-code'),
     path('register/', register_user, name='register-user'),
+    path('complete-invite-registration/', complete_invite_registration, name='complete-invite-registration'),
     path('login/', login_user, name='login-user'),
     path('profile/', get_user_profile, name='get-user-profile'),
     path('profile/avatar/', upload_avatar, name='upload-avatar'),

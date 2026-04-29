@@ -140,13 +140,29 @@ export async function setupDefaultApiMocks(page: Page, exclude: string[] = []) {
   await mockCaptchaSiteKey(page);
   await mockAuthProfile(page);
 
-  // Subscriptions — empty list
+  // Subscriptions — one active subscription by default so gated views don't show locked state
+  const defaultActiveSub = {
+    id: 1,
+    customer_email: 'e2e@kore.com',
+    package: { id: 1, title: 'Plan Kore', sessions_count: 10, session_duration_minutes: 60, price: '300000', currency: 'COP', validity_days: 30, category: 'personalizado', is_active: true },
+    sessions_total: 10,
+    sessions_used: 3,
+    sessions_remaining: 7,
+    status: 'active',
+    starts_at: new Date(Date.now() - 5 * 86400000).toISOString(),
+    expires_at: new Date(Date.now() + 25 * 86400000).toISOString(),
+    next_billing_date: null,
+    is_recurring: false,
+    billing_failed_at: null,
+    is_guest: false,
+    guest_info: null,
+  };
   await page.route('**/api/subscriptions/', async (route) => {
     if (route.request().method() === 'GET') {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }),
+        body: JSON.stringify({ count: 1, next: null, previous: null, results: [defaultActiveSub] }),
       });
     } else {
       await route.continue();
@@ -155,6 +171,11 @@ export async function setupDefaultApiMocks(page: Page, exclude: string[] = []) {
 
   // Subscription expiry reminder — no reminder by default
   await page.route('**/api/subscriptions/expiry-reminder/**', async (route) => {
+    await route.fulfill({ status: 204 });
+  });
+
+  // Pending duo invitation — none by default
+  await page.route('**/api/subscriptions/pending-invitation/**', async (route) => {
     await route.fulfill({ status: 204 });
   });
 

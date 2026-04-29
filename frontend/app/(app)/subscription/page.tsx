@@ -15,6 +15,10 @@ export default function SubscriptionPage() {
   const {
     subscriptions,
     activeSubscription,
+    hasOwnActiveSubscription,
+    pendingInvitation,
+    fetchPendingInvitation,
+    acceptPendingInvitation,
     selectedSubscriptionId,
     payments,
     loading,
@@ -24,6 +28,8 @@ export default function SubscriptionPage() {
     setSelectedSubscriptionId,
     cancelSubscription,
     fetchPaymentHistory,
+    inviteGuest,
+    revokeGuest,
   } = useSubscriptionStore();
 
   const { bookings, fetchBookings } = useBookingStore();
@@ -31,12 +37,17 @@ export default function SubscriptionPage() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [sessionTab, setSessionTab] = useState<'upcoming' | 'past'>('upcoming');
   const [sessionModalBooking, setSessionModalBooking] = useState<BookingData | null>(null);
+  const [guestEmail, setGuestEmail] = useState('');
+  const [guestError, setGuestError] = useState('');
+  const [inviteAccepting, setInviteAccepting] = useState(false);
+  const [inviteAccepted, setInviteAccepted] = useState<{ host_name: string; package_title: string } | null>(null);
   useHeroAnimation(sectionRef);
 
   useEffect(() => {
     fetchSubscriptions();
     fetchBookings();
-  }, [fetchSubscriptions, fetchBookings]);
+    fetchPendingInvitation();
+  }, [fetchSubscriptions, fetchBookings, fetchPendingInvitation]);
 
   const activeSubscriptions = useMemo(
     () => subscriptions.filter((item) => item.status === 'active'),
@@ -164,6 +175,55 @@ export default function SubscriptionPage() {
           </h1>
         </div>
 
+        {/* Pending invitation banner */}
+        {inviteAccepted ? (
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-5 mb-6 flex items-start gap-4">
+            <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-green-800">¡Invitación aceptada!</p>
+              <p className="text-xs text-green-700 mt-0.5">Ahora entrenas en el plan <strong>{inviteAccepted.package_title}</strong> junto a <strong>{inviteAccepted.host_name}</strong>.</p>
+            </div>
+          </div>
+        ) : pendingInvitation ? (
+          <div className="bg-kore-red/5 border border-kore-red/20 rounded-2xl p-5 mb-6">
+            <div className="flex items-start gap-4">
+              <div className="w-9 h-9 rounded-full bg-kore-red/10 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-kore-red" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-kore-gray-dark mb-0.5">
+                  Tienes una invitación pendiente
+                </p>
+                <p className="text-xs text-kore-gray-dark/60">
+                  <strong>{pendingInvitation.host_name}</strong> te invita a entrenar en el plan <strong>{pendingInvitation.package_title}</strong>.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-4 ml-13 pl-0 sm:pl-13">
+              <button
+                onClick={async () => {
+                  setInviteAccepting(true);
+                  const result = await acceptPendingInvitation();
+                  setInviteAccepting(false);
+                  if (result.success && result.host_name && result.package_title) {
+                    setInviteAccepted({ host_name: result.host_name, package_title: result.package_title });
+                  }
+                }}
+                disabled={inviteAccepting}
+                className="inline-flex items-center gap-1.5 bg-kore-red hover:bg-kore-red-dark disabled:opacity-60 text-white font-medium px-4 py-2 rounded-lg transition-colors text-xs"
+              >
+                {inviteAccepting ? 'Aceptando...' : 'Aceptar invitación'}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         {/* Error */}
         {error && (
           <div className="bg-kore-red/5 border border-kore-red/20 rounded-lg px-4 py-3 mb-6">
@@ -205,6 +265,15 @@ export default function SubscriptionPage() {
           </div>
         ) : (
           <div className="space-y-10">
+            {!hasOwnActiveSubscription && subscriptions.some((s) => s.is_guest) && (
+              <p className="text-xs text-kore-gray-dark/45">
+                Estás entrenando como invitado/a.{' '}
+                <Link href="/programs" className="text-kore-gray-dark/60 hover:text-kore-red underline underline-offset-2 transition-colors">
+                  Ver planes propios
+                </Link>
+                {' '}para tener sesiones personalizadas.
+              </p>
+            )}
             <div className="space-y-6">
               <div className="grid gap-6 lg:grid-cols-2">
                 <div className="space-y-4">
@@ -306,7 +375,9 @@ export default function SubscriptionPage() {
                       <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-kore-gray-light/50">
                         <div className="flex items-center justify-between mb-4">
                           <h2 className="font-heading text-lg font-semibold text-kore-gray-dark">Mis sesiones</h2>
-                          <Link href="/book-session" className="text-xs text-kore-red font-medium hover:underline">Agendar</Link>
+                          {!detailSubscription.is_guest && (
+                            <Link href="/book-session" className="text-xs text-kore-red font-medium hover:underline">Agendar</Link>
+                          )}
                         </div>
                         {/* Tabs */}
                         <div className="flex gap-1 mb-4 bg-kore-cream/50 rounded-lg p-1">
@@ -393,13 +464,143 @@ export default function SubscriptionPage() {
 
                 {/* Right: Actions */}
                 <div data-hero="cta" className="space-y-6">
-                  <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-kore-gray-light/50">
-                    <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-4">Acciones</h2>
-                    <div className="space-y-3">
-                      {detailSubscription.status === 'active' && (
-                        <>
-                          {/* Renew button - billing failed: always enabled */}
-                          {detailSubscription.billing_failed_at && (
+                  {/* Guest read-only badge */}
+                  {detailSubscription.is_guest && (
+                    <div className="bg-kore-red/5 border border-kore-red/20 rounded-2xl p-4 text-center">
+                      <span className="inline-flex items-center gap-2 text-sm font-medium text-kore-red">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                        </svg>
+                        Plan Pareja — invitado/a
+                      </span>
+                      <p className="text-xs text-kore-gray-dark/50 mt-1">Acceso de solo lectura. El anfitrión gestiona las sesiones.</p>
+                    </div>
+                  )}
+
+                  {!detailSubscription.is_guest && (
+                    <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-kore-gray-light/50">
+                      <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-4">Acciones</h2>
+                      <div className="space-y-3">
+                        {detailSubscription.status === 'active' && (
+                          <>
+                            {/* Renew button - billing failed: always enabled */}
+                            {detailSubscription.billing_failed_at && (
+                              <Link
+                                href={`/checkout?package=${detailSubscription.package.id}`}
+                                className="w-full flex items-center justify-center gap-2 bg-kore-red hover:bg-kore-red-dark text-white font-medium py-3 rounded-lg transition-colors text-sm"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                                </svg>
+                                Actualizar pago
+                              </Link>
+                            )}
+
+                            {/* Renew button - non-recurring: enabled only 7 days before expiry */}
+                            {!detailSubscription.is_recurring && !detailSubscription.billing_failed_at && (() => {
+                              const expiresAt = new Date(detailSubscription.expires_at);
+                              const now = new Date();
+                              const daysLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                              const canRenew = daysLeft <= 7;
+                              const renewUrl = `/checkout?package=${detailSubscription.package.id}`;
+
+                              if (canRenew) {
+                                return (
+                                  <Link
+                                    href={renewUrl}
+                                    className="w-full flex items-center justify-center gap-2 bg-kore-red hover:bg-kore-red-dark text-white font-medium py-3 rounded-lg transition-colors text-sm"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                                    </svg>
+                                    Renovar suscripción
+                                  </Link>
+                                );
+                              }
+
+                              return (
+                                <div className="relative group">
+                                  <button
+                                    type="button"
+                                    disabled
+                                    className="w-full flex items-center justify-center gap-2 bg-kore-gray-light/60 text-kore-gray-dark/40 font-medium py-3 rounded-lg text-sm cursor-not-allowed"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                                    </svg>
+                                    Renovar suscripción
+                                  </button>
+                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-kore-gray-dark text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg">
+                                    Se habilitará 7 días antes del vencimiento (faltan {daysLeft} días)
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-kore-gray-dark" />
+                                  </div>
+                                </div>
+                              );
+                            })()}
+
+                            {/* Billing failed alert */}
+                            {detailSubscription.billing_failed_at && (
+                              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                                <p className="text-xs text-red-700">
+                                  No pudimos procesar tu último cobro automático. Actualiza tu método de pago para mantener tu suscripción.
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Auto-renewal info */}
+                            {detailSubscription.is_recurring && !detailSubscription.billing_failed_at && detailSubscription.next_billing_date && (
+                              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                                <p className="text-xs text-green-700">
+                                  Tu suscripción se renovará automáticamente el {formatDate(detailSubscription.next_billing_date)}.
+                                </p>
+                              </div>
+                            )}
+
+                            {!showCancelConfirm ? (
+                              <button
+                                onClick={() => setShowCancelConfirm(true)}
+                                className="w-full flex items-center justify-center gap-2 bg-kore-red/5 hover:bg-kore-red/10 text-kore-red font-medium py-3 rounded-lg transition-colors text-sm cursor-pointer"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                Cancelar suscripción
+                              </button>
+                            ) : (
+                              <div className="bg-kore-red/5 border border-kore-red/20 rounded-lg p-4 space-y-3">
+                                <p className="text-sm text-kore-red font-medium">
+                                  ¿Seguro que deseas cancelar?
+                                </p>
+                                <p className="text-xs text-kore-gray-dark/50">
+                                  {detailSubscription.is_recurring
+                                    ? 'Se detendrán los cobros automáticos. Podrás usar tus sesiones restantes hasta el vencimiento.'
+                                    : `Podrás seguir usando tus ${detailSubscription.sessions_remaining} sesiones restantes hasta el ${formatDate(detailSubscription.expires_at)}.`
+                                  }
+                                </p>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={async () => {
+                                      await cancelSubscription(detailSubscription.id);
+                                      setShowCancelConfirm(false);
+                                    }}
+                                    disabled={actionLoading}
+                                    className="flex-1 bg-kore-red hover:bg-kore-red-dark text-white font-medium py-2.5 rounded-lg transition-colors text-sm disabled:opacity-60 cursor-pointer"
+                                  >
+                                    {actionLoading ? 'Cancelando...' : 'Sí, cancelar'}
+                                  </button>
+                                  <button
+                                    onClick={() => setShowCancelConfirm(false)}
+                                    className="flex-1 bg-kore-cream hover:bg-kore-gray-light/60 text-kore-gray-dark font-medium py-2.5 rounded-lg transition-colors text-sm cursor-pointer"
+                                  >
+                                    No, volver
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                        {detailSubscription.status !== 'active' && (
+                          <>
                             <Link
                               href={`/checkout?package=${detailSubscription.package.id}`}
                               className="w-full flex items-center justify-center gap-2 bg-kore-red hover:bg-kore-red-dark text-white font-medium py-3 rounded-lg transition-colors text-sm"
@@ -407,131 +608,96 @@ export default function SubscriptionPage() {
                               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
                               </svg>
-                              Actualizar pago
+                              Renovar este programa
                             </Link>
-                          )}
+                            <p className="text-xs text-kore-gray-dark/50 text-center">
+                              O explora otros programas en nuestra <Link href="/programs" className="text-kore-red hover:underline">página de programas</Link>.
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
-                          {/* Renew button - non-recurring: enabled only 7 days before expiry */}
-                          {!detailSubscription.is_recurring && !detailSubscription.billing_failed_at && (() => {
-                            const expiresAt = new Date(detailSubscription.expires_at);
-                            const now = new Date();
-                            const daysLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                            const canRenew = daysLeft <= 7;
-                            const renewUrl = `/checkout?package=${detailSubscription.package.id}`;
+                  {/* Duo plan: guest management (host only) */}
+                  {detailSubscription.status === 'active' &&
+                    detailSubscription.package.category === 'semi_personalizado' &&
+                    !detailSubscription.is_guest && (
+                    <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-kore-gray-light/50">
+                      <h2 className="font-heading text-base font-semibold text-kore-gray-dark mb-4 flex items-center gap-2">
+                        <svg className="w-4 h-4 text-kore-red" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                        </svg>
+                        Compañero/a de entrenamiento
+                      </h2>
 
-                            if (canRenew) {
-                              return (
-                                <Link
-                                  href={renewUrl}
-                                  className="w-full flex items-center justify-center gap-2 bg-kore-red hover:bg-kore-red-dark text-white font-medium py-3 rounded-lg transition-colors text-sm"
-                                >
-                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                                  </svg>
-                                  Renovar suscripción
-                                </Link>
-                              );
-                            }
-
-                            return (
-                              <div className="relative group">
-                                <button
-                                  type="button"
-                                  disabled
-                                  className="w-full flex items-center justify-center gap-2 bg-kore-gray-light/60 text-kore-gray-dark/40 font-medium py-3 rounded-lg text-sm cursor-not-allowed"
-                                >
-                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                                  </svg>
-                                  Renovar suscripción
-                                </button>
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-kore-gray-dark text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-lg">
-                                  Se habilitará 7 días antes del vencimiento (faltan {daysLeft} días)
-                                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-kore-gray-dark" />
-                                </div>
-                              </div>
-                            );
-                          })()}
-
-                          {/* Billing failed alert */}
-                          {detailSubscription.billing_failed_at && (
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                              <p className="text-xs text-red-700">
-                                No pudimos procesar tu último cobro automático. Actualiza tu método de pago para mantener tu suscripción.
-                              </p>
-                            </div>
-                          )}
-
-                          {/* Auto-renewal info */}
-                          {detailSubscription.is_recurring && !detailSubscription.billing_failed_at && detailSubscription.next_billing_date && (
-                            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                              <p className="text-xs text-green-700">
-                                Tu suscripción se renovará automáticamente el {formatDate(detailSubscription.next_billing_date)}.
-                              </p>
-                            </div>
-                          )}
-
-                          {!showCancelConfirm ? (
-                            <button
-                              onClick={() => setShowCancelConfirm(true)}
-                              className="w-full flex items-center justify-center gap-2 bg-kore-red/5 hover:bg-kore-red/10 text-kore-red font-medium py-3 rounded-lg transition-colors text-sm cursor-pointer"
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                              Cancelar suscripción
-                            </button>
-                          ) : (
-                            <div className="bg-kore-red/5 border border-kore-red/20 rounded-lg p-4 space-y-3">
-                              <p className="text-sm text-kore-red font-medium">
-                                ¿Seguro que deseas cancelar?
-                              </p>
-                              <p className="text-xs text-kore-gray-dark/50">
-                                {detailSubscription.is_recurring
-                                  ? 'Se detendrán los cobros automáticos. Podrás usar tus sesiones restantes hasta el vencimiento.'
-                                  : `Podrás seguir usando tus ${detailSubscription.sessions_remaining} sesiones restantes hasta el ${formatDate(detailSubscription.expires_at)}.`
-                                }
-                              </p>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={async () => {
-                                    await cancelSubscription(detailSubscription.id);
-                                    setShowCancelConfirm(false);
-                                  }}
-                                  disabled={actionLoading}
-                                  className="flex-1 bg-kore-red hover:bg-kore-red-dark text-white font-medium py-2.5 rounded-lg transition-colors text-sm disabled:opacity-60 cursor-pointer"
-                                >
-                                  {actionLoading ? 'Cancelando...' : 'Sí, cancelar'}
-                                </button>
-                                <button
-                                  onClick={() => setShowCancelConfirm(false)}
-                                  className="flex-1 bg-kore-cream hover:bg-kore-gray-light/60 text-kore-gray-dark font-medium py-2.5 rounded-lg transition-colors text-sm cursor-pointer"
-                                >
-                                  No, volver
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      )}
-                      {detailSubscription.status !== 'active' && (
-                        <>
-                          <Link
-                            href={`/checkout?package=${detailSubscription.package.id}`}
-                            className="w-full flex items-center justify-center gap-2 bg-kore-red hover:bg-kore-red-dark text-white font-medium py-3 rounded-lg transition-colors text-sm"
+                      {(!detailSubscription.guest_info || detailSubscription.guest_info.status === 'revoked') && (
+                        <div className="space-y-3">
+                          <p className="text-xs text-kore-gray-dark/50">Ingresa el correo de tu compañero/a para invitarlo/a a entrenar juntos.</p>
+                          {guestError && <p className="text-xs text-kore-red">{guestError}</p>}
+                          <input
+                            type="email"
+                            value={guestEmail}
+                            onChange={(e) => setGuestEmail(e.target.value)}
+                            placeholder="correo@ejemplo.com"
+                            className="w-full px-3 py-2.5 text-sm border border-kore-gray-light/60 rounded-lg bg-kore-cream/50 focus:outline-none focus:ring-2 focus:ring-kore-red/30"
+                          />
+                          <button
+                            type="button"
+                            disabled={actionLoading || !guestEmail}
+                            onClick={async () => {
+                              setGuestError('');
+                              const result = await inviteGuest(detailSubscription.id, guestEmail);
+                              if (result.success) {
+                                setGuestEmail('');
+                              } else {
+                                setGuestError(result.error ?? 'Error al enviar la invitación.');
+                              }
+                            }}
+                            className="w-full bg-kore-gray-dark hover:bg-kore-gray-dark/80 text-white font-medium py-2.5 rounded-lg transition-colors text-sm disabled:opacity-50 cursor-pointer"
                           >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                            </svg>
-                            Renovar este programa
-                          </Link>
-                          <p className="text-xs text-kore-gray-dark/50 text-center">
-                            O explora otros programas en nuestra <Link href="/programs" className="text-kore-red hover:underline">página de programas</Link>.
-                          </p>
-                        </>
+                            {actionLoading ? 'Enviando...' : 'Invitar compañero/a'}
+                          </button>
+                        </div>
+                      )}
+
+                      {detailSubscription.guest_info?.status === 'pending' && (
+                        <div className="space-y-3">
+                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                            <p className="text-xs text-amber-800">
+                              Invitación enviada a <strong>{detailSubscription.guest_info.invited_email}</strong>. Esperando aceptación.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={actionLoading}
+                            onClick={() => revokeGuest(detailSubscription.id)}
+                            className="w-full bg-kore-red/5 hover:bg-kore-red/10 text-kore-red font-medium py-2.5 rounded-lg transition-colors text-sm disabled:opacity-50 cursor-pointer"
+                          >
+                            Revocar invitación
+                          </button>
+                        </div>
+                      )}
+
+                      {detailSubscription.guest_info?.status === 'accepted' && (
+                        <div className="space-y-3">
+                          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                            <p className="text-xs text-green-800">
+                              <strong>{detailSubscription.guest_info.guest_name ?? detailSubscription.guest_info.invited_email}</strong> es tu compañero/a activo/a.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={actionLoading}
+                            onClick={() => revokeGuest(detailSubscription.id)}
+                            className="w-full bg-kore-red/5 hover:bg-kore-red/10 text-kore-red font-medium py-2.5 rounded-lg transition-colors text-sm disabled:opacity-50 cursor-pointer"
+                          >
+                            Revocar acceso
+                          </button>
+                        </div>
                       )}
                     </div>
-                  </div>
+                  )}
 
                   {/* Help card */}
                   <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-kore-gray-light/50">

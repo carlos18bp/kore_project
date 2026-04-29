@@ -16,6 +16,7 @@ class Notification(TimestampedModel):
         SUBSCRIPTION_EXPIRY_REMINDER = 'subscription_expiry_reminder', 'Subscription expiry reminder'
         NUTRITION_REMINDER = 'nutrition_reminder', 'Nutrition reminder'
         PARQ_REMINDER = 'parq_reminder', 'PAR-Q reminder'
+        DUO_INVITATION = 'duo_invitation', 'Duo invitation'
 
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'

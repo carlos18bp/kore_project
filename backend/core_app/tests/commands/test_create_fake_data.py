@@ -27,6 +27,7 @@ def _run_create_fake_data(stdout):
         payments=2,
         notifications=2,
         analytics_events=3,
+        skip_duo=True,
         stdout=stdout,
     )
 
@@ -101,6 +102,7 @@ class TestCreateFakeData:
             skip_trainers=True,
             skip_packages=True,
             skip_subscriptions=True,
+            skip_duo=True,
             skip_slots=True,
             skip_bookings=True,
             skip_payments=True,

@@ -20,6 +20,7 @@ from .physical_evaluation import PhysicalEvaluation
 from .nutrition_habit import NutritionHabit
 from .parq_assessment import ParqAssessment
 from .registration_verification_code import RegistrationVerificationCode
+from .subscription_guest import SubscriptionGuest
 
 __all__ = [
     'User',
@@ -47,4 +48,5 @@ __all__ = [
     'NutritionHabit',
     'ParqAssessment',
     'RegistrationVerificationCode',
+    'SubscriptionGuest',
 ]

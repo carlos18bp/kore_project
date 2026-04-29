@@ -16,6 +16,7 @@ from core_app.models import (
     PaymentIntent,
     SiteSettings,
     Subscription,
+    SubscriptionGuest,
     TrainerProfile,
     User,
 )
@@ -61,6 +62,7 @@ class Command(BaseCommand):
             deleted_summary.append(f"payments: {Payment.objects.all().delete()[0]}")
             deleted_summary.append(f"payment_intents: {PaymentIntent.objects.all().delete()[0]}")
             deleted_summary.append(f"bookings: {Booking.objects.all().delete()[0]}")
+            deleted_summary.append(f"subscription_guests: {SubscriptionGuest.objects.all().delete()[0]}")
             deleted_summary.append(f"subscriptions: {Subscription.objects.all().delete()[0]}")
 
             deleted_summary.append(f"availability_slots: {AvailabilitySlot.objects.all().delete()[0]}")

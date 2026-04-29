@@ -43,7 +43,8 @@ test.describe('Auth Persistence & Cookies', { tag: [...FlowTags.AUTH_SESSION_PER
 
     // Logout
     await page.getByRole('button', { name: 'Cerrar sesión' }).click();
-    await page.waitForURL((url) => !url.pathname.startsWith('/dashboard'));
+    await page.waitForURL('**/login', { timeout: 15_000 });
+    await page.waitForLoadState('networkidle');
 
     // Cookies should be cleared
     cookies = await page.context().cookies();

@@ -129,30 +129,13 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
     ]);
   }
 
-  /**
-   * Helper: force-click a calendar day that is disabled (because slots aren't
-   * loaded yet). React 18 uses event delegation and checks the fiber's
-   * disabled prop, so we call the onClick handler directly via __reactProps.
-   */
   async function forceClickCalendarDay(page: import('@playwright/test').Page, dayNum: string) {
-    // Wait for the calendar to render (day name headers are always visible)
     await page.getByText('Lun').waitFor({ state: 'visible', timeout: 10_000 });
-    await page.evaluate((num) => {
-      const buttons = document.querySelectorAll('button');
-      for (const btn of buttons) {
-        if (btn.textContent?.trim() === num) {
-          const propsKey = Object.keys(btn).find(k => k.startsWith('__reactProps$'));
-          if (propsKey) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const props = (btn as unknown as Record<string, any>)[propsKey];
-            if (typeof props?.onClick === 'function') {
-              props.onClick();
-            }
-          }
-          break;
-        }
-      }
-    }, dayNum);
+    // Navigate to next month if the target day falls outside the currently displayed month
+    if (tomorrow.getMonth() !== new Date().getMonth() || tomorrow.getFullYear() !== new Date().getFullYear()) {
+      await page.getByRole('button', { name: 'Mes siguiente' }).click();
+    }
+    await page.getByRole('button', { name: dayNum, exact: true }).click();
   }
 
   async function goToConfirmationStep(page: import('@playwright/test').Page) {

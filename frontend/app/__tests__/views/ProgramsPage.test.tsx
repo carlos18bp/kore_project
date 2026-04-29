@@ -77,18 +77,18 @@ describe('ProgramsPage', () => {
     expect(screen.getByText('Programa Integral')).toBeInTheDocument();
   });
 
-  it('switches to Semi-personalizado when tab is clicked', async () => {
+  it('switches to Pareja when tab is clicked', async () => {
     render(<ProgramsPage />);
     await waitFor(() => {
       expect(screen.getByText('Sesión Individual')).toBeInTheDocument();
     });
 
     const user = userEvent.setup({ delay: null });
-    const semiButton = screen.getAllByText('Semi-personalizado')[0];
-    await user.click(semiButton.closest('button')!);
+    const parejaButton = screen.getAllByText('Pareja')[0];
+    await user.click(parejaButton.closest('button')!);
 
-    expect(screen.getByText('Semi-personalizado FLW')).toBeInTheDocument();
-    expect(screen.getAllByText('Evolucionar en compañía, progresar con método.').length).toBeGreaterThan(0);
+    expect(screen.getByText('Pareja FLW')).toBeInTheDocument();
+    expect(screen.getAllByText('Entrena en pareja. Progresa juntos.').length).toBeGreaterThan(0);
     await waitFor(() => {
       expect(screen.getByText('Programa Inicial')).toBeInTheDocument();
     });
@@ -167,8 +167,8 @@ describe('ProgramsPage', () => {
     await user.click(screen.getByText('Sesión Individual').closest('button')!);
     expect(screen.getByText(/Reservar Sesión Individual/)).toBeInTheDocument();
 
-    // Switch to Semi-personalizado
-    await user.click(screen.getAllByText('Semi-personalizado')[0].closest('button')!);
+    // Switch to Pareja
+    await user.click(screen.getAllByText('Pareja')[0].closest('button')!);
 
     // CTA should no longer show the Personalizado plan
     expect(screen.queryByText(/Reservar Sesión Individual/)).not.toBeInTheDocument();
