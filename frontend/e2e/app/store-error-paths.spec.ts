@@ -126,18 +126,10 @@ test.describe('bookingStore rescheduleBooking error branch', { tag: [...FlowTags
   }
 
   async function selectSlotAndConfirm(page: import('@playwright/test').Page) {
-    // Force-click the calendar day that has the mocked slot
     await page.getByText('Lun').waitFor({ state: 'visible', timeout: 10_000 });
-    await page.evaluate((n) => {
-      for (const btn of document.querySelectorAll('button')) {
-        if (btn.textContent?.trim() === n && !(btn as HTMLButtonElement).disabled) {
-          const k = Object.keys(btn).find((key) => key.startsWith('__reactProps$'));
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          if (k) { const p = (btn as any)[k]; if (typeof p?.onClick === 'function') p.onClick(); }
-          break;
-        }
-      }
-    }, dayNum);
+    // Use native Playwright click instead of React-internal __reactProps$ hack
+    await page.getByRole('button', { name: dayNum, exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
+    await page.getByRole('button', { name: dayNum, exact: true }).click();
 
     await page.getByRole('button', { name: slotLabel(mockSlot), exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
     await page.getByRole('button', { name: slotLabel(mockSlot), exact: true }).click();
