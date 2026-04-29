@@ -165,6 +165,47 @@ class TestBookingEmailNotifications:
         assert notification.notification_type == Notification.Type.BOOKING_CANCELED
         assert notification.status == Notification.Status.FAILED
 
+    def test_send_booking_cancellation_sends_to_customer_and_trainer_with_ics(self):
+        """Cancellation email goes to both customer and trainer and includes a METHOD:CANCEL ICS."""
+        customer = User.objects.create_user(
+            email='cancel_customer@example.com', password='pass', first_name='Lia', last_name='Gomez',
+        )
+        trainer_user = User.objects.create_user(
+            email='cancel_trainer@example.com', password='pass', first_name='Pedro', last_name='Villa',
+            role=User.Role.TRAINER,
+        )
+        trainer = TrainerProfile.objects.create(user=trainer_user, specialty='Yoga', location='Studio 2')
+        package = Package.objects.create(title='Pack', sessions_count=2, validity_days=30, price=Decimal('80.00'))
+        now = _fixed_now()
+        slot = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(days=2),
+            ends_at=now + timedelta(days=2, hours=1),
+            is_active=True,
+            is_blocked=False,
+        )
+        booking = Booking.objects.create(
+            customer=customer,
+            package=package,
+            slot=slot,
+            trainer=trainer,
+            status=Booking.Status.CANCELED,
+        )
+
+        with patch('core_app.services.email_service.send_template_email', return_value=True) as mock_send:
+            send_booking_cancellation(booking)
+
+        call_kwargs = mock_send.call_args.kwargs
+        assert customer.email in call_kwargs['to_emails']
+        assert trainer_user.email in call_kwargs['to_emails']
+        attachments = call_kwargs['attachments']
+        assert attachments, 'cancellation ICS attachment must be present'
+        filename, ics_bytes, mime_type = attachments[0]
+        assert filename == 'session_cancelada.ics'
+        assert mime_type == 'text/calendar'
+        assert b'METHOD:CANCEL' in ics_bytes
+        assert b'STATUS:CANCELLED' in ics_bytes
+        assert f'booking-{booking.pk}@korehealths.com'.encode() in ics_bytes
+
     def test_send_booking_reschedule_passes_old_slot_context(self):
         """Ensure reschedule emails include the prior slot in context."""
         customer = User.objects.create_user(
@@ -204,6 +245,61 @@ class TestBookingEmailNotifications:
         assert context['old_slot_start'] == old_slot.starts_at
         assert context['old_slot_end'] == old_slot.ends_at
         assert notification.notification_type == Notification.Type.BOOKING_RESCHEDULED
+
+    def test_send_booking_reschedule_sends_to_customer_and_trainer_with_two_ics(self):
+        """Reschedule email goes to customer and trainer with cancel + new ICS attachments."""
+        customer = User.objects.create_user(
+            email='reschedule_customer@example.com', password='pass', first_name='Mia', last_name='Torres',
+        )
+        trainer_user = User.objects.create_user(
+            email='reschedule_trainer@example.com', password='pass', first_name='Luis', last_name='Mora',
+            role=User.Role.TRAINER,
+        )
+        trainer = TrainerProfile.objects.create(user=trainer_user, specialty='Pilates', location='Studio 3')
+        package = Package.objects.create(title='Pack', sessions_count=3, validity_days=30, price=Decimal('90.00'))
+        now = _fixed_now()
+        old_slot = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(days=1),
+            ends_at=now + timedelta(days=1, hours=1),
+            is_active=True,
+            is_blocked=False,
+        )
+        new_slot = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(days=3),
+            ends_at=now + timedelta(days=3, hours=1),
+            is_active=True,
+            is_blocked=False,
+        )
+        old_booking = Booking.objects.create(
+            customer=customer, package=package, slot=old_slot,
+            trainer=trainer, status=Booking.Status.CANCELED,
+        )
+        new_booking = Booking.objects.create(
+            customer=customer, package=package, slot=new_slot,
+            trainer=trainer, status=Booking.Status.CONFIRMED,
+        )
+
+        with patch('core_app.services.email_service.send_template_email', return_value=True) as mock_send:
+            send_booking_reschedule(old_booking, new_booking)
+
+        call_kwargs = mock_send.call_args.kwargs
+        assert customer.email in call_kwargs['to_emails']
+        assert trainer_user.email in call_kwargs['to_emails']
+
+        attachments = call_kwargs['attachments']
+        assert len(attachments) == 2
+
+        filenames = [a[0] for a in attachments]
+        assert 'session_cancelada.ics' in filenames
+        assert 'session_nueva.ics' in filenames
+
+        cancel_ics = next(a[1] for a in attachments if a[0] == 'session_cancelada.ics')
+        new_ics = next(a[1] for a in attachments if a[0] == 'session_nueva.ics')
+
+        assert b'METHOD:CANCEL' in cancel_ics
+        assert f'booking-{old_booking.pk}@korehealths.com'.encode() in cancel_ics
+        assert b'METHOD:REQUEST' in new_ics
+        assert f'booking-{new_booking.pk}@korehealths.com'.encode() in new_ics
 
 
 @pytest.mark.django_db
