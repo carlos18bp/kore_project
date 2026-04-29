@@ -127,7 +127,10 @@ test.describe('bookingStore rescheduleBooking error branch', { tag: [...FlowTags
 
   async function selectSlotAndConfirm(page: import('@playwright/test').Page) {
     await page.getByText('Lun').waitFor({ state: 'visible', timeout: 10_000 });
-    // Use native Playwright click instead of React-internal __reactProps$ hack
+    // Navigate to next month if targetDay is not in the current calendar month
+    if (targetDay.getMonth() !== new Date().getMonth() || targetDay.getFullYear() !== new Date().getFullYear()) {
+      await page.getByRole('button', { name: 'Mes siguiente' }).click();
+    }
     await page.getByRole('button', { name: dayNum, exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
     await page.getByRole('button', { name: dayNum, exact: true }).click();
 

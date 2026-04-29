@@ -177,14 +177,8 @@ test.describe('Booking Store Error Paths', { tag: [...FlowTags.BOOKING_ERROR_PAT
     await page.route('**/api/trainers/**', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockTrainer] }) });
     });
-    await page.route('**/api/subscriptions/**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }) });
-    });
     await page.route('**/api/availability-slots/**', async (route) => {
       await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'Server error' }) });
-    });
-    await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
     });
 
     await page.goto('/book-session');
@@ -198,15 +192,23 @@ test.describe('Booking Store Error Paths', { tag: [...FlowTags.BOOKING_ERROR_PAT
     };
 
     // Return bare arrays instead of paginated { results: [...] } objects
+    const mockActiveSub = {
+      id: 1, status: 'active', is_guest: false, sessions_remaining: 7,
+      customer_email: 'e2e@kore.com',
+      package: { id: 1, title: 'Plan Kore', sessions_count: 10, session_duration_minutes: 60, price: '300000', currency: 'COP', validity_days: 30 },
+      sessions_total: 10, sessions_used: 3,
+    };
     await mockLoginAsTestUser(page);
     await page.route('**/api/trainers/**', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([mockTrainer]) });
     });
     await page.route('**/api/subscriptions/**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
-    });
-    await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
+      const url = route.request().url();
+      if (url.includes('/pending-invitation/') || url.includes('/expiry-reminder/')) {
+        return route.fulfill({ status: 204, body: '' });
+      }
+      // Return bare array to exercise the non-paginated fallback branch in subscriptionStore
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([mockActiveSub]) });
     });
 
     await page.goto('/book-session');
