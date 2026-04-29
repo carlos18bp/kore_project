@@ -25,7 +25,7 @@ test.describe('My Programs Page', { tag: [...FlowTags.MY_PROGRAMS_LIST, RoleTags
     await mockLoginAsTestUser(page);
     await page.goto('/subscription');
     await expect(
-      page.getByText('Sin suscripción activa').or(page.getByText('Activas'))
+      page.getByText('Sin suscripción activa').or(page.getByText('Activas', { exact: true }))
     ).toBeVisible({ timeout: 10_000 });
   });
 });

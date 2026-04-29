@@ -129,8 +129,8 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
     await setupDashboardMocks(page);
     await page.route('**/api/subscriptions/**', async (route) => {
       const url = route.request().url();
-      if (url.includes('/expiry-reminder') || url.includes('/cancel') || url.includes('/payments')) { await route.fallback(); return; }
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }) });
+      if (url.includes('/expiry-reminder') || url.includes('/cancel') || url.includes('/payments') || url.includes('/pending-invitation')) { await route.fallback(); return; }
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 1, next: null, previous: null, results: [activeSub] }) });
     });
     await page.route('**/api/bookings/**', async (route) => {
       const url = route.request().url();
@@ -151,8 +151,8 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
     await setupDashboardMocks(page);
     await page.route('**/api/subscriptions/**', async (route) => {
       const url = route.request().url();
-      if (url.includes('/expiry-reminder') || url.includes('/cancel') || url.includes('/payments')) { await route.fallback(); return; }
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }) });
+      if (url.includes('/expiry-reminder') || url.includes('/cancel') || url.includes('/payments') || url.includes('/pending-invitation')) { await route.fallback(); return; }
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 1, next: null, previous: null, results: [activeSub] }) });
     });
     await page.route('**/api/bookings/**', async (route) => {
       const url = route.request().url();

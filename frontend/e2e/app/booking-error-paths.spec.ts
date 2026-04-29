@@ -90,12 +90,6 @@ test.describe('Booking Store Error Paths', { tag: [...FlowTags.BOOKING_ERROR_PAT
     await page.route('**/api/trainers/**', async (route) => {
       await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'Server error' }) });
     });
-    await page.route('**/api/subscriptions/**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }) });
-    });
-    await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
-    });
 
     await page.goto('/book-session');
 
