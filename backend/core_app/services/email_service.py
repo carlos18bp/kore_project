@@ -12,7 +12,7 @@ from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
 
 from core_app.models import Notification
-from core_app.services.ics_generator import generate_ics
+from core_app.services.ics_generator import generate_cancellation_ics, generate_ics
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +108,14 @@ def send_booking_confirmation(booking):
 
 
 def send_booking_cancellation(booking):
-    """Send a booking cancellation email.
+    """Send a booking cancellation email with a METHOD:CANCEL .ics attachment.
+
+    The .ics file carries the same UID as the original booking confirmation so
+    calendar clients (Google Calendar, Outlook, Apple Calendar) automatically
+    remove the event from all attendees' calendars.
+
+    Sends to the customer and, when available, the trainer — matching the
+    recipient set of ``send_booking_confirmation``.
 
     Args:
         booking: The canceled ``Booking`` instance.
@@ -116,13 +123,16 @@ def send_booking_cancellation(booking):
     Returns:
         Notification: The created notification instance.
     """
+    ics_bytes = generate_cancellation_ics(booking)
     context = _build_booking_context(booking)
+    recipient_emails = _build_booking_confirmation_recipients(booking)
 
     success = send_template_email(
         template_name='booking_cancellation',
         subject='Tu sesión ha sido cancelada — KÓRE',
-        to_emails=[booking.customer.email],
+        to_emails=recipient_emails,
         context=context,
+        attachments=[('session_cancelada.ics', ics_bytes, 'text/calendar')],
     )
 
     return _create_notification(
@@ -133,7 +143,11 @@ def send_booking_cancellation(booking):
 
 
 def send_booking_reschedule(old_booking, new_booking):
-    """Send a reschedule email with an .ics for the new session.
+    """Send a reschedule email with a METHOD:CANCEL for the old session and a METHOD:REQUEST for the new one.
+
+    Attaching both ICS files in the same email ensures calendar clients remove
+    the old event and add the new one automatically.  Sends to the customer
+    and, when available, the trainer.
 
     Args:
         old_booking: The original (now canceled) ``Booking`` instance.
@@ -142,17 +156,22 @@ def send_booking_reschedule(old_booking, new_booking):
     Returns:
         Notification: The created notification instance tied to *new_booking*.
     """
-    ics_bytes = generate_ics(new_booking)
+    cancel_ics_bytes = generate_cancellation_ics(old_booking)
+    new_ics_bytes = generate_ics(new_booking)
     context = _build_booking_context(new_booking)
     context['old_slot_start'] = old_booking.slot.starts_at
     context['old_slot_end'] = old_booking.slot.ends_at
+    recipient_emails = _build_booking_confirmation_recipients(new_booking)
 
     success = send_template_email(
         template_name='booking_reschedule',
         subject='Tu sesión ha sido reprogramada — KÓRE',
-        to_emails=[new_booking.customer.email],
+        to_emails=recipient_emails,
         context=context,
-        attachments=[('session.ics', ics_bytes, 'text/calendar')],
+        attachments=[
+            ('session_cancelada.ics', cancel_ics_bytes, 'text/calendar'),
+            ('session_nueva.ics', new_ics_bytes, 'text/calendar'),
+        ],
     )
 
     return _create_notification(

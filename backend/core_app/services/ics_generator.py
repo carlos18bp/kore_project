@@ -7,7 +7,6 @@ calendar app can import the session automatically.
 
 from email.utils import parseaddr
 from datetime import datetime, timezone as dt_tz
-from uuid import uuid4
 import pytz
 
 from django.conf import settings
@@ -68,7 +67,7 @@ def generate_ics(booking):
     dtstart_utc = _format_dt_utc(slot.starts_at)
     dtend_utc = _format_dt_utc(slot.ends_at)
     dtstamp = _format_dt_utc(datetime.now(dt_tz.utc))
-    uid = f'{uuid4()}@korehealths.com'
+    uid = f'booking-{booking.pk}@korehealths.com'
 
     # Add human-readable time zone info to description
     bogota_start = slot.starts_at.astimezone(BOGOTA_TZ)
@@ -97,6 +96,75 @@ def generate_ics(booking):
         *attendee_lines,
         'STATUS:CONFIRMED',
         'SEQUENCE:0',
+        'END:VEVENT',
+        'END:VCALENDAR',
+    ]
+
+    return '\r\n'.join(lines).encode('utf-8')
+
+
+def generate_cancellation_ics(booking):
+    """Generate a METHOD:CANCEL iCalendar payload for a cancelled booking.
+
+    The UID matches the one produced by ``generate_ics`` for the same booking
+    so calendar clients (Google Calendar, Outlook, Apple Calendar) automatically
+    remove the event from attendees' calendars when they receive this file.
+
+    Args:
+        booking: A ``Booking`` instance with related ``slot``, ``trainer``
+            (optional), and ``customer`` populated.
+
+    Returns:
+        bytes: UTF-8 encoded iCalendar cancellation content ready for email
+        attachment.
+    """
+    slot = booking.slot
+    trainer = booking.trainer
+    customer = booking.customer
+
+    customer_name = f'{customer.first_name} {customer.last_name}'.strip() or customer.email
+    summary = 'Entrenamiento KÓRE'
+    organizer_name, organizer_email = _resolve_default_organizer()
+
+    if trainer:
+        trainer_name = f'{trainer.user.first_name} {trainer.user.last_name}'.strip() or trainer.user.email
+        summary = f'Entrenamiento KÓRE — {trainer_name}'
+
+    attendees = [(customer_name, customer.email)]
+    if trainer and trainer.user.email:
+        trainer_name = f'{trainer.user.first_name} {trainer.user.last_name}'.strip() or trainer.user.email
+        attendees.append((trainer_name, trainer.user.email))
+
+    attendee_lines = []
+    seen_attendees = set()
+    for attendee_name, attendee_email in attendees:
+        normalized_email = attendee_email.strip().lower()
+        if normalized_email in seen_attendees:
+            continue
+        seen_attendees.add(normalized_email)
+        attendee_lines.append(f'ATTENDEE;CN={attendee_name};RSVP=FALSE:mailto:{attendee_email}')
+
+    dtstart_utc = _format_dt_utc(slot.starts_at)
+    dtend_utc = _format_dt_utc(slot.ends_at)
+    dtstamp = _format_dt_utc(datetime.now(dt_tz.utc))
+    uid = f'booking-{booking.pk}@korehealths.com'
+
+    lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//KÓRE//Booking//EN',
+        'CALSCALE:GREGORIAN',
+        'METHOD:CANCEL',
+        'BEGIN:VEVENT',
+        f'UID:{uid}',
+        f'DTSTAMP:{dtstamp}',
+        f'DTSTART:{dtstart_utc}',
+        f'DTEND:{dtend_utc}',
+        f'SUMMARY:{summary}',
+        f'ORGANIZER;CN={organizer_name}:mailto:{organizer_email}',
+        *attendee_lines,
+        'STATUS:CANCELLED',
+        'SEQUENCE:1',
         'END:VEVENT',
         'END:VCALENDAR',
     ]

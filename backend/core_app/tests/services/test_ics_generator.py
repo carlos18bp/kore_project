@@ -11,6 +11,7 @@ from core_app.models import AvailabilitySlot, Booking, Package, TrainerProfile, 
 from core_app.services.ics_generator import (
     _format_dt_bogota,
     _format_dt_utc,
+    generate_cancellation_ics,
     generate_ics,
 )
 
@@ -139,6 +140,12 @@ class TestIcsGenerator:
         assert 'Entrenamiento KÓRE' in ics
         assert 'BEGIN:VCALENDAR' in ics
 
+    def test_uid_is_deterministic_from_booking_pk(self, booking_with_trainer):
+        """UID is derived from booking PK so cancellation ICS can match the original."""
+        ics = generate_ics(booking_with_trainer).decode('utf-8')
+        expected_uid = f'UID:booking-{booking_with_trainer.pk}@korehealths.com'
+        assert expected_uid in ics
+
     def test_deduplicates_attendees_when_customer_and_trainer_share_email(self):
         """Attendee appears only once when customer and trainer have the same email."""
         # quality: disable unverified_mock (mocks are input data structs; assertion is on rendered ICS output)
@@ -185,6 +192,60 @@ class TestFormatDtUtc:
         dt = datetime(2024, 6, 1, 10, 30, 0, tzinfo=dt_tz.utc)
         result = _format_dt_utc(dt)
         assert result == '20240601T103000Z'
+
+
+@pytest.mark.django_db
+class TestGenerateCancellationIcs:
+    """ICS cancellation payload structure for removing events from attendee calendars."""
+
+    def test_returns_bytes(self, booking_with_trainer):
+        """Return generated cancellation ICS as bytes."""
+        result = generate_cancellation_ics(booking_with_trainer)
+        assert isinstance(result, bytes)
+
+    def test_method_is_cancel(self, booking_with_trainer):
+        """VCALENDAR METHOD must be CANCEL so clients remove the event."""
+        ics = generate_cancellation_ics(booking_with_trainer).decode('utf-8')
+        assert 'METHOD:CANCEL' in ics
+
+    def test_status_is_cancelled(self, booking_with_trainer):
+        """VEVENT STATUS must be CANCELLED."""
+        ics = generate_cancellation_ics(booking_with_trainer).decode('utf-8')
+        assert 'STATUS:CANCELLED' in ics
+
+    def test_sequence_is_incremented(self, booking_with_trainer):
+        """SEQUENCE must be 1 (higher than the original SEQUENCE:0) for clients to accept the cancel."""
+        ics = generate_cancellation_ics(booking_with_trainer).decode('utf-8')
+        assert 'SEQUENCE:1' in ics
+
+    def test_uid_matches_original(self, booking_with_trainer):
+        """UID in cancellation ICS matches UID in the original confirmation ICS."""
+        original_ics = generate_ics(booking_with_trainer).decode('utf-8')
+        cancel_ics = generate_cancellation_ics(booking_with_trainer).decode('utf-8')
+        uid_line = f'UID:booking-{booking_with_trainer.pk}@korehealths.com'
+        assert uid_line in original_ics
+        assert uid_line in cancel_ics
+
+    def test_contains_attendees(self, booking_with_trainer):
+        """Cancellation ICS includes customer and trainer attendees."""
+        ics = generate_cancellation_ics(booking_with_trainer).decode('utf-8')
+        assert 'cust_ics@example.com' in ics
+        assert 'trainer_ics@example.com' in ics
+
+    def test_works_without_trainer(self, customer, package):
+        """Generate valid cancellation ICS even when no trainer is assigned."""
+        now = FIXED_NOW
+        slot = AvailabilitySlot.objects.create(
+            starts_at=now + timedelta(hours=25),
+            ends_at=now + timedelta(hours=26),
+        )
+        booking = Booking.objects.create(
+            customer=customer, package=package, slot=slot,
+            status=Booking.Status.CANCELED,
+        )
+        ics = generate_cancellation_ics(booking).decode('utf-8')
+        assert 'METHOD:CANCEL' in ics
+        assert 'BEGIN:VCALENDAR' in ics
 
 
 class TestFormatDtBogota:
