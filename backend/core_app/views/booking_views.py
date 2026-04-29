@@ -282,32 +282,6 @@ class BookingViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # Chronological order validation: must remain between previous and next sessions
-            if booking.subscription:
-                base_qs = Booking.objects.filter(
-                    subscription=booking.subscription,
-                    status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
-                ).exclude(pk=booking.pk).select_related('slot')
-
-                previous_booking = base_qs.filter(
-                    slot__starts_at__lt=booking.slot.starts_at,
-                ).order_by('-slot__starts_at').first()
-                next_booking = base_qs.filter(
-                    slot__starts_at__gt=booking.slot.starts_at,
-                ).order_by('slot__starts_at').first()
-
-                if previous_booking and new_slot.starts_at < previous_booking.slot.ends_at:
-                    return Response(
-                        {'detail': 'La sesión debe iniciar después del final de la sesión anterior del programa.'},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
-                if next_booking and new_slot.ends_at > next_booking.slot.starts_at:
-                    return Response(
-                        {'detail': 'La sesión debe finalizar antes del inicio de la siguiente sesión del programa.'},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-
             if has_trainer_travel_buffer_conflict(new_slot, trainer=booking.trainer):
                 return Response(
                     {

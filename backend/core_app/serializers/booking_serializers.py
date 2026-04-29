@@ -122,9 +122,6 @@ class BookingSerializer(serializers.ModelSerializer):
                 {'subscription_id': 'La suscripción no tiene sesiones disponibles.'}
             )
 
-        if subscription and slot:
-            self._validate_chronological_order(subscription, slot)
-
         return attrs
 
     @staticmethod
@@ -197,27 +194,6 @@ class BookingSerializer(serializers.ModelSerializer):
                         'de cada sesión del mismo entrenador.'
                     )
                 }
-            )
-
-    @staticmethod
-    def _validate_chronological_order(subscription, slot):
-        """Ensure the new session starts after the end of the last session in the same subscription.
-
-        Args:
-            subscription: Subscription instance.
-            slot: AvailabilitySlot to check against.
-
-        Raises:
-            serializers.ValidationError: If the slot starts before the last session ends.
-        """
-        last_booking = Booking.objects.filter(
-            subscription=subscription,
-            status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
-        ).select_related('slot').order_by('-slot__ends_at').first()
-
-        if last_booking and slot.starts_at < last_booking.slot.ends_at:
-            raise serializers.ValidationError(
-                {'slot_id': 'La sesión debe iniciar después del final de la última sesión del programa.'}
             )
 
     # ------------------------------------------------------------------

@@ -24,6 +24,7 @@ class SubscriptionSerializer(serializers.ModelSerializer):
     customer_email = serializers.EmailField(source='customer.email', read_only=True)
     package = PackageSerializer(read_only=True)
     sessions_remaining = serializers.IntegerField(read_only=True)
+    sessions_completed = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     is_guest = serializers.SerializerMethodField()
     guest_info = serializers.SerializerMethodField()
@@ -37,6 +38,7 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             'sessions_total',
             'sessions_used',
             'sessions_remaining',
+            'sessions_completed',
             'status',
             'starts_at',
             'expires_at',
@@ -49,6 +51,14 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             'updated_at',
         )
         read_only_fields = ('created_at', 'updated_at')
+
+    def get_sessions_completed(self, obj):
+        """Count bookings that are not cancelled and whose slot has already ended."""
+        from core_app.models import Booking
+        return obj.bookings.filter(
+            status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
+            slot__ends_at__lte=timezone.now(),
+        ).count()
 
     def get_status(self, obj):
         """Return the effective subscription status."""
