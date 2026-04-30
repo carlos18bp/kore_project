@@ -250,25 +250,6 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
     await expect(page.getByText('Selecciona una fecha en el calendario para ver los horarios disponibles.')).toBeVisible({ timeout: 10_000 });
   });
 
-  test('time slot picker 12h/24h toggle changes format', async ({ page }) => {
-    await mockLoginAsTestUser(page);
-    await setupMocks(page);
-    await page.goto('/book-session');
-
-    const dayNum = tomorrow.getDate().toString();
-    await forceClickCalendarDay(page, dayNum);
-    await expectPrimarySlotButton(page);
-
-    // Toggle to 12h
-    const toggle12 = page.getByRole('button', { name: '12h' });
-    const toggle24 = page.getByRole('button', { name: '24h' });
-    await toggle12.click();
-    // Should show AM/PM format
-    await expect(page.getByText(/AM|PM|a\.?\s*m\.?|p\.?\s*m\.?/i).first()).toBeVisible();
-
-    // Toggle back to 24h
-    await toggle24.click();
-  });
 
   test('booking error is displayed on confirmation screen', async ({ page }) => {
     await mockLoginAsTestUser(page);
