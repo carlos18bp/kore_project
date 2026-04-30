@@ -197,48 +197,6 @@ test.describe('Book Session Flow', { tag: [...FlowTags.BOOKING_SESSION_FLOW, Rol
     }
   });
 
-  test('time slot picker 12h format toggle shows AM/PM', async ({ page }) => {
-    // This test exercises TimeSlotPicker.tsx line 20 (!use24h branch)
-    // Note: Uses beforeEach login, just needs to set up slot mocks and interact
-
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const dateStr = tomorrow.toISOString().split('T')[0];
-
-    const mockSlots = [
-      { id: 100, trainer_id: 1, starts_at: `${dateStr}T14:00:00Z`, ends_at: `${dateStr}T15:00:00Z`, is_active: true, is_blocked: false },
-      { id: 101, trainer_id: 1, starts_at: `${dateStr}T16:00:00Z`, ends_at: `${dateStr}T17:00:00Z`, is_active: true, is_blocked: false },
-    ];
-
-    // Override availability-slots to return our mock slots
-    await page.route('**/api/availability-slots/**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 2, next: null, previous: null, results: mockSlots }) });
-    });
-
-    // Navigate to book-session (already logged in via beforeEach)
-    await page.goto('/book-session');
-
-    // Click the available day on the calendar
-    const dayNumber = tomorrow.getDate();
-    if (tomorrow.getMonth() !== new Date().getMonth()) {
-      await page.getByLabel('Mes siguiente').click();
-    }
-    // quality: allow-fragile-selector (calendar day labels can repeat across months; select first matching visible day)
-    const dayButton = page.locator('button').filter({ hasText: new RegExp(`^${dayNumber}$`) }).first();
-    await dayButton.click();
-
-    // Wait for slots to appear
-    await expect(page.getByRole('button', { name: '24h' })).toBeVisible({ timeout: 10_000 });
-
-    // Toggle to 12h format
-    await page.getByRole('button', { name: '12h' }).click();
-
-    // Verify AM/PM format is shown (slots should show PM since they're at 14:00 and 16:00)
-    await expect(page.getByText(/PM/).first()).toBeVisible({ timeout: 5_000 });
-
-    // Toggle back to 24h
-    await page.getByRole('button', { name: '24h' }).click();
-  });
 });
 
 /**

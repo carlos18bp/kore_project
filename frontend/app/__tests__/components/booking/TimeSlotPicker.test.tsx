@@ -15,8 +15,7 @@ describe('TimeSlotPicker', () => {
 
   it('renders slot buttons for each slot', () => {
     render(<TimeSlotPicker slots={SLOTS} selectedSlot={null} onSelectSlot={onSelectSlot} />);
-    const buttons = screen.getAllByRole('button').filter((b) => !['12h', '24h'].includes(b.textContent ?? ''));
-    expect(buttons).toHaveLength(2);
+    expect(screen.getAllByRole('button')).toHaveLength(2);
   });
 
   it('renders empty state when no slots', () => {
@@ -27,42 +26,17 @@ describe('TimeSlotPicker', () => {
   it('calls onSelectSlot when clicking a slot', async () => {
     const user = userEvent.setup();
     render(<TimeSlotPicker slots={SLOTS} selectedSlot={null} onSelectSlot={onSelectSlot} />);
-    const slotButtons = screen.getAllByRole('button').filter((b) => !['12h', '24h'].includes(b.textContent ?? ''));
-    await user.click(slotButtons[0]);
+    await user.click(screen.getAllByRole('button')[0]);
     expect(onSelectSlot).toHaveBeenCalledWith(SLOTS[0]);
   });
 
   it('highlights selected slot with red styling', () => {
     render(<TimeSlotPicker slots={SLOTS} selectedSlot={SLOTS[0]} onSelectSlot={onSelectSlot} />);
-    const slotButtons = screen.getAllByRole('button').filter((b) => !['12h', '24h'].includes(b.textContent ?? ''));
-    expect(slotButtons[0]).toHaveClass('border-kore-red');
+    expect(screen.getAllByRole('button')[0]).toHaveClass('border-kore-red');
   });
 
-  it('renders 12h/24h toggle buttons', () => {
+  it('displays times in 12h AM/PM format', () => {
     render(<TimeSlotPicker slots={SLOTS} selectedSlot={null} onSelectSlot={onSelectSlot} />);
-    expect(screen.getByText('12h')).toBeInTheDocument();
-    expect(screen.getByText('24h')).toBeInTheDocument();
-  });
-
-  it('toggles time format when clicking 12h button', async () => {
-    const user = userEvent.setup();
-    render(<TimeSlotPicker slots={SLOTS} selectedSlot={null} onSelectSlot={onSelectSlot} />);
-    const btn12 = screen.getByText('12h');
-    await user.click(btn12);
-    // After clicking 12h, the 12h button should be active (bg-kore-red)
-    expect(btn12).toHaveClass('bg-kore-red');
-  });
-
-  it('switches back to 24h format after toggling to 12h', async () => {
-    const user = userEvent.setup();
-    render(<TimeSlotPicker slots={SLOTS} selectedSlot={null} onSelectSlot={onSelectSlot} />);
-    const btn12 = screen.getByText('12h');
-    const btn24 = screen.getByText('24h');
-
-    await user.click(btn12);
-    expect(btn12).toHaveClass('bg-kore-red');
-
-    await user.click(btn24);
-    expect(btn24).toHaveClass('bg-kore-red');
+    expect(screen.getAllByText(/AM|PM/).length).toBeGreaterThan(0);
   });
 });
