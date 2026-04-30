@@ -68,6 +68,7 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
     sessions_total: 10,
     sessions_used: 3,
     sessions_remaining: 7,
+    sessions_completed: 3,
     status: 'active',
     starts_at: new Date(Date.now() - 5 * 86400000).toISOString(),
     expires_at: new Date(Date.now() + 85 * 86400000).toISOString(),
