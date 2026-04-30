@@ -100,6 +100,11 @@ test.describe('Edge-case branch coverage', { tag: [...FlowTags.APP_EDGE_CASE_BRA
   }
 
   async function clickCalendarDay(page: import('@playwright/test').Page, dayNum: string) {
+    // If tomorrow falls in the next month (last day of month), navigate forward first
+    // so we click the correct enabled day instead of the same-numbered past day.
+    if (tomorrow.getMonth() !== new Date().getMonth()) {
+      await page.getByLabel('Mes siguiente').click();
+    }
     const dayBtn = page.getByRole('button', { name: dayNum, exact: true });
     await dayBtn.click({ timeout: 10_000 });
   }
