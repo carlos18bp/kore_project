@@ -112,6 +112,9 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
       await page.getByLabel('Mes siguiente').click();
     }
     const targetDay = String(tomorrow.getDate());
+    if (tomorrow.getMonth() !== new Date().getMonth()) {
+      await page.getByLabel('Mes siguiente').click();
+    }
     const enabledDay = page.getByRole('button', { name: new RegExp(`^${targetDay}$`) });
     const dayExists = await enabledDay.isVisible().catch(() => false);
     const dayDisabled = dayExists ? await enabledDay.isDisabled().catch(() => true) : true;

@@ -220,6 +220,9 @@ test.describe('Book Session Flow', { tag: [...FlowTags.BOOKING_SESSION_FLOW, Rol
 
     // Click the available day on the calendar
     const dayNumber = tomorrow.getDate();
+    if (tomorrow.getMonth() !== new Date().getMonth()) {
+      await page.getByLabel('Mes siguiente').click();
+    }
     // quality: allow-fragile-selector (calendar day labels can repeat across months; select first matching visible day)
     const dayButton = page.locator('button').filter({ hasText: new RegExp(`^${dayNumber}$`) }).first();
     await dayButton.click();
