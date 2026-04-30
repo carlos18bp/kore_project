@@ -124,8 +124,80 @@ This file is updated in two passes:
 
 ## Updates applied (post-step D/E)
 
-_Filled in after running `npm audit fix` + `ncu -u --target minor`, build, and lint._
+### Frontend
+
+Applied via `npm audit fix` + `npx npm-check-updates -u --target minor` + `npm install`:
+
+| Package | From | To | Notes |
+|---|---|---|---|
+| next | 16.1.7 | 16.2.4 | fixes GHSA-q4gf-8mx6-v5v3 (DoS) + transitive postcss XSS exposure |
+| next-intl | 4.8.2 | 4.11.0 | fixes GHSA-8f24-v5vv-gm5j (open redirect) |
+| axios | 1.13.6 | 1.15.2 | fixes GHSA-3p68-rc4w-qgx5 (SSRF) + GHSA-fvcv-3m26-pcqx (metadata exfil) |
+| react | 19.2.3 | 19.2.5 | patch |
+| react-dom | 19.2.3 | 19.2.5 | patch |
+| framer-motion | 12.34.3 | 12.38.0 | minor |
+| gsap | 3.14.2 | 3.15.0 | minor |
+| swiper | 12.1.2 | 12.1.4 | patch |
+| zustand | 5.0.11 | 5.0.12 | patch |
+| lucide-react | 0.564.0 | 0.577.0 | minor (still 0.x — major to 1.x **skipped**) |
+| eslint-config-next | 16.1.7 | 16.2.4 | minor |
+| @playwright/test | 1.42 | 1.59.1 | minor |
+| jest | 30.0.0 | 30.3.0 | patch |
+| jest-environment-jsdom | 30.0.0 | 30.3.0 | patch |
+| @testing-library/dom | 10.0.0 | 10.4.1 | patch |
+| @testing-library/jest-dom | 6.4.2 | 6.9.1 | minor |
+| @testing-library/user-event | 14.5.2 | 14.6.1 | patch |
+| monocart-reporter | 2.10.0 | 2.10.1 | patch (also drains nodemailer chain) |
+
+Transitive resolutions via npm audit fix tightened: `brace-expansion`, `follow-redirects`, `picomatch`, `nodemailer`.
+
+### Backend
+
+`requirements.txt` was reviewed; **no version changes were necessary**. Every pin uses range syntax `>=X,<Y`, and a clean install from the unchanged file already resolves to the latest in-range patch+minor versions. Specifically (resolved):
+
+| Package | Constraint | Installed |
+|---|---|---|
+| Django | `>=6.0,<7.0` | 6.0.4 |
+| djangorestframework | `>=3.16,<4.0` | 3.17.1 |
+| djangorestframework-simplejwt | `>=5.5,<6.0` | 5.5.1 |
+| django-cors-headers | `>=4.9,<5.0` | 4.9.0 |
+| python-decouple | `>=3.8,<3.9` | 3.8 |
+| requests | `>=2.31,<3.0` | 2.33.1 |
+| huey | `>=2.5,<3.0` | 2.6.0 |
+| redis | `>=7.2,<8.0` | 7.4.0 |
+| django-dbbackup | `>=4.0.0,<5.0` | 4.3.0 |
+| django-silk | `>=5.0.0,<6.0` | 5.5.0 |
+| pytest | `>=9.0,<10.0` | 9.0.3 |
+| pytest-django | `>=4.12,<5.0` | 4.12.0 |
+| pytest-cov | `>=7.0,<8.0` | 7.1.0 |
+| coverage | `>=7.4,<8.0` | 7.13.5 |
+| ruff | `>=0.15.2,<0.16` | 0.15.12 |
+| Pillow | `>=11.0,<12.0` | 11.3.0 |
+| gunicorn | `>=23.0,<24.0` | 23.0.0 |
+| mysqlclient | `>=2.2,<3.0` | 2.2.8 |
+
+The two outstanding Pillow CVEs (CVE-2026-25990, CVE-2026-40192) require **Pillow 12.x** which is outside the declared `<12.0` constraint and is therefore a **major bump skipped** by policy. A follow-up PR is recommended that:
+
+1. widens the constraint to `Pillow>=12.2,<13.0`,
+2. exercises the image-handling code paths in `core_app/services/` and any user-upload flows,
+3. confirms there are no regressions for PSD/FITS handling (workaround in the meantime: pass an explicit `formats=` argument to `Image.open()` excluding PSD and FITS).
+
+## Verification
+
+- **Frontend build**: `npm run build` — passed (33 static pages emitted).
+- **Frontend lint**: `npm run lint` — failures observed; verified by re-running on `origin/master` with the same package set: identical 36 errors / 105 warnings, all in pre-existing `*.cjs` scripts. **Not a regression of these updates.** Triaging existing lint debt is out of scope here.
+- **Frontend unit tests / E2E**: per `frontend/CLAUDE.md` ("Never run the full frontend unit or E2E suite") — skipped.
+- **Backend `manage.py check`**: passed with no issues.
+- **Backend pytest**: per `backend/CLAUDE.md` ("Never run the full backend suite") — skipped.
+
+## Residual vulnerabilities after updates
+
+| ID | Package | Status |
+|---|---|---|
+| GHSA-qx2v-qp2m-jg93 | postcss `8.4.31` (transitive of `next@16.2.4`) | Cannot be fixed without a non-existent next 16.x patch — npm's only "fix" is a downgrade to next 9.3.3 (major regression). Tracked upstream; safe to defer until next 16.2.5+ or 16.3 is released. |
+| CVE-2026-25990 | Pillow `<12.1.1` | Skipped — major bump required (see Pillow note above). |
+| CVE-2026-40192 | Pillow `<12.2.0` | Skipped — major bump required (see Pillow note above). |
 
 ## Rollbacks
 
-_None recorded yet._
+None. No upgrade had to be reverted.
