@@ -435,6 +435,9 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
       await page.getByLabel('Mes siguiente').click();
     }
     const dayNum = _bktomorrow.getDate().toString();
+    if (_bktomorrow.getMonth() !== new Date().getMonth()) {
+      await page.getByLabel('Mes siguiente').click();
+    }
     const dayBtn = page.getByRole('button', { name: dayNum, exact: true });
     await dayBtn.click({ timeout: 10_000 });
     const slotBtn = page.getByRole('button', { name: _bkSlotLabel, exact: true });
