@@ -137,11 +137,18 @@ test.describe('BookingCalendar Edge Cases', { tag: [...FlowTags.BOOKING_CALENDAR
     await page.goto('/book-session');
     await expect(page.getByText('Selecciona un día')).toBeVisible({ timeout: 10_000 });
 
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayDay = yesterday.getDate();
-
-    const pastDayButton = page.getByRole('button', { name: String(yesterdayDay), exact: true });
+    // Pick a day-of-month that is unambiguously in the past for the current view.
+    // Using "yesterday.getDate()" can collide with a future day number when
+    // yesterday is in the previous month (e.g. today=May 1 -> yesterday=Apr 30
+    // would also match May 30, which is NOT disabled). Instead pick a day from
+    // earlier this month so the button definitely refers to a past date.
+    const today = new Date();
+    if (today.getDate() <= 1) {
+      // First day of the month — no in-month past day to test; skip safely.
+      return;
+    }
+    const pastDayNum = today.getDate() - 1;
+    const pastDayButton = page.getByRole('button', { name: String(pastDayNum), exact: true });
 
     if ((await pastDayButton.count()) > 0) {
       await expect(pastDayButton).toBeDisabled();
