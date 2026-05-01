@@ -185,7 +185,7 @@ jobs:
   # ───────────────────────────────────────────
   # E2E — Merge sharded results + flow coverage
   # ───────────────────────────────────────────
-  e2e-merge:
+  e2e-merge-reports:
     if: always()
     needs: [frontend-e2e-tests]
     runs-on: ubuntu-latest
@@ -241,7 +241,7 @@ jobs:
   # ───────────────────────────────────────────
   coverage-summary:
     if: always()
-    needs: [backend-tests, frontend-unit-tests, e2e-merge]
+    needs: [backend-tests, frontend-unit-tests, e2e-merge-reports]
     runs-on: ubuntu-latest
     permissions:
       contents: read
