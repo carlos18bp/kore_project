@@ -353,3 +353,24 @@ def maintain_availability_slots():
     from django.core.management import call_command
     call_command('maintain_slots', timezone='America/Bogota')
     logger.info('maintain_availability_slots task completed')
+
+
+@db_periodic_task(crontab(minute=55, hour=23))
+def close_daily_logs():
+    """At 23:55 daily: close all open DailyLogs and mark unchecked exercises as not_done.
+
+    After close the log is immutable — the customer cannot update exercise statuses.
+    """
+    from core_app.models.monthly_program import DailyLog, ExerciseLog
+
+    open_logs = list(DailyLog.objects.filter(is_closed=False, date=timezone.localdate()))
+    now = timezone.now()
+
+    for log in open_logs:
+        log.is_closed = True
+        log.closed_at = now
+        log.save(update_fields=['is_closed', 'closed_at'])
+
+    count = len(open_logs)
+    logger.info('close_daily_logs: closed %d logs', count)
+    return {'closed': count}

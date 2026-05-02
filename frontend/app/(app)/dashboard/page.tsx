@@ -15,6 +15,7 @@ import { usePhysicalEvaluationStore } from '@/lib/stores/physicalEvaluationStore
 import { useNutritionStore } from '@/lib/stores/nutritionStore';
 import { useParqStore } from '@/lib/stores/parqStore';
 import { usePendingAssessmentsStore } from '@/lib/stores/pendingAssessmentsStore';
+import { useProgramStore } from '@/lib/stores/programStore';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 import UpcomingSessionReminder from '@/app/components/booking/UpcomingSessionReminder';
 import SubscriptionExpiryReminder from '@/app/components/subscription/SubscriptionExpiryReminder';
@@ -69,6 +70,7 @@ export default function DashboardPage() {
   const { entries: nutritionEntries, fetchMyEntries: fetchMyNutrition } = useNutritionStore();
   const { assessments: parqAssessments, fetchMyAssessments: fetchMyParq } = useParqStore();
   const { koreIndex, fetchPending: fetchPendingAssessments, loaded: pendingLoaded } = usePendingAssessmentsStore();
+  const { activeProgram, fetchActiveProgram } = useProgramStore();
   const sectionRef = useRef<HTMLElement>(null);
   const profileFetchedRef = useRef(false);
   useHeroAnimation(sectionRef);
@@ -104,7 +106,8 @@ export default function DashboardPage() {
     fetchMyNutrition();
     fetchMyParq();
     fetchPendingAssessments();
-  }, [fetchSubscriptions, fetchUpcomingReminder, fetchBookings, fetchMyEvaluations, fetchMyPosturoEvals, fetchMyPhysicalEvals, fetchMyNutrition, fetchMyParq, fetchPendingAssessments]);
+    fetchActiveProgram();
+  }, [fetchSubscriptions, fetchUpcomingReminder, fetchBookings, fetchMyEvaluations, fetchMyPosturoEvals, fetchMyPhysicalEvals, fetchMyNutrition, fetchMyParq, fetchPendingAssessments, fetchActiveProgram]);
 
   useEffect(() => {
     if (profileFetchedRef.current) return;
@@ -1249,6 +1252,45 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* ═══════ PROGRAMA DE HOY ═══════ */}
+        {activeProgram && (() => {
+          const today = new Date().toISOString().slice(0, 10);
+          const todayDay = activeProgram.days.find((d) => d.date === today);
+          if (!todayDay || todayDay.exercises.length === 0) return null;
+          const exerciseCount = todayDay.exercises.length;
+          const estimatedMin = exerciseCount * 8;
+          return (
+            <Link
+              href="/mi-programa/hoy?start=1"
+              className="block rounded-2xl overflow-hidden mb-3 hover:opacity-95 active:scale-[0.99] transition-all"
+              style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%)' }}
+            >
+              <div className="flex items-center gap-4 px-4 py-4">
+                <div
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
+                  style={{ background: 'rgba(224,0,0,0.18)' }}
+                >
+                  <svg className="w-6 h-6 ml-0.5" fill="#E00000" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-white/35 uppercase tracking-widest font-semibold mb-0.5">
+                    Rutina de hoy
+                  </p>
+                  <p className="text-sm font-black text-white leading-tight">¿Listo para entrenar?</p>
+                  <p className="text-xs text-white/40 mt-0.5">
+                    {exerciseCount} ejercicios · ~{estimatedMin} min
+                  </p>
+                </div>
+                <div className="shrink-0">
+                  <span className="text-[10px] font-bold text-white/30 uppercase tracking-wider">Iniciar</span>
+                </div>
+              </div>
+            </Link>
+          );
+        })()}
 
         {/* ═══════ MOBILE: Próximas sesiones (after diagnostics) ═══════ */}
         <div className="xl:hidden bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-lg mb-3">

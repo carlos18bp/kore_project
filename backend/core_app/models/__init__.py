@@ -21,6 +21,8 @@ from .nutrition_habit import NutritionHabit
 from .parq_assessment import ParqAssessment
 from .registration_verification_code import RegistrationVerificationCode
 from .subscription_guest import SubscriptionGuest
+from .exercise import Exercise
+from .monthly_program import MonthlyProgram, ProgramDay, ProgramExercise, DailyLog, ExerciseLog
 
 __all__ = [
     'User',
@@ -49,4 +51,10 @@ __all__ = [
     'ParqAssessment',
     'RegistrationVerificationCode',
     'SubscriptionGuest',
+    'Exercise',
+    'MonthlyProgram',
+    'ProgramDay',
+    'ProgramExercise',
+    'DailyLog',
+    'ExerciseLog',
 ]

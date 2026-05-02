@@ -19,12 +19,18 @@ from core_app.models import (
     Booking,
     ContactMessage,
     CustomerProfile,
+    DailyLog,
+    Exercise,
+    ExerciseLog,
     FAQCategory,
     FAQItem,
     MoodEntry,
+    MonthlyProgram,
     Notification,
     Package,
     Payment,
+    ProgramDay,
+    ProgramExercise,
     SiteSettings,
     Subscription,
     SubscriptionGuest,
@@ -385,3 +391,45 @@ class SubscriptionGuestAdmin(admin.ModelAdmin):
     list_filter = ('status', 'created_at')
     search_fields = ('invited_email', 'guest__email', 'subscription__customer__email')
     readonly_fields = ('token', 'accepted_at', 'created_at', 'updated_at')
+
+
+@admin.register(Exercise)
+class ExerciseAdmin(admin.ModelAdmin):
+    list_display = ('name', 'pattern', 'exercise_type', 'main_implement', 'fitness_level_min', 'is_corrective', 'is_active')
+    list_filter = ('fitness_level_min', 'is_corrective', 'is_active', 'exercise_type', 'pattern')
+    search_fields = ('name', 'pattern', 'main_implement', 'primary_muscles')
+    readonly_fields = ('created_at', 'updated_at')
+    list_per_page = 50
+
+
+@admin.register(MonthlyProgram)
+class MonthlyProgramAdmin(admin.ModelAdmin):
+    list_display = ('customer', 'fitness_level', 'goal', 'start_date', 'end_date', 'status', 'approved_at')
+    list_filter = ('status', 'fitness_level', 'goal')
+    search_fields = ('customer__email', 'customer__first_name')
+    readonly_fields = ('created_at', 'updated_at', 'approved_at')
+
+
+@admin.register(ProgramDay)
+class ProgramDayAdmin(admin.ModelAdmin):
+    list_display = ('program', 'day_number', 'date', 'day_type')
+    list_filter = ('day_type',)
+
+
+@admin.register(ProgramExercise)
+class ProgramExerciseAdmin(admin.ModelAdmin):
+    list_display = ('program_day', 'exercise', 'sets', 'reps', 'order')
+    search_fields = ('exercise__name',)
+
+
+@admin.register(DailyLog)
+class DailyLogAdmin(admin.ModelAdmin):
+    list_display = ('customer', 'date', 'is_closed', 'closed_at')
+    list_filter = ('is_closed',)
+    search_fields = ('customer__email',)
+
+
+@admin.register(ExerciseLog)
+class ExerciseLogAdmin(admin.ModelAdmin):
+    list_display = ('daily_log', 'program_exercise', 'status')
+    list_filter = ('status',)

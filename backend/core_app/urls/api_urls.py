@@ -47,6 +47,17 @@ from core_app.views.parq_views import (
     TrainerParqDetailView,
     TrainerParqListView,
 )
+from core_app.views.exercise_views import ExerciseListView
+from core_app.views.monthly_program_views import (
+    ApproveProgramView,
+    CustomerProgramListView,
+    EditProgramExerciseView,
+    GenerateProgramView,
+    MyProgramView,
+    ProgramDetailView,
+    TodayProgramView,
+    UpdateExerciseLogView,
+)
 from core_app.views.trainer_client_views import (
     TrainerClientDetailView,
     TrainerClientListView,
@@ -100,4 +111,13 @@ urlpatterns = [
     path('my-parq/<int:eval_id>/', ClientParqDetailView.as_view(), name='client-parq-detail'),
     path('trainer/my-clients/<int:customer_id>/parq/', TrainerParqListView.as_view(), name='trainer-parq-list'),
     path('trainer/my-clients/<int:customer_id>/parq/<int:eval_id>/', TrainerParqDetailView.as_view(), name='trainer-parq-detail'),
+    path('exercises/', ExerciseListView.as_view(), name='exercise-list'),
+    path('monthly-programs/customer/<int:customer_id>/', CustomerProgramListView.as_view(), name='customer-program-list'),
+    path('monthly-programs/generate/', GenerateProgramView.as_view(), name='monthly-program-generate'),
+    path('monthly-programs/<int:program_id>/', ProgramDetailView.as_view(), name='monthly-program-detail'),
+    path('monthly-programs/<int:program_id>/approve/', ApproveProgramView.as_view(), name='monthly-program-approve'),
+    path('monthly-programs/<int:program_id>/days/<int:day_id>/exercises/<int:ex_id>/', EditProgramExerciseView.as_view(), name='monthly-program-edit-exercise'),
+    path('my-program/', MyProgramView.as_view(), name='my-program'),
+    path('my-program/today/', TodayProgramView.as_view(), name='my-program-today'),
+    path('my-program/logs/<int:log_id>/exercises/<int:ex_log_id>/', UpdateExerciseLogView.as_view(), name='my-program-update-exercise-log'),
 ]
