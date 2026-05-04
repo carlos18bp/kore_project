@@ -58,7 +58,6 @@ export default function WorkoutPresentation({ todayData, onClose, onStatusChange
   const [exIdx, setExIdx] = useState(0);
   const [setIdx, setSetIdx] = useState(0);
   const [phase, setPhase] = useState<Phase>('intro');
-  const [showVideo, setShowVideo] = useState(false);
   const [execRemaining, setExecRemaining] = useState(0);
   const [restRemaining, setRestRemaining] = useState(0);
 
@@ -79,7 +78,6 @@ export default function WorkoutPresentation({ todayData, onClose, onStatusChange
   // ── Intro slide animation ──
   useEffect(() => {
     if (phase !== 'intro') return;
-    setShowVideo(false);
     const tl = gsap.timeline();
     if (slideRef.current) {
       tl.fromTo(slideRef.current, { x: 40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: 'power3.out' });
@@ -314,35 +312,13 @@ export default function WorkoutPresentation({ todayData, onClose, onStatusChange
               </div>
             )}
 
-            {/* Video toggle */}
+            {/* Video — visible por defecto */}
             {ex.youtube_url && (
               <div className="mb-5">
-                {!showVideo ? (
-                  <button
-                    onClick={() => setShowVideo(true)}
-                    className="w-full flex items-center gap-3 rounded-2xl px-4 py-3.5 transition-colors text-left"
-                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)' }}
-                  >
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(224,0,0,0.18)' }}>
-                      <svg className="w-5 h-5 text-[#E00000] ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-white">Ver demostración</p>
-                      <p className="text-xs text-white/35">Aprende la técnica correcta</p>
-                    </div>
-                  </button>
-                ) : (
-                  <div className="space-y-2">
-                    <YouTubeEmbed url={ex.youtube_url} title={ex.name} />
-                    <button onClick={() => setShowVideo(false)} className="text-xs text-white/30 hover:text-white/50 transition-colors">
-                      Ocultar video
-                    </button>
-                  </div>
-                )}
+                <YouTubeEmbed url={ex.youtube_url} title={ex.name} />
               </div>
             )}
+
           </div>
         </div>
 

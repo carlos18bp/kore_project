@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import gsap from 'gsap';
 import Link from 'next/link';
@@ -58,6 +58,14 @@ const ArrowRightIcon = () => (
   </svg>
 );
 
+const FITNESS_LEVELS = [
+  { level: 1, name: 'Fundacional', color: 'text-slate-600', bg: 'bg-slate-100', fill: 'bg-slate-400', description: 'Estás comenzando tu camino. El foco es construir hábitos de movimiento seguros y consistentes.', training: '3 días / semana', detail: '5 ejercicios por sesión, series ligeras de 2×10.' },
+  { level: 2, name: 'Básico',       color: 'text-blue-600',  bg: 'bg-blue-100',  fill: 'bg-blue-400',  description: 'Ya tienes una base. Aumentamos variedad de movimientos y empezamos a construir fuerza real.', training: '3 días / semana', detail: '5–6 ejercicios, series de 3×10.' },
+  { level: 3, name: 'Intermedio',   color: 'text-emerald-600', bg: 'bg-emerald-100', fill: 'bg-emerald-500', description: 'Progreso sólido. Tu cuerpo ya responde bien al entrenamiento y puedes tolerar más carga.', training: '4 días / semana', detail: '6 ejercicios, series de 3×12.' },
+  { level: 4, name: 'Avanzado',     color: 'text-amber-600', bg: 'bg-amber-100',  fill: 'bg-amber-500',  description: 'Alto desempeño. Tu condición física te permite entrenar con volumen e intensidad elevados.', training: '5 días / semana', detail: '7 ejercicios, series de 4×10.' },
+  { level: 5, name: 'Elite',        color: 'text-kore-red',  bg: 'bg-red-100',   fill: 'bg-kore-red',   description: 'Máximo rendimiento. Programación compleja con alta variedad de estímulos y exigencia.', training: '5 días / semana', detail: '7–8 ejercicios, series de 4×12.' },
+] as const;
+
 export default function DashboardPage() {
   const router = useRouter();
   const { user } = useAuthStore();
@@ -79,6 +87,7 @@ export default function DashboardPage() {
   const physicalDotsRef = useRef<HTMLDivElement>(null);
   const bubblesRef = useRef<HTMLDivElement>(null);
   const mobileBubblesRef = useRef<HTMLDivElement>(null);
+  const [showLevelModal, setShowLevelModal] = useState(false);
 
   // Computed variables (must be before GSAP effects that depend on them)
   const sessionsRemaining = sub?.sessions_remaining ?? 0;
@@ -329,7 +338,7 @@ export default function DashboardPage() {
       <div className="w-full px-4 sm:px-6 md:px-10 lg:px-14 pt-20 xl:pt-6 pb-12 relative z-10">
 
         {/* ═══ TOP HEADER: Greeting ═══ */}
-        <div data-hero="badge" className="mb-6 xl:mb-8">
+        <div data-hero="badge" className="mb-4 xl:mb-5">
           <div>
             <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-1">Tu espacio</p>
             <h1 className="font-heading text-2xl md:text-3xl font-semibold text-kore-gray-dark">
@@ -337,6 +346,94 @@ export default function DashboardPage() {
             </h1>
           </div>
         </div>
+
+        {/* ═══════ RUTINA DE HOY — hero card ═══════ */}
+        {activeProgram && (() => {
+          const today = new Date().toISOString().slice(0, 10);
+          const todayDay = activeProgram.days.find((d) => d.date === today);
+          if (!todayDay || todayDay.exercises.length === 0) return null;
+          const exerciseCount = todayDay.exercises.length;
+          const estimatedMin = exerciseCount * 8;
+          const previewExercises = todayDay.exercises.slice(0, 4);
+          const dayLabel = todayDay.day_type === 'active_rest' ? 'Descanso activo' : 'Entrenamiento';
+          return (
+            <Link
+              href="/mi-programa/hoy?start=1"
+              className="block rounded-2xl overflow-hidden mb-5 xl:mb-6 hover:opacity-95 active:scale-[0.99] transition-all shadow-xl"
+              style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #111111 100%)' }}
+            >
+              {/* Mobile layout */}
+              <div className="xl:hidden p-4">
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'rgba(224,0,0,0.18)' }}>
+                    <svg className="w-6 h-6 ml-0.5" fill="#E00000" viewBox="0 0 24 24">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] text-white/35 uppercase tracking-widest font-semibold mb-0.5">
+                      {dayLabel} · Día {todayDay.day_number}
+                    </p>
+                    <p className="text-lg font-black text-white leading-tight">¿Listo para entrenar?</p>
+                    <p className="text-xs text-white/40 mt-0.5">{exerciseCount} ejercicios · ~{estimatedMin} min</p>
+                  </div>
+                </div>
+                <div className="space-y-1.5 mb-3">
+                  {previewExercises.map((ex, i) => (
+                    <div key={ex.id} className="flex items-center gap-2">
+                      <span className="text-[10px] text-white/20 w-4 shrink-0 text-right">{i + 1}</span>
+                      <span className="text-xs text-white/60 truncate">{ex.exercise.name}</span>
+                      <span className="text-[10px] text-white/25 shrink-0 ml-auto">
+                        {ex.sets}×{ex.reps !== null ? ex.reps : `${ex.duration_seconds}s`}
+                      </span>
+                    </div>
+                  ))}
+                  {exerciseCount > 4 && (
+                    <p className="text-[10px] text-white/25 ml-6">+{exerciseCount - 4} más</p>
+                  )}
+                </div>
+                <div className="flex items-center justify-end">
+                  <span className="inline-flex items-center gap-1.5 bg-kore-red text-white text-xs font-bold px-4 py-2 rounded-xl">
+                    Iniciar rutina
+                    <ArrowRightIcon />
+                  </span>
+                </div>
+              </div>
+
+              {/* Desktop layout */}
+              <div className="hidden xl:flex items-stretch">
+                <div className="flex-1 p-6">
+                  <p className="text-xs text-white/35 uppercase tracking-widest font-semibold mb-2">
+                    {dayLabel} · Día {todayDay.day_number}
+                  </p>
+                  <p className="font-heading text-2xl font-black text-white mb-1">¿Listo para entrenar?</p>
+                  <p className="text-sm text-white/40 mb-5">{exerciseCount} ejercicios · ~{estimatedMin} min</p>
+                  <span className="inline-flex items-center gap-2 bg-kore-red text-white text-sm font-bold px-6 py-3 rounded-xl">
+                    Iniciar rutina
+                    <ArrowRightIcon />
+                  </span>
+                </div>
+                <div className="w-72 border-l p-5 flex flex-col justify-center" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+                  <p className="text-[10px] text-white/30 uppercase tracking-wider mb-3">En esta sesión</p>
+                  <div className="space-y-2.5">
+                    {previewExercises.map((ex, i) => (
+                      <div key={ex.id} className="flex items-center gap-2.5">
+                        <span className="text-[10px] text-white/20 w-4 shrink-0 text-right">{i + 1}</span>
+                        <span className="text-sm text-white/65 truncate">{ex.exercise.name}</span>
+                        <span className="text-[10px] text-white/25 shrink-0 ml-auto">
+                          {ex.sets}×{ex.reps !== null ? ex.reps : `${ex.duration_seconds}s`}
+                        </span>
+                      </div>
+                    ))}
+                    {exerciseCount > 4 && (
+                      <p className="text-[10px] text-white/25 ml-6">+{exerciseCount - 4} ejercicios más</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Link>
+          );
+        })()}
 
 
         {/* ═══════ MOBILE ONLY: PRIMARY METRICS (Large cards) ═══════ */}
@@ -398,7 +495,7 @@ export default function DashboardPage() {
                 { key: 'mood', emoji: '😊' },
               ];
               return (
-                <Link href="/subscription" className="block bg-white/70 backdrop-blur-sm rounded-xl p-3 border border-white/60 shadow-sm">
+                <div className="block bg-white/70 backdrop-blur-sm rounded-xl p-3 border border-white/60 shadow-sm">
                   <p className="text-[9px] text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-1">Tu nivel KÓRE</p>
                   <div className="flex items-baseline gap-1 mb-1">
                     <span className={`font-heading text-2xl font-bold ${koreIndex.kore_color === 'green' ? 'text-emerald-700' : koreIndex.kore_color === 'yellow' ? 'text-amber-600' : koreIndex.kore_color === 'orange' ? 'text-orange-600' : 'text-red-600'}`}>{koreIndex.kore_score}</span>
@@ -419,7 +516,20 @@ export default function DashboardPage() {
                       );
                     })}
                   </div>
-                </Link>
+                  {activeProgram && (() => {
+                    const currentLevel = activeProgram.fitness_level ?? 1;
+                    const lvl = FITNESS_LEVELS[currentLevel - 1];
+                    return (
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowLevelModal(true); }}
+                        className={`mt-2 inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full w-full justify-center ${lvl.bg} ${lvl.color}`}
+                      >
+                        Nv. {currentLevel} — {lvl.name}
+                        <svg className="w-2.5 h-2.5 opacity-60" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
+                      </button>
+                    );
+                  })()}
+                </div>
               );
             })() : (
               <div className="bg-white/70 backdrop-blur-sm rounded-xl p-3 border border-white/60 shadow-sm">
@@ -447,6 +557,29 @@ export default function DashboardPage() {
                   <p className="text-[9px] text-kore-gray-dark/40">sesiones</p>
                 </div>
               </div>
+              {/* Nivel de condición física — mobile compact */}
+              {activeProgram && (() => {
+                const currentLevel = activeProgram.fitness_level ?? 1;
+                const lvl = FITNESS_LEVELS[currentLevel - 1];
+                return (
+                  <div className="pt-1.5 border-t border-kore-gray-light/20">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[9px] text-kore-gray-dark/40 uppercase tracking-wider">Nivel</span>
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowLevelModal(true); }}
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${lvl.bg} ${lvl.color}`}
+                      >
+                        {lvl.name}
+                      </button>
+                    </div>
+                    <div className="flex gap-0.5">
+                      {FITNESS_LEVELS.map((l) => (
+                        <div key={l.level} className={`flex-1 h-1 rounded-full ${l.level <= currentLevel ? lvl.fill : 'bg-gray-200'}`} />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
               {/* Mood + Goal mini */}
               <div className="space-y-1 pt-1.5 border-t border-kore-gray-light/20">
                 {todayMood ? (
@@ -502,6 +635,36 @@ export default function DashboardPage() {
                 <p className="text-[10px] md:text-xs text-kore-gray-dark/50">completadas de {sessionsTotal}</p>
               </div>
             </div>
+            {/* Nivel de condición física */}
+            {activeProgram && (() => {
+              const currentLevel = activeProgram.fitness_level ?? 1;
+              const lvl = FITNESS_LEVELS[currentLevel - 1];
+              const nextLvl = currentLevel < 5 ? FITNESS_LEVELS[currentLevel] : null;
+              return (
+                <div className="py-2 md:py-3 border-t border-kore-gray-light/30">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-[10px] md:text-xs text-kore-gray-dark/40 uppercase tracking-wider">Nivel de condición</p>
+                    <button
+                      onClick={() => setShowLevelModal(true)}
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${lvl.bg} ${lvl.color} hover:opacity-80 transition-opacity`}
+                    >
+                      {lvl.name}
+                    </button>
+                  </div>
+                  <div className="flex gap-1 mb-1.5">
+                    {FITNESS_LEVELS.map((l) => (
+                      <div
+                        key={l.level}
+                        className={`flex-1 h-1.5 rounded-full transition-all ${l.level <= currentLevel ? lvl.fill : 'bg-gray-200'}`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-kore-gray-dark/40">
+                    {nextLvl ? `Para subir a ${nextLvl.name}: mejora tu condición física` : 'Has alcanzado el nivel máximo'}
+                  </p>
+                </div>
+              );
+            })()}
             {/* Mi objetivo (inline) */}
             {(() => {
               const goalValue = profile?.customer_profile?.primary_goal;
@@ -713,7 +876,21 @@ export default function DashboardPage() {
               const col = koreIndex.kore_color;
               return (
                 <div className="flex flex-col h-full">
-                  <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest font-medium mb-3">Calificación KÓRE</p>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest font-medium">Calificación KÓRE</p>
+                    {activeProgram && (() => {
+                      const lvl = FITNESS_LEVELS[(activeProgram.fitness_level ?? 1) - 1];
+                      return (
+                        <button
+                          onClick={() => setShowLevelModal(true)}
+                          className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${lvl.bg} ${lvl.color} hover:opacity-80 transition-opacity`}
+                        >
+                          Nv. {lvl.level} — {lvl.name}
+                          <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
+                        </button>
+                      );
+                    })()}
+                  </div>
                   <div className="flex items-center gap-4 mb-4">
                     <div className="relative w-16 h-16 flex-shrink-0">
                       <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
@@ -1253,44 +1430,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ═══════ PROGRAMA DE HOY ═══════ */}
-        {activeProgram && (() => {
-          const today = new Date().toISOString().slice(0, 10);
-          const todayDay = activeProgram.days.find((d) => d.date === today);
-          if (!todayDay || todayDay.exercises.length === 0) return null;
-          const exerciseCount = todayDay.exercises.length;
-          const estimatedMin = exerciseCount * 8;
-          return (
-            <Link
-              href="/mi-programa/hoy?start=1"
-              className="block rounded-2xl overflow-hidden mb-3 hover:opacity-95 active:scale-[0.99] transition-all"
-              style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%)' }}
-            >
-              <div className="flex items-center gap-4 px-4 py-4">
-                <div
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
-                  style={{ background: 'rgba(224,0,0,0.18)' }}
-                >
-                  <svg className="w-6 h-6 ml-0.5" fill="#E00000" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] text-white/35 uppercase tracking-widest font-semibold mb-0.5">
-                    Rutina de hoy
-                  </p>
-                  <p className="text-sm font-black text-white leading-tight">¿Listo para entrenar?</p>
-                  <p className="text-xs text-white/40 mt-0.5">
-                    {exerciseCount} ejercicios · ~{estimatedMin} min
-                  </p>
-                </div>
-                <div className="shrink-0">
-                  <span className="text-[10px] font-bold text-white/30 uppercase tracking-wider">Iniciar</span>
-                </div>
-              </div>
-            </Link>
-          );
-        })()}
 
         {/* ═══════ MOBILE: Próximas sesiones (after diagnostics) ═══════ */}
         <div className="xl:hidden bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-lg mb-3">
@@ -1383,6 +1522,84 @@ export default function DashboardPage() {
           })()}
         </div>
       </div>
+
+      {/* ═══════ MODAL: Niveles de condición física ═══════ */}
+      {showLevelModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+          onClick={() => setShowLevelModal(false)}
+        >
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div
+            className="relative bg-kore-cream rounded-2xl w-full max-w-md max-h-[85vh] overflow-y-auto shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-kore-gray-light/30">
+              <div>
+                <p className="text-[10px] text-kore-gray-dark/40 uppercase tracking-widest mb-0.5">Programa personalizado</p>
+                <h2 className="font-heading text-lg font-bold text-kore-gray-dark">Niveles de condición</h2>
+              </div>
+              <button
+                onClick={() => setShowLevelModal(false)}
+                className="w-8 h-8 rounded-full bg-white/80 flex items-center justify-center hover:bg-white transition-colors"
+              >
+                <svg className="w-4 h-4 text-kore-gray-dark/60" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            {/* Current level callout */}
+            {activeProgram && (() => {
+              const currentLevel = activeProgram.fitness_level ?? 1;
+              const lvl = FITNESS_LEVELS[currentLevel - 1];
+              return (
+                <div className={`mx-5 mt-4 p-3 rounded-xl ${lvl.bg} flex items-center gap-3`}>
+                  <div className={`w-8 h-8 rounded-full bg-white/60 flex items-center justify-center font-heading font-bold text-sm ${lvl.color}`}>
+                    {currentLevel}
+                  </div>
+                  <div>
+                    <p className={`text-xs font-bold ${lvl.color}`}>Tu nivel actual: {lvl.name}</p>
+                    <p className="text-[10px] text-kore-gray-dark/50">Basado en tu última evaluación física</p>
+                  </div>
+                </div>
+              );
+            })()}
+            {/* Level list */}
+            <div className="p-5 space-y-3">
+              {FITNESS_LEVELS.map((lvl) => {
+                const isCurrent = (activeProgram?.fitness_level ?? 1) === lvl.level;
+                return (
+                  <div
+                    key={lvl.level}
+                    className={`rounded-xl p-4 border-2 transition-all ${isCurrent ? `${lvl.bg} border-current` : 'bg-white/60 border-transparent'}`}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center font-heading font-bold text-sm flex-shrink-0 ${isCurrent ? 'bg-white/70' : 'bg-gray-100'} ${lvl.color}`}>
+                        {lvl.level}
+                      </div>
+                      <div className="flex-1">
+                        <p className={`text-sm font-bold ${isCurrent ? lvl.color : 'text-kore-gray-dark'}`}>{lvl.name}</p>
+                        <p className="text-[10px] text-kore-gray-dark/40">{lvl.training}</p>
+                      </div>
+                      {isCurrent && (
+                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full bg-white/70 ${lvl.color}`}>Tú aquí</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-kore-gray-dark/60 leading-relaxed mb-1.5">{lvl.description}</p>
+                    <p className="text-[10px] text-kore-gray-dark/40">{lvl.detail}</p>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="px-5 pb-5">
+              <p className="text-[10px] text-kore-gray-dark/40 text-center leading-relaxed">
+                Tu nivel se actualiza automáticamente con cada evaluación física. Habla con tu entrenador para más detalles.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

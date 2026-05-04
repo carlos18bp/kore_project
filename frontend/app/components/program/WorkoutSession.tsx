@@ -217,20 +217,9 @@ export default function WorkoutSession({ todayData, onClose, onStatusChange }: P
 
           {/* Exercise description */}
           {exercise.explanation && (
-            <details className="group bg-white/50 rounded-xl border border-kore-gray-light/30">
-              <summary className="px-4 py-3 text-xs font-semibold text-kore-gray-dark/50 cursor-pointer list-none flex items-center justify-between select-none">
-                Descripción del ejercicio
-                <svg
-                  className="w-4 h-4 transition-transform group-open:rotate-180"
-                  fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                </svg>
-              </summary>
-              <p className="px-4 pb-4 text-xs text-kore-gray-dark/70 leading-relaxed border-t border-kore-gray-light/20 pt-3">
-                {exercise.explanation}
-              </p>
-            </details>
+            <p className="text-xs text-kore-gray-dark/65 leading-relaxed px-1">
+              {exercise.explanation}
+            </p>
           )}
         </div>
       </div>

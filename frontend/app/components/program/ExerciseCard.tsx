@@ -49,25 +49,15 @@ export default function ExerciseCard({ programExercise, exerciseLog, logClosed, 
         {exercise.youtube_url && (
           <button
             onClick={() => setVideoOpen((v) => !v)}
-            className="shrink-0 text-xs text-kore-red hover:text-kore-red/80 flex items-center gap-1 transition-colors"
+            className="shrink-0 text-xs text-kore-gray-dark/40 hover:text-kore-gray-dark/70 transition-colors"
           >
-            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-            </svg>
-            {videoOpen ? 'Ocultar' : 'Video'}
+            {videoOpen ? 'Ocultar video' : 'Ver video'}
           </button>
         )}
       </div>
 
-      {/* Explanation — always visible */}
-      {exercise.explanation && (
-        <p className="mt-3 text-xs text-kore-gray-dark/65 leading-relaxed border-t border-kore-gray-light/30 pt-3">
-          {exercise.explanation}
-        </p>
-      )}
-
-      {/* YouTube embed */}
-      {videoOpen && exercise.youtube_url && (
+      {/* YouTube embed — visible by default */}
+      {exercise.youtube_url && videoOpen && (
         <div className="mt-3">
           <YouTubeEmbed url={exercise.youtube_url} title={exercise.name} />
         </div>

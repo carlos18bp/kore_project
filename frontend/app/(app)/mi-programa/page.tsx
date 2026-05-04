@@ -11,6 +11,14 @@ import ProgramCalendar from '@/app/components/program/ProgramCalendar';
 const LEVEL_LABEL: Record<number, string> = {
   1: 'Fundacional', 2: 'Básico', 3: 'Intermedio', 4: 'Avanzado', 5: 'Elite',
 };
+
+const FITNESS_LEVELS = [
+  { level: 1, name: 'Fundacional', color: 'text-slate-600',   bg: 'bg-slate-100',   fill: 'bg-slate-400',   training: '3 días / semana', detail: '5 ejercicios · 2×10 reps', description: 'Construyes hábitos de movimiento seguros. El foco es la técnica y la consistencia.' },
+  { level: 2, name: 'Básico',      color: 'text-blue-600',    bg: 'bg-blue-100',    fill: 'bg-blue-400',    training: '3 días / semana', detail: '5–6 ejercicios · 3×10 reps', description: 'Mayor variedad de movimientos y cargas progresivas para construir fuerza real.' },
+  { level: 3, name: 'Intermedio',  color: 'text-emerald-600', bg: 'bg-emerald-100', fill: 'bg-emerald-500', training: '4 días / semana', detail: '6 ejercicios · 3×12 reps', description: 'Tu cuerpo tolera más volumen. Empezamos a especializar el estímulo por objetivos.' },
+  { level: 4, name: 'Avanzado',    color: 'text-amber-600',   bg: 'bg-amber-100',   fill: 'bg-amber-500',   training: '5 días / semana', detail: '7 ejercicios · 4×10 reps', description: 'Alto desempeño. Intensidad elevada con periodización más compleja.' },
+  { level: 5, name: 'Elite',       color: 'text-red-600',     bg: 'bg-red-100',     fill: 'bg-red-500',     training: '5 días / semana', detail: '7–8 ejercicios · 4×12 reps', description: 'Máximo rendimiento. Programación de alto estímulo con variedad compleja.' },
+] as const;
 const GOAL_LABEL: Record<string, string> = {
   fat_loss: 'Pérdida de grasa', muscle_gain: 'Ganancia muscular',
   rehab: 'Rehabilitación', general_health: 'Salud general', sports_performance: 'Rendimiento deportivo',
@@ -121,8 +129,10 @@ export default function MiProgramaPage() {
   const router = useRouter();
   const { activeProgram, loading, fetchActiveProgram } = useProgramStore();
   const bubblesRef = useRef<HTMLDivElement>(null);
-  const detailRef = useRef<HTMLDivElement>(null);
+  const detailPanelRef = useRef<HTMLDivElement>(null);
+  const detailContentRef = useRef<HTMLDivElement>(null);
   const [selectedDay, setSelectedDay] = useState<ProgramDay | null>(null);
+  const [showAllLevels, setShowAllLevels] = useState(false);
 
   useEffect(() => { fetchActiveProgram(); }, [fetchActiveProgram]);
 
@@ -139,31 +149,39 @@ export default function MiProgramaPage() {
     return () => ctx.revert();
   }, [activeProgram]);
 
-  // Detail panel animation
+  // 3rd-column slide-in animation
   useEffect(() => {
-    if (!detailRef.current || !selectedDay) return;
-    gsap.fromTo(detailRef.current, { opacity: 0, x: 24 }, { opacity: 1, x: 0, duration: 0.35, ease: 'power3.out' });
+    if (!detailPanelRef.current) return;
+    if (selectedDay) {
+      gsap.to(detailPanelRef.current, { width: 380, duration: 0.4, ease: 'power3.out' });
+      if (detailContentRef.current) {
+        gsap.fromTo(detailContentRef.current, { opacity: 0, x: 28 }, { opacity: 1, x: 0, duration: 0.35, delay: 0.1, ease: 'power3.out' });
+      }
+    } else {
+      if (detailContentRef.current) {
+        gsap.to(detailContentRef.current, { opacity: 0, x: 20, duration: 0.18, ease: 'power2.in' });
+      }
+      gsap.to(detailPanelRef.current, { width: 0, duration: 0.3, delay: 0.1, ease: 'power2.in' });
+    }
   }, [selectedDay]);
 
   const handleDaySelect = (day: ProgramDay | null, dateStr: string) => {
-    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
       router.push(`/mi-programa/dia/${dateStr}`);
       return;
     }
     if (selectedDay?.date === dateStr) {
-      gsap.to(detailRef.current, { opacity: 0, x: 20, duration: 0.22, ease: 'power2.in', onComplete: () => setSelectedDay(null) });
+      setSelectedDay(null);
       return;
     }
-    if (selectedDay && detailRef.current) {
-      gsap.to(detailRef.current, { opacity: 0, x: 10, duration: 0.15, ease: 'power2.in', onComplete: () => setSelectedDay(day) });
+    if (selectedDay && detailContentRef.current) {
+      gsap.to(detailContentRef.current, { opacity: 0, x: 10, duration: 0.15, ease: 'power2.in', onComplete: () => setSelectedDay(day) });
     } else {
       setSelectedDay(day);
     }
   };
 
-  const handleCloseDetail = () => {
-    gsap.to(detailRef.current, { opacity: 0, x: 20, duration: 0.22, ease: 'power2.in', onComplete: () => setSelectedDay(null) });
-  };
+  const handleCloseDetail = () => setSelectedDay(null);
 
   if (loading) {
     return (
@@ -197,11 +215,18 @@ export default function MiProgramaPage() {
   const startLabel = new Date(activeProgram.start_date + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
   const endLabel = new Date(activeProgram.end_date + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
 
+  const currentLevel = activeProgram.fitness_level ?? 1;
+  const lvl = FITNESS_LEVELS[currentLevel - 1];
+  const nextLvl = currentLevel < 5 ? FITNESS_LEVELS[currentLevel] : null;
+  const trainingDaysTotal = activeProgram.days.filter((d) => d.day_type === 'training').length;
+  const trainingDaysDone = activeProgram.days.filter((d) => d.day_type === 'training' && d.date <= today).length;
+  const trainingPct = trainingDaysTotal > 0 ? Math.round((trainingDaysDone / trainingDaysTotal) * 100) : 0;
+
   return (
     <div className="min-h-screen bg-kore-cream">
 
       {/* ═══ HERO ═══ */}
-      <div className="relative overflow-hidden" style={{ minHeight: 220 }}>
+      <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-kore-red via-kore-crimson to-kore-burgundy" />
         <div ref={bubblesRef} className="absolute inset-0 pointer-events-none">
           {Array.from({ length: 12 }).map((_, i) => (
@@ -213,62 +238,60 @@ export default function MiProgramaPage() {
         </div>
         <div className="absolute inset-0 opacity-[0.12] pointer-events-none" style={{ backgroundImage: GRAIN, backgroundSize: '128px 128px' }} />
 
-        <div className="relative z-10 px-6 pt-10 pb-8 max-w-3xl mx-auto">
-          <p className="text-[10px] text-white/50 uppercase tracking-widest font-semibold mb-4">Mi Programa</p>
-          <div className="flex items-end justify-between gap-6">
-            {/* Left: title + goal */}
+        <div className="relative z-10 px-6 md:px-10 lg:px-14 pt-10 pb-6">
+          <p className="text-[10px] text-white/90 uppercase tracking-widest font-semibold mb-3">Mi Programa</p>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            {/* Title + goal + level */}
             <div>
-              <h1 className="font-heading text-3xl md:text-4xl font-bold text-white leading-tight">
-                {LEVEL_LABEL[activeProgram.fitness_level]}
-              </h1>
-              <p className="text-white/70 text-sm md:text-base mt-1">
-                {GOAL_LABEL[activeProgram.goal] ?? activeProgram.goal}
-              </p>
+              <div className="flex items-center gap-2 mb-1">
+                <h1 className="font-heading text-3xl md:text-4xl font-bold text-white leading-tight">
+                  {LEVEL_LABEL[activeProgram.fitness_level]}
+                </h1>
+                <span className={`hidden sm:inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/25 text-white`}>
+                  Nv. {currentLevel}
+                </span>
+              </div>
+              <p className="text-white/70 text-sm">{GOAL_LABEL[activeProgram.goal] ?? activeProgram.goal}</p>
             </div>
-            {/* Right: progress + dates */}
-            <div className="text-right shrink-0">
-              <p className="font-heading text-5xl font-black text-white leading-none">{daysPassed}</p>
-              <p className="text-xs text-white/50 mt-1">de 28 días</p>
-              <p className="text-[11px] text-white/40 mt-2">{startLabel} → {endLabel}</p>
+            {/* Stats inline */}
+            <div className="flex items-center gap-4 sm:gap-6">
+              <div className="text-center">
+                <p className="font-heading text-3xl font-black text-white leading-none">{daysPassed}</p>
+                <p className="text-[10px] text-white/50 mt-0.5">de 28 días</p>
+              </div>
+              <div className="w-px h-8 bg-white/20" />
+              <div className="text-center">
+                <p className="font-heading text-3xl font-black text-white leading-none">{trainingCount}</p>
+                <p className="text-[10px] text-white/50 mt-0.5">entrenos</p>
+              </div>
+              <div className="w-px h-8 bg-white/20" />
+              <div className="text-center">
+                <p className="font-heading text-3xl font-black text-white leading-none">{trainingDaysDone}</p>
+                <p className="text-[10px] text-white/50 mt-0.5">completados</p>
+              </div>
             </div>
           </div>
-          {/* Progress bar */}
-          <div className="mt-5 h-1.5 bg-white/15 rounded-full overflow-hidden max-w-sm">
-            <div className="h-full bg-white rounded-full" style={{ width: `${progressPct}%` }} />
+          {/* Progress bar + dates */}
+          <div className="mt-4 flex items-center gap-3 max-w-lg">
+            <div className="flex-1 h-1.5 bg-white/15 rounded-full overflow-hidden">
+              <div className="h-full bg-white rounded-full" style={{ width: `${progressPct}%` }} />
+            </div>
+            <p className="text-[11px] text-white/40 shrink-0">{startLabel} → {endLabel}</p>
           </div>
         </div>
       </div>
 
       {/* ═══ CONTENT ═══ */}
-      <div className="px-6 pb-10 mt-5 max-w-3xl mx-auto">
+      <div className="px-6 md:px-10 lg:px-14 pb-10 mt-5 overflow-x-hidden">
+        <div className="lg:flex lg:gap-6 lg:items-start">
 
-        {/* Stats row */}
-        <div className="grid grid-cols-3 gap-3 mb-5 max-w-xs">
-          {[
-            { label: 'Entrenamientos', count: trainingCount, dot: 'bg-kore-red' },
-            { label: 'Recuperación', count: activeRestCount, dot: 'bg-teal-500' },
-            { label: 'Descanso', count: restCount, dot: 'bg-kore-gray-light border border-kore-gray-dark/20' },
-          ].map(({ label, count, dot }) => (
-            <div key={label} className="bg-white/70 backdrop-blur-sm rounded-2xl p-3 border border-white/60 shadow-sm text-center">
-              <div className={`w-2 h-2 rounded-full ${dot} mx-auto mb-1.5`} />
-              <p className="font-heading text-xl font-bold text-kore-gray-dark">{count}</p>
-              <p className="text-[10px] text-kore-gray-dark/50 mt-0.5 leading-tight">{label}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Main 2-column grid on desktop */}
-        <div className="md:grid md:grid-cols-[1fr_300px] md:gap-5">
-
-          {/* LEFT: Calendar */}
-          <div className="space-y-4">
+          {/* ── LEFT: Calendar + trainer notes ── */}
+          <div className="lg:w-[420px] lg:shrink-0 space-y-4">
             <ProgramCalendar
               program={activeProgram}
               selectedDateStr={selectedDay?.date}
               onSelectDay={handleDaySelect}
             />
-
-            {/* Trainer notes (below calendar on desktop) */}
             {activeProgram.trainer_notes && (
               <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm">
                 <div className="flex items-center gap-2 mb-2">
@@ -284,38 +307,149 @@ export default function MiProgramaPage() {
             )}
           </div>
 
-          {/* RIGHT: Today CTA + Day detail panel */}
-          <div className="mt-4 md:mt-0 space-y-4 flex flex-col">
+          {/* ── MIDDLE: sidebar (fills remaining space) ── */}
+          <div className="mt-4 lg:mt-0 lg:flex-1 lg:min-w-0 space-y-4">
 
             {/* Today CTA */}
             {todayDay && (
-              <Link href="/mi-programa/hoy?start=1" className="group block bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-kore-red flex items-center justify-center shrink-0 shadow-sm">
-                    <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+              <Link href="/mi-programa/hoy?start=1" className="group block bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-kore-red flex items-center justify-center shrink-0 shadow-sm">
+                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[10px] text-kore-gray-dark/40 uppercase tracking-widest font-semibold mb-0.5">Hoy · Día {todayDay.day_number}</p>
-                    <p className="font-heading text-base font-semibold text-kore-gray-dark">{DAY_TYPE_LABEL[todayDay.day_type]}</p>
+                    <p className="font-heading text-sm font-semibold text-kore-gray-dark">{DAY_TYPE_LABEL[todayDay.day_type]}</p>
                     {todayDay.exercises.length > 0 && (
                       <p className="text-xs text-kore-gray-dark/50 mt-0.5">{todayDay.exercises.length} ejercicios · ~{todayDay.exercises.length * 8} min</p>
                     )}
                   </div>
-                  <svg className="w-5 h-5 text-kore-red shrink-0 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                  <svg className="w-4 h-4 text-kore-red shrink-0 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                   </svg>
                 </div>
               </Link>
             )}
 
-            {/* Detail panel (desktop only) */}
-            <div className="hidden md:block flex-1">
-              {selectedDay ? (
-                <div ref={detailRef}>
-                  <DayDetailPanel day={selectedDay} onClose={handleCloseDetail} />
+            {/* ── Nivel de condición ── */}
+            <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm overflow-hidden">
+              <div className="p-4">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full ${lvl.bg} ${lvl.color}`}>
+                      <span className="font-black">Nv.{currentLevel}</span> {lvl.name}
+                    </span>
+                    {nextLvl && (
+                      <>
+                        <svg className="w-3 h-3 text-kore-gray-dark/25" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                        </svg>
+                        <span className="text-xs text-kore-gray-dark/35 font-medium">{nextLvl.name}</span>
+                      </>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setShowAllLevels((v) => !v)}
+                    className="flex items-center gap-1 text-[10px] text-kore-gray-dark/40 hover:text-kore-gray-dark transition-colors"
+                  >
+                    {showAllLevels ? 'Ocultar' : 'Ver todos'}
+                    <svg className={`w-3 h-3 transition-transform ${showAllLevels ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </button>
                 </div>
-              ) : (
-                <DetailPlaceholder />
+                {/* 5-segment bar */}
+                <div className="flex gap-1 mb-1.5">
+                  {FITNESS_LEVELS.map((l) => (
+                    <div key={l.level} className={`flex-1 h-2 rounded-full transition-all ${l.level <= currentLevel ? lvl.fill : 'bg-gray-200'}`} />
+                  ))}
+                </div>
+                <div className="flex">
+                  {FITNESS_LEVELS.map((l) => (
+                    <span key={l.level} className={`flex-1 text-center text-[9px] font-semibold ${l.level === currentLevel ? lvl.color : 'text-kore-gray-dark/20'}`}>
+                      {l.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Progress message */}
+              <div className="px-4 pb-4 pt-3 border-t border-kore-gray-light/30">
+                <p className="text-xs font-semibold text-kore-gray-dark mb-1">
+                  {nextLvl ? `Sube a ${nextLvl.name} con constancia` : '¡Nivel máximo alcanzado!'}
+                </p>
+                <p className="text-[11px] text-kore-gray-dark/50 leading-relaxed mb-3">
+                  {nextLvl
+                    ? 'Cada rutina completada mejora tu condición. En tu próxima evaluación, tu entrenador medirá el avance y subirás de nivel.'
+                    : 'Mantén la consistencia para sostener este rendimiento.'}
+                </p>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-kore-red rounded-full" style={{ width: `${trainingPct}%` }} />
+                  </div>
+                  <span className="text-[10px] text-kore-gray-dark/45 shrink-0 font-medium tabular-nums">
+                    {trainingDaysDone}/{trainingDaysTotal}
+                  </span>
+                </div>
+                <p className="text-[9px] text-kore-gray-dark/30 mt-1">entrenamientos del ciclo</p>
+              </div>
+
+              {/* Expanded levels */}
+              {showAllLevels && (
+                <div className="border-t border-kore-gray-light/30">
+                  {FITNESS_LEVELS.map((l, i) => {
+                    const isCurrent = l.level === currentLevel;
+                    return (
+                      <div
+                        key={l.level}
+                        className={`flex items-start gap-3 px-4 py-3 ${i < FITNESS_LEVELS.length - 1 ? 'border-b border-kore-gray-light/20' : ''} ${isCurrent ? l.bg : ''}`}
+                      >
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center font-black text-[11px] shrink-0 mt-0.5 ${isCurrent ? 'bg-white/70' : 'bg-gray-100'} ${l.color}`}>
+                          {l.level}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <p className={`text-xs font-bold ${isCurrent ? l.color : 'text-kore-gray-dark'}`}>{l.name}</p>
+                            <span className="text-[9px] text-kore-gray-dark/30">{l.training}</span>
+                            {isCurrent && <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-white/70 ${l.color}`}>Tú aquí</span>}
+                          </div>
+                          <p className="text-[11px] text-kore-gray-dark/55 leading-relaxed">{l.description}</p>
+                          <p className="text-[10px] text-kore-gray-dark/35 mt-0.5">{l.detail}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Stats mini-row */}
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: 'Entrenos', count: trainingCount, dot: 'bg-kore-red' },
+                { label: 'Recuperación', count: activeRestCount, dot: 'bg-teal-500' },
+                { label: 'Descanso', count: restCount, dot: 'bg-gray-300' },
+              ].map(({ label, count, dot }) => (
+                <div key={label} className="bg-white/70 backdrop-blur-sm rounded-xl p-3 border border-white/60 shadow-sm text-center">
+                  <div className={`w-1.5 h-1.5 rounded-full ${dot} mx-auto mb-1.5`} />
+                  <p className="font-heading text-lg font-bold text-kore-gray-dark">{count}</p>
+                  <p className="text-[9px] text-kore-gray-dark/45 leading-tight">{label}</p>
+                </div>
+              ))}
+            </div>
+
+          </div>
+
+          {/* ── RIGHT: 3rd column — GSAP slide-in (desktop only) ── */}
+          <div
+            ref={detailPanelRef}
+            className="hidden lg:block shrink-0 overflow-hidden"
+            style={{ width: 0 }}
+          >
+            <div ref={detailContentRef} style={{ width: 380 }}>
+              {selectedDay && (
+                <DayDetailPanel day={selectedDay} onClose={handleCloseDetail} />
               )}
             </div>
           </div>
