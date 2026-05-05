@@ -9,7 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from core_app.models import AvailabilitySlot, Booking, Subscription, SubscriptionGuest
-from core_app.permissions import IsAdminRole, is_admin_user
+from core_app.permissions import IsAdminRole, IsTrainerRole, is_admin_user
 from core_app.serializers.booking_serializers import BookingSerializer
 from core_app.services.booking_rules import (
     TRAVEL_BUFFER_MINUTES,
@@ -313,6 +313,31 @@ class BookingViewSet(viewsets.ModelViewSet):
         send_booking_reschedule(booking, new_booking)
         serializer = self.get_serializer(new_booking)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['patch'], url_path='session-prep', permission_classes=[IsTrainerRole])
+    def session_prep(self, request, pk=None):
+        """Allow a trainer to set session objective and notes before a session.
+
+        Body fields (both optional):
+            - ``session_objective`` (str)
+            - ``session_notes_for_customer`` (str)
+
+        Returns:
+            Response: Updated booking data or 400/403.
+        """
+        booking = self.get_object()
+        allowed = {'session_objective', 'session_notes_for_customer'}
+        data = {k: v for k, v in request.data.items() if k in allowed}
+        if not data:
+            return Response(
+                {'detail': 'Proporciona session_objective o session_notes_for_customer.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        for field, value in data.items():
+            setattr(booking, field, value)
+        booking.save(update_fields=list(data.keys()))
+        serializer = self.get_serializer(booking)
+        return Response(serializer.data)
 
     @action(detail=False, methods=['get'], url_path='upcoming-reminder')
     def upcoming_reminder(self, request):

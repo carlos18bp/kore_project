@@ -4,7 +4,7 @@ from django.db import models as db_models, transaction
 from django.utils import timezone
 from rest_framework import serializers
 
-from core_app.models import AvailabilitySlot, Booking, Package, Subscription, TrainerProfile
+from core_app.models import AvailabilitySlot, Booking, Package, ProgramDay, Subscription, TrainerProfile
 from core_app.serializers.availability_serializers import AvailabilitySlotSerializer
 from core_app.serializers.package_serializers import PackageSerializer
 from core_app.serializers.trainer_profile_serializers import TrainerProfileSerializer
@@ -36,6 +36,7 @@ class BookingSerializer(serializers.ModelSerializer):
     subscription_id_display = serializers.IntegerField(
         source='subscription.id', read_only=True, allow_null=True,
     )
+    program_day_exercises = serializers.SerializerMethodField()
 
     package_id = serializers.PrimaryKeyRelatedField(
         queryset=Package.objects.all(),
@@ -78,10 +79,39 @@ class BookingSerializer(serializers.ModelSerializer):
             'status',
             'notes',
             'canceled_reason',
+            'session_objective',
+            'session_notes_for_customer',
+            'program_day_exercises',
             'created_at',
             'updated_at',
         )
         read_only_fields = ('status', 'created_at', 'updated_at')
+
+    def get_program_day_exercises(self, obj):
+        """Return planned exercises for the booking's date from the customer's active program."""
+        date = obj.slot.starts_at.date() if obj.slot else None
+        if not date:
+            return []
+        program_day = (
+            ProgramDay.objects.filter(
+                program__customer=obj.customer,
+                program__status='published',
+                date=date,
+            )
+            .prefetch_related('exercises__exercise')
+            .first()
+        )
+        if not program_day:
+            return []
+        return [
+            {
+                'name': pe.exercise.name,
+                'sets': pe.sets,
+                'reps': pe.reps,
+                'duration_seconds': pe.duration_seconds,
+            }
+            for pe in program_day.exercises.all()
+        ]
 
     # ------------------------------------------------------------------
     # Validation

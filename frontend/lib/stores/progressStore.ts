@@ -33,13 +33,39 @@ export type Projection = {
   days_remaining: number;
 };
 
+export type ComparisonField = {
+  before: number | null;
+  after: number | null;
+  delta: number | null;
+};
+
+export type MonthlySummary = {
+  program_id: number;
+  start_date: string;
+  end_date: string;
+  overall_adherence: number;
+  training_adherence: number;
+  nutrition_adherence: number;
+  comparisons: {
+    bmi: ComparisonField;
+    body_fat_pct: ComparisonField;
+    physical_index: ComparisonField;
+  };
+  mood: { first_week: number | null; last_week: number | null };
+  weight: { start: number | null; end: number | null; delta: number | null };
+  streak_best: number;
+};
+
 type ProgressState = {
   weeklySummary: WeeklySummary | null;
   projection: Projection | null;
+  monthlySummary: MonthlySummary | null;
   weeklyLoading: boolean;
   projectionLoading: boolean;
+  monthlyLoading: boolean;
   fetchWeeklySummary: (week?: number) => Promise<void>;
   fetchProjection: () => Promise<void>;
+  fetchMonthlySummary: (programId?: number) => Promise<void>;
 };
 
 function authHeaders() {
@@ -50,8 +76,10 @@ function authHeaders() {
 export const useProgressStore = create<ProgressState>((set) => ({
   weeklySummary: null,
   projection: null,
+  monthlySummary: null,
   weeklyLoading: false,
   projectionLoading: false,
+  monthlyLoading: false,
 
   fetchWeeklySummary: async (week) => {
     set({ weeklyLoading: true });
@@ -75,6 +103,19 @@ export const useProgressStore = create<ProgressState>((set) => ({
       set({ projection: data, projectionLoading: false });
     } catch {
       set({ projectionLoading: false });
+    }
+  },
+
+  fetchMonthlySummary: async (programId) => {
+    set({ monthlyLoading: true });
+    try {
+      const params = programId ? `?program=${programId}` : '';
+      const { data } = await api.get<MonthlySummary>(`/my-program/monthly-summary/${params}`, {
+        headers: authHeaders(),
+      });
+      set({ monthlySummary: data, monthlyLoading: false });
+    } catch {
+      set({ monthlyLoading: false });
     }
   },
 }));

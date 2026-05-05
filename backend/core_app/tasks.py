@@ -467,3 +467,23 @@ def close_daily_logs():
         'nutrition_closed': len(open_nutrition),
         'nutrition_created_absent': nutrition_created,
     }
+
+
+@db_periodic_task(crontab(minute=0, hour=0))
+def complete_finished_programs():
+    """Mark published MonthlyPrograms whose end_date has passed as completed.
+
+    Runs daily at midnight (TIME_ZONE). Programs with end_date < today and
+    status=published are transitioned to status=completed.
+    """
+    from django.utils.timezone import localdate
+    from core_app.models.monthly_program import MonthlyProgram
+
+    today = localdate()
+    finished = MonthlyProgram.objects.filter(
+        status=MonthlyProgram.Status.PUBLISHED,
+        end_date__lt=today,
+    )
+    count = finished.update(status=MonthlyProgram.Status.COMPLETED)
+    logger.info('complete_finished_programs: marked %d programs as completed', count)
+    return {'completed': count}

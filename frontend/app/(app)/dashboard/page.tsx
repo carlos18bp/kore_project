@@ -786,6 +786,12 @@ export default function DashboardPage() {
                     <CalendarIcon />
                     <span>{upcomingReminder?.trainer ? `${upcomingReminder.trainer.first_name} ${upcomingReminder.trainer.last_name}`.trim() : program}</span>
                   </div>
+                  {upcomingReminder?.session_objective && (
+                    <div className="mt-3 pt-3 border-t border-white/15">
+                      <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Objetivo</p>
+                      <p className="text-sm text-white/80 leading-relaxed">{upcomingReminder.session_objective}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : isGuestDashboard ? null : (

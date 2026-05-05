@@ -71,7 +71,7 @@ from core_app.views.nutrition_daily_views import (
     MealEntryPhotoView,
     NutritionHistoryView,
 )
-from core_app.views.progress_views import WeeklySummaryView, ProjectionView
+from core_app.views.progress_views import WeeklySummaryView, ProjectionView, MonthlySummaryView
 
 router = DefaultRouter()
 router.register('packages', PackageViewSet, basename='package')
@@ -129,6 +129,7 @@ urlpatterns = [
     path('my-program/logs/<int:log_id>/exercises/<int:ex_log_id>/', UpdateExerciseLogView.as_view(), name='my-program-update-exercise-log'),
     path('my-program/weekly-summary/', WeeklySummaryView.as_view(), name='my-program-weekly-summary'),
     path('my-program/projection/', ProjectionView.as_view(), name='my-program-projection'),
+    path('my-program/monthly-summary/', MonthlySummaryView.as_view(), name='my-program-monthly-summary'),
     # Nutrition daily
     path('my-nutrition-daily/today/', TodayNutritionView.as_view(), name='my-nutrition-daily-today'),
     path('my-nutrition-daily/<int:log_id>/meals/<int:meal_id>/', UpdateMealEntryView.as_view(), name='my-nutrition-daily-update-meal'),

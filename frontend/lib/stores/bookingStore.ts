@@ -70,6 +70,13 @@ export type Subscription = {
   guest_info?: GuestInfo | null;
 };
 
+export type ProgramDayExercise = {
+  name: string;
+  sets: number;
+  reps: number | null;
+  duration_seconds: number | null;
+};
+
 export type BookingData = {
   id: number;
   customer_id: number;
@@ -80,6 +87,9 @@ export type BookingData = {
   status: 'pending' | 'confirmed' | 'canceled';
   notes: string;
   canceled_reason: string;
+  session_objective: string;
+  session_notes_for_customer: string;
+  program_day_exercises: ProgramDayExercise[];
   created_at: string;
   updated_at: string;
 };

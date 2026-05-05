@@ -3,7 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core_app.services.progress_service import get_projection, get_weekly_summary
+from core_app.services.progress_service import get_monthly_summary, get_projection, get_weekly_summary
 
 
 class WeeklySummaryView(APIView):
@@ -37,4 +37,18 @@ class ProjectionView(APIView):
         data = get_projection(request.user)
         if data is None:
             return Response({'detail': 'No active program.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(data)
+
+
+class MonthlySummaryView(APIView):
+    """GET /api/my-program/monthly-summary/?program=<id>"""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        program_id = request.query_params.get('program')
+        pid = int(program_id) if program_id and program_id.isdigit() else None
+        data = get_monthly_summary(request.user, pid)
+        if data is None:
+            return Response({'detail': 'No program found.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(data)
