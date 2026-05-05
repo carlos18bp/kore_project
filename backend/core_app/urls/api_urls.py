@@ -64,6 +64,24 @@ from core_app.views.trainer_client_views import (
     TrainerClientSessionsView,
     TrainerDashboardStatsView,
 )
+from core_app.views.trainer_intelligence_views import (
+    TrainerRiskDashboardView,
+    TrainerClientKPIView,
+    TrainerComparativeMetricsView,
+    TrainerAlertCenterView,
+    TrainerAlertResolveView,
+    TrainerPhotoGalleryView,
+    TrainerMealCommentView,
+    TrainerMessagesView,
+    TrainerClientResumenView,
+    TrainerClientAlertsView,
+    TrainerProgramPauseView,
+    TrainerProgramResumeView,
+    TrainerClientDailyLogsView,
+    TrainerClientNutritionLogsView,
+    TrainerClientSessionsFullView,
+    TrainerMessagesForCustomerView,
+)
 from core_app.views.trainer_profile_views import TrainerProfileViewSet
 from core_app.views.nutrition_daily_views import (
     TodayNutritionView,
@@ -130,6 +148,23 @@ urlpatterns = [
     path('my-program/weekly-summary/', WeeklySummaryView.as_view(), name='my-program-weekly-summary'),
     path('my-program/projection/', ProjectionView.as_view(), name='my-program-projection'),
     path('my-program/monthly-summary/', MonthlySummaryView.as_view(), name='my-program-monthly-summary'),
+    # Trainer Intelligence Center
+    path('trainer/risk-dashboard/', TrainerRiskDashboardView.as_view(), name='trainer-risk-dashboard'),
+    path('trainer/comparative-metrics/', TrainerComparativeMetricsView.as_view(), name='trainer-comparative-metrics'),
+    path('trainer/alerts/', TrainerAlertCenterView.as_view(), name='trainer-alerts'),
+    path('trainer/alerts/<int:risk_score_id>/resolve/', TrainerAlertResolveView.as_view(), name='trainer-alert-resolve'),
+    path('trainer/photo-gallery/', TrainerPhotoGalleryView.as_view(), name='trainer-photo-gallery'),
+    path('trainer/photo-gallery/<int:meal_id>/comment/', TrainerMealCommentView.as_view(), name='trainer-meal-comment'),
+    path('trainer/messages/', TrainerMessagesView.as_view(), name='trainer-messages'),
+    path('trainer/my-clients/<int:customer_id>/kpi/', TrainerClientKPIView.as_view(), name='trainer-client-kpi'),
+    path('trainer/my-clients/<int:customer_id>/resumen/', TrainerClientResumenView.as_view(), name='trainer-client-resumen'),
+    path('trainer/my-clients/<int:customer_id>/alerts/', TrainerClientAlertsView.as_view(), name='trainer-client-alerts'),
+    path('trainer/my-clients/<int:customer_id>/daily-logs/', TrainerClientDailyLogsView.as_view(), name='trainer-client-daily-logs'),
+    path('trainer/my-clients/<int:customer_id>/nutrition-logs/', TrainerClientNutritionLogsView.as_view(), name='trainer-client-nutrition-logs'),
+    path('trainer/my-clients/<int:customer_id>/sessions-full/', TrainerClientSessionsFullView.as_view(), name='trainer-client-sessions-full'),
+    path('trainer/my-clients/<int:customer_id>/program/<int:program_id>/pause/', TrainerProgramPauseView.as_view(), name='trainer-program-pause'),
+    path('trainer/my-clients/<int:customer_id>/program/<int:program_id>/resume/', TrainerProgramResumeView.as_view(), name='trainer-program-resume'),
+    path('my-trainer-messages/', TrainerMessagesForCustomerView.as_view(), name='my-trainer-messages'),
     # Nutrition daily
     path('my-nutrition-daily/today/', TodayNutritionView.as_view(), name='my-nutrition-daily-today'),
     path('my-nutrition-daily/<int:log_id>/meals/<int:meal_id>/', UpdateMealEntryView.as_view(), name='my-nutrition-daily-update-meal'),
