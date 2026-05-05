@@ -51,6 +51,9 @@ class MealEntry(TimestampedModel):
         upload_to='nutrition/%Y/%m/',
         null=True, blank=True,
     )
+    trainer_comment = models.TextField(blank=True)
+    trainer_comment_at = models.DateTimeField(null=True, blank=True)
+    flagged_for_session = models.BooleanField(default=False, db_index=True)
 
     class Meta:
         unique_together = [('daily_log', 'meal_block')]

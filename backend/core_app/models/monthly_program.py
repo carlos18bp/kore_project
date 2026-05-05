@@ -42,6 +42,10 @@ class MonthlyProgram(TimestampedModel):
     )
     trainer_notes = models.TextField(blank=True)
     approved_at = models.DateTimeField(null=True, blank=True)
+    is_paused = models.BooleanField(default=False, db_index=True)
+    paused_at = models.DateTimeField(null=True, blank=True)
+    pause_reason = models.CharField(max_length=255, blank=True)
+    adjustment_log = models.JSONField(default=list, blank=True)
 
     class Meta:
         ordering = ['-start_date']
