@@ -38,6 +38,8 @@ from core_app.models import (
     TrainerProfile,
     User,
     WeightEntry,
+    Food,
+    MealSuggestion,
 )
 
 
@@ -433,3 +435,18 @@ class DailyLogAdmin(admin.ModelAdmin):
 class ExerciseLogAdmin(admin.ModelAdmin):
     list_display = ('daily_log', 'program_exercise', 'status')
     list_filter = ('status',)
+
+
+@admin.register(Food)
+class FoodAdmin(admin.ModelAdmin):
+    list_display = ('name', 'category', 'source', 'calories_per_100g', 'nova_group', 'nutri_score', 'is_active')
+    list_filter = ('category', 'source', 'nova_group', 'nutri_score', 'is_active')
+    search_fields = ('name',)
+
+
+@admin.register(MealSuggestion)
+class MealSuggestionAdmin(admin.ModelAdmin):
+    list_display = ('title', 'meal_block', 'calories_estimate', 'fitness_level_min', 'fitness_level_max', 'is_active')
+    list_filter = ('meal_block', 'is_active')
+    search_fields = ('title', 'description')
+    filter_horizontal = ('foods',)

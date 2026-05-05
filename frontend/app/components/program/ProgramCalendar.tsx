@@ -145,8 +145,8 @@ export default function ProgramCalendar({ program, selectedDateStr, onSelectDay 
               {!isToday && !isSelected && inProgram && (
                 <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${dotColor} ${isPast ? 'opacity-40' : ''}`} />
               )}
-              {hasBooking && !isToday && (
-                <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-blue-500" />
+              {hasBooking && (
+                <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-blue-500 ring-1 ring-white" />
               )}
             </button>
           );

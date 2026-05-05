@@ -23,6 +23,8 @@ from .registration_verification_code import RegistrationVerificationCode
 from .subscription_guest import SubscriptionGuest
 from .exercise import Exercise
 from .monthly_program import MonthlyProgram, ProgramDay, ProgramExercise, DailyLog, ExerciseLog
+from .food import Food
+from .meal_suggestion import MealSuggestion
 
 __all__ = [
     'User',
@@ -57,4 +59,6 @@ __all__ = [
     'ProgramExercise',
     'DailyLog',
     'ExerciseLog',
+    'Food',
+    'MealSuggestion',
 ]

@@ -359,18 +359,54 @@ def maintain_availability_slots():
 def close_daily_logs():
     """At 23:55 daily: close all open DailyLogs and mark unchecked exercises as not_done.
 
+    Also creates and immediately closes DailyLogs for customers who never opened the app
+    today, so their history is complete even if they were absent.
+
     After close the log is immutable — the customer cannot update exercise statuses.
     """
-    from core_app.models.monthly_program import DailyLog, ExerciseLog
+    from core_app.models.monthly_program import DailyLog, ExerciseLog, MonthlyProgram, ProgramDay
 
-    open_logs = list(DailyLog.objects.filter(is_closed=False, date=timezone.localdate()))
+    today = timezone.localdate()
     now = timezone.now()
 
+    # Phase 1: close existing open logs
+    open_logs = list(DailyLog.objects.filter(is_closed=False, date=today))
     for log in open_logs:
         log.is_closed = True
         log.closed_at = now
         log.save(update_fields=['is_closed', 'closed_at'])
 
-    count = len(open_logs)
-    logger.info('close_daily_logs: closed %d logs', count)
-    return {'closed': count}
+    # Phase 2: create + close logs for customers who never opened the app today
+    existing_customer_ids = DailyLog.objects.filter(date=today).values_list('customer_id', flat=True)
+    program_days_without_log = (
+        ProgramDay.objects.filter(
+            date=today,
+            program__status=MonthlyProgram.Status.PUBLISHED,
+        )
+        .exclude(program__customer_id__in=existing_customer_ids)
+        .select_related('program')
+        .prefetch_related('exercises')
+    )
+
+    created = 0
+    for program_day in program_days_without_log:
+        log = DailyLog.objects.create(
+            customer=program_day.program.customer,
+            program=program_day.program,
+            date=today,
+            is_closed=True,
+            closed_at=now,
+        )
+        ExerciseLog.objects.bulk_create([
+            ExerciseLog(
+                daily_log=log,
+                program_exercise=pe,
+                status=ExerciseLog.Status.NOT_DONE,
+            )
+            for pe in program_day.exercises.all()
+        ])
+        created += 1
+
+    total_closed = len(open_logs) + created
+    logger.info('close_daily_logs: closed %d existing + created %d absent logs', len(open_logs), created)
+    return {'closed': len(open_logs), 'created_absent': created, 'total': total_closed}
