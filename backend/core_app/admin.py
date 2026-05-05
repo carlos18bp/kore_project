@@ -40,6 +40,8 @@ from core_app.models import (
     WeightEntry,
     Food,
     MealSuggestion,
+    NutritionDailyLog,
+    MealEntry,
 )
 
 
@@ -450,3 +452,16 @@ class MealSuggestionAdmin(admin.ModelAdmin):
     list_filter = ('meal_block', 'is_active')
     search_fields = ('title', 'description')
     filter_horizontal = ('foods',)
+
+
+@admin.register(NutritionDailyLog)
+class NutritionDailyLogAdmin(admin.ModelAdmin):
+    list_display = ('customer', 'date', 'is_closed', 'closed_at')
+    list_filter = ('is_closed',)
+    search_fields = ('customer__email',)
+
+
+@admin.register(MealEntry)
+class MealEntryAdmin(admin.ModelAdmin):
+    list_display = ('daily_log', 'meal_block', 'suggestion', 'status')
+    list_filter = ('meal_block', 'status')

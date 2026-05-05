@@ -65,6 +65,12 @@ from core_app.views.trainer_client_views import (
     TrainerDashboardStatsView,
 )
 from core_app.views.trainer_profile_views import TrainerProfileViewSet
+from core_app.views.nutrition_daily_views import (
+    TodayNutritionView,
+    UpdateMealEntryView,
+    MealEntryPhotoView,
+    NutritionHistoryView,
+)
 
 router = DefaultRouter()
 router.register('packages', PackageViewSet, basename='package')
@@ -120,4 +126,9 @@ urlpatterns = [
     path('my-program/', MyProgramView.as_view(), name='my-program'),
     path('my-program/today/', TodayProgramView.as_view(), name='my-program-today'),
     path('my-program/logs/<int:log_id>/exercises/<int:ex_log_id>/', UpdateExerciseLogView.as_view(), name='my-program-update-exercise-log'),
+    # Nutrition daily
+    path('my-nutrition-daily/today/', TodayNutritionView.as_view(), name='my-nutrition-daily-today'),
+    path('my-nutrition-daily/<int:log_id>/meals/<int:meal_id>/', UpdateMealEntryView.as_view(), name='my-nutrition-daily-update-meal'),
+    path('my-nutrition-daily/<int:log_id>/meals/<int:meal_id>/photo/', MealEntryPhotoView.as_view(), name='my-nutrition-daily-meal-photo'),
+    path('my-nutrition-daily/history/', NutritionHistoryView.as_view(), name='my-nutrition-daily-history'),
 ]

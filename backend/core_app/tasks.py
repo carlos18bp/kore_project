@@ -409,4 +409,61 @@ def close_daily_logs():
 
     total_closed = len(open_logs) + created
     logger.info('close_daily_logs: closed %d existing + created %d absent logs', len(open_logs), created)
-    return {'closed': len(open_logs), 'created_absent': created, 'total': total_closed}
+
+    # Phase 3: close open NutritionDailyLogs
+    from core_app.models.nutrition_daily_log import NutritionDailyLog, MealEntry
+    from core_app.services.meal_suggestion_service import get_daily_suggestions
+
+    open_nutrition = list(NutritionDailyLog.objects.filter(is_closed=False, date=today))
+    for nlog in open_nutrition:
+        nlog.is_closed = True
+        nlog.closed_at = now
+        nlog.save(update_fields=['is_closed', 'closed_at'])
+
+    # Phase 4: create + close NutritionDailyLogs for absent customers with active programs
+    existing_nutrition_ids = NutritionDailyLog.objects.filter(date=today).values_list('customer_id', flat=True)
+    customers_without_nutrition = (
+        MonthlyProgram.objects
+        .filter(status=MonthlyProgram.Status.PUBLISHED, start_date__lte=today, end_date__gte=today)
+        .exclude(customer_id__in=existing_nutrition_ids)
+        .select_related('customer')
+        .values_list('customer', flat=True)
+        .distinct()
+    )
+
+    nutrition_created = 0
+    meal_blocks = [b for b, _ in MealEntry.MealBlock.choices]
+    from core_app.models import User
+    for customer_id in customers_without_nutrition:
+        try:
+            customer = User.objects.get(pk=customer_id)
+        except User.DoesNotExist:
+            continue
+        suggestions = get_daily_suggestions(customer, today)
+        nlog = NutritionDailyLog.objects.create(
+            customer=customer,
+            date=today,
+            is_closed=True,
+            closed_at=now,
+        )
+        MealEntry.objects.bulk_create([
+            MealEntry(
+                daily_log=nlog,
+                meal_block=block,
+                suggestion=suggestions.get(block),
+                status=MealEntry.Status.NOT_DONE,
+            )
+            for block in meal_blocks
+        ])
+        nutrition_created += 1
+
+    logger.info(
+        'close_daily_logs: nutrition — closed %d existing + created %d absent',
+        len(open_nutrition), nutrition_created,
+    )
+    return {
+        'exercise_closed': len(open_logs),
+        'exercise_created_absent': created,
+        'nutrition_closed': len(open_nutrition),
+        'nutrition_created_absent': nutrition_created,
+    }
