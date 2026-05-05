@@ -16,7 +16,9 @@ import { useNutritionStore } from '@/lib/stores/nutritionStore';
 import { useParqStore } from '@/lib/stores/parqStore';
 import { usePendingAssessmentsStore } from '@/lib/stores/pendingAssessmentsStore';
 import { useProgramStore } from '@/lib/stores/programStore';
+import { useProgressStore } from '@/lib/stores/progressStore';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
+import ProjectionWidget from '@/app/components/program/ProjectionWidget';
 import UpcomingSessionReminder from '@/app/components/booking/UpcomingSessionReminder';
 import SubscriptionExpiryReminder from '@/app/components/subscription/SubscriptionExpiryReminder';
 import SubscriptionDashboardToast from '@/app/components/subscription/SubscriptionDashboardToast';
@@ -79,6 +81,7 @@ export default function DashboardPage() {
   const { assessments: parqAssessments, fetchMyAssessments: fetchMyParq } = useParqStore();
   const { koreIndex, fetchPending: fetchPendingAssessments, loaded: pendingLoaded } = usePendingAssessmentsStore();
   const { activeProgram, fetchActiveProgram } = useProgramStore();
+  const { projection, fetchProjection } = useProgressStore();
   const sectionRef = useRef<HTMLElement>(null);
   const profileFetchedRef = useRef(false);
   useHeroAnimation(sectionRef);
@@ -116,7 +119,8 @@ export default function DashboardPage() {
     fetchMyParq();
     fetchPendingAssessments();
     fetchActiveProgram();
-  }, [fetchSubscriptions, fetchUpcomingReminder, fetchBookings, fetchMyEvaluations, fetchMyPosturoEvals, fetchMyPhysicalEvals, fetchMyNutrition, fetchMyParq, fetchPendingAssessments, fetchActiveProgram]);
+    fetchProjection();
+  }, [fetchSubscriptions, fetchUpcomingReminder, fetchBookings, fetchMyEvaluations, fetchMyPosturoEvals, fetchMyPhysicalEvals, fetchMyNutrition, fetchMyParq, fetchPendingAssessments, fetchActiveProgram, fetchProjection]);
 
   useEffect(() => {
     if (profileFetchedRef.current) return;
@@ -968,6 +972,13 @@ export default function DashboardPage() {
           </div>
         </div>
 
+
+        {/* ═══════ PROYECCIÓN DEL PROGRAMA ═══════ */}
+        {projection && (
+          <div className="mb-3 xl:mb-4">
+            <ProjectionWidget projection={projection} />
+          </div>
+        )}
 
         {/* ═══════ DIAGNOSTIC MODULES SECTION ═══════ */}
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-2 md:gap-3 xl:gap-4 mb-3 xl:mb-4">
