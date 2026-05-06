@@ -11,6 +11,7 @@ __pycache__/
 
 # Virtualenv
 /backend/venv/
+/backend/.venv-audit/
 
 # Node/Next
 /frontend/node_modules/

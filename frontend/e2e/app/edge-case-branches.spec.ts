@@ -72,16 +72,27 @@ async function mockBookingCreationFlowRoutes(
 test.describe('Edge-case branch coverage', { tag: [...FlowTags.APP_EDGE_CASE_BRANCHES, RoleTags.USER] }, () => {
   test.describe.configure({ mode: 'serial' });
 
+  // Pick a target date that is a weekday Mon-Fri so the 17:00 slot falls within
+  // production's WEEKDAY_WINDOWS (Mon-Fri have a 16:00-21:00 window; Sat is 6-13;
+  // Sun is closed). Using +2 days also clears the 16-hour advance booking buffer.
   const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const dateStr = tomorrow.toISOString().split('T')[0];
+  tomorrow.setDate(tomorrow.getDate() + 2);
+  while (tomorrow.getDay() === 0 || tomorrow.getDay() === 6) {
+    tomorrow.setDate(tomorrow.getDate() + 1);
+  }
+  // Use LOCAL date components (matching calendar display & WEEKDAY_WINDOWS generation)
+  const dateStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
 
   const mockTrainer = {
     id: 1, first_name: 'Germán', last_name: 'Franco', specialty: 'Funcional',
     session_duration_minutes: 60, location: 'Bogotá', email: 'g@kore.com', bio: '', user_id: 1,
   };
+  // Build slot times in LOCAL time so labels match the virtual slot buttons
+  // (production generates virtual slots using `new Date(\`${selectedDate}T${HH}:00:00\`)`).
+  const slotStartLocal = new Date(`${dateStr}T17:00:00`);
+  const slotEndLocal   = new Date(`${dateStr}T18:00:00`);
   const mockSlots = [
-    { id: 501, starts_at: `${dateStr}T17:00:00Z`, ends_at: `${dateStr}T18:00:00Z`, is_blocked: false, is_active: true, trainer_id: 1 },
+    { id: 501, starts_at: slotStartLocal.toISOString(), ends_at: slotEndLocal.toISOString(), is_blocked: false, is_active: true, trainer_id: 1 },
   ];
 
   function slotLabelFor(slot: { starts_at: string; ends_at: string }) {
@@ -100,6 +111,15 @@ test.describe('Edge-case branch coverage', { tag: [...FlowTags.APP_EDGE_CASE_BRA
   }
 
   async function clickCalendarDay(page: import('@playwright/test').Page, dayNum: string) {
+    // If targetDay falls in a future month (end-of-month case), navigate forward
+    // so we click the correct enabled day instead of a same-numbered past day.
+    const today = new Date();
+    if (
+      tomorrow.getMonth() !== today.getMonth() ||
+      tomorrow.getFullYear() !== today.getFullYear()
+    ) {
+      await page.getByLabel('Mes siguiente').click();
+    }
     const dayBtn = page.getByRole('button', { name: dayNum, exact: true });
     await dayBtn.click({ timeout: 10_000 });
   }

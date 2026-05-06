@@ -235,9 +235,15 @@ test.describe('Booking Store Error Paths', { tag: [...FlowTags.BOOKING_ERROR_PAT
  * plus booking-flow fallback paths.
  */
 test.describe('bookingStore extractErrorMessage branches', { tag: [...FlowTags.BOOKING_ERROR_PATHS, RoleTags.USER] }, () => {
+  // Pick a target date that is a weekday Mon-Fri so the 17:00 slot falls within
+  // production's WEEKDAY_WINDOWS (Mon-Fri have a 16:00-21:00 window). +2 days
+  // also clears the 16-hour advance booking buffer.
   const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const dateStr = tomorrow.toISOString().split('T')[0];
+  tomorrow.setDate(tomorrow.getDate() + 2);
+  while (tomorrow.getDay() === 0 || tomorrow.getDay() === 6) {
+    tomorrow.setDate(tomorrow.getDate() + 1);
+  }
+  const dateStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
   const dayNum = tomorrow.getDate().toString();
 
   const mockTrainer = {
@@ -245,9 +251,13 @@ test.describe('bookingStore extractErrorMessage branches', { tag: [...FlowTags.B
     email: 'g@kore.com', specialty: 'Funcional', bio: '', location: 'Bogotá',
     session_duration_minutes: 60,
   };
+  // Build slot times in LOCAL time so labels match virtual slot buttons
+  // (production generates virtual slots from `new Date(\`${selectedDate}T${HH}:00:00\`)`).
+  const _slotStartLocal = new Date(`${dateStr}T17:00:00`);
+  const _slotEndLocal   = new Date(`${dateStr}T18:00:00`);
   const mockSlot = {
     id: 601, trainer_id: 1,
-    starts_at: `${dateStr}T17:00:00Z`, ends_at: `${dateStr}T18:00:00Z`,
+    starts_at: _slotStartLocal.toISOString(), ends_at: _slotEndLocal.toISOString(),
     is_active: true, is_blocked: false,
   };
   const mockSubscription = {
@@ -286,6 +296,15 @@ test.describe('bookingStore extractErrorMessage branches', { tag: [...FlowTags.B
     await mockLoginAsTestUser(page);
     await setupBookingMocks(page);
     await page.goto('/book-session');
+    // If targetDay falls in a future month (end-of-month case), navigate forward
+    // so we click the correct enabled day instead of a same-numbered past day.
+    const today = new Date();
+    if (
+      tomorrow.getMonth() !== today.getMonth() ||
+      tomorrow.getFullYear() !== today.getFullYear()
+    ) {
+      await page.getByLabel('Mes siguiente').click();
+    }
     // Click calendar day — virtual slot system enables Mon-Sat automatically
     const dayBtn = page.getByRole('button', { name: dayNum, exact: true });
     await dayBtn.click({ timeout: 10_000 });

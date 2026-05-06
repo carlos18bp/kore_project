@@ -89,19 +89,33 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
   // TimeSlotPicker.tsx line 24 — Empty slots fallback
   // ─────────────────────────────────────────────────────────────────────────
   test('TimeSlotPicker shows empty message when no slots available', async ({ page }) => {
+    // Pick a target weekday Mon-Sat so the day is enabled in the calendar
+    // (Sundays are disabled since WEEKDAY_WINDOWS has no entry for day 0).
     const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    tomorrow.setDate(tomorrow.getDate() + 2);
+    while (tomorrow.getDay() === 0) {
+      tomorrow.setDate(tomorrow.getDate() + 1);
+    }
+    const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
     await mockLoginAsTestUser(page);
     await mockBookSessionCoverageRoutes(page, tomorrowStr);
 
     await page.goto('/book-session');
 
     await expect(page.getByText('Agenda tu sesión')).toBeVisible({ timeout: 10_000 });
+    // If targetDay falls in a future month, navigate forward.
+    const today = new Date();
+    if (
+      tomorrow.getMonth() !== today.getMonth() ||
+      tomorrow.getFullYear() !== today.getFullYear()
+    ) {
+      await page.getByLabel('Mes siguiente').click();
+    }
     const targetDay = String(tomorrow.getDate());
     const enabledDay = page.getByRole('button', { name: new RegExp(`^${targetDay}$`) });
     const dayExists = await enabledDay.isVisible().catch(() => false);
-    if (dayExists) {
+    const dayDisabled = dayExists ? await enabledDay.isDisabled().catch(() => true) : true;
+    if (dayExists && !dayDisabled) {
       await enabledDay.click();
       // quality: allow-fragile-selector (slot list may repeat time labels; need first visible slot or empty copy)
       await expect(
@@ -342,13 +356,23 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
   // Both exercised via createBooking() failure on the book-session confirmation step
   // ─────────────────────────────────────────────────────────────────────────
 
+  // Pick a target date that is a weekday Mon-Fri so the 17:00 slot falls within
+  // production's WEEKDAY_WINDOWS (Mon-Fri have a 16:00-21:00 window). +2 days
+  // also clears the 16-hour advance booking buffer.
   const _bktomorrow = new Date();
-  _bktomorrow.setDate(_bktomorrow.getDate() + 1);
-  const _bkdateStr = _bktomorrow.toISOString().split('T')[0];
+  _bktomorrow.setDate(_bktomorrow.getDate() + 2);
+  while (_bktomorrow.getDay() === 0 || _bktomorrow.getDay() === 6) {
+    _bktomorrow.setDate(_bktomorrow.getDate() + 1);
+  }
+  const _bkdateStr = `${_bktomorrow.getFullYear()}-${String(_bktomorrow.getMonth() + 1).padStart(2, '0')}-${String(_bktomorrow.getDate()).padStart(2, '0')}`;
+  // Build slot times in LOCAL time so labels match virtual slot buttons
+  // (production generates virtual slots from `new Date(\`${selectedDate}T${HH}:00:00\`)`).
+  const _bkSlotStartLocal = new Date(`${_bkdateStr}T17:00:00`);
+  const _bkSlotEndLocal   = new Date(`${_bkdateStr}T18:00:00`);
   const _bkSlot = {
     id: 601,
-    starts_at: `${_bkdateStr}T17:00:00Z`,
-    ends_at: `${_bkdateStr}T18:00:00Z`,
+    starts_at: _bkSlotStartLocal.toISOString(),
+    ends_at: _bkSlotEndLocal.toISOString(),
     is_blocked: false,
     is_active: true,
     trainer_id: 1,
@@ -398,6 +422,15 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
 
   async function goToBookSessionConfirmStep(page: Page) {
     await page.goto('/book-session');
+    // If targetDay falls in a future month (end-of-month case), navigate forward
+    // so we click the correct enabled day instead of a same-numbered past day.
+    const today = new Date();
+    if (
+      _bktomorrow.getMonth() !== today.getMonth() ||
+      _bktomorrow.getFullYear() !== today.getFullYear()
+    ) {
+      await page.getByLabel('Mes siguiente').click();
+    }
     const dayNum = _bktomorrow.getDate().toString();
     const dayBtn = page.getByRole('button', { name: dayNum, exact: true });
     await dayBtn.click({ timeout: 10_000 });
@@ -457,6 +490,16 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
     });
 
     await page.goto('/book-session');
+    // If targetDay falls in a future month (end-of-month case), navigate forward.
+    {
+      const today = new Date();
+      if (
+        _bktomorrow.getMonth() !== today.getMonth() ||
+        _bktomorrow.getFullYear() !== today.getFullYear()
+      ) {
+        await page.getByLabel('Mes siguiente').click();
+      }
+    }
     const dayNum = _bktomorrow.getDate().toString();
     const dayBtn = page.getByRole('button', { name: dayNum, exact: true });
     await dayBtn.click({ timeout: 10_000 });
