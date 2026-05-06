@@ -398,13 +398,16 @@ def close_daily_logs():
             is_closed=True,
             closed_at=now,
         )
+        # Only create logs for exercises with a youtube_url — exercises without a
+        # reference video are skipped from the daily flow so they don't penalize
+        # adherence (matches TodayProgramView behaviour).
         ExerciseLog.objects.bulk_create([
             ExerciseLog(
                 daily_log=log,
                 program_exercise=pe,
                 status=ExerciseLog.Status.NOT_DONE,
             )
-            for pe in program_day.exercises.all()
+            for pe in program_day.exercises.exclude(exercise__youtube_url='')
         ])
         created += 1
 

@@ -17,7 +17,7 @@ from django.db.models import Q
 from core_app.models import Package, Payment, PaymentIntent, Subscription, SubscriptionGuest, User
 from core_app.permissions import is_admin_user
 from core_app.serializers import UserSerializer
-from core_app.serializers.subscription_serializers import SubscriptionSerializer
+from core_app.serializers.subscription_serializers import AdminSubscriptionSerializer, SubscriptionSerializer
 from core_app.serializers.wompi_serializers import (
     CheckoutPreparationSerializer,
     PaymentIntentStatusSerializer,
@@ -140,6 +140,13 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
     serializer_class = SubscriptionSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_serializer_class(self):
+        if is_admin_user(self.request.user) and self.action in (
+            'list', 'retrieve', 'partial_update', 'admin_renew',
+        ):
+            return AdminSubscriptionSerializer
+        return SubscriptionSerializer
+
     def get_permissions(self):
         """Allow guest access only to purchase and intent-status actions."""
         if self.action in ('purchase', 'purchase_alternative', 'intent_status', 'prepare_checkout'):
@@ -252,6 +259,16 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         """
         qs = Subscription.objects.select_related('customer', 'package').all()
         if is_admin_user(self.request.user):
+            search = self.request.query_params.get('search', '').strip()
+            status_filter = self.request.query_params.get('status', '').strip()
+            if search:
+                qs = qs.filter(
+                    Q(customer__email__icontains=search)
+                    | Q(customer__first_name__icontains=search)
+                    | Q(customer__last_name__icontains=search)
+                )
+            if status_filter in Subscription.Status.values:
+                qs = qs.filter(status=status_filter)
             return qs
         return qs.filter(
             Q(customer=self.request.user) |
@@ -775,6 +792,69 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         guest_link.guest = None
         guest_link.save(update_fields=['status', 'guest', 'updated_at'])
         return Response({'status': 'revoked'})
+
+    def partial_update(self, request, *args, **kwargs):
+        """Allow admins to patch subscription fields directly.
+
+        Writable fields: status, sessions_total, sessions_used,
+        starts_at, expires_at, is_recurring, next_billing_date.
+        Returns 403 for non-admin callers.
+        """
+        if not is_admin_user(request.user):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        subscription = self.get_object()
+        serializer = self.get_serializer(subscription, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='admin-renew')
+    def admin_renew(self, request, pk=None):
+        """Manually renew a subscription as a cash payment. Admin-only.
+
+        Creates a new active Subscription and a CASH Payment record,
+        then marks the original subscription as expired.
+        Returns 403 for non-admin callers.
+        """
+        if not is_admin_user(request.user):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        old_sub = self.get_object()
+        now = timezone.now()
+
+        new_sub = Subscription.objects.create(
+            customer=old_sub.customer,
+            package=old_sub.package,
+            sessions_total=old_sub.package.sessions_count,
+            sessions_used=0,
+            status=Subscription.Status.ACTIVE,
+            starts_at=now,
+            expires_at=now + timedelta(days=old_sub.package.validity_days),
+            is_recurring=False,
+        )
+
+        if old_sub.status != Subscription.Status.EXPIRED:
+            old_sub.status = Subscription.Status.EXPIRED
+            old_sub.save(update_fields=['status', 'updated_at'])
+
+        Payment.objects.create(
+            subscription=new_sub,
+            customer=old_sub.customer,
+            status=Payment.Status.CONFIRMED,
+            amount=old_sub.package.price,
+            currency=old_sub.package.currency,
+            provider=Payment.Provider.CASH,
+            confirmed_at=now,
+            metadata={
+                'renewed_from_subscription_id': old_sub.pk,
+                'renewed_by_admin': request.user.email,
+            },
+        )
+
+        return Response(
+            self.get_serializer(new_sub, context={'request': request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
     @action(detail=True, methods=['get'], url_path='payments')
     def payment_history(self, request, pk=None):

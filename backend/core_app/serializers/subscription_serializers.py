@@ -5,6 +5,46 @@ from core_app.models import Subscription
 from core_app.serializers.package_serializers import PackageSerializer
 
 
+class AdminSubscriptionSerializer(serializers.ModelSerializer):
+    """Admin-only writable serializer for Subscription.
+
+    Exposes ``status`` as a writable ChoiceField (unlike the customer-facing
+    SubscriptionSerializer which computes it).  Also adds ``customer_name``
+    for display in the admin panel.
+    """
+
+    customer_email = serializers.EmailField(source='customer.email', read_only=True)
+    customer_name = serializers.SerializerMethodField(read_only=True)
+    package = PackageSerializer(read_only=True)
+    sessions_remaining = serializers.IntegerField(read_only=True)
+    status = serializers.ChoiceField(choices=Subscription.Status.choices, required=False)
+
+    class Meta:
+        model = Subscription
+        fields = (
+            'id',
+            'customer_email',
+            'customer_name',
+            'package',
+            'sessions_total',
+            'sessions_used',
+            'sessions_remaining',
+            'status',
+            'starts_at',
+            'expires_at',
+            'is_recurring',
+            'next_billing_date',
+            'billing_failed_at',
+            'created_at',
+            'updated_at',
+        )
+        read_only_fields = ('created_at', 'updated_at', 'billing_failed_at')
+
+    def get_customer_name(self, obj):
+        name = f'{obj.customer.first_name} {obj.customer.last_name}'.strip()
+        return name or obj.customer.email
+
+
 class SubscriptionSerializer(serializers.ModelSerializer):
     """Serializer for the Subscription model.
 

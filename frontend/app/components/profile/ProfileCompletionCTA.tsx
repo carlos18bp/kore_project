@@ -59,7 +59,7 @@ export default function ProfileCompletionCTA() {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleDismiss} />
+      <div className="absolute inset-0 bg-white/40 backdrop-blur-md" onClick={handleDismiss} />
 
       <div className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 overflow-hidden animate-in fade-in zoom-in-95 duration-300">
         <div className="absolute -right-8 -top-8 w-32 h-32 opacity-[0.06]">

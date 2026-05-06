@@ -961,7 +961,7 @@ export default function MyDiagnosisPage() {
       <div className="w-full px-6 md:px-10 lg:px-16 pt-20 xl:pt-8 pb-16">
         <div data-hero="badge" className="mb-8 xl:mb-10">
           <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-1">Tu salud</p>
-          <h1 className="font-heading text-2xl md:text-3xl font-semibold text-kore-gray-dark">Mi Diagnóstico</h1>
+          <h1 className="font-heading text-2xl md:text-3xl font-semibold text-kore-gray-dark">Antropometría</h1>
           {latest && (
             <p className="text-sm text-kore-gray-dark/50 mt-1">
               Última evaluación: {latest.evaluation_date ? new Date(latest.evaluation_date + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' }) : new Date(latest.created_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })}

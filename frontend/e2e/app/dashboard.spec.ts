@@ -34,7 +34,7 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
   test('renders sidebar quick action links', async ({ page }) => {
     const sidebar = page.getByRole('complementary');
     await expect(sidebar.getByRole('link', { name: 'Agendar Sesión' })).toBeVisible();
-    await expect(sidebar.getByRole('link', { name: 'Mi Diagnóstico' })).toBeVisible();
+    await expect(sidebar.getByRole('link', { name: 'Antropometría' })).toBeVisible();
     await expect(sidebar.getByRole('link', { name: 'Mi Suscripción' })).toBeVisible();
   });
 

@@ -320,48 +320,52 @@ class Command(BaseCommand):
         self.stdout.write('  PAR-Q+ assessment: 1 created (low risk)')
 
     def _create_packages(self):
-        Package.objects.all().delete()
-
-        pkg_basic = Package.objects.create(
+        pkg_basic, _ = Package.objects.update_or_create(
             title='Plan Básico',
-            short_description='4 sesiones personalizadas al mes',
-            description='Ideal para quienes inician su proceso de entrenamiento.',
-            category='personalizado',
-            sessions_count=4,
-            session_duration_minutes=60,
-            price=Decimal('280000.00'),
-            currency='COP',
-            validity_days=30,
-            is_active=True,
-            order=1,
+            defaults=dict(
+                short_description='4 sesiones personalizadas al mes',
+                description='Ideal para quienes inician su proceso de entrenamiento.',
+                category='personalizado',
+                sessions_count=4,
+                session_duration_minutes=60,
+                price=Decimal('280000.00'),
+                currency='COP',
+                validity_days=30,
+                is_active=True,
+                order=1,
+            ),
         )
-        pkg_standard = Package.objects.create(
+        pkg_standard, _ = Package.objects.update_or_create(
             title='Plan Estándar',
-            short_description='8 sesiones personalizadas al mes',
-            description='Entrenamiento consistente con seguimiento semanal.',
-            category='personalizado',
-            sessions_count=8,
-            session_duration_minutes=60,
-            price=Decimal('480000.00'),
-            currency='COP',
-            validity_days=30,
-            is_active=True,
-            order=2,
+            defaults=dict(
+                short_description='8 sesiones personalizadas al mes',
+                description='Entrenamiento consistente con seguimiento semanal.',
+                category='personalizado',
+                sessions_count=8,
+                session_duration_minutes=60,
+                price=Decimal('480000.00'),
+                currency='COP',
+                validity_days=30,
+                is_active=True,
+                order=2,
+            ),
         )
-        pkg_premium = Package.objects.create(
+        pkg_premium, _ = Package.objects.update_or_create(
             title='Plan Premium',
-            short_description='12 sesiones personalizadas al mes',
-            description='Máxima frecuencia para resultados acelerados.',
-            category='personalizado',
-            sessions_count=12,
-            session_duration_minutes=60,
-            price=Decimal('650000.00'),
-            currency='COP',
-            validity_days=30,
-            is_active=True,
-            order=3,
+            defaults=dict(
+                short_description='12 sesiones personalizadas al mes',
+                description='Máxima frecuencia para resultados acelerados.',
+                category='personalizado',
+                sessions_count=12,
+                session_duration_minutes=60,
+                price=Decimal('650000.00'),
+                currency='COP',
+                validity_days=30,
+                is_active=True,
+                order=3,
+            ),
         )
-        self.stdout.write('  Packages: 3 created (Básico, Estándar, Premium)')
+        self.stdout.write('  Packages: 3 upserted (Básico, Estándar, Premium)')
         return [pkg_basic, pkg_standard, pkg_premium]
 
     def _create_slots(self, trainer_profile):

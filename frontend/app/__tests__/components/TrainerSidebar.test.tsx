@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import TrainerSidebar from '@/app/components/layouts/TrainerSidebar';
 import { useAuthStore } from '@/lib/stores/authStore';
+import { useTrainerStore } from '@/lib/stores/trainerStore';
 
 const mockPush = jest.fn();
 let mockPathname = '/trainer/dashboard';
@@ -21,14 +22,23 @@ jest.mock('@/lib/stores/authStore', () => ({
   useAuthStore: jest.fn(),
 }));
 
-const mockedUseAuthStore = useAuthStore as unknown as jest.Mock;
+jest.mock('@/lib/stores/trainerStore', () => ({
+  useTrainerStore: jest.fn(),
+}));
 
-function setupStore(overrides: Record<string, unknown> = {}) {
+const mockedUseAuthStore = useAuthStore as unknown as jest.Mock;
+const mockedUseTrainerStore = useTrainerStore as unknown as jest.Mock;
+
+function setupStore(overrides: Record<string, unknown> = {}, trainerOverrides: Record<string, unknown> = {}) {
   const mockLogout = jest.fn();
   mockedUseAuthStore.mockReturnValue({
     user: { name: 'Trainer Carlos', email: 'trainer@kore.com' },
     logout: mockLogout,
     ...overrides,
+  });
+  mockedUseTrainerStore.mockReturnValue({
+    riskDashboard: null,
+    ...trainerOverrides,
   });
   return { mockLogout };
 }
@@ -69,12 +79,15 @@ describe('TrainerSidebar', () => {
     expect(screen.queryByText('Entrenador')).not.toBeInTheDocument();
   });
 
-  it('renders Inicio and Mis Clientes nav items', () => {
+  it('renders all 5 nav items', () => {
     setupStore();
     render(<TrainerSidebar />);
 
     expect(screen.getByText('Inicio')).toBeInTheDocument();
     expect(screen.getByText('Mis Clientes')).toBeInTheDocument();
+    expect(screen.getByText('Alertas')).toBeInTheDocument();
+    expect(screen.getByText('Comparativas')).toBeInTheDocument();
+    expect(screen.getByText('Evidencia')).toBeInTheDocument();
   });
 
   it('Inicio link points to /trainer/dashboard', () => {
@@ -91,6 +104,51 @@ describe('TrainerSidebar', () => {
 
     const link = screen.getByText('Mis Clientes').closest('a');
     expect(link).toHaveAttribute('href', '/trainer/clients');
+  });
+
+  it('Alertas link points to /trainer/alerts', () => {
+    setupStore();
+    render(<TrainerSidebar />);
+
+    const link = screen.getByText('Alertas').closest('a');
+    expect(link).toHaveAttribute('href', '/trainer/alerts');
+  });
+
+  it('Comparativas link points to /trainer/metrics', () => {
+    setupStore();
+    render(<TrainerSidebar />);
+
+    const link = screen.getByText('Comparativas').closest('a');
+    expect(link).toHaveAttribute('href', '/trainer/metrics');
+  });
+
+  it('Evidencia link points to /trainer/evidence', () => {
+    setupStore();
+    render(<TrainerSidebar />);
+
+    const link = screen.getByText('Evidencia').closest('a');
+    expect(link).toHaveAttribute('href', '/trainer/evidence');
+  });
+
+  it('does not show alert badge when alto count is 0', () => {
+    setupStore({}, { riskDashboard: { risk_summary: { alto: 0, medio: 2, bajo: 1, sin_riesgo: 3 } } });
+    render(<TrainerSidebar />);
+
+    expect(screen.queryByText('0')).not.toBeInTheDocument();
+  });
+
+  it('shows alert badge with count when alto alerts exist', () => {
+    setupStore({}, { riskDashboard: { risk_summary: { alto: 3, medio: 1, bajo: 0, sin_riesgo: 2 } } });
+    render(<TrainerSidebar />);
+
+    expect(screen.getByText('3')).toBeInTheDocument();
+  });
+
+  it('shows 99+ badge when alto count exceeds 99', () => {
+    setupStore({}, { riskDashboard: { risk_summary: { alto: 150, medio: 0, bajo: 0, sin_riesgo: 0 } } });
+    render(<TrainerSidebar />);
+
+    expect(screen.getByText('99+')).toBeInTheDocument();
   });
 
   it('renders Soporte link pointing to WhatsApp', () => {
@@ -139,5 +197,14 @@ describe('TrainerSidebar', () => {
 
     const homeLink = screen.getByText('Inicio').closest('a');
     expect(homeLink?.className).toContain('bg-kore-red/10');
+  });
+
+  it('highlights Alertas when pathname starts with /trainer/alerts', () => {
+    mockPathname = '/trainer/alerts';
+    setupStore();
+    render(<TrainerSidebar />);
+
+    const alertsLink = screen.getByText('Alertas').closest('a');
+    expect(alertsLink?.className).toContain('bg-kore-red/10');
   });
 });

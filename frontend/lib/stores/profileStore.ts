@@ -63,6 +63,10 @@ type ProfileState = {
   saving: boolean;
   error: string;
   successMessage: string;
+  // Whether the global MoodCheckIn modal is force-opened (e.g. from a dashboard CTA).
+  // The modal also auto-opens once per session when there is no todayMood; this flag
+  // is the manual override path that bypasses the kore_mood_dismissed sessionStorage flag.
+  moodModalOpen: boolean;
 
   fetchProfile: () => Promise<void>;
   updateProfile: (data: UpdateProfilePayload) => Promise<{ success: boolean; error?: string }>;
@@ -70,6 +74,8 @@ type ProfileState = {
   changePassword: (data: ChangePasswordPayload) => Promise<{ success: boolean; error?: string }>;
   submitMood: (score: number, notes?: string) => Promise<{ success: boolean; error?: string }>;
   submitWeight: (weightKg: number) => Promise<{ success: boolean; error?: string }>;
+  openMoodModal: () => void;
+  closeMoodModal: () => void;
   clearMessages: () => void;
 };
 
@@ -114,6 +120,10 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   saving: false,
   error: '',
   successMessage: '',
+  moodModalOpen: false,
+
+  openMoodModal: () => set({ moodModalOpen: true }),
+  closeMoodModal: () => set({ moodModalOpen: false }),
 
   fetchProfile: async () => {
     set({ loading: true, error: '' });

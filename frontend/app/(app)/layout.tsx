@@ -33,23 +33,28 @@ export default function AppLayout({
     }
   }, [hydrated, isAuthenticated, router]);
 
+  const isAdmin = user?.role === 'admin';
   const isTrainer = user?.role === 'trainer';
   const isOnTrainerRoute = pathname.startsWith('/trainer');
 
   useEffect(() => {
     if (!hydrated || !isAuthenticated || !user) return;
+    if (isAdmin) {
+      router.replace('/admin/dashboard');
+      return;
+    }
     if (isTrainer && !isOnTrainerRoute) {
       router.replace('/trainer/dashboard');
     } else if (!isTrainer && isOnTrainerRoute) {
       router.replace('/dashboard');
     }
-  }, [hydrated, isAuthenticated, user, isTrainer, isOnTrainerRoute, router]);
+  }, [hydrated, isAuthenticated, user, isAdmin, isTrainer, isOnTrainerRoute, router]);
 
   useEffect(() => {
-    if (hydrated && isAuthenticated && user && !isTrainer) {
+    if (hydrated && isAuthenticated && user && !isTrainer && !isAdmin) {
       fetchSubscriptions();
     }
-  }, [hydrated, isAuthenticated, user, isTrainer, fetchSubscriptions]);
+  }, [hydrated, isAuthenticated, user, isTrainer, isAdmin, fetchSubscriptions]);
 
   useEffect(() => {
     if (!hydrated || !isAuthenticated || !user || isTrainer || subsLoading) return;

@@ -11,87 +11,103 @@ import { WHATSAPP_URL } from '@/lib/constants';
 import { GOAL_OPTIONS } from '@/app/components/profile/ProfileIcons';
 import { usePendingAssessmentsStore } from '@/lib/stores/pendingAssessmentsStore';
 
-const navItems = [
+type NavItem = {
+  label: string;
+  href: string;
+  icon: React.ReactNode;
+};
+
+type NavGroup = {
+  sectionLabel?: string;
+  items: NavItem[];
+};
+
+const navGroups: NavGroup[] = [
   {
-    label: 'Inicio',
-    href: '/dashboard',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-      </svg>
-    ),
+    items: [
+      {
+        label: 'Inicio',
+        href: '/dashboard',
+        icon: (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Mi Programa',
+        href: '/mi-programa',
+        icon: (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Mi Nutrición',
+        href: '/my-nutrition',
+        icon: (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 2.25c.847 0 1.531.684 1.531 1.531v1.531a1.531 1.531 0 01-1.531 1.531 1.531 1.531 0 01-1.531-1.531V3.781c0-.847.684-1.531 1.531-1.531zm-4.5 4.5c.847 0 1.531.684 1.531 1.531v1.531a1.531 1.531 0 01-1.531 1.531 1.531 1.531 0 01-1.531-1.531V8.281c0-.847.684-1.531 1.531-1.531zm9 0c.847 0 1.531.684 1.531 1.531v1.531a1.531 1.531 0 01-1.531 1.531 1.531 1.531 0 01-1.531-1.531V8.281c0-.847.684-1.531 1.531-1.531zM12 9.75c.847 0 1.531.684 1.531 1.531v1.531a1.531 1.531 0 01-1.531 1.531 1.531 1.531 0 01-1.531-1.531v-1.531c0-.847.684-1.531 1.531-1.531z" />
+          </svg>
+        ),
+      },
+    ],
   },
   {
-    label: 'Agendar Sesión',
-    href: '/book-session',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-      </svg>
-    ),
+    sectionLabel: 'Evaluaciones',
+    items: [
+      {
+        label: 'Antropometría',
+        href: '/my-diagnosis',
+        icon: (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Evaluación Postural',
+        href: '/my-posturometry',
+        icon: (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Evaluación Física',
+        href: '/my-physical-evaluation',
+        icon: (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+          </svg>
+        ),
+      },
+      {
+        label: 'PAR-Q',
+        href: '/my-parq',
+        icon: (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.25 2.25 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.9-4.414c.376.023.75.05 1.124.08 1.131.094 1.976 1.057 1.976 2.192V16.5A2.25 2.25 0 0118 18.75h-2.25m-7.5-10.5H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V18.75m-7.5-10.5h6.375c.621 0 1.125.504 1.125 1.125v9.375m-8.25-3l1.5 1.5 3-3.75" />
+          </svg>
+        ),
+      },
+    ],
   },
   {
-    label: 'Mi Programa',
-    href: '/mi-programa',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Mi Diagnóstico',
-    href: '/my-diagnosis',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Evaluación Postural',
-    href: '/my-posturometry',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Evaluación Física',
-    href: '/my-physical-evaluation',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Mi Nutrición',
-    href: '/my-nutrition',
-    icon: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 2.25c.847 0 1.531.684 1.531 1.531v1.531a1.531 1.531 0 01-1.531 1.531 1.531 1.531 0 01-1.531-1.531V3.781c0-.847.684-1.531 1.531-1.531zm-4.5 4.5c.847 0 1.531.684 1.531 1.531v1.531a1.531 1.531 0 01-1.531 1.531 1.531 1.531 0 01-1.531-1.531V8.281c0-.847.684-1.531 1.531-1.531zm9 0c.847 0 1.531.684 1.531 1.531v1.531a1.531 1.531 0 01-1.531 1.531 1.531 1.531 0 01-1.531-1.531V8.281c0-.847.684-1.531 1.531-1.531zM12 9.75c.847 0 1.531.684 1.531 1.531v1.531a1.531 1.531 0 01-1.531 1.531 1.531 1.531 0 01-1.531-1.531v-1.531c0-.847.684-1.531 1.531-1.531z" />
-      </svg>
-    ),
-  },
-  {
-    label: 'PAR-Q',
-    href: '/my-parq',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.25 2.25 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.9-4.414c.376.023.75.05 1.124.08 1.131.094 1.976 1.057 1.976 2.192V16.5A2.25 2.25 0 0118 18.75h-2.25m-7.5-10.5H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V18.75m-7.5-10.5h6.375c.621 0 1.125.504 1.125 1.125v9.375m-8.25-3l1.5 1.5 3-3.75" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Mi Suscripción',
-    href: '/subscription',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
-      </svg>
-    ),
+    sectionLabel: 'Cuenta',
+    items: [
+      {
+        label: 'Mi Suscripción',
+        href: '/subscription',
+        icon: (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
+          </svg>
+        ),
+      },
+    ],
   },
 ];
 
@@ -124,136 +140,139 @@ export default function Sidebar() {
     router.push('/');
   };
 
+  const getBadge = (href: string) => {
+    if (href === '/my-nutrition' && nutritionDue) return true;
+    if (href === '/my-parq' && parqDue) return true;
+    if (href === '/my-diagnosis' && anthropometryUnseen) return true;
+    if (href === '/my-posturometry' && posturometryUnseen) return true;
+    if (href === '/my-physical-evaluation' && physicalEvalUnseen) return true;
+    if (href === '/profile' && profileIncomplete) return true;
+    if (href === '/subscription' && subscriptionExpiring) return true;
+    return false;
+  };
+
   return (
     <>
       <aside className="fixed left-0 top-0 h-dvh w-64 bg-white border-r border-kore-gray-light/40 flex-col z-50 hidden xl:flex">
-      {/* Logo */}
-      <div className="px-6 pt-8 pb-6">
-        <Link href="/dashboard" prefetch={false}>
-          <span className="font-heading text-2xl font-semibold text-kore-gray-dark tracking-tight">
-            KÓRE
-          </span>
-        </Link>
-      </div>
-
-      {/* User Info — clickable to profile */}
-      {user && (
-        <div className="px-6 pb-6 mb-2">
-          <Link
-            href="/profile"
-            prefetch={false}
-            className="flex items-center gap-3 group cursor-pointer"
-          >
-            <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-kore-red/20 to-kore-burgundy/10 flex items-center justify-center flex-shrink-0 ring-2 ring-white shadow-sm overflow-hidden group-hover:ring-kore-red/30 transition-all">
-              {user.avatar_url ? (
-                <Image src={user.avatar_url} alt="Avatar" fill className="object-cover" />
-              ) : (
-                <span className="font-heading text-sm font-semibold text-kore-red">
-                  {user.name.charAt(0)}
-                </span>
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-kore-gray-dark truncate group-hover:text-kore-red transition-colors">{user.name}</p>
-              {goalLabel ? (
-                <p className="text-xs text-kore-red/70 truncate font-medium">{goalLabel}</p>
-              ) : (
-                <p className="text-xs text-kore-gray-dark/40 truncate">{user.email}</p>
-              )}
-            </div>
-            <svg className="w-4 h-4 text-kore-gray-dark/20 group-hover:text-kore-red/50 transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-            </svg>
+        {/* Logo */}
+        <div className="px-6 pt-8 pb-6">
+          <Link href="/dashboard" prefetch={false}>
+            <span className="font-heading text-2xl font-semibold text-kore-gray-dark tracking-tight">
+              KÓRE
+            </span>
           </Link>
         </div>
-      )}
 
-      {/* Navigation */}
-      <nav className="flex-1 px-3">
-        <ul className="space-y-1">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
-            const isItemAllowed = !subscriptionExpired || ALLOWED_WITHOUT_SUBSCRIPTION.some((p) => item.href.startsWith(p));
-            return (
-              <li key={item.href}>
-                {isItemAllowed ? (
-                <Link
-                  href={item.href}
-                  prefetch={false}
-                  onClick={() => {
-                    if (item.href === '/my-diagnosis') markSeen('anthropometry');
-                    if (item.href === '/my-posturometry') markSeen('posturometry');
-                    if (item.href === '/my-physical-evaluation') markSeen('physical_eval');
-                  }}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
-                    isActive
-                      ? 'bg-kore-red/10 text-kore-red'
-                      : 'text-kore-gray-dark/50 hover:bg-kore-cream hover:text-kore-gray-dark'
-                  }`}
-                >
-                  {item.icon}
-                  {item.label}
-                  {item.href === '/my-nutrition' && nutritionDue && (
-                    <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
-                  )}
-                  {item.href === '/my-parq' && parqDue && (
-                    <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
-                  )}
-                  {item.href === '/my-diagnosis' && anthropometryUnseen && (
-                    <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
-                  )}
-                  {item.href === '/my-posturometry' && posturometryUnseen && (
-                    <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
-                  )}
-                  {item.href === '/my-physical-evaluation' && physicalEvalUnseen && (
-                    <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
-                  )}
-                  {item.href === '/profile' && profileIncomplete && (
-                    <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
-                  )}
-                  {item.href === '/subscription' && subscriptionExpiring && (
-                    <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
-                  )}
-                </Link>
+        {/* User Info */}
+        {user && (
+          <div className="px-6 pb-6 mb-2">
+            <Link
+              href="/profile"
+              prefetch={false}
+              className="flex items-center gap-3 group cursor-pointer"
+            >
+              <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-kore-red/20 to-kore-burgundy/10 flex items-center justify-center flex-shrink-0 ring-2 ring-white shadow-sm overflow-hidden group-hover:ring-kore-red/30 transition-all">
+                {user.avatar_url ? (
+                  <Image src={user.avatar_url} alt="Avatar" fill className="object-cover" />
                 ) : (
-                <span
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-kore-gray-dark/25 cursor-not-allowed"
-                  title="Renueva tu suscripción para acceder"
-                >
-                  {item.icon}
-                  {item.label}
-                </span>
+                  <span className="font-heading text-sm font-semibold text-kore-red">
+                    {user.name.charAt(0)}
+                  </span>
                 )}
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-kore-gray-dark truncate group-hover:text-kore-red transition-colors">{user.name}</p>
+                {goalLabel ? (
+                  <p className="text-xs text-kore-red/70 truncate font-medium">{goalLabel}</p>
+                ) : (
+                  <p className="text-xs text-kore-gray-dark/40 truncate">{user.email}</p>
+                )}
+              </div>
+              <svg className="w-4 h-4 text-kore-gray-dark/20 group-hover:text-kore-red/50 transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+              </svg>
+            </Link>
+          </div>
+        )}
 
-      {/* Bottom Section */}
-      <div className="px-3 pb-6 space-y-1">
-        <a
-          href={WHATSAPP_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-kore-gray-dark/40 hover:bg-kore-cream hover:text-kore-gray-dark transition-all duration-200"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 01.778-.332 48.294 48.294 0 005.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
-          </svg>
-          Soporte
-        </a>
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-kore-gray-dark/40 hover:bg-kore-red/5 hover:text-kore-red transition-all duration-200"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
-          </svg>
-          Cerrar sesión
-        </button>
-      </div>
-    </aside>
+        {/* Navigation */}
+        <nav className="flex-1 px-3 overflow-y-auto">
+          {navGroups.map((group, gi) => (
+            <div key={gi} className={gi > 0 ? 'mt-4' : ''}>
+              {group.sectionLabel && (
+                <p className="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-kore-gray-dark/30">
+                  {group.sectionLabel}
+                </p>
+              )}
+              <ul className="space-y-0.5">
+                {group.items.map((item) => {
+                  const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
+                  const isItemAllowed = !subscriptionExpired || ALLOWED_WITHOUT_SUBSCRIPTION.some((p) => item.href.startsWith(p));
+                  const hasBadge = getBadge(item.href);
+                  return (
+                    <li key={item.href}>
+                      {isItemAllowed ? (
+                        <Link
+                          href={item.href}
+                          prefetch={false}
+                          onClick={() => {
+                            if (item.href === '/my-diagnosis') markSeen('anthropometry');
+                            if (item.href === '/my-posturometry') markSeen('posturometry');
+                            if (item.href === '/my-physical-evaluation') markSeen('physical_eval');
+                          }}
+                          className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                            isActive
+                              ? 'bg-kore-red/10 text-kore-red'
+                              : 'text-kore-gray-dark/50 hover:bg-kore-cream hover:text-kore-gray-dark'
+                          }`}
+                        >
+                          {item.icon}
+                          {item.label}
+                          {hasBadge && (
+                            <span className="ml-auto w-2 h-2 rounded-full bg-kore-red animate-pulse" />
+                          )}
+                        </Link>
+                      ) : (
+                        <span
+                          className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-kore-gray-dark/25 cursor-not-allowed"
+                          title="Renueva tu suscripción para acceder"
+                        >
+                          {item.icon}
+                          {item.label}
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </nav>
+
+        {/* Bottom Section */}
+        <div className="px-3 pb-6 pt-4 border-t border-kore-gray-light/20 space-y-0.5 mt-2">
+          <a
+            href={WHATSAPP_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-kore-gray-dark/40 hover:bg-kore-cream hover:text-kore-gray-dark transition-all duration-200"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 01.778-.332 48.294 48.294 0 005.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+            </svg>
+            Soporte
+          </a>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-kore-gray-dark/40 hover:bg-kore-red/5 hover:text-kore-red transition-all duration-200"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+            </svg>
+            Cerrar sesión
+          </button>
+        </div>
+      </aside>
     </>
   );
 }

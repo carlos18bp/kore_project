@@ -4,12 +4,20 @@ import { create } from 'zustand';
 import Cookies from 'js-cookie';
 import { api } from '@/lib/services/http';
 
+export type FoodBrief = {
+  id: number;
+  name: string;
+  category: string;
+  calories_per_100g: string | null;
+};
+
 export type MealSuggestionBrief = {
   id: number;
   title: string;
   description: string;
   calories_estimate: number;
   meal_block: string;
+  foods: FoodBrief[];
 };
 
 export type MealEntry = {
@@ -28,6 +36,8 @@ export type NutritionDailyLog = {
   closed_at: string | null;
   notes: string;
   meal_entries: MealEntry[];
+  program_goal: string | null;
+  trainer_nutrition_note: string | null;
 };
 
 type NutritionDailyState = {

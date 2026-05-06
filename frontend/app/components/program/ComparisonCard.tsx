@@ -23,29 +23,21 @@ export default function ComparisonCard({ label, before, after, delta, unit = '',
   const fmt = (v: number | null) => (v === null ? '—' : `${v.toFixed(decimals)}${unit}`);
 
   return (
-    <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm">
-      <p className="text-xs text-kore-gray-dark/50 uppercase tracking-wide font-semibold mb-3">{label}</p>
-      <div className="flex items-end justify-between gap-2">
-        <div>
-          <p className="text-[10px] text-kore-gray-dark/40 mb-0.5">Inicio</p>
-          <p className="text-lg font-bold text-kore-gray-dark">{fmt(before)}</p>
-        </div>
-        <div className="flex flex-col items-center gap-0.5">
-          {delta !== null ? (
-            <span className={`text-sm font-bold ${deltaColor}`}>
-              {delta > 0 ? '+' : ''}{delta.toFixed(decimals)}{unit}
-            </span>
-          ) : (
-            <span className="text-xs text-kore-gray-dark/30">sin datos</span>
-          )}
-          <svg className="w-5 h-2 text-kore-gray-dark/20" fill="none" viewBox="0 0 20 8">
-            <path d="M0 4h16m0 0l-4-3m4 3l-4 3" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-        <div className="text-right">
-          <p className="text-[10px] text-kore-gray-dark/40 mb-0.5">Fin</p>
-          <p className={`text-lg font-bold ${improved === null ? 'text-kore-gray-dark' : improved ? 'text-teal-600' : 'text-rose-500'}`}>{fmt(after)}</p>
-        </div>
+    <div className="flex items-center justify-between py-2 border-b border-kore-gray-light/30 last:border-b-0">
+      <p className="text-[11px] text-kore-gray-dark/55 font-medium">{label}</p>
+      <div className="flex items-center gap-2.5">
+        <span className="text-[11px] text-kore-gray-dark/45 tabular-nums">{fmt(before)}</span>
+        <svg className="w-3 h-2 text-kore-gray-dark/25 shrink-0" fill="none" viewBox="0 0 12 8">
+          <path d="M0 4h9m0 0l-2.5-2.5M9 4l-2.5 2.5" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span className={`text-[12px] font-semibold tabular-nums ${improved === null ? 'text-kore-gray-dark' : improved ? 'text-teal-600' : 'text-rose-500'}`}>
+          {fmt(after)}
+        </span>
+        {delta !== null && (
+          <span className={`text-[10px] font-semibold tabular-nums ${deltaColor} shrink-0 w-12 text-right`}>
+            {delta > 0 ? '+' : ''}{delta.toFixed(decimals)}{unit}
+          </span>
+        )}
       </div>
     </div>
   );

@@ -290,13 +290,31 @@ class TodayProgramView(APIView):
             defaults={'program': program},
         )
 
-        if created and program_day.exercises.exists():
-            exercise_logs = [
-                ExerciseLog(daily_log=daily_log, program_exercise=pe)
-                for pe in program_day.exercises.all()
-            ]
-            ExerciseLog.objects.bulk_create(exercise_logs)
-            daily_log.refresh_from_db()
+        if created:
+            # Only seed logs for exercises that have a youtube_url — exercises without
+            # a reference video are skipped so they don't penalize adherence (the user
+            # would have no way to perform them correctly).
+            assignable_exercises = list(
+                program_day.exercises.exclude(exercise__youtube_url='')
+            )
+            if assignable_exercises:
+                exercise_logs = [
+                    ExerciseLog(daily_log=daily_log, program_exercise=pe)
+                    for pe in assignable_exercises
+                ]
+                ExerciseLog.objects.bulk_create(exercise_logs)
+                daily_log.refresh_from_db()
+        elif not daily_log.is_closed:
+            # Backfill for already-open logs created before the youtube_url guard:
+            # drop pending logs that point to videoless exercises so the customer
+            # sees a clean rutina and adherence stays accurate. Only NOT_DONE logs
+            # are pruned — completed/skipped entries stay to preserve history.
+            pruned, _ = daily_log.exercise_logs.filter(
+                program_exercise__exercise__youtube_url='',
+                status=ExerciseLog.Status.NOT_DONE,
+            ).delete()
+            if pruned:
+                daily_log.refresh_from_db()
 
         day_data = ProgramDaySerializer(program_day).data
         log_data = DailyLogSerializer(daily_log).data

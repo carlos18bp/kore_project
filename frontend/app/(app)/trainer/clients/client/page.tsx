@@ -1,26 +1,61 @@
 'use client';
 
-import { useEffect, useRef, Suspense } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
-import { useAuthStore } from '@/lib/stores/authStore';
 import { useTrainerStore } from '@/lib/stores/trainerStore';
-import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
+import TabBar from '@/app/components/trainer/TabBar';
+import AdherenceRing from '@/app/components/trainer/AdherenceRing';
+import KPIGrid from '@/app/components/trainer/KPIGrid';
+import RiskBadge from '@/app/components/trainer/RiskBadge';
+import AlertCard from '@/app/components/trainer/AlertCard';
 
-const goalLabels: Record<string, string> = {
-  fat_loss: 'Perder grasa',
-  muscle_gain: 'Ganar masa muscular',
-  rehab: 'Rehabilitación',
-  general_health: 'Salud general',
+type TabId = 'resumen' | 'sesiones' | 'rutina' | 'nutricion' | 'evaluaciones' | 'alertas' | 'creditos' | 'notas';
+
+const TABS: { id: TabId; label: string }[] = [
+  { id: 'resumen', label: 'Resumen' },
+  { id: 'sesiones', label: 'Sesiones' },
+  { id: 'rutina', label: 'Rutina' },
+  { id: 'nutricion', label: 'Nutrición' },
+  { id: 'evaluaciones', label: 'Evaluaciones' },
+  { id: 'alertas', label: 'Alertas' },
+  { id: 'creditos', label: 'Créditos' },
+  { id: 'notas', label: 'Notas' },
+];
+
+const GOAL_LABELS: Record<string, string> = {
+  fat_loss: 'Perder grasa', muscle_gain: 'Ganar masa muscular',
+  rehab: 'Rehabilitación', general_health: 'Salud general',
   sports_performance: 'Rendimiento deportivo',
 };
 
-const sexLabels: Record<string, string> = {
-  masculino: 'Masculino',
-  femenino: 'Femenino',
-  otro: 'Otro',
-  prefiero_no_decir: 'Prefiere no decir',
+const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
+  confirmed: { label: 'Completada', bg: 'bg-green-100', text: 'text-green-700' },
+  pending: { label: 'Pendiente', bg: 'bg-amber-100', text: 'text-amber-700' },
+  canceled: { label: 'Cancelada', bg: 'bg-red-100', text: 'text-red-600' },
 };
+
+const EVAL_MODULES = [
+  { key: 'anthropometry', label: 'Antropometría', path: 'anthropometry' },
+  { key: 'posturometry', label: 'Posturometría', path: 'posturometry' },
+  { key: 'physical', label: 'Eval. Física', path: 'physical-evaluation' },
+  { key: 'parq', label: 'PAR-Q+', path: 'parq' },
+  { key: 'nutrition', label: 'Nutrición', path: 'nutrition' },
+];
+
+const MEAL_LABELS: Record<string, string> = {
+  breakfast: 'Desayuno', morning_snack: 'Media mañana', lunch: 'Almuerzo',
+  afternoon_snack: 'Merienda', dinner: 'Cena',
+};
+
+function evalUrgency(lastDate: string | null): { color: string; label: string } {
+  if (!lastDate) return { color: 'text-kore-red', label: 'Sin registro' };
+  const days = Math.floor((Date.now() - new Date(lastDate).getTime()) / 86400000);
+  if (days > 120) return { color: 'text-kore-red', label: `${days}d` };
+  if (days > 60) return { color: 'text-amber-600', label: `${days}d` };
+  return { color: 'text-green-600', label: `${days}d` };
+}
 
 export default function TrainerClientDetailWrapper() {
   return (
@@ -31,9 +66,9 @@ export default function TrainerClientDetailWrapper() {
 }
 
 function TrainerClientDetailPage() {
-  const { user } = useAuthStore();
   const searchParams = useSearchParams();
   const clientId = Number(searchParams.get('id'));
+
   const {
     selectedClient: client,
     clientLoading,
@@ -42,29 +77,93 @@ function TrainerClientDetailPage() {
     fetchClientDetail,
     fetchClientSessions,
     error,
+    clientKPIs,
+    kpiLoading,
+    fetchClientKPI,
+    clientAlerts,
+    clientAlertsLoading,
+    fetchClientAlerts,
+    resolveAlert,
+    fetchAlerts,
+    clientDailyLogs,
+    dailyLogsLoading,
+    fetchClientDailyLogs,
+    clientNutritionLogs,
+    nutritionLogsLoading,
+    fetchClientNutritionLogs,
+    clientSessionsFull,
+    sessionsFullLoading,
+    fetchClientSessionsFull,
+    trainerMessages,
+    messagesLoading,
+    sendTrainerMessage,
+    fetchTrainerMessages,
+    pauseProgram,
+    resumeProgram,
+    programActionLoading,
   } = useTrainerStore();
-  const sectionRef = useRef<HTMLElement>(null);
-  useHeroAnimation(sectionRef);
+
+  const [activeTab, setActiveTab] = useState<TabId>('resumen');
+  const [newMessage, setNewMessage] = useState('');
+  const [pauseReason, setPauseReason] = useState('');
+  const [showPauseSheet, setShowPauseSheet] = useState(false);
+  const [resolvingAlertId, setResolvingAlertId] = useState<number | null>(null);
+  const [resolveSheet, setResolveSheet] = useState<number | null>(null);
+  const [resolveNote, setResolveNote] = useState('');
+  const [resolveType, setResolveType] = useState<'mark_reviewed' | 'private_note' | 'public_note' | 'schedule_eval'>('mark_reviewed');
 
   useEffect(() => {
-    if (clientId) {
-      fetchClientDetail(clientId);
-      fetchClientSessions(clientId);
-    }
+    if (!clientId) return;
+    fetchClientDetail(clientId);
+    fetchClientSessions(clientId);
   }, [clientId, fetchClientDetail, fetchClientSessions]);
 
-  const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
+  useEffect(() => {
+    if (!clientId) return;
+    if (activeTab === 'resumen' && !clientKPIs[clientId]) fetchClientKPI(clientId);
+    if (activeTab === 'sesiones' && !clientSessionsFull[clientId]) fetchClientSessionsFull(clientId);
+    if (activeTab === 'rutina' && !clientDailyLogs[clientId]) fetchClientDailyLogs(clientId, 14);
+    if (activeTab === 'nutricion' && !clientNutritionLogs[clientId]) fetchClientNutritionLogs(clientId, 14);
+    if (activeTab === 'evaluaciones' && !clientKPIs[clientId]) fetchClientKPI(clientId);
+    if (activeTab === 'alertas' && !clientAlerts[clientId]) fetchClientAlerts(clientId);
+    if (activeTab === 'notas' && !trainerMessages[clientId]) fetchTrainerMessages(clientId);
+  }, [activeTab, clientId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const formatDateTime = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return {
-      date: d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' }),
-      time: d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true }),
-    };
+  const kpi = clientKPIs[clientId];
+  const alerts = clientAlerts[clientId] ?? [];
+  const dailyLogs = clientDailyLogs[clientId] ?? [];
+  const nutritionLogs = clientNutritionLogs[clientId] ?? [];
+  const fullSessions = clientSessionsFull[clientId] ?? clientSessions;
+  const messages = trainerMessages[clientId] ?? [];
+
+  const formatDate = (s: string) =>
+    new Date(s).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !clientId) return;
+    await sendTrainerMessage(clientId, newMessage.trim());
+    setNewMessage('');
+    fetchTrainerMessages(clientId);
   };
 
-  if (!user) {
+  const handleResolveAlert = async () => {
+    if (!resolveSheet) return;
+    setResolvingAlertId(resolveSheet);
+    try {
+      await resolveAlert(resolveSheet, { signal_type: 'general', resolution_type: resolveType, note: resolveNote, is_public: resolveType === 'public_note' });
+      setResolveSheet(null);
+      setResolveNote('');
+      await fetchClientAlerts(clientId);
+      await fetchAlerts();
+    } finally {
+      setResolvingAlertId(null);
+    }
+  };
+
+  const activeProgram = client?.subscription;
+  const programId = kpi?.behavioral?.sessions_remaining != null ? null : null;
+
+  if (clientLoading && !client) {
     return (
       <section className="min-h-screen bg-kore-cream flex items-center justify-center">
         <div className="animate-spin h-8 w-8 border-2 border-kore-red border-t-transparent rounded-full" />
@@ -73,423 +172,636 @@ function TrainerClientDetailPage() {
   }
 
   return (
-    <section ref={sectionRef} className="min-h-screen bg-kore-cream">
-      <div className="w-full px-6 md:px-10 lg:px-16 pt-20 xl:pt-8 pb-16">
-        {/* Back + Header */}
-        <div data-hero="badge" className="mb-8 xl:mb-10">
-          <Link
-            href="/trainer/clients"
-            className="inline-flex items-center gap-1 text-xs text-kore-gray-dark/40 hover:text-kore-red transition-colors mb-3"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-            </svg>
-            Volver a clientes
-          </Link>
-          <h1 className="font-heading text-2xl md:text-3xl font-semibold text-kore-gray-dark">
-            {clientLoading ? 'Cargando...' : client ? `${client.first_name} ${client.last_name}` : 'Cliente'}
-          </h1>
-        </div>
+    <section className="min-h-screen bg-kore-cream">
+      <div className="w-full px-4 md:px-10 lg:px-16 pt-20 xl:pt-8 pb-24 max-w-2xl xl:max-w-none mx-auto">
+
+        {/* Back link */}
+        <Link
+          href="/trainer/clients"
+          className="inline-flex items-center gap-1 text-xs text-kore-gray-dark/40 hover:text-kore-red transition-colors mb-4"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+          Volver a clientes
+        </Link>
 
         {error && (
-          <div className="bg-kore-red/5 border border-kore-red/20 rounded-lg px-4 py-3 mb-6">
+          <div className="bg-kore-red/5 border border-kore-red/20 rounded-xl px-4 py-3 mb-4">
             <p className="text-sm text-kore-red">{error}</p>
           </div>
         )}
 
-        {clientLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="animate-spin h-8 w-8 border-2 border-kore-red border-t-transparent rounded-full" />
-          </div>
-        ) : client ? (
-          <>
-          {/* Next session badge */}
-          {client.next_session && (() => {
-            const d = new Date(client.next_session.starts_at);
-            const dateStr = d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
-            const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
-            return (
-              <div className="mb-6 bg-gradient-to-r from-kore-red to-kore-burgundy rounded-2xl p-5 text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-white/60 uppercase tracking-widest font-medium mb-1">Próxima sesión</p>
-                    <p className="font-heading text-lg font-semibold capitalize">{dateStr}</p>
-                    <p className="text-white/70 text-sm">{timeStr} · {client.next_session.package_title}</p>
-                  </div>
-                  <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                    </svg>
-                  </div>
-                </div>
+        {/* Header: avatar + name + next session */}
+        {client && (
+          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-5 mb-5 shadow-lg">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center ring-2 ring-white/20 flex-shrink-0 overflow-hidden">
+                {client.avatar_url ? (
+                  <Image src={client.avatar_url} alt="" fill className="object-cover" />
+                ) : (
+                  <span className="text-xl font-bold text-white">{client.first_name.charAt(0)}</span>
+                )}
               </div>
-            );
-          })()}
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left: Profile + Subscription */}
-            <div data-hero="heading" className="lg:col-span-2 space-y-6">
-              {/* Profile Card */}
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
-                <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-5">Información personal</h2>
-                <div className="flex items-center gap-4 mb-5">
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-kore-red/20 to-kore-burgundy/10 flex items-center justify-center ring-2 ring-white shadow-sm overflow-hidden">
-                    {client.avatar_url ? (
-                      <img src={client.avatar_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="font-heading text-xl font-semibold text-kore-red">
-                        {client.first_name.charAt(0)}
-                      </span>
-                    )}
-                  </div>
-                  <div>
-                    <p className="font-medium text-kore-gray-dark">{client.first_name} {client.last_name}</p>
-                    <p className="text-xs text-kore-gray-dark/40">{client.email}</p>
-                  </div>
-                </div>
-                <div className="space-y-3 pt-4 border-t border-kore-gray-light/30">
-                  {client.phone && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-kore-gray-dark/50">Teléfono</span>
-                      <span className="font-medium text-kore-gray-dark">{client.phone}</span>
-                    </div>
-                  )}
-                  {client.profile.sex && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-kore-gray-dark/50">Sexo</span>
-                      <span className="font-medium text-kore-gray-dark">{sexLabels[client.profile.sex] || client.profile.sex}</span>
-                    </div>
-                  )}
-                  {client.profile.date_of_birth && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-kore-gray-dark/50">Fecha de nacimiento</span>
-                      <span className="font-medium text-kore-gray-dark">{formatDate(client.profile.date_of_birth)}</span>
-                    </div>
-                  )}
-                  {client.profile.eps && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-kore-gray-dark/50">EPS</span>
-                      <span className="font-medium text-kore-gray-dark">{client.profile.eps}</span>
-                    </div>
-                  )}
-                  {client.profile.id_type && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-kore-gray-dark/50">Documento</span>
-                      <span className="font-medium text-kore-gray-dark">
-                        {({ ti: 'TI', cc: 'CC', ce: 'CE', pasaporte: 'Pasaporte', dni: 'DNI' }[client.profile.id_type] || client.profile.id_type)}
-                        {client.profile.id_number ? ` ${client.profile.id_number}` : ''}
-                      </span>
-                    </div>
-                  )}
-                  {client.profile.address && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-kore-gray-dark/50">Dirección</span>
-                      <span className="font-medium text-kore-gray-dark">{client.profile.address}</span>
-                    </div>
-                  )}
-                  {client.profile.primary_goal && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-kore-gray-dark/50">Objetivo</span>
-                      <span className="font-medium text-kore-red">{goalLabels[client.profile.primary_goal] || client.profile.primary_goal}</span>
-                    </div>
-                  )}
-                  {client.profile.city && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-kore-gray-dark/50">Ciudad</span>
-                      <span className="font-medium text-kore-gray-dark">{client.profile.city}</span>
-                    </div>
-                  )}
-                  {client.profile.kore_start_date && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-kore-gray-dark/50">Miembro desde</span>
-                      <span className="font-medium text-kore-gray-dark">{formatDate(client.profile.kore_start_date)}</span>
-                    </div>
-                  )}
-                </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-bold text-lg leading-tight truncate">
+                  {client.first_name} {client.last_name}
+                </p>
+                <p className="text-white/50 text-xs truncate">{GOAL_LABELS[client.profile.primary_goal] ?? client.profile.primary_goal}</p>
               </div>
-
-              {/* Subscription + Payment Card */}
-              {client.subscription ? (
-                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
-                  <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-5">Suscripción y pago</h2>
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-kore-gray-dark/50">Programa</span>
-                      <span className="font-medium text-kore-gray-dark">{client.subscription.package_title}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-kore-gray-dark/50">Valor del programa</span>
-                      <span className="font-medium text-kore-red">
-                        {new Intl.NumberFormat('es-CO', { style: 'currency', currency: client.subscription.package_currency, minimumFractionDigits: 0 }).format(parseFloat(client.subscription.package_price))}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-kore-gray-dark/50">Sesiones</span>
-                      <span className="font-medium text-kore-gray-dark">
-                        {client.subscription.sessions_used} de {client.subscription.sessions_total} completadas
-                      </span>
-                    </div>
-                    <div className="w-full h-2 bg-kore-gray-light/40 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-kore-red to-kore-burgundy rounded-full transition-all duration-500"
-                        style={{ width: `${(client.subscription.sessions_used / client.subscription.sessions_total) * 100}%` }}
-                      />
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-kore-gray-dark/50">Restantes</span>
-                      <span className="font-medium text-green-600">{client.subscription.sessions_remaining} sesiones</span>
-                    </div>
-                    <div className="h-px bg-kore-gray-light/40 my-1" />
-                    <div className="flex justify-between text-sm">
-                      <span className="text-kore-gray-dark/50">Inicio</span>
-                      <span className="font-medium text-kore-gray-dark">{formatDate(client.subscription.starts_at)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-kore-gray-dark/50">Vencimiento</span>
-                      <span className="font-medium text-kore-gray-dark">{formatDate(client.subscription.expires_at)}</span>
-                    </div>
-                    {client.subscription.next_billing_date && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-kore-gray-dark/50">Próximo cobro</span>
-                        <span className="font-medium text-kore-red">{formatDate(client.subscription.next_billing_date)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-sm">
-                      <span className="text-kore-gray-dark/50">Cobro automático</span>
-                      <span className={`font-medium ${client.subscription.is_recurring ? 'text-green-600' : 'text-kore-gray-dark/50'}`}>
-                        {client.subscription.is_recurring ? 'Sí' : 'No'}
-                      </span>
-                    </div>
-                    {client.last_payment && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-kore-gray-dark/50">Último pago</span>
-                        <span className="font-medium text-kore-gray-dark">
-                          {new Intl.NumberFormat('es-CO', { style: 'currency', currency: client.last_payment.currency, minimumFractionDigits: 0 }).format(parseFloat(client.last_payment.amount))}
-                          {' · '}
-                          {formatDate(client.last_payment.created_at)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm text-center">
-                  <p className="text-sm text-kore-gray-dark/50">Este cliente no tiene una suscripción activa.</p>
-                </div>
+              {alerts.filter(a => a.level === 'alto' || a.level === 'medio').length > 0 && (
+                <RiskBadge level={alerts[0]?.level ?? 'bajo'} size="sm" />
               )}
-
-              {/* Upcoming Sessions */}
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
-                <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-5">Próximas sesiones</h2>
-                {(() => {
-                  const upcoming = clientSessions.filter(
-                    (s) => s.status === 'pending' && s.starts_at && new Date(s.starts_at) > new Date()
-                  );
-                  return upcoming.length > 0 ? (
-                    <div className="space-y-3">
-                      {upcoming.map((session) => {
-                        const d = new Date(session.starts_at!);
-                        const dateStr = d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
-                        const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
-                        return (
-                          <div key={session.id} className="flex items-center gap-4 p-3 rounded-xl bg-kore-cream/30">
-                            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-kore-red/10 flex items-center justify-center">
-                              <svg className="w-5 h-5 text-kore-red" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                              </svg>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-kore-gray-dark capitalize">{dateStr}</p>
-                              <p className="text-xs text-kore-gray-dark/50">{session.package_title}</p>
-                            </div>
-                            <span className="text-sm font-medium text-kore-red">{timeStr}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-kore-gray-dark/50 text-center py-4">Sin sesiones próximas agendadas.</p>
-                  );
-                })()}
-              </div>
             </div>
-
-            {/* Right: Stats + Future Modules */}
-            <div data-hero="cta" className="space-y-6">
-              {/* Stats Card */}
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
-                <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-4">Resumen</h2>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-kore-gray-dark">{client.stats.completed}</p>
-                      <p className="text-xs text-kore-gray-dark/50">Sesiones completadas</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-kore-gray-dark">{client.stats.pending}</p>
-                      <p className="text-xs text-kore-gray-dark/50">Sesiones pendientes</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-kore-gray-dark">{client.stats.canceled}</p>
-                      <p className="text-xs text-kore-gray-dark/50">Sesiones canceladas</p>
-                    </div>
-                  </div>
+            {client.next_session && (
+              <div className="mt-4 pt-4 border-t border-white/10 flex items-center gap-3">
+                <svg className="w-4 h-4 text-white/40 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                </svg>
+                <div className="min-w-0">
+                  <p className="text-white/50 text-[10px] uppercase tracking-wide">Próxima sesión</p>
+                  <p className="text-white text-sm font-medium">
+                    {new Date(client.next_session.starts_at).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })}
+                    {' '}·{' '}
+                    {new Date(client.next_session.starts_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                  </p>
                 </div>
-              </div>
-
-              {/* Modules */}
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
-                <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-3">Módulos</h2>
-                <div className="space-y-2">
-                  <Link
-                    href={`/trainer/clients/client/anthropometry?id=${clientId}`}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-kore-red/5 hover:bg-kore-red/10 text-kore-gray-dark transition-colors"
-                  >
-                    <svg className="w-4 h-4 text-kore-red" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.25 2.25 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
-                    </svg>
-                    <span className="text-sm font-medium">Antropometría</span>
-                    <svg className="w-4 h-4 ml-auto text-kore-gray-dark/30" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                    </svg>
-                  </Link>
-                  <Link
-                    href={`/trainer/clients/client/posturometry?id=${clientId}`}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-kore-red/5 hover:bg-kore-red/10 text-kore-gray-dark transition-colors"
-                  >
-                    <svg className="w-4 h-4 text-kore-red" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                    </svg>
-                    <span className="text-sm font-medium">Posturometría</span>
-                    <svg className="w-4 h-4 ml-auto text-kore-gray-dark/30" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                    </svg>
-                  </Link>
-                  <Link
-                    href={`/trainer/clients/client/physical-evaluation?id=${clientId}`}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-kore-red/5 hover:bg-kore-red/10 text-kore-gray-dark transition-colors"
-                  >
-                    <svg className="w-4 h-4 text-kore-red" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-                    </svg>
-                    <span className="text-sm font-medium">Evaluación Física</span>
-                    <svg className="w-4 h-4 ml-auto text-kore-gray-dark/30" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                    </svg>
-                  </Link>
-                  <Link
-                    href={`/trainer/clients/client/nutrition?id=${clientId}`}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-kore-red/5 hover:bg-kore-red/10 text-kore-gray-dark transition-colors"
-                  >
-                    <svg className="w-4 h-4 text-kore-red" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8.25v-1.5m0 1.5c-1.355 0-2.697.056-4.024.166C6.845 8.51 6 9.473 6 10.608v2.513m6-4.871c1.355 0 2.697.056 4.024.166C17.155 8.51 18 9.473 18 10.608v2.513M15 8.25v-1.5m-6 1.5v-1.5m12 9.75l-1.5.75a3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0L3 16.5m15-3.379a48.474 48.474 0 00-6-.371c-2.032 0-4.034.126-6 .371m12 0c.39.049.777.102 1.163.16 1.07.16 1.837 1.094 1.837 2.175v5.169c0 .621-.504 1.125-1.125 1.125H4.125A1.125 1.125 0 013 20.625v-5.17c0-1.08.768-2.014 1.837-2.174A47.78 47.78 0 016 13.12M12.265 3.11a.375.375 0 11-.53 0L12 2.845l.265.265zm-3 0a.375.375 0 11-.53 0L9 2.845l.265.265zm6 0a.375.375 0 11-.53 0L15 2.845l.265.265z" />
-                    </svg>
-                    <span className="text-sm font-medium">Nutrición</span>
-                    <svg className="w-4 h-4 ml-auto text-kore-gray-dark/30" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                    </svg>
-                  </Link>
-                  <Link
-                    href={`/trainer/clients/client/parq?id=${clientId}`}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-kore-red/5 hover:bg-kore-red/10 text-kore-gray-dark transition-colors"
-                  >
-                    <svg className="w-4 h-4 text-kore-red" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M11.35 3.836c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.25 2.25 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m8.9-4.414c.376.023.75.05 1.124.08 1.131.094 1.976 1.057 1.976 2.192V16.5A2.25 2.25 0 0118 18.75h-2.25m-7.5-10.5H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V18.75m-7.5-10.5h6.375c.621 0 1.125.504 1.125 1.125v9.375m-8.25-3l1.5 1.5 3-3.75" />
-                    </svg>
-                    <span className="text-sm font-medium">PAR-Q+</span>
-                    <svg className="w-4 h-4 ml-auto text-kore-gray-dark/30" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                    </svg>
-                  </Link>
-                  <Link
-                    href={`/trainer/clients/client/programa?id=${clientId}`}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-kore-red/5 hover:bg-kore-red/10 text-kore-gray-dark transition-colors"
-                  >
-                    <svg className="w-4 h-4 text-kore-red" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" />
-                    </svg>
-                    <span className="text-sm font-medium">Programa mensual</span>
-                    <svg className="w-4 h-4 ml-auto text-kore-gray-dark/30" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                    </svg>
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-
-        {/* Session History */}
-          <div data-hero="body" className="mt-6 bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
-            <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-5">Sesiones completadas</h2>
-            {sessionsLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin h-6 w-6 border-2 border-kore-red border-t-transparent rounded-full" />
-              </div>
-            ) : clientSessions.filter(s => s.status === 'confirmed').length === 0 ? (
-              <p className="text-sm text-kore-gray-dark/50 text-center py-6">Sin sesiones completadas.</p>
-            ) : (
-              <div className="space-y-2">
-                {clientSessions.filter(s => s.status === 'confirmed').map((session) => {
-                  const { date, time } = session.starts_at ? formatDateTime(session.starts_at) : { date: '—', time: '' };
-                  const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
-                    confirmed: { label: 'Completada', bg: 'bg-green-100', text: 'text-green-700' },
-                    pending: { label: 'Pendiente', bg: 'bg-amber-100', text: 'text-amber-700' },
-                    canceled: { label: 'Cancelada', bg: 'bg-red-100', text: 'text-red-600' },
-                  };
-                  const sc = statusConfig[session.status] || { label: session.status, bg: 'bg-gray-100', text: 'text-gray-500' };
-
-                  return (
-                    <div key={session.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-kore-cream/50 transition-colors">
-                      <div className={`flex-shrink-0 w-10 h-10 rounded-full ${sc.bg} flex items-center justify-center`}>
-                        {session.status === 'confirmed' ? (
-                          <svg className={`w-5 h-5 ${sc.text}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        ) : session.status === 'canceled' ? (
-                          <svg className={`w-5 h-5 ${sc.text}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        ) : (
-                          <svg className={`w-5 h-5 ${sc.text}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-kore-gray-dark">{session.package_title}</p>
-                        <p className="text-xs text-kore-gray-dark/50 capitalize">{date} {time && `· ${time}`}</p>
-                      </div>
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${sc.bg} ${sc.text}`}>
-                        {sc.label}
-                      </span>
-                    </div>
-                  );
-                })}
               </div>
             )}
           </div>
-          </>
-        ) : null}
+        )}
+
+        {/* Tab bar */}
+        <TabBar tabs={TABS} activeTab={activeTab} onChange={(id) => setActiveTab(id as TabId)} />
+
+        {/* Tab content */}
+        <div className="pt-4 space-y-4">
+
+          {/* ── RESUMEN ── */}
+          {activeTab === 'resumen' && (
+            <>
+              {kpiLoading && !kpi ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin h-6 w-6 border-2 border-kore-red border-t-transparent rounded-full" />
+                </div>
+              ) : kpi ? (
+                <>
+                  {/* Adherence rings */}
+                  <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-5 shadow-lg">
+                    <div className="flex items-center justify-around">
+                      <AdherenceRing
+                        value={kpi.behavioral.combined_adherence_7d}
+                        size={100}
+                        strokeWidth={9}
+                        label="Adherencia"
+                        color="rgb(239, 68, 68)"
+                      />
+                      {kpi.clinical.kore_score !== null && (
+                        <div className="text-center">
+                          <p className="text-white/50 text-[10px] font-semibold uppercase tracking-wide mb-1">KORE Score</p>
+                          <p className="text-4xl font-black text-white leading-none">
+                            {Math.round(kpi.clinical.kore_score)}
+                          </p>
+                          <p className="text-white/50 text-xs mt-0.5">{kpi.clinical.kore_category}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Quick stats */}
+                  <KPIGrid items={[
+                    { label: 'Racha actual', value: kpi.behavioral.streak_current, unit: 'días' },
+                    { label: 'Racha récord', value: kpi.behavioral.streak_longest, unit: 'días' },
+                    { label: 'Sesiones comp.', value: kpi.behavioral.sessions_completed },
+                    { label: 'Créditos rest.', value: kpi.behavioral.sessions_remaining },
+                  ]} />
+
+                  {/* Clinical grid */}
+                  <KPIGrid columns={3} items={[
+                    { label: 'BMI', value: kpi.clinical.bmi?.toFixed(1) ?? null, color: kpi.clinical.bmi_color },
+                    { label: '% Grasa', value: kpi.clinical.body_fat_pct?.toFixed(1) ?? null, unit: '%', color: kpi.clinical.bf_color },
+                    { label: 'Postural', value: kpi.clinical.global_postural_index?.toFixed(0) ?? null, color: kpi.clinical.postural_color },
+                    { label: 'Física', value: kpi.clinical.physical_general_index?.toFixed(0) ?? null, color: kpi.clinical.physical_color },
+                    { label: 'Nutrición', value: kpi.clinical.nutrition_habit_score?.toFixed(1) ?? null, unit: '/10', color: kpi.clinical.nutrition_color },
+                    { label: 'Ánimo', value: kpi.behavioral.last_mood_score?.toString() ?? null, unit: '/10' },
+                  ]} />
+
+                  {/* Active alerts preview */}
+                  {alerts.length > 0 && (
+                    <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-sm font-bold text-kore-gray-dark">Alertas activas</p>
+                        <button onClick={() => setActiveTab('alertas')} className="text-xs text-kore-red font-medium">Ver todas</button>
+                      </div>
+                      <div className="space-y-2">
+                        {alerts.slice(0, 2).map((a) => (
+                          <div key={a.id} className="flex items-center gap-2">
+                            <RiskBadge level={a.level} size="sm" />
+                            <span className="text-xs text-kore-gray-dark/60">
+                              {(a.behavioral_signals.length + a.clinical_signals.length)} señales
+                            </span>
+                            <span className="text-xs text-kore-gray-dark/30 ml-auto">
+                              {new Date(a.computed_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-5 space-y-3">
+                  {client && (
+                    <>
+                      <p className="text-sm font-bold text-kore-gray-dark">Sesiones</p>
+                      <KPIGrid items={[
+                        { label: 'Completadas', value: client.stats.completed },
+                        { label: 'Pendientes', value: client.stats.pending },
+                        { label: 'Canceladas', value: client.stats.canceled },
+                        { label: 'Total', value: client.stats.total },
+                      ]} />
+                    </>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── SESIONES ── */}
+          {activeTab === 'sesiones' && (
+            <>
+              {/* Upcoming */}
+              <div className="bg-white rounded-2xl border border-black/5 shadow-sm">
+                <div className="px-4 pt-4 pb-2">
+                  <p className="text-sm font-bold text-kore-gray-dark">Próximas</p>
+                </div>
+                <div className="px-3 pb-3">
+                  {(() => {
+                    const upcoming = (fullSessions.length > 0 ? fullSessions : clientSessions).filter(
+                      (s) => s.status === 'pending' && s.starts_at && new Date(s.starts_at) > new Date()
+                    );
+                    return upcoming.length === 0 ? (
+                      <p className="text-sm text-kore-gray-dark/40 text-center py-4">Sin sesiones próximas</p>
+                    ) : (
+                      <div className="space-y-0.5">
+                        {upcoming.map((s) => (
+                          <SessionRow key={s.id} session={s} />
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* History */}
+              <div className="bg-white rounded-2xl border border-black/5 shadow-sm">
+                <div className="px-4 pt-4 pb-2">
+                  <p className="text-sm font-bold text-kore-gray-dark">Historial</p>
+                </div>
+                <div className="px-3 pb-3">
+                  {sessionsLoading || sessionsFullLoading ? (
+                    <div className="flex justify-center py-6">
+                      <div className="animate-spin h-5 w-5 border-2 border-kore-red border-t-transparent rounded-full" />
+                    </div>
+                  ) : (() => {
+                    const past = (fullSessions.length > 0 ? fullSessions : clientSessions).filter(
+                      (s) => s.status === 'confirmed' || s.status === 'canceled'
+                    );
+                    return past.length === 0 ? (
+                      <p className="text-sm text-kore-gray-dark/40 text-center py-4">Sin historial de sesiones</p>
+                    ) : (
+                      <div className="space-y-0.5">
+                        {past.map((s) => (
+                          <SessionRow key={s.id} session={s} />
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ── RUTINA ── */}
+          {activeTab === 'rutina' && (
+            <>
+              <div className="flex items-center gap-3">
+                <p className="text-xs text-kore-gray-dark/40 flex-1">Últimos 14 días de actividad</p>
+                <button
+                  onClick={() => fetchClientDailyLogs(clientId, 14)}
+                  className="text-xs text-kore-red font-medium"
+                >
+                  Actualizar
+                </button>
+              </div>
+              {dailyLogsLoading && dailyLogs.length === 0 ? (
+                <div className="flex justify-center py-10">
+                  <div className="animate-spin h-6 w-6 border-2 border-kore-red border-t-transparent rounded-full" />
+                </div>
+              ) : dailyLogs.length === 0 ? (
+                <div className="text-center py-10">
+                  <p className="text-sm text-kore-gray-dark/50">Sin registros de rutina</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {dailyLogs.map((day) => (
+                    <div key={day.date} className="bg-white rounded-2xl border border-black/5 shadow-sm p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <p className="text-sm font-semibold text-kore-gray-dark">
+                            {new Date(day.date).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })}
+                          </p>
+                          <p className="text-xs text-kore-gray-dark/40">Día {day.day_number} · {day.day_type}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-12 h-12">
+                            <AdherenceRing value={day.training_adherence} size={48} strokeWidth={5} color="rgb(239, 68, 68)" />
+                          </div>
+                        </div>
+                      </div>
+                      {day.exercises.length > 0 && (
+                        <div className="space-y-1">
+                          {day.exercises.map((ex, i) => {
+                            const done = ex.status === 'completed';
+                            return (
+                              <div key={i} className="flex items-center gap-2">
+                                <span className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${done ? 'bg-green-100' : 'bg-kore-gray-light/30'}`}>
+                                  {done && (
+                                    <svg className="w-2.5 h-2.5 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                    </svg>
+                                  )}
+                                </span>
+                                <span className={`text-xs flex-1 ${done ? 'text-kore-gray-dark/70' : 'text-kore-gray-dark/40'}`}>
+                                  {ex.exercise_name}
+                                </span>
+                                <span className="text-[10px] text-kore-gray-dark/30">
+                                  {ex.sets}x{ex.reps ?? `${ex.duration_seconds}s`}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── NUTRICIÓN ── */}
+          {activeTab === 'nutricion' && (
+            <>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-kore-gray-dark/40">Últimos 14 días de nutrición</p>
+                <button
+                  onClick={() => fetchClientNutritionLogs(clientId, 14)}
+                  className="text-xs text-kore-red font-medium"
+                >
+                  Actualizar
+                </button>
+              </div>
+              {nutritionLogsLoading && nutritionLogs.length === 0 ? (
+                <div className="flex justify-center py-10">
+                  <div className="animate-spin h-6 w-6 border-2 border-kore-red border-t-transparent rounded-full" />
+                </div>
+              ) : nutritionLogs.length === 0 ? (
+                <div className="text-center py-10">
+                  <p className="text-sm text-kore-gray-dark/50">Sin registros de nutrición</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {nutritionLogs.map((day) => (
+                    <div key={day.date} className="bg-white rounded-2xl border border-black/5 shadow-sm p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <p className="text-sm font-semibold text-kore-gray-dark">
+                            {new Date(day.date).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })}
+                          </p>
+                          <p className="text-xs text-kore-gray-dark/40">{day.is_closed ? 'Cerrado' : 'Abierto'}</p>
+                        </div>
+                        <div className="w-12 h-12">
+                          <AdherenceRing value={day.adherence} size={48} strokeWidth={5} color="rgb(52, 211, 153)" />
+                        </div>
+                      </div>
+                      {day.meals.length > 0 && (
+                        <div className="space-y-1.5">
+                          {day.meals.map((meal) => (
+                            <div key={meal.meal_entry_id} className="flex items-start gap-2">
+                              <span className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${meal.status === 'completed' ? 'bg-green-400' : meal.status === 'skipped' ? 'bg-gray-300' : 'bg-amber-300'}`} />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-kore-gray-dark/70">
+                                  {MEAL_LABELS[meal.meal_block] ?? meal.meal_block}
+                                </p>
+                                {meal.notes && (
+                                  <p className="text-[10px] text-kore-gray-dark/40 truncate">{meal.notes}</p>
+                                )}
+                                {meal.trainer_comment && (
+                                  <p className="text-[10px] text-kore-red/70 italic truncate">Tu nota: {meal.trainer_comment}</p>
+                                )}
+                              </div>
+                              {meal.photo_url && (
+                                <span className="w-4 h-4 flex-shrink-0 rounded bg-kore-cream flex items-center justify-center">
+                                  <svg className="w-2.5 h-2.5 text-kore-gray-dark/40" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                                  </svg>
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── EVALUACIONES ── */}
+          {activeTab === 'evaluaciones' && (
+            <>
+              {kpiLoading && !kpi ? (
+                <div className="flex justify-center py-10">
+                  <div className="animate-spin h-6 w-6 border-2 border-kore-red border-t-transparent rounded-full" />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {EVAL_MODULES.map((mod) => {
+                    const lastDate = kpi?.clinical.last_eval_dates?.[mod.key] ?? null;
+                    const { color, label } = evalUrgency(lastDate);
+                    return (
+                      <div key={mod.key} className="bg-white rounded-2xl border border-black/5 shadow-sm p-4 flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-kore-gray-dark">{mod.label}</p>
+                          <p className={`text-xs font-medium ${color}`}>
+                            {lastDate ? `Hace ${label}` : 'Sin registro'}
+                          </p>
+                        </div>
+                        <Link
+                          href={`/trainer/clients/client/${mod.path}?id=${clientId}`}
+                          className="px-3 py-1.5 rounded-xl bg-kore-cream text-kore-gray-dark/60 text-xs font-medium active:scale-95 transition-transform duration-100 flex-shrink-0"
+                        >
+                          Ver
+                        </Link>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── ALERTAS ── */}
+          {activeTab === 'alertas' && (
+            <>
+              {clientAlertsLoading && alerts.length === 0 ? (
+                <div className="flex justify-center py-10">
+                  <div className="animate-spin h-6 w-6 border-2 border-kore-red border-t-transparent rounded-full" />
+                </div>
+              ) : alerts.length === 0 ? (
+                <div className="text-center py-10">
+                  <p className="text-sm text-kore-gray-dark/50">Sin alertas registradas</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {alerts.map((alert) => (
+                    <AlertCard
+                      key={alert.id}
+                      alert={alert}
+                      onResolve={(id) => {
+                        setResolveNote('');
+                        setResolveType('mark_reviewed');
+                        setResolveSheet(id);
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── CRÉDITOS ── */}
+          {activeTab === 'creditos' && client?.subscription && (
+            <div className="space-y-4">
+              {/* Hero */}
+              <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 shadow-lg text-center">
+                <p className="text-white/50 text-xs font-semibold uppercase tracking-wide mb-2">Sesiones restantes</p>
+                <p className="text-6xl font-black text-white leading-none">{client.subscription.sessions_remaining}</p>
+                <p className="text-white/40 text-sm mt-1">de {client.subscription.sessions_total} totales</p>
+                <div className="w-full h-1.5 bg-white/10 rounded-full mt-3">
+                  <div
+                    className="h-full rounded-full bg-kore-red transition-all duration-700"
+                    style={{ width: `${(client.subscription.sessions_used / client.subscription.sessions_total) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-5 space-y-3">
+                <DetailRow label="Programa" value={client.subscription.package_title} />
+                <DetailRow
+                  label="Valor"
+                  value={new Intl.NumberFormat('es-CO', { style: 'currency', currency: client.subscription.package_currency, minimumFractionDigits: 0 }).format(parseFloat(client.subscription.package_price))}
+                />
+                <DetailRow label="Estado" value={client.subscription.status} />
+                <DetailRow label="Inicio" value={formatDate(client.subscription.starts_at)} />
+                <DetailRow label="Vencimiento" value={formatDate(client.subscription.expires_at)} />
+                {client.subscription.next_billing_date && (
+                  <DetailRow label="Próximo cobro" value={formatDate(client.subscription.next_billing_date)} />
+                )}
+                <DetailRow label="Cobro automático" value={client.subscription.is_recurring ? 'Sí' : 'No'} />
+                {client.last_payment && (
+                  <DetailRow
+                    label="Último pago"
+                    value={`${new Intl.NumberFormat('es-CO', { style: 'currency', currency: client.last_payment.currency, minimumFractionDigits: 0 }).format(parseFloat(client.last_payment.amount))} · ${formatDate(client.last_payment.created_at)}`}
+                  />
+                )}
+              </div>
+            </div>
+          )}
+          {activeTab === 'creditos' && !client?.subscription && (
+            <div className="text-center py-10">
+              <p className="text-sm text-kore-gray-dark/50">Sin suscripción activa</p>
+            </div>
+          )}
+
+          {/* ── NOTAS ── */}
+          {activeTab === 'notas' && (
+            <div className="space-y-4">
+              {/* Composer */}
+              <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-4 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-kore-gray-dark/40">Nuevo mensaje</p>
+                <textarea
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  rows={3}
+                  placeholder="Escribe un mensaje para este cliente..."
+                  className="w-full rounded-xl border border-kore-gray-light/60 bg-kore-cream/50 px-3 py-2.5 text-sm text-kore-gray-dark placeholder:text-kore-gray-dark/30 resize-none focus:outline-none focus:ring-2 focus:ring-kore-red/30"
+                />
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!newMessage.trim()}
+                  className="w-full py-2.5 rounded-xl bg-kore-red text-white text-sm font-medium active:scale-95 transition-transform duration-100 disabled:opacity-40"
+                >
+                  Enviar mensaje
+                </button>
+              </div>
+
+              {/* History */}
+              {messagesLoading && messages.length === 0 ? (
+                <div className="flex justify-center py-6">
+                  <div className="animate-spin h-5 w-5 border-2 border-kore-red border-t-transparent rounded-full" />
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="text-center py-6">
+                  <p className="text-sm text-kore-gray-dark/40">Sin mensajes enviados</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {messages.map((msg) => (
+                    <div key={msg.id} className="bg-white rounded-2xl border border-black/5 shadow-sm p-4">
+                      <p className="text-sm text-kore-gray-dark leading-relaxed">{msg.message}</p>
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-[10px] text-kore-gray-dark/30">
+                          {new Date(msg.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </span>
+                        <span className={`text-[10px] font-medium ${msg.seen_by_customer ? 'text-green-600' : 'text-kore-gray-dark/30'}`}>
+                          {msg.seen_by_customer ? 'Visto' : 'Pendiente'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
       </div>
+
+      {/* Resolve Alert Sheet */}
+      {resolveSheet !== null && (
+        <>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" onClick={() => setResolveSheet(null)} />
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl">
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-kore-gray-light rounded-full" />
+            </div>
+            <div className="px-4 pt-2 pb-8 space-y-4">
+              <p className="text-base font-semibold text-kore-gray-dark">Resolver alerta</p>
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+                {(['mark_reviewed', 'private_note', 'public_note', 'schedule_eval'] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setResolveType(t)}
+                    className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${resolveType === t ? 'bg-kore-gray-dark text-white' : 'bg-kore-cream text-kore-gray-dark/60'}`}
+                  >
+                    {{ mark_reviewed: 'Revisado', private_note: 'Nota privada', public_note: 'Nota pública', schedule_eval: 'Agendar eval' }[t]}
+                  </button>
+                ))}
+              </div>
+              {resolveType !== 'mark_reviewed' && (
+                <textarea
+                  value={resolveNote}
+                  onChange={(e) => setResolveNote(e.target.value)}
+                  rows={3}
+                  placeholder="Escribe una nota..."
+                  className="w-full rounded-xl border border-kore-gray-light/60 bg-kore-cream/50 px-3 py-2.5 text-sm text-kore-gray-dark resize-none focus:outline-none focus:ring-2 focus:ring-kore-red/30"
+                />
+              )}
+              <div className="flex gap-3">
+                <button onClick={() => setResolveSheet(null)} className="flex-1 py-3 rounded-xl bg-kore-cream text-kore-gray-dark/60 text-sm font-medium active:scale-95 transition-transform duration-100">Cancelar</button>
+                <button
+                  onClick={handleResolveAlert}
+                  disabled={resolvingAlertId !== null}
+                  className="flex-1 py-3 rounded-xl bg-kore-red text-white text-sm font-medium active:scale-95 transition-transform duration-100 disabled:opacity-60"
+                >
+                  {resolvingAlertId ? 'Guardando...' : 'Confirmar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Pause Sheet */}
+      {showPauseSheet && (
+        <>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" onClick={() => setShowPauseSheet(false)} />
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl">
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-kore-gray-light rounded-full" />
+            </div>
+            <div className="px-4 pt-2 pb-8 space-y-4">
+              <p className="text-base font-semibold text-kore-gray-dark">Pausar programa</p>
+              <textarea
+                value={pauseReason}
+                onChange={(e) => setPauseReason(e.target.value)}
+                rows={3}
+                placeholder="Motivo de la pausa..."
+                className="w-full rounded-xl border border-kore-gray-light/60 bg-kore-cream/50 px-3 py-2.5 text-sm text-kore-gray-dark resize-none focus:outline-none focus:ring-2 focus:ring-kore-red/30"
+              />
+              <div className="flex gap-3">
+                <button onClick={() => setShowPauseSheet(false)} className="flex-1 py-3 rounded-xl bg-kore-cream text-kore-gray-dark/60 text-sm font-medium">Cancelar</button>
+                <button
+                  onClick={async () => {
+                    if (!programId) return;
+                    await pauseProgram(clientId, programId, pauseReason);
+                    setShowPauseSheet(false);
+                    setPauseReason('');
+                  }}
+                  disabled={programActionLoading}
+                  className="flex-1 py-3 rounded-xl bg-kore-red text-white text-sm font-medium disabled:opacity-60"
+                >
+                  {programActionLoading ? 'Pausando...' : 'Confirmar pausa'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </section>
+  );
+}
+
+function SessionRow({ session }: { session: { id: number; status: string; package_title: string; starts_at: string | null; ends_at: string | null; notes: string; canceled_reason: string; session_notes_for_customer: string; created_at: string } }) {
+  const sc = STATUS_CONFIG[session.status] ?? { label: session.status, bg: 'bg-gray-100', text: 'text-gray-500' };
+  const date = session.starts_at
+    ? new Date(session.starts_at).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })
+    : '—';
+  const time = session.starts_at
+    ? new Date(session.starts_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })
+    : '';
+  return (
+    <div className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-kore-cream/60 transition-colors">
+      <div className={`w-8 h-8 rounded-full ${sc.bg} flex items-center justify-center flex-shrink-0`}>
+        <svg className={`w-4 h-4 ${sc.text}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          {session.status === 'confirmed' ? (
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          ) : session.status === 'canceled' ? (
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          ) : (
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          )}
+        </svg>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-kore-gray-dark truncate">{session.package_title}</p>
+        <p className="text-xs text-kore-gray-dark/40 capitalize">{date}{time ? ` · ${time}` : ''}</p>
+      </div>
+      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${sc.bg} ${sc.text}`}>
+        {sc.label}
+      </span>
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between text-sm gap-2">
+      <span className="text-kore-gray-dark/50 flex-shrink-0">{label}</span>
+      <span className="font-medium text-kore-gray-dark text-right">{value}</span>
+    </div>
   );
 }

@@ -219,11 +219,17 @@ def _build_exercise_pool(
     parq_risk: str,
     corrective_patterns: list[str],
 ) -> dict[str, list]:
-    """Return a dict of pattern → list of eligible Exercise objects."""
+    """Return a dict of pattern → list of eligible Exercise objects.
+
+    Exercises without a youtube_url reference are excluded — without a video the
+    customer cannot learn the movement, so they are never assigned. This also
+    keeps adherence math honest: every prescribed exercise is one the customer
+    can actually perform.
+    """
     base_qs = Exercise.objects.filter(
         is_active=True,
         fitness_level_min__lte=fitness_level,
-    )
+    ).exclude(youtube_url='')
 
     # PAR-Q restriction: only corrective exercises for high-risk customers
     # Use icontains on the JSON string representation for cross-database compatibility
@@ -302,7 +308,7 @@ def _fill_active_rest_day(program_day: ProgramDay, fitness_level: int, used_ids:
         is_active=True,
         fitness_level_min__lte=fitness_level,
         is_corrective=True,
-    )
+    ).exclude(youtube_url='')
     candidates = [e for e in pool_qs if e.id not in used_ids]
     if not candidates:
         candidates = list(pool_qs[:ACTIVE_REST_EXERCISE_COUNT])
