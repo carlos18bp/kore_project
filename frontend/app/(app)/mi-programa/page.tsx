@@ -194,30 +194,30 @@ export default function MiProgramaPage() {
       <div className="px-6 md:px-10 lg:px-14 pb-10 pt-5 overflow-x-hidden">
 
         {/* ── Hero dark card ── */}
-        <div className="relative overflow-hidden rounded-[22px] shadow-xl mb-5" style={{ background: 'linear-gradient(135deg, #0b1220 0%, #1e293b 50%, #0b1220 100%)' }}>
+        <div className="relative overflow-hidden rounded-[22px] shadow-xl mb-5" style={{ background: 'linear-gradient(155deg, #2D0F1A 0%, #4A1828 35%, #5C2030 65%, #6B2A3A 100%)' }}>
           <style>{HERO_STYLES}</style>
-          <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 80% 20%, #9A052640 0%, transparent 50%), radial-gradient(ellipse at 10% 90%, #6A041A50 0%, transparent 55%)', animation: 'prog-aurora 8s ease-in-out infinite' }} />
-          <div className="absolute pointer-events-none" style={{ top: '20%', right: '10%', width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, #E0000066 0%, #AB0D2F22 50%, transparent 70%)', filter: 'blur(30px)', animation: 'prog-orb-1 9s ease-in-out infinite' }} />
-          <div className="absolute pointer-events-none" style={{ bottom: '10%', left: '20%', width: 220, height: 220, borderRadius: '50%', background: 'radial-gradient(circle, #9A052655 0%, transparent 70%)', filter: 'blur(40px)', animation: 'prog-orb-2 11s ease-in-out infinite' }} />
+          <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 80% 20%, rgba(255,233,220,0.20) 0%, transparent 60%), radial-gradient(ellipse at 10% 90%, rgba(20,5,12,0.65) 0%, transparent 55%)', animation: 'prog-aurora 8s ease-in-out infinite' }} />
+          <div className="absolute pointer-events-none" style={{ top: '20%', right: '10%', width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,233,220,0.22) 0%, rgba(244,199,199,0.10) 50%, transparent 70%)', filter: 'blur(30px)', animation: 'prog-orb-1 9s ease-in-out infinite' }} />
+          <div className="absolute pointer-events-none" style={{ bottom: '10%', left: '20%', width: 220, height: 220, borderRadius: '50%', background: 'radial-gradient(circle, rgba(244,199,199,0.32) 0%, transparent 70%)', filter: 'blur(40px)', animation: 'prog-orb-2 11s ease-in-out infinite' }} />
           <div className="relative z-10 p-6 md:p-7 xl:p-9">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-white/55 font-semibold mb-2.5">Mi Programa</p>
+            <p className="text-[11px] uppercase tracking-[0.22em] font-semibold mb-2.5" style={{ color: '#E7C8A0' }}>Mi Programa</p>
             <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5 xl:gap-7">
               <div>
                 <div className="flex items-center gap-2.5">
-                  <h1 className="font-heading text-[28px] xl:text-[38px] font-bold text-white leading-[1.05]">{LEVEL_LABEL[activeProgram.fitness_level]}</h1>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/15 text-white/75">Nv. {currentLevel}</span>
+                  <h1 className="font-heading text-[28px] xl:text-[38px] font-semibold leading-[1.05]" style={{ color: '#FFF8EC', letterSpacing: '-0.015em' }}>{LEVEL_LABEL[activeProgram.fitness_level]}</h1>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(231,200,160,0.15)', color: '#E7C8A0' }}>Nv. {currentLevel}</span>
                 </div>
-                <p className="text-[14px] text-white/65 mt-2">{GOAL_LABEL[activeProgram.goal] ?? activeProgram.goal}</p>
+                <p className="text-[14px] mt-2" style={{ color: '#FFE9DC', opacity: 0.8 }}>{GOAL_LABEL[activeProgram.goal] ?? activeProgram.goal}</p>
               </div>
               <div className="flex items-center gap-5 xl:gap-7 shrink-0">
                 <div className="text-center">
-                  <p className="font-heading text-[28px] xl:text-[36px] font-bold text-white leading-none">{daysPassed}</p>
-                  <p className="text-[10.5px] text-white/55 uppercase tracking-[0.14em] font-semibold mt-1.5">de 28 días</p>
+                  <p className="font-heading text-[28px] xl:text-[36px] font-semibold leading-none" style={{ color: '#FFF8EC' }}>{daysPassed}</p>
+                  <p className="text-[10.5px] uppercase tracking-[0.18em] font-semibold mt-1.5" style={{ color: '#E7C8A0', opacity: 0.85 }}>de 28 días</p>
                 </div>
-                <div className="w-px h-10 bg-white/15" />
+                <div className="w-px h-10" style={{ background: 'rgba(231,200,160,0.2)' }} />
                 <div className="text-center">
-                  <p className="font-heading text-[28px] xl:text-[36px] font-bold text-white leading-none">{trainingDaysDone}<span className="text-white/35 text-[18px] xl:text-[22px] font-normal">/{trainingCount}</span></p>
-                  <p className="text-[10.5px] text-white/55 uppercase tracking-[0.14em] font-semibold mt-1.5">entrenos</p>
+                  <p className="font-heading text-[28px] xl:text-[36px] font-semibold leading-none" style={{ color: '#FFF8EC' }}>{trainingDaysDone}<span className="text-[18px] xl:text-[22px] font-normal" style={{ color: 'rgba(255,233,220,0.45)' }}>/{trainingCount}</span></p>
+                  <p className="text-[10.5px] uppercase tracking-[0.18em] font-semibold mt-1.5" style={{ color: '#E7C8A0', opacity: 0.85 }}>entrenos</p>
                 </div>
               </div>
             </div>

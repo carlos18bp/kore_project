@@ -1,8 +1,14 @@
 'use client';
 
 import { Suspense, useEffect } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useNutritionStore, NutritionHabit } from '@/lib/stores/nutritionStore';
+import HeroOrbsCard from '@/app/components/shared/HeroOrbsCard';
+import SectionLabel from '@/app/components/shared/SectionLabel';
+import EmptyState from '@/app/components/shared/EmptyState';
+import ExplainerCard from '@/app/components/shared/ExplainerCard';
+import { EVAL_EXPLAINERS } from '@/lib/content/eval-explainers';
 
 const COLOR_MAP: Record<string, string> = {
   red: 'bg-red-500',
@@ -89,8 +95,9 @@ function EntryCard({ entry }: { entry: NutritionHabit }) {
 
 function TrainerClientNutritionContent() {
   const searchParams = useSearchParams();
-  const clientId = searchParams.get('clientId');
+  const clientId = searchParams.get('clientId') ?? searchParams.get('id');
   const { entries, loading, error, fetchClientEntries } = useNutritionStore();
+  const explainer = EVAL_EXPLAINERS.nutrition;
 
   useEffect(() => {
     if (clientId) {
@@ -103,34 +110,67 @@ function TrainerClientNutritionContent() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
-      <h1 className="font-heading text-2xl font-semibold text-kore-gray-dark mb-2">Nutrición del Cliente</h1>
-      <p className="text-sm text-kore-gray-dark/50 mb-8">
-        Historial de hábitos alimentarios reportados por el cliente.
-      </p>
+    <section className="min-h-screen bg-kore-cream">
+      <div className="w-full px-4 md:px-10 lg:px-16 pt-20 xl:pt-8 pb-24 max-w-2xl xl:max-w-none mx-auto space-y-5">
 
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-          {error}
+        <Link
+          href={`/trainer/clients/client?id=${clientId}`}
+          className="inline-flex items-center gap-1 text-xs text-kore-gray-dark/40 hover:text-kore-red transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+          Volver al cliente
+        </Link>
+
+        <div>
+          <SectionLabel className="mb-0.5">{explainer.badge}</SectionLabel>
+          <h1 className="font-heading text-2xl font-semibold text-kore-gray-dark">{explainer.heading}</h1>
         </div>
-      )}
 
-      {loading && entries.length === 0 && (
-        <div className="text-center py-12 text-kore-gray-dark/40">Cargando...</div>
-      )}
+        <HeroOrbsCard radius="2xl">
+          <div className="p-6">
+            <SectionLabel tone="dark" className="mb-2">{explainer.badge}</SectionLabel>
+            <p className="text-white text-base font-semibold leading-snug mb-2">{explainer.heading}</p>
+            <p className="text-white/70 text-sm leading-relaxed">{explainer.bodyTrainer}</p>
+          </div>
+        </HeroOrbsCard>
 
-      {!loading && entries.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-kore-gray-dark/40">El cliente aún no ha registrado hábitos alimentarios.</p>
+        <ExplainerCard
+          tone="neutral"
+          whatIs={explainer.whatIs}
+          importance={explainer.importance}
+          nextStep={explainer.nextStep}
+        />
+
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <SectionLabel>Historial de hábitos</SectionLabel>
+
+        {loading && entries.length === 0 && (
+          <div className="flex justify-center py-10">
+            <div className="animate-spin h-6 w-6 border-2 border-kore-red border-t-transparent rounded-full" />
+          </div>
+        )}
+
+        {!loading && entries.length === 0 && (
+          <EmptyState
+            title="Sin evaluaciones de nutrición"
+            description="El cliente aún no ha registrado hábitos. Aparecerá aquí cuando los envíe."
+          />
+        )}
+
+        <div className="space-y-4">
+          {entries.map((entry) => (
+            <EntryCard key={entry.id} entry={entry} />
+          ))}
         </div>
-      )}
-
-      <div className="space-y-6">
-        {entries.map((entry) => (
-          <EntryCard key={entry.id} entry={entry} />
-        ))}
       </div>
-    </div>
+    </section>
   );
 }
 

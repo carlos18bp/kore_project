@@ -1,9 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTrainerStore } from '@/lib/stores/trainerStore';
 import type { RiskLevel } from '@/lib/stores/trainerStore';
 import AlertCard from '@/app/components/trainer/AlertCard';
+import HeroOrbsCard from '@/app/components/shared/HeroOrbsCard';
+import SectionLabel from '@/app/components/shared/SectionLabel';
+import EmptyState from '@/app/components/shared/EmptyState';
+import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 
 type FilterLevel = 'all' | RiskLevel;
 
@@ -15,6 +19,12 @@ const FILTERS: { id: FilterLevel; label: string }[] = [
   { id: 'sin_riesgo', label: 'Sin riesgo' },
 ];
 
+function isToday(iso: string): boolean {
+  const d = new Date(iso);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+}
+
 export default function TrainerAlertsPage() {
   const { alerts, alertsLoading, fetchAlerts, resolveAlert } = useTrainerStore();
   const [filter, setFilter] = useState<FilterLevel>('all');
@@ -22,6 +32,8 @@ export default function TrainerAlertsPage() {
   const [resolveSheet, setResolveSheet] = useState<{ id: number; customerName: string } | null>(null);
   const [resolveNote, setResolveNote] = useState('');
   const [resolveType, setResolveType] = useState<'private_note' | 'public_note' | 'schedule_eval' | 'mark_reviewed'>('mark_reviewed');
+  const sectionRef = useRef<HTMLElement>(null);
+  useHeroAnimation(sectionRef);
 
   useEffect(() => {
     fetchAlerts();
@@ -32,6 +44,9 @@ export default function TrainerAlertsPage() {
     : alerts.filter((a) => a.level === filter);
 
   const activeCount = alerts.filter((a) => a.level === 'alto' || a.level === 'medio').length;
+  const resolvedToday = alerts.reduce((acc, a) => {
+    return acc + a.resolutions.filter((r) => isToday(r.resolved_at)).length;
+  }, 0);
 
   const handleOpenResolve = (id: number) => {
     const alert = alerts.find((a) => a.id === id);
@@ -54,55 +69,72 @@ export default function TrainerAlertsPage() {
   };
 
   return (
-    <section className="min-h-screen bg-kore-cream">
+    <section ref={sectionRef} className="min-h-screen bg-kore-cream">
       <div className="w-full px-4 md:px-10 lg:px-16 pt-20 xl:pt-8 pb-24 max-w-2xl xl:max-w-none mx-auto space-y-5">
 
         {/* Header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-0.5">Inteligencia</p>
-            <h1 className="font-heading text-2xl font-semibold text-kore-gray-dark">Centro de Alertas</h1>
-          </div>
-          {activeCount > 0 && (
-            <span className="mt-1 min-w-[28px] h-7 rounded-full bg-kore-red text-white text-sm font-bold flex items-center justify-center px-2">
-              {activeCount}
-            </span>
-          )}
+        <div data-hero="badge">
+          <SectionLabel className="mb-0.5">Inteligencia</SectionLabel>
+          <h1 className="font-heading text-2xl font-semibold text-kore-gray-dark">Centro de Alertas</h1>
         </div>
 
+        {/* Hero KPI */}
+        <HeroOrbsCard radius="2xl">
+          <div data-hero="heading" className="p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-white/50 text-[10px] font-semibold uppercase tracking-[0.18em] mb-1">
+                  Alertas activas
+                </p>
+                <p className="text-5xl font-black tracking-tight text-white leading-none">
+                  {activeCount}
+                </p>
+                <p className="text-white/50 text-xs mt-2 leading-relaxed">
+                  Clientes en riesgo alto o medio que requieren tu atención.
+                </p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="text-white/50 text-[10px] font-semibold uppercase tracking-[0.18em] mb-1">
+                  Resueltas hoy
+                </p>
+                <p className="text-3xl font-black tracking-tight text-white leading-none tabular-nums">
+                  {resolvedToday}
+                </p>
+              </div>
+            </div>
+          </div>
+        </HeroOrbsCard>
+
         {/* Filter chips */}
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
-          {FILTERS.map((f) => (
-            <button
-              key={f.id}
-              onClick={() => setFilter(f.id)}
-              className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-150 active:scale-95 ${
-                filter === f.id
-                  ? 'bg-kore-gray-dark text-white'
-                  : 'bg-white border border-kore-gray-light/40 text-kore-gray-dark/60'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
+        <div data-hero="body" className="space-y-2">
+          <SectionLabel>Filtrar por nivel</SectionLabel>
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
+            {FILTERS.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setFilter(f.id)}
+                className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-150 active:scale-95 ${
+                  filter === f.id
+                    ? 'bg-kore-gray-dark text-white shadow-sm'
+                    : 'bg-white/70 backdrop-blur-sm border border-kore-gray-light/40 text-kore-gray-dark/60'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Alert list */}
-        {alertsLoading ? (
+        {alertsLoading && alerts.length === 0 ? (
           <div className="flex items-center justify-center py-16">
             <div className="animate-spin h-7 w-7 border-2 border-kore-red border-t-transparent rounded-full" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="w-14 h-14 rounded-full bg-white mx-auto mb-3 flex items-center justify-center border border-kore-gray-light/40">
-              <svg className="w-7 h-7 text-kore-gray-dark/20" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-              </svg>
-            </div>
-            <p className="text-sm text-kore-gray-dark/50">
-              {filter === 'all' ? 'No hay alertas activas' : `No hay alertas de nivel "${FILTERS.find(f => f.id === filter)?.label}"`}
-            </p>
-          </div>
+          <EmptyState
+            title={filter === 'all' ? 'No hay alertas activas' : `Sin alertas de nivel "${FILTERS.find(f => f.id === filter)?.label}"`}
+            description="Cuando un cliente cruce un umbral conductual o clínico, su alerta aparecerá aquí."
+          />
         ) : (
           <div className="space-y-3">
             {filtered.map((alert) => (
@@ -129,11 +161,10 @@ export default function TrainerAlertsPage() {
             </div>
             <div className="px-4 pt-2 pb-8 space-y-4">
               <div>
-                <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wide mb-1">Resolver alerta</p>
+                <SectionLabel className="mb-1">Resolver alerta</SectionLabel>
                 <p className="text-base font-semibold text-kore-gray-dark">{resolveSheet.customerName}</p>
               </div>
 
-              {/* Resolution type tabs */}
               <div className="flex gap-2 overflow-x-auto scrollbar-hide">
                 {([
                   { id: 'mark_reviewed', label: 'Revisado' },

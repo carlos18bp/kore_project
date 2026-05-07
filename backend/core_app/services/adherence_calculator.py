@@ -11,19 +11,38 @@ from typing import Sequence
 
 # ── Per-day adherence ────────────────────────────────────────────────────────
 
-def compute_training_adherence(exercise_logs: list, day_type: str) -> float:
+def compute_training_adherence(
+    exercise_logs: list,
+    day_type: str,
+    planned_count: int | None = None,
+) -> float:
     """
     Returns 0.0–1.0.
-    - rest day         → always 1.0
-    - active_rest with no exercises → 1.0
-    - training / active_rest with exercises → completed / total
+
+    - day_type == 'rest'           → 1.0 (no requirement)
+    - planned_count == 0           → 1.0 (nothing scheduled, day is met)
+    - planned_count > 0            → min(1.0, completed_logs / planned_count)
+    - planned_count is None        → falls back to len(exercise_logs); empty
+                                     logs return 0.0 (nothing logged = nothing
+                                     completed). Pass planned_count whenever
+                                     the program day's planned exercises are
+                                     known so future / unstarted days don't
+                                     get falsely credited.
     """
     if day_type == 'rest':
         return 1.0
-    if not exercise_logs:
-        return 1.0
-    completed = sum(1 for e in exercise_logs if getattr(e, 'status', e.get('status') if isinstance(e, dict) else None) == 'completed')
-    return round(completed / len(exercise_logs), 4)
+
+    if planned_count is None:
+        if not exercise_logs:
+            return 0.0
+        total = len(exercise_logs)
+    else:
+        if planned_count == 0:
+            return 1.0
+        total = planned_count
+
+    completed = sum(1 for e in exercise_logs if _status(e) == 'completed')
+    return round(min(1.0, completed / total), 4)
 
 
 def compute_nutrition_adherence(meal_entries: list) -> float:
@@ -100,19 +119,24 @@ def compute_week_adherence(days_data: list[dict]) -> list[DayAdherence]:
     Args:
         days_data: list of dicts, each with keys:
             date (str), day_type (str),
-            exercise_logs (list), meal_entries (list)
+            exercise_logs (list), meal_entries (list),
+            planned_count (int, optional) — exercises scheduled for that day.
     """
     result = []
     for d in days_data:
         ex_logs = d.get('exercise_logs', [])
         meal_entries = d.get('meal_entries', [])
+        planned_count = d.get('planned_count')
 
-        training = compute_training_adherence(ex_logs, d['day_type'])
+        training = compute_training_adherence(ex_logs, d['day_type'], planned_count)
         nutrition = compute_nutrition_adherence(meal_entries)
         combined = compute_combined_adherence(training, nutrition)
 
         ex_completed = sum(1 for e in ex_logs if _status(e) == 'completed')
         meals_completed = sum(1 for m in meal_entries if _status(m) == 'completed')
+
+        # Total of exercises = planned_count when known, else fall back to logs.
+        ex_total = planned_count if planned_count is not None else len(ex_logs)
 
         result.append(DayAdherence(
             date=d['date'],
@@ -121,7 +145,7 @@ def compute_week_adherence(days_data: list[dict]) -> list[DayAdherence]:
             nutrition_adherence=nutrition,
             combined_adherence=combined,
             exercises_completed=ex_completed,
-            exercises_total=len(ex_logs),
+            exercises_total=ex_total,
             meals_completed=meals_completed,
             meals_total=len(meal_entries),
         ))

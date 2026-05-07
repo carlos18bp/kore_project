@@ -1,12 +1,18 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import gsap from 'gsap';
 import {
   Flame, ArrowRight, Play,
-  Calendar, ArrowUpRight, Check, X, Trophy,
+  Calendar, ArrowUpRight, Check, X, Trophy, ChevronDown,
 } from 'lucide-react';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Pagination } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/pagination';
+import '@/app/components/swiper-overrides.css';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
 import { useBookingStore } from '@/lib/stores/bookingStore';
@@ -24,7 +30,6 @@ import { usePosturometryStore } from '@/lib/stores/posturometryStore';
 import { usePhysicalEvaluationStore } from '@/lib/stores/physicalEvaluationStore';
 import { useNutritionStore } from '@/lib/stores/nutritionStore';
 import { useParqStore } from '@/lib/stores/parqStore';
-import { ExpandableIndicator, type IndicatorData } from '@/app/components/dashboard/ExpandableIndicator';
 import TrainerMessageBanner from '@/app/components/dashboard/TrainerMessageBanner';
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -42,7 +47,7 @@ function AnimatedHero({ children }: { children: React.ReactNode }) {
   return (
     <div
       className="relative overflow-hidden rounded-[22px] shadow-2xl"
-      style={{ background: 'linear-gradient(135deg, #0b1220 0%, #1e293b 50%, #0b1220 100%)' }}
+      style={{ background: 'linear-gradient(155deg, #2D0F1A 0%, #4A1828 35%, #5C2030 65%, #6B2A3A 100%)' }}
     >
       <style>{`
         @keyframes kore-orb-1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(40px,-30px) scale(1.15)}}
@@ -54,19 +59,19 @@ function AnimatedHero({ children }: { children: React.ReactNode }) {
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'radial-gradient(ellipse at 80% 20%, #9A052640 0%, transparent 50%), radial-gradient(ellipse at 10% 90%, #6A041A50 0%, transparent 55%)',
+          background: 'radial-gradient(ellipse at 80% 20%, rgba(255,233,220,0.20) 0%, transparent 60%), radial-gradient(ellipse at 10% 90%, rgba(20,5,12,0.65) 0%, transparent 55%)',
           animation: 'kore-aurora 8s ease-in-out infinite',
         }}
       />
       {/* Orb 1 */}
       <div
         className="absolute pointer-events-none"
-        style={{ top: '20%', right: '10%', width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, #E0000066 0%, #AB0D2F22 50%, transparent 70%)', filter: 'blur(30px)', animation: 'kore-orb-1 9s ease-in-out infinite' }}
+        style={{ top: '20%', right: '10%', width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,233,220,0.22) 0%, rgba(244,199,199,0.10) 50%, transparent 70%)', filter: 'blur(30px)', animation: 'kore-orb-1 9s ease-in-out infinite' }}
       />
       {/* Orb 2 */}
       <div
         className="absolute pointer-events-none"
-        style={{ bottom: '10%', left: '20%', width: 220, height: 220, borderRadius: '50%', background: 'radial-gradient(circle, #9A052655 0%, transparent 70%)', filter: 'blur(40px)', animation: 'kore-orb-2 11s ease-in-out infinite' }}
+        style={{ bottom: '10%', left: '20%', width: 220, height: 220, borderRadius: '50%', background: 'radial-gradient(circle, rgba(244,199,199,0.32) 0%, transparent 70%)', filter: 'blur(40px)', animation: 'kore-orb-2 11s ease-in-out infinite' }}
       />
       {/* Orb 3 */}
       <div
@@ -107,6 +112,41 @@ function ArcRing({ pct, size = 56, stroke = 6 }: { pct: number; size?: number; s
 
 // ── Real evaluation cards (from stores) ──────────────────────
 
+const KORE_CARDS = {
+  wineDark: '#670F22',
+  crimson: '#9A0526',
+  ruby: '#AB0D2F',
+  cream: '#EDE8DC',
+  creamLight: '#F2EDE0',
+  ivory: '#FFF8EC',
+  emerald: '#10B981',
+  emeraldDark: '#047857',
+  amber: '#F59E0B',
+  amberDark: '#A88A2E',
+  rose: '#E4A8A8',
+  sakura: '#F4C7C7',
+  gold: '#E7C8A0',
+};
+
+const STATE_COLOR_HEX: Record<string, string> = {
+  green: KORE_CARDS.emerald,
+  yellow: KORE_CARDS.amber,
+  orange: '#F97316',
+  red: '#EF4444',
+};
+const STATE_TEXT_HEX: Record<string, string> = {
+  green: KORE_CARDS.emeraldDark,
+  yellow: KORE_CARDS.amberDark,
+  orange: '#C2410C',
+  red: '#DC2626',
+};
+
+const num = (s: string | number | null | undefined): number | null => {
+  if (s === null || s === undefined || s === '') return null;
+  const n = typeof s === 'number' ? s : parseFloat(String(s));
+  return Number.isFinite(n) ? n : null;
+};
+
 type RealEvalGridProps = {
   posturoEvals: import('@/lib/stores/posturometryStore').PosturometryEvaluation[];
   anthroEvals: import('@/lib/stores/anthropometryStore').AnthropometryEvaluation[];
@@ -115,400 +155,1110 @@ type RealEvalGridProps = {
   todayMood: import('@/lib/stores/profileStore').TodayMood | null;
   motivationMessage?: string;
   gridClass?: string;
+  mobile?: boolean;
 };
 
-function RealEvalGrid({ posturoEvals, anthroEvals, physicalEvals, parqAssessments, todayMood, motivationMessage, gridClass = 'grid-cols-2' }: RealEvalGridProps) {
-  const hasAny = posturoEvals.length > 0 || anthroEvals.length > 0 || physicalEvals.length > 0;
-  if (!hasAny) return null;
-  const CTP: Record<string, string> = { green: 'text-green-700', yellow: 'text-amber-700', orange: 'text-orange-700', red: 'text-red-600' };
-  const CBP: Record<string, string> = { green: 'bg-green-100', yellow: 'bg-amber-100', orange: 'bg-orange-100', red: 'bg-red-100' };
-  const FILL_P: Record<string, string> = { green: 'bg-green-500', yellow: 'bg-amber-500', orange: 'bg-orange-500', red: 'bg-red-500' };
-  const CT: Record<string, string> = { green: 'text-green-700', yellow: 'text-amber-700', red: 'text-red-600' };
-  return (
-    <div className={`grid ${gridClass} gap-2 md:gap-3 xl:gap-4`}>
+function RealEvalGrid({ posturoEvals, anthroEvals, physicalEvals, parqAssessments, todayMood, motivationMessage, mobile }: RealEvalGridProps) {
+  const hasAnthro = anthroEvals.length > 0;
+  const hasPosturo = posturoEvals.length > 0;
+  const hasPhysical = physicalEvals.length > 0;
+  const hasParq = parqAssessments.length > 0;
+  if (!hasAnthro && !hasPosturo && !hasPhysical && !hasParq && !todayMood) return null;
+  void motivationMessage;
 
-      {/* Posturometry */}
-      {posturoEvals.length > 0 && (() => {
-        const latest = posturoEvals[0];
-        const first = posturoEvals.length > 1 ? posturoEvals[posturoEvals.length - 1] : null;
-        const zones = [
-          { key: 'global', label: 'General', idx: latest.global_index, col: latest.global_color, firstIdx: first?.global_index },
-          { key: 'upper', label: 'Superior', idx: latest.upper_index, col: latest.upper_color, firstIdx: first?.upper_index },
-          { key: 'central', label: 'Central', idx: latest.central_index, col: latest.central_color, firstIdx: first?.central_index },
-          { key: 'lower', label: 'Inferior', idx: latest.lower_index, col: latest.lower_color, firstIdx: first?.lower_index },
-        ];
-        const globalDiff = first ? parseFloat(latest.global_index) - parseFloat(first.global_index) : null;
-        const posturoIndicators: IndicatorData[] = [
-          { key: 'upper', label: 'Zona superior', value: latest.upper_index, category: latest.upper_category || 'Funcional', color: latest.upper_color,
-            whatIs: 'Incluye cabeza, cuello, hombros, escápulas y codos.',
-            meaning: latest.upper_color === 'green' ? 'Tu zona superior muestra alineación funcional.' : latest.upper_color === 'yellow' ? 'Se observan desbalances leves posiblemente por hábitos posturales.' : 'Se detectan desbalances que pueden afectar tu movilidad.',
-            importance: 'La zona superior influye en cómo usas los brazos, hombros y cuello.',
-            nextStep: 'Tu entrenador incorporará ejercicios de movilidad y fortalecimiento adaptados a esta zona.' },
-          { key: 'central', label: 'Zona central', value: latest.central_index, category: latest.central_category || 'Funcional', color: latest.central_color,
-            whatIs: 'Incluye columna vertebral, abdomen, cadera y pelvis.',
-            meaning: latest.central_color === 'green' ? 'Tu zona central muestra buena alineación.' : latest.central_color === 'yellow' ? 'Se observan desbalances leves.' : 'Hay desbalances que pueden afectar tu estabilidad.',
-            importance: 'El centro de tu cuerpo es donde nace la fuerza funcional.',
-            nextStep: 'Tu entrenador incluirá trabajo de core y movilidad de columna.' },
-          { key: 'lower', label: 'Zona inferior', value: latest.lower_index, category: latest.lower_category || 'Funcional', color: latest.lower_color,
-            whatIs: 'Incluye rodillas, pies y zona poplítea.',
-            meaning: latest.lower_color === 'green' ? 'Tu tren inferior muestra buena alineación.' : latest.lower_color === 'yellow' ? 'Se observan desbalances leves.' : 'Hay desbalances que pueden afectar tu mecánica.',
-            importance: 'Tus piernas y pies son la base de apoyo de tu cuerpo.',
-            nextStep: 'Tu entrenador incorporará ejercicios de estabilización.' },
-        ];
-        return (
-          <Link href="/my-posturometry" className="block bg-white/70 backdrop-blur-sm rounded-xl md:rounded-2xl p-2.5 md:p-4 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
-            <div className="flex items-center justify-between mb-1.5 md:mb-2.5">
-              <h2 className={`font-heading text-xs md:text-base font-semibold ${CTP[latest.global_color] || CTP.green}`}>{latest.global_category || 'Postura'}</h2>
-              <svg className="w-3 h-3 md:w-3.5 md:h-3.5 text-kore-gray-dark/20 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
-            </div>
-            <div className="flex items-center gap-2 md:gap-2.5">
-              <div className={`w-11 h-11 md:w-12 md:h-12 rounded-full flex items-center justify-center ${CBP[latest.global_color] || CBP.green}`}>
-                <span className={`font-heading text-lg md:text-xl font-bold ${CTP[latest.global_color] || CTP.green}`}>{latest.global_index}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] md:text-xs text-kore-gray-dark/50 leading-snug">Escala 0–3 · más cerca de 0 es mejor</p>
-                {globalDiff !== null && Math.abs(globalDiff) >= 0.05 && (
-                  <p className={`text-[9px] md:text-[10px] font-semibold mt-0.5 ${globalDiff < 0 ? 'text-green-600' : 'text-red-500'}`}>
-                    {globalDiff < 0 ? 'Mejoró' : 'Subió'} {Math.abs(globalDiff).toFixed(2)} desde inicio
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="mt-2 space-y-1.5">
-              {zones.map((z) => {
-                const val = parseFloat(z.idx);
-                const pct = Math.min((val / 3) * 100, 100);
-                const col = z.col || 'green';
-                return (
-                  <div key={z.key}>
-                    <div className="flex items-center justify-between mb-0.5">
-                      <span className="text-[10px] md:text-xs text-kore-gray-dark/60 font-medium">{z.label}</span>
-                      <span className={`text-[10px] md:text-xs font-bold ${CTP[col] || CTP.green}`}>{z.idx}</span>
-                    </div>
-                    <div className={`h-1.5 md:h-2 rounded-full ${CBP[col] || CBP.green} overflow-hidden`}>
-                      <div className={`h-full rounded-full ${FILL_P[col] || FILL_P.green} transition-all`} style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="hidden md:block">
-              <p className="text-xs text-kore-gray-dark/35 mb-1.5 mt-2.5">Toca cada zona para ver qué significa</p>
-              <div className="pt-2.5 border-t border-kore-gray-light/20 space-y-0.5">
-                {posturoIndicators.map((ind) => <ExpandableIndicator key={ind.key} ind={ind} />)}
-              </div>
-              {latest.notes && (
-                <div className="pt-2 border-t border-kore-gray-light/20 mt-2">
-                  <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider font-medium mb-0.5">Tu entrenador</p>
-                  <p className="text-xs text-kore-gray-dark/60 leading-relaxed line-clamp-2 italic">{latest.notes}</p>
-                </div>
-              )}
-            </div>
-          </Link>
-        );
-      })()}
+  if (mobile) {
+    const slides: React.ReactNode[] = [];
+    if (hasAnthro) slides.push(
+      <AnthropometriaCard key="anthro" latest={anthroEvals[0]} first={anthroEvals.length > 1 ? anthroEvals[anthroEvals.length - 1] : null} />
+    );
+    if (hasPosturo) slides.push(
+      <PosturometriaCard key="posturo" latest={posturoEvals[0]} first={posturoEvals.length > 1 ? posturoEvals[posturoEvals.length - 1] : null} />
+    );
+    if (hasPhysical) slides.push(
+      <CondicionFisicaCard key="physical" latest={physicalEvals[0]} />
+    );
 
-      {/* Anthropometry */}
-      {anthroEvals.length > 0 && (() => {
-        const latest = anthroEvals[0];
-        const first = anthroEvals.length > 1 ? anthroEvals[anthroEvals.length - 1] : null;
-        const weightDiff = first ? parseFloat(latest.weight_kg) - parseFloat(first.weight_kg) : null;
-        const fatDiff = first ? parseFloat(latest.body_fat_pct) - parseFloat(first.body_fat_pct) : null;
-        const anthroIndicators: IndicatorData[] = [
-          { key: 'bf', label: 'Composición corporal', value: latest.body_fat_pct, unit: '%', category: latest.bf_category, color: latest.bf_color,
-            whatIs: 'El porcentaje de grasa indica qué parte de tu peso total es grasa corporal.',
-            meaning: latest.bf_color === 'green' ? 'Tu porcentaje de grasa está en un rango saludable.' : latest.bf_color === 'yellow' ? 'Tu grasa corporal está un poco por encima del rango ideal.' : 'Tu porcentaje de grasa está elevado.',
-            importance: 'Ayuda a ver si estás mejorando la proporción entre grasa y músculo.',
-            nextStep: 'Tu entrenador ajustará la intensidad para optimizar tu composición corporal.',
-            formula: '%Grasa = (1.20 × IMC) + (0.23 × edad) − (10.8 × sexo) − 5.4' },
-          { key: 'bmi', label: 'IMC – Peso y estatura', value: latest.bmi, category: latest.bmi_category, color: latest.bmi_color,
-            whatIs: 'El IMC compara tu peso con tu estatura.',
-            meaning: latest.bmi_color === 'green' ? 'Tu peso está dentro del rango saludable.' : latest.bmi_color === 'yellow' ? 'Tu peso está ligeramente por encima del rango ideal.' : 'Tu peso está en un rango que requiere atención.',
-            importance: 'Ayuda a entender tu estado general de peso.',
-            nextStep: 'Tu entrenador tendrá este resultado en cuenta para ajustar tu proceso.',
-            formula: 'IMC = peso (kg) / estatura (m)²' },
-          ...(latest.waist_cm ? [{ key: 'waist', label: 'Zona abdominal – Cintura', value: latest.waist_cm, unit: ' cm', category: latest.waist_risk || '—', color: latest.waist_risk_color,
-            whatIs: 'El perímetro de cintura es un indicador directo de riesgo metabólico.',
-            meaning: latest.waist_risk_color === 'green' ? 'Tu cintura está en un rango seguro.' : latest.waist_risk_color === 'yellow' ? 'Tu cintura está en una zona de atención.' : 'Tu cintura indica acumulación de grasa abdominal.',
-            importance: 'La cintura tiene relación directa con la grasa que rodea tus órganos internos.',
-            nextStep: 'Tu entrenador incluirá estrategias para reducir la cintura de forma progresiva.',
-            formula: 'Perímetro de cintura (cm) comparado con umbrales OMS' } as IndicatorData] : []),
-        ];
-        return (
-          <Link href="/my-diagnosis" className="block bg-white/70 backdrop-blur-sm rounded-xl md:rounded-2xl p-2.5 md:p-4 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
-            <div className="flex items-center justify-between mb-1.5 md:mb-2.5">
-              <h2 className="font-heading text-xs md:text-base font-semibold text-kore-gray-dark">Diagnóstico</h2>
-              <svg className="w-3 h-3 md:w-3.5 md:h-3.5 text-kore-gray-dark/20 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
-            </div>
-            {/* Mobile simplified */}
-            <div className="md:hidden space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="w-11 h-11 rounded-full bg-kore-red/10 flex items-center justify-center flex-shrink-0">
-                  <span className="font-heading text-base font-bold text-kore-gray-dark">{latest.weight_kg}</span>
-                </div>
-                <div className="flex-1">
-                  <p className="text-[10px] text-kore-gray-dark/40">Peso actual</p>
-                  <p className={`text-sm font-semibold ${CT[latest.bf_color] || CT.green}`}>{latest.body_fat_pct}% grasa</p>
-                </div>
-              </div>
-              {(() => {
-                const fat = parseFloat(latest.fat_mass_kg);
-                const lean = parseFloat(latest.lean_mass_kg);
-                const total = fat + lean;
-                if (total === 0) return null;
-                return (
-                  <div className="pt-1.5">
-                    <div className="flex h-2.5 rounded-full overflow-hidden">
-                      <div className="bg-red-400" style={{ width: `${(fat / total) * 100}%` }} />
-                      <div className="bg-green-500" style={{ width: `${(lean / total) * 100}%` }} />
-                    </div>
-                    <div className="flex justify-between mt-0.5">
-                      <span className="text-[8px] text-kore-gray-dark/60 font-medium">{fat.toFixed(1)} kg grasa</span>
-                      <span className="text-[8px] text-kore-gray-dark/60 font-medium">{lean.toFixed(1)} kg músculo</span>
-                    </div>
-                  </div>
-                );
-              })()}
-              {first && (weightDiff !== null || fatDiff !== null) && (
-                <div className="flex items-center gap-1.5 pt-0.5 text-[9px]">
-                  <span className="text-kore-gray-dark/50">Desde inicio:</span>
-                  {weightDiff !== null && Math.abs(weightDiff) >= 0.1 && (
-                    <span className={`font-semibold ${weightDiff < 0 ? 'text-green-600' : 'text-red-500'}`}>{weightDiff > 0 ? '+' : ''}{weightDiff.toFixed(1)} kg</span>
-                  )}
-                  {fatDiff !== null && Math.abs(fatDiff) >= 0.1 && (
-                    <span className={`font-semibold ${fatDiff < 0 ? 'text-green-600' : 'text-red-500'}`}>{fatDiff > 0 ? '+' : ''}{fatDiff.toFixed(1)}%</span>
-                  )}
-                </div>
-              )}
-              <div className="flex items-center gap-2 pt-1.5">
-                <div className="flex-1 bg-green-50 rounded-lg px-2 py-1.5 text-center">
-                  <p className="text-[9px] text-green-700/60">Músculo</p>
-                  <p className="text-xs font-bold text-green-700">{latest.lean_mass_kg} <span className="font-normal">kg</span></p>
-                </div>
-                <div className={`flex-1 rounded-lg px-2 py-1.5 text-center ${latest.bmi_color === 'green' ? 'bg-green-50' : latest.bmi_color === 'yellow' ? 'bg-amber-50' : 'bg-red-50'}`}>
-                  <p className={`text-[9px] ${latest.bmi_color === 'green' ? 'text-green-700/60' : latest.bmi_color === 'yellow' ? 'text-amber-700/60' : 'text-red-600/60'}`}>IMC</p>
-                  <p className={`text-xs font-bold ${latest.bmi_color === 'green' ? 'text-green-700' : latest.bmi_color === 'yellow' ? 'text-amber-700' : 'text-red-600'}`}>{latest.bmi}</p>
-                </div>
-              </div>
-            </div>
-            {/* Desktop full */}
-            <div className="hidden md:grid grid-cols-3 gap-1.5 mb-2.5">
-              {[
-                { label: 'kg', val: latest.weight_kg, colClass: 'text-kore-gray-dark' },
-                { label: 'grasa', val: `${latest.body_fat_pct}%`, colClass: CT[latest.bf_color] || CT.green },
-                { label: 'masa libre', val: latest.lean_mass_kg, colClass: 'text-green-700' },
-              ].map((item) => (
-                <div key={item.label} className="text-center bg-kore-cream/40 rounded-lg py-1.5">
-                  <p className={`font-heading text-base font-bold ${item.colClass}`}>{item.val}</p>
-                  <p className="text-xs text-kore-gray-dark/40">{item.label}</p>
-                </div>
-              ))}
-            </div>
-            <div className="hidden md:block">
-              {(() => {
-                const fat = parseFloat(latest.fat_mass_kg);
-                const lean = parseFloat(latest.lean_mass_kg);
-                const total = fat + lean;
-                if (total === 0) return null;
-                const fatPct = (fat / total) * 100;
-                const leanPct = (lean / total) * 100;
-                return (
-                  <div className="mb-2">
-                    <div className="flex h-3 rounded-full overflow-hidden">
-                      <div className="bg-red-400 flex items-center justify-center" style={{ width: `${fatPct}%` }}>
-                        {fatPct > 15 && <span className="text-[8px] text-white font-bold">{fatPct.toFixed(0)}%</span>}
-                      </div>
-                      <div className="bg-green-500 flex items-center justify-center" style={{ width: `${leanPct}%` }}>
-                        {leanPct > 15 && <span className="text-[8px] text-white font-bold">{leanPct.toFixed(0)}%</span>}
-                      </div>
-                    </div>
-                    <div className="flex justify-between mt-0.5">
-                      <span className="text-[9px] text-kore-gray-dark/60 font-medium">Grasa {fat.toFixed(1)} kg</span>
-                      <span className="text-[9px] text-kore-gray-dark/60 font-medium">Músculo {lean.toFixed(1)} kg</span>
-                    </div>
-                  </div>
-                );
-              })()}
-              {first && (weightDiff !== null || fatDiff !== null) && (
-                <div className="flex items-center gap-2 text-xs mb-1.5">
-                  <span className="text-kore-gray-dark/40">Desde inicio:</span>
-                  {weightDiff !== null && Math.abs(weightDiff) >= 0.1 && (
-                    <span className={weightDiff < 0 ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>{weightDiff > 0 ? '+' : ''}{weightDiff.toFixed(1)} kg</span>
-                  )}
-                  {fatDiff !== null && Math.abs(fatDiff) >= 0.1 && (
-                    <span className={fatDiff < 0 ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>{fatDiff > 0 ? '+' : ''}{fatDiff.toFixed(1)}% grasa</span>
-                  )}
-                </div>
-              )}
-              <p className="text-xs text-kore-gray-dark/35 mb-1.5">Toca cada indicador para ver qué significa</p>
-              <div className="pt-2.5 border-t border-kore-gray-light/20 space-y-0.5">
-                {anthroIndicators.map((ind) => <ExpandableIndicator key={ind.key} ind={ind} />)}
-              </div>
-              {latest.notes && (
-                <div className="pt-2 border-t border-kore-gray-light/20 mt-2">
-                  <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider font-medium mb-0.5">Tu entrenador</p>
-                  <p className="text-xs text-kore-gray-dark/60 leading-relaxed line-clamp-2 italic">{latest.notes}</p>
-                </div>
-              )}
-            </div>
-          </Link>
-        );
-      })()}
-
-      {/* Physical evaluation */}
-      {physicalEvals.length > 0 && (() => {
-        const latest = physicalEvals[0];
-        const physIndicators: IndicatorData[] = [
-          { key: 'strength', label: 'Fuerza', value: latest.strength_index ?? '—', category: latest.strength_category || '—', color: latest.strength_color,
-            whatIs: 'Evalúa la capacidad de tus músculos para sostener esfuerzos repetidos.',
-            meaning: latest.strength_color === 'green' ? 'Tu fuerza-resistencia es funcional.' : latest.strength_color === 'yellow' ? 'Tu fuerza está por debajo del promedio.' : 'Tu fuerza necesita desarrollo prioritario.',
-            importance: 'La fuerza es fundamental para proteger articulaciones y mejorar postura.',
-            nextStep: 'Tu entrenador adaptará los ejercicios de fuerza a tu nivel actual.' },
-          { key: 'endurance', label: 'Resistencia', value: latest.endurance_index ?? '—', category: latest.endurance_category || '—', color: latest.endurance_color,
-            whatIs: 'Mide tu capacidad aeróbica funcional.',
-            meaning: latest.endurance_color === 'green' ? 'Tu capacidad aeróbica es buena.' : latest.endurance_color === 'yellow' ? 'Tu capacidad aeróbica está por debajo del rango esperado.' : 'Tu resistencia necesita mejora significativa.',
-            importance: 'Tu resistencia afecta cuánto puedes rendir en cada sesión.',
-            nextStep: 'Tu entrenador incorporará actividad cardiovascular adaptada a tu capacidad.' },
-          { key: 'mobility', label: 'Movilidad', value: latest.mobility_index ?? '—', category: latest.mobility_category || '—', color: latest.mobility_color,
-            whatIs: 'Evalúa los rangos de movimiento de cadera, hombros y tobillo.',
-            meaning: latest.mobility_color === 'green' ? 'Tu movilidad articular es funcional.' : latest.mobility_color === 'yellow' ? 'Algunas zonas articulares tienen limitaciones leves.' : 'Hay limitaciones de movilidad que pueden afectar tu movimiento.',
-            importance: 'Sin movilidad adecuada no es seguro progresar en carga.',
-            nextStep: 'Tu entrenador incluirá ejercicios específicos de movilidad.' },
-          { key: 'balance', label: 'Equilibrio', value: latest.balance_index ?? '—', category: latest.balance_category || '—', color: latest.balance_color,
-            whatIs: 'Mide tu control neuromuscular y estabilidad.',
-            meaning: latest.balance_color === 'green' ? 'Tu equilibrio y control son adecuados.' : latest.balance_color === 'yellow' ? 'Tu equilibrio está por debajo del promedio.' : 'Tu equilibrio necesita atención prioritaria.',
-            importance: 'El equilibrio protege contra caídas y refleja la calidad de tu control corporal.',
-            nextStep: 'Tu entrenador incorporará trabajo de estabilidad adaptado a tu nivel.' },
-        ];
-        return (
-          <Link href="/my-physical-evaluation" className="block bg-white/70 backdrop-blur-sm rounded-xl md:rounded-2xl p-2.5 md:p-4 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
-            <div className="flex items-center justify-between mb-1.5 md:mb-2.5">
-              <h2 className="font-heading text-xs md:text-base font-semibold text-kore-gray-dark">Condición física</h2>
-              <svg className="w-3 h-3 md:w-3.5 md:h-3.5 text-kore-gray-dark/20 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
-            </div>
-            <div className="flex items-center gap-2 md:gap-2.5">
-              <div className={`w-11 h-11 md:w-12 md:h-12 rounded-full flex items-center justify-center ${CBP[latest.general_color] || CBP.green}`}>
-                <span className={`font-heading text-lg md:text-xl font-bold ${CTP[latest.general_color] || CTP.green}`}>{latest.general_index}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className={`text-sm md:text-base font-semibold ${CTP[latest.general_color] || CTP.green} line-clamp-1`}>{latest.general_category}</p>
-                <p className="text-[10px] md:text-xs text-kore-gray-dark/40">Índice general</p>
-              </div>
-            </div>
-            {/* Mobile mini indicators */}
-            <div className="grid grid-cols-2 gap-x-1 gap-y-1 mt-2 md:hidden">
-              {physIndicators.map((ind) => (
-                <div key={ind.key} className="flex items-center gap-0.5">
-                  <div className={`w-1.5 h-1.5 rounded-full ${ind.color === 'green' ? 'bg-green-500' : ind.color === 'yellow' ? 'bg-amber-400' : 'bg-red-500'}`} />
-                  <span className="text-[9px] text-kore-gray-dark/40 truncate">{ind.label}</span>
-                </div>
-              ))}
-            </div>
-            <div className="hidden md:block">
-              <p className="text-xs text-kore-gray-dark/35 mb-1.5 mt-2.5">Toca cada componente para ver qué significa</p>
-              <div className="pt-2.5 border-t border-kore-gray-light/20 space-y-0.5">
-                {physIndicators.map((ind) => <ExpandableIndicator key={ind.key} ind={ind} />)}
-              </div>
-              {latest.notes && (
-                <div className="pt-2 border-t border-kore-gray-light/20 mt-2">
-                  <p className="text-xs text-kore-gray-dark/40 uppercase tracking-wider font-medium mb-0.5">Tu entrenador</p>
-                  <p className="text-xs text-kore-gray-dark/60 leading-relaxed line-clamp-2 italic">{latest.notes}</p>
-                </div>
-              )}
-            </div>
-          </Link>
-        );
-      })()}
-
-      {/* Mood + PARQ stacked in 4th slot */}
-      {(todayMood !== undefined || parqAssessments.length > 0) && (
-        <div className="col-span-1 grid grid-cols-1 gap-2 md:gap-3">
-          {/* ¿Cómo te sientes hoy? — clicking the card opens the global MoodCheckIn modal */}
-          <button
-            type="button"
-            onClick={() => useProfileStore.getState().openMoodModal()}
-            className="text-left bg-white/70 backdrop-blur-sm rounded-xl md:rounded-2xl p-2.5 md:p-4 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all active:scale-[0.99]"
+    return (
+      <div className="space-y-3">
+        {slides.length > 0 && (
+          <Swiper
+            modules={[Pagination]}
+            slidesPerView={1}
+            spaceBetween={12}
+            pagination={{ clickable: true }}
+            style={{ paddingBottom: 32 }}
           >
-            <p className="text-[10px] md:text-[10.5px] font-semibold uppercase tracking-[0.14em] text-kore-gray-dark/40 mb-2 md:mb-3">
-              ¿Cómo te sientes hoy?
-            </p>
-            {todayMood ? (
-              <div>
-                <div className="flex items-center gap-2 md:gap-3 mb-1.5 md:mb-2">
-                  <div className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center font-heading text-sm md:text-base font-bold flex-shrink-0 ${
-                    todayMood.score >= 7 ? 'bg-emerald-100 text-emerald-700' : todayMood.score >= 4 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'
-                  }`}>
-                    {todayMood.score}
-                  </div>
-                  <div>
-                    <p className={`text-xs md:text-[14px] font-semibold ${
-                      todayMood.score >= 7 ? 'text-emerald-700' : todayMood.score >= 4 ? 'text-amber-700' : 'text-red-600'
-                    }`}>
-                      {todayMood.score >= 9 ? 'Imparable' : todayMood.score >= 7 ? 'Bien' : todayMood.score >= 5 ? 'Regular' : todayMood.score >= 3 ? 'Bajo' : 'Muy bajo'}
-                    </p>
-                    <p className="text-[10px] md:text-[11px] text-kore-gray-dark/40">{todayMood.score} de 10</p>
-                  </div>
-                </div>
-                <p className="text-[10px] md:text-[12px] text-kore-gray-dark/55 leading-relaxed">
-                  Toca para actualizar tu estado o agregar una nota.
-                </p>
-              </div>
-            ) : (
-              <div>
-                <p className="text-[11px] md:text-[13px] text-kore-gray-dark/50 mb-2 md:mb-3">
-                  Aún no registraste tu estado de hoy.
-                </p>
-                <span
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-kore-red text-white rounded-xl text-[11px] md:text-[12px] font-semibold"
-                >
-                  Registrar estado
-                </span>
-              </div>
-            )}
-          </button>
-          {/* Motivación */}
-          <div className="bg-white/70 backdrop-blur-sm rounded-xl md:rounded-2xl p-2.5 md:p-4 border border-white/60 shadow-sm">
-            <p className="text-[10px] md:text-[10.5px] font-semibold uppercase tracking-[0.14em] text-kore-gray-dark/40 mb-2 md:mb-3">
-              Tu motivación de hoy
-            </p>
-            <p className="text-[11px] md:text-[13px] text-kore-gray-dark font-medium leading-[1.5]">
-              &ldquo;{motivationMessage ?? 'Cada día que entrenas, construyes la mejor versión de ti.'}&rdquo;
-            </p>
-            <p className="text-[10px] md:text-[11px] text-kore-gray-dark/50 mt-2 italic">
-              — Personalizado según tu progreso
-            </p>
+            {slides.map((slide, i) => (
+              <SwiperSlide key={i} style={{ height: 'auto' }}>
+                <div className="h-full">{slide}</div>
+              </SwiperSlide>
+            ))}
+          </Swiper>
+        )}
+        <MobileWellnessCard
+          todayMood={todayMood}
+          motivationMessage={motivationMessage}
+          parqAssessment={hasParq ? parqAssessments[0] : null}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 items-start">
+      {hasAnthro && <AnthropometriaCard latest={anthroEvals[0]} first={anthroEvals.length > 1 ? anthroEvals[anthroEvals.length - 1] : null} />}
+      {hasPosturo && <PosturometriaCard latest={posturoEvals[0]} first={posturoEvals.length > 1 ? posturoEvals[posturoEvals.length - 1] : null} />}
+      {hasPhysical && <CondicionFisicaCard latest={physicalEvals[0]} />}
+      <div className="flex flex-col gap-3 md:gap-4">
+        <MoodMiniCard todayMood={todayMood} />
+        <MotivacionMiniCard message={motivationMessage} />
+        {hasParq && <ParqMiniCard latest={parqAssessments[0]} />}
+      </div>
+    </div>
+  );
+}
+
+/* ── Card: Antropometría — concentric rings + indicator rows ─────────────── */
+function AnthropometriaCard({
+  latest, first,
+}: {
+  latest: import('@/lib/stores/anthropometryStore').AnthropometryEvaluation;
+  first: import('@/lib/stores/anthropometryStore').AnthropometryEvaluation | null;
+}) {
+  const weight = num(latest.weight_kg) ?? 0;
+  const bf = num(latest.body_fat_pct) ?? 0;
+  const lean = num(latest.lean_mass_kg) ?? 0;
+  const weightFirst = first ? num(first.weight_kg) : null;
+  const bfFirst = first ? num(first.body_fat_pct) : null;
+  const weightDelta = weightFirst !== null ? weight - weightFirst : null;
+  const bfDelta = bfFirst !== null ? bf - bfFirst : null;
+
+  const r = 64;
+  const c = 2 * Math.PI * r;
+  const innerR = r - 16;
+  const innerC = 2 * Math.PI * innerR;
+  const bfRatio = Math.min(1, bf / 100);
+
+  const rows = [
+    {
+      label: 'Composición corporal',
+      state: latest.bf_category || '—',
+      color: latest.bf_color || 'green',
+    },
+    {
+      label: 'IMC – Peso y estatura',
+      state: latest.bmi_category || '—',
+      color: latest.bmi_color || 'green',
+    },
+    ...(latest.waist_cm
+      ? [{
+          label: 'Zona abdominal – Cintura',
+          state: latest.waist_risk || '—',
+          color: latest.waist_risk_color || 'green',
+        }]
+      : []),
+  ];
+
+  return (
+    <Link
+      href="/my-diagnosis"
+      className="block group"
+      style={{
+        background: KORE_CARDS.cream,
+        borderRadius: 20,
+        border: '1px solid rgba(154,5,38,0.10)',
+        boxShadow: '0 8px 30px -10px rgba(102,15,34,0.12)',
+        padding: 18,
+      }}
+    >
+      <CardHeader title="Antropometría" />
+
+      <div className="mt-3.5 flex items-center gap-3 flex-wrap">
+        <div className="relative shrink-0" style={{ width: 144, height: 144 }}>
+          <svg width="144" height="144" style={{ transform: 'rotate(-90deg)' }}>
+            <circle cx="72" cy="72" r={r} fill="none" stroke="rgba(0,0,0,0.05)" strokeWidth="11" />
+            <circle cx="72" cy="72" r={r} fill="none" stroke="#10B981" strokeWidth="11" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * bfRatio} />
+            <circle cx="72" cy="72" r={innerR} fill="none" stroke="rgba(0,0,0,0.05)" strokeWidth="9" />
+            <circle cx="72" cy="72" r={innerR} fill="none" stroke="#9A0526" strokeWidth="9" strokeLinecap="round" strokeDasharray={innerC} strokeDashoffset={innerC * (1 - bfRatio)} />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-[9px] font-bold uppercase" style={{ letterSpacing: '0.10em', color: 'rgba(51,51,51,0.5)' }}>Peso</span>
+            <span className="font-heading font-bold leading-none mt-0.5" style={{ fontSize: 28, color: '#1a1410' }}>{weight}</span>
+            <span className="text-[10px]" style={{ color: 'rgba(51,51,51,0.4)' }}>kg</span>
           </div>
-          {parqAssessments.length > 0 && (() => {
-            const latest = parqAssessments[0];
-            const CTQ: Record<string, string> = { green: 'text-emerald-700', yellow: 'text-amber-700', red: 'text-red-600' };
-            const CBQ: Record<string, string> = { green: 'bg-emerald-100', yellow: 'bg-amber-100', red: 'bg-red-100' };
-            return (
-              <Link href="/my-parq" className="block bg-white/70 backdrop-blur-sm rounded-xl md:rounded-2xl p-2.5 md:p-4 border border-white/60 shadow-sm hover:shadow-md hover:border-kore-red/20 transition-all group">
-                <div className="flex items-center justify-between mb-1.5 md:mb-2">
-                  <h2 className="font-heading text-xs md:text-base font-semibold text-kore-gray-dark">PAR-Q+</h2>
-                  <svg className="w-3 h-3 md:w-3.5 md:h-3.5 text-kore-gray-dark/30 group-hover:text-kore-red transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
-                </div>
-                <div className="flex items-center gap-1.5 md:gap-2.5">
-                  <div className={`w-7 h-7 md:w-9 md:h-9 rounded-full flex items-center justify-center ${CBQ[latest.risk_color] || CBQ.green}`}>
-                    {latest.risk_color === 'green' ? (
-                      <svg className={`w-4 h-4 md:w-5 md:h-5 ${CTQ.green}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                    ) : latest.risk_color === 'yellow' ? (
-                      <svg className={`w-4 h-4 md:w-5 md:h-5 ${CTQ.yellow}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
-                    ) : (
-                      <svg className={`w-4 h-4 md:w-5 md:h-5 ${CTQ.red}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.008v.008H12v-.008zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    )}
+        </div>
+
+        <div className="flex-1 min-w-0 flex flex-col gap-2.5">
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span style={{ width: 7, height: 7, borderRadius: 4, background: KORE_CARDS.crimson }} />
+              <span className="text-[9px] font-bold uppercase" style={{ letterSpacing: '0.08em', color: 'rgba(51,51,51,0.55)' }}>Grasa</span>
+            </div>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
+              <span className="font-heading font-bold tabular-nums" style={{ fontSize: 18, color: '#333' }}>
+                {bf}<span className="text-[10px]" style={{ color: 'rgba(51,51,51,0.4)' }}>%</span>
+              </span>
+              {bfDelta !== null && Math.abs(bfDelta) >= 0.05 && (
+                <span className="text-[10px] font-semibold" style={{ color: bfDelta < 0 ? KORE_CARDS.emeraldDark : '#DC2626' }}>
+                  {bfDelta < 0 ? '↓' : '↑'}{Math.abs(bfDelta).toFixed(1)}
+                </span>
+              )}
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span style={{ width: 7, height: 7, borderRadius: 4, background: KORE_CARDS.emerald }} />
+              <span className="text-[9px] font-bold uppercase" style={{ letterSpacing: '0.08em', color: 'rgba(51,51,51,0.55)' }}>Masa libre</span>
+            </div>
+            <div className="flex items-baseline gap-1 mt-0.5">
+              <span className="font-heading font-bold tabular-nums" style={{ fontSize: 18, color: '#333' }}>
+                {lean}<span className="text-[10px]" style={{ color: 'rgba(51,51,51,0.4)' }}>kg</span>
+              </span>
+            </div>
+          </div>
+          {(weightDelta !== null || bfDelta !== null) &&
+            ((weightDelta !== null && Math.abs(weightDelta) >= 0.1) || (bfDelta !== null && Math.abs(bfDelta) >= 0.1)) && (
+            <div
+              className="text-[10px] font-semibold leading-tight"
+              style={{
+                padding: '6px 10px',
+                borderRadius: 8,
+                background: 'rgba(16,185,129,0.10)',
+                color: KORE_CARDS.emeraldDark,
+              }}
+            >
+              Desde inicio:{' '}
+              <strong>
+                {weightDelta !== null && Math.abs(weightDelta) >= 0.1 && (
+                  <>{weightDelta < 0 ? '−' : '+'}{Math.abs(weightDelta).toFixed(1)} kg</>
+                )}
+                {weightDelta !== null && bfDelta !== null && Math.abs(weightDelta) >= 0.1 && Math.abs(bfDelta) >= 0.1 && ' · '}
+                {bfDelta !== null && Math.abs(bfDelta) >= 0.1 && (
+                  <>{bfDelta < 0 ? '−' : '+'}{Math.abs(bfDelta).toFixed(1)}% grasa</>
+                )}
+              </strong>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-4 pt-3" style={{ borderTop: '1px solid rgba(102,15,34,0.08)' }}>
+        {rows.map((row, idx) => <IndicatorRow key={idx} {...row} last={idx === rows.length - 1} />)}
+      </div>
+    </Link>
+  );
+}
+
+/* ── Card: Posturometría — radar + zone rows ─────────────────────────────── */
+function PosturometriaCard({
+  latest, first,
+}: {
+  latest: import('@/lib/stores/posturometryStore').PosturometryEvaluation;
+  first: import('@/lib/stores/posturometryStore').PosturometryEvaluation | null;
+}) {
+  const global = num(latest.global_index) ?? 0;
+  const upper = num(latest.upper_index) ?? 0;
+  const central = num(latest.central_index) ?? 0;
+  const lower = num(latest.lower_index) ?? 0;
+  const globalFirst = first ? num(first.global_index) : null;
+  const delta = globalFirst !== null ? global - globalFirst : null;
+
+  const axes = [
+    { label: 'Global', value: global },
+    { label: 'Sup.', value: upper },
+    { label: 'Cen.', value: central },
+    { label: 'Inf.', value: lower },
+  ];
+  const cx = 70, cy = 70, R = 50;
+  const angle = (i: number) => (-Math.PI / 2) + (i * (2 * Math.PI / axes.length));
+  const point = (v: number, i: number): [number, number] => {
+    const ratio = 1 - Math.min(1, v / 1.5);
+    return [cx + Math.cos(angle(i)) * R * ratio, cy + Math.sin(angle(i)) * R * ratio];
+  };
+  const polyPts = axes.map((a, i) => point(a.value, i).join(',')).join(' ');
+  const isImproving = delta !== null && delta < -0.05;
+
+  const rows = [
+    { label: 'Zona superior', state: latest.upper_category || '—', color: latest.upper_color || 'green', value: upper },
+    { label: 'Zona central', state: latest.central_category || '—', color: latest.central_color || 'green', value: central },
+    { label: 'Zona inferior', state: latest.lower_category || '—', color: latest.lower_color || 'green', value: lower },
+  ];
+
+  return (
+    <Link
+      href="/my-posturometry"
+      className="block group"
+      style={{
+        background: KORE_CARDS.cream,
+        borderRadius: 20,
+        border: '1px solid rgba(154,5,38,0.10)',
+        boxShadow: '0 8px 30px -10px rgba(102,15,34,0.12)',
+        padding: 18,
+      }}
+    >
+      <CardHeader title="Posturometría" />
+
+      <div className="mt-3.5 flex items-center gap-3 flex-wrap">
+        <div className="relative shrink-0 grid place-items-center" style={{ width: 144, height: 144 }}>
+          <svg width="140" height="140" viewBox="0 0 140 140">
+            {[0.33, 0.66, 1].map((s) => (
+              <polygon
+                key={s}
+                points={axes.map((_, i) => [cx + Math.cos(angle(i)) * R * s, cy + Math.sin(angle(i)) * R * s].join(',')).join(' ')}
+                fill="none"
+                stroke="rgba(102,15,34,0.10)"
+                strokeWidth="1"
+              />
+            ))}
+            {axes.map((_, i) => {
+              const [x, y] = [cx + Math.cos(angle(i)) * R, cy + Math.sin(angle(i)) * R];
+              return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="rgba(102,15,34,0.08)" strokeWidth="1" />;
+            })}
+            <polygon points={polyPts} fill="rgba(52,211,153,0.40)" stroke={KORE_CARDS.emeraldDark} strokeWidth="1.5" strokeLinejoin="round" />
+            {axes.map((a, i) => {
+              const [x, y] = point(a.value, i);
+              return <circle key={i} cx={x} cy={y} r="3" fill={KORE_CARDS.ivory} stroke={KORE_CARDS.emeraldDark} strokeWidth="1.5" />;
+            })}
+            {axes.map((a, i) => {
+              const [x, y] = [cx + Math.cos(angle(i)) * (R + 12), cy + Math.sin(angle(i)) * (R + 12)];
+              return (
+                <text
+                  key={i}
+                  x={x}
+                  y={y}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontFamily="Montserrat"
+                  fontSize="8"
+                  fontWeight="700"
+                  fill="rgba(51,51,51,0.55)"
+                  letterSpacing="0.08em"
+                >
+                  {a.label.toUpperCase()}
+                </text>
+              );
+            })}
+          </svg>
+          <div
+            className="absolute"
+            style={{
+              bottom: -2, left: '50%', transform: 'translateX(-50%)',
+              padding: '3px 10px', borderRadius: 999,
+              background: KORE_CARDS.ivory,
+              border: `1px solid ${STATE_COLOR_HEX[latest.global_color || 'green']}55`,
+              color: STATE_TEXT_HEX[latest.global_color || 'green'],
+              fontSize: 12, fontWeight: 700,
+              fontFamily: 'var(--font-heading), serif',
+              boxShadow: '0 2px 6px rgba(102,15,34,0.08)',
+            }}
+          >
+            {global.toFixed(2)}
+          </div>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <p className="text-[9px] font-bold uppercase" style={{ letterSpacing: '0.10em', color: 'rgba(51,51,51,0.55)' }}>Índice global</p>
+          <div className="flex items-baseline gap-1.5 mt-0.5">
+            <span
+              className="font-heading font-bold leading-none"
+              style={{ fontSize: 26, color: STATE_TEXT_HEX[latest.global_color || 'green'] }}
+            >
+              {global.toFixed(2)}
+            </span>
+            <span className="text-[9px]" style={{ color: 'rgba(51,51,51,0.5)' }}>/ 3</span>
+          </div>
+          <p className="text-[9px] mt-1" style={{ color: 'rgba(51,51,51,0.45)' }}>Más cerca de 0 = mejor</p>
+          {delta !== null && Math.abs(delta) >= 0.05 && (
+            <div
+              className="text-[10px] font-semibold mt-2"
+              style={{
+                padding: '5px 10px', borderRadius: 8,
+                background: isImproving ? 'rgba(16,185,129,0.10)' : 'rgba(228,168,168,0.18)',
+                color: isImproving ? KORE_CARDS.emeraldDark : '#DC2626',
+              }}
+            >
+              {isImproving ? 'Mejoró' : 'Subió'} <strong>{Math.abs(delta).toFixed(2)}</strong> desde inicio
+            </div>
+          )}
+          {latest.notes && (
+            <p className="text-[10px] italic mt-2 line-clamp-2 leading-snug" style={{ color: 'rgba(51,51,51,0.55)' }}>
+              {latest.notes}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-4 pt-3" style={{ borderTop: '1px solid rgba(102,15,34,0.08)' }}>
+        {rows.map((row, idx) => (
+          <IndicatorRow
+            key={idx}
+            label={row.label}
+            state={row.value.toFixed(2)}
+            color={row.color}
+            last={idx === rows.length - 1}
+          />
+        ))}
+      </div>
+    </Link>
+  );
+}
+
+/* ── Card: Condición Física — semi-circular gauge + capacities rows ──────── */
+function CondicionFisicaCard({
+  latest,
+}: {
+  latest: import('@/lib/stores/physicalEvaluationStore').PhysicalEvaluation;
+}) {
+  const general = num(latest.general_index) ?? 0;
+  const max = 5;
+  const pct = Math.min(general / max, 1);
+
+  const gw = 144;
+  const gh = 80;
+  const gr = 56;
+  const cxg = gw / 2;
+  const cyg = gh - 6;
+  const startA = Math.PI;
+  const endA = 2 * Math.PI;
+
+  const arc = (a0: number, a1: number) => {
+    const x0 = cxg + Math.cos(a0) * gr;
+    const y0 = cyg + Math.sin(a0) * gr;
+    const x1 = cxg + Math.cos(a1) * gr;
+    const y1 = cyg + Math.sin(a1) * gr;
+    const large = (a1 - a0) > Math.PI ? 1 : 0;
+    return `M ${x0} ${y0} A ${gr} ${gr} 0 ${large} 1 ${x1} ${y1}`;
+  };
+  const valueAngle = startA + (endA - startA) * pct;
+
+  const rows = [
+    { label: 'Fuerza', state: latest.strength_category || '—', color: latest.strength_color || 'green' },
+    { label: 'Resistencia', state: latest.endurance_category || '—', color: latest.endurance_color || 'green' },
+    { label: 'Movilidad', state: latest.mobility_category || '—', color: latest.mobility_color || 'green' },
+    { label: 'Equilibrio', state: latest.balance_category || '—', color: latest.balance_color || 'green' },
+  ];
+
+  const generalColor = latest.general_color || 'green';
+
+  return (
+    <Link
+      href="/my-physical-evaluation"
+      className="block group"
+      style={{
+        background: KORE_CARDS.cream,
+        borderRadius: 20,
+        border: '1px solid rgba(154,5,38,0.10)',
+        boxShadow: '0 8px 30px -10px rgba(102,15,34,0.12)',
+        padding: 18,
+      }}
+    >
+      <CardHeader title="Condición Física" />
+
+      <div className="mt-3.5 flex items-center gap-3 flex-wrap">
+        <div className="relative shrink-0" style={{ width: gw, height: gh + 26 }}>
+          <svg width={gw} height={gh + 26}>
+            <path d={arc(startA, endA)} fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="11" strokeLinecap="round" />
+            {/* Segmented colored arc that fills up to current value (avoids stroke-gradient rendering bug) */}
+            {(() => {
+              const segs: { color: string; from: number; to: number }[] = [
+                { color: '#FF4040', from: 0,    to: 0.34 },
+                { color: '#F59E0B', from: 0.34, to: 0.67 },
+                { color: '#10B981', from: 0.67, to: 1.00 },
+              ];
+              const span = endA - startA;
+              return segs.map((seg, i) => {
+                const segEnd = Math.min(pct, seg.to);
+                if (segEnd <= seg.from) return null;
+                const a0 = startA + span * seg.from;
+                const a1 = startA + span * segEnd;
+                return (
+                  <path
+                    key={i}
+                    d={arc(a0, a1)}
+                    fill="none"
+                    stroke={seg.color}
+                    strokeWidth="11"
+                    strokeLinecap={i === 0 || segEnd === pct ? 'round' : 'butt'}
+                  />
+                );
+              });
+            })()}
+            <circle
+              cx={cxg + Math.cos(valueAngle) * gr}
+              cy={cyg + Math.sin(valueAngle) * gr}
+              r="5"
+              fill={KORE_CARDS.ivory}
+              stroke={STATE_COLOR_HEX[generalColor]}
+              strokeWidth="2"
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-end" style={{ paddingBottom: 4 }}>
+            <span className="text-[9px] font-bold uppercase" style={{ letterSpacing: '0.10em', color: 'rgba(51,51,51,0.5)' }}>Índice general</span>
+            <span className="font-heading font-bold leading-none mt-0.5" style={{ fontSize: 26, color: '#1a1410' }}>{general.toFixed(2)}</span>
+            <span
+              className="text-[9px] font-bold uppercase mt-1"
+              style={{ letterSpacing: '0.08em', color: STATE_TEXT_HEX[generalColor] }}
+            >
+              ● {latest.general_category || '—'}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <p className="text-[9px] font-bold uppercase" style={{ letterSpacing: '0.10em', color: 'rgba(51,51,51,0.55)' }}>Próximo paso</p>
+          <p className="text-[11px] mt-1.5 leading-snug italic" style={{ color: '#333' }}>
+            {latest.notes
+              ? `“${latest.notes.length > 80 ? latest.notes.slice(0, 80) + '…' : latest.notes}”`
+              : 'Tu trainer ajusta el plan según estos resultados.'}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 pt-3" style={{ borderTop: '1px solid rgba(102,15,34,0.08)' }}>
+        {rows.map((row, idx) => <IndicatorRow key={idx} {...row} last={idx === rows.length - 1} />)}
+      </div>
+    </Link>
+  );
+}
+
+/* ── Mini card: Mood 1–10 scale (matches profile) ───────────────────────── */
+const MOOD_LABELS_DASH = [
+  'Muy bajo', 'Bajo', 'Apagado', 'Cansado', 'Estable',
+  'Bien', 'Activo', 'Energético', 'Pleno', 'Imparable',
+];
+
+function MoodMiniCard({ todayMood }: { todayMood: import('@/lib/stores/profileStore').TodayMood | null }) {
+  const { submitMood } = useProfileStore();
+  const initial = todayMood?.score ?? null;
+  const [mood, setMood] = useState<number | null>(initial);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    setMood(todayMood?.score ?? null);
+  }, [todayMood?.score]);
+
+  const handlePick = async (n: number) => {
+    setMood(n);
+    setSubmitting(true);
+    try {
+      await submitMood(n);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        background: KORE_CARDS.cream,
+        borderRadius: 16,
+        border: '1px solid rgba(154,5,38,0.08)',
+        padding: 18,
+        boxShadow: '0 4px 16px -10px rgba(102,15,34,0.10)',
+      }}
+    >
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-[10px] font-bold uppercase" style={{ letterSpacing: '0.18em', color: KORE_CARDS.wineDark }}>
+          ¿Cómo te sientes hoy?
+        </p>
+        <span className="text-[9px] italic" style={{ color: 'rgba(51,51,51,0.45)' }}>
+          {mood ? '✓ registrado' : 'sin registrar'}
+        </span>
+      </div>
+      <p className="text-[11px] mt-1.5 leading-[1.5]" style={{ color: 'rgba(51,51,51,0.55)' }}>
+        Del 1 al 10 — tu bienestar es parte del proceso.
+      </p>
+      <div className="grid grid-cols-10 gap-1 mt-3">
+        {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
+          const sel = mood === n;
+          const intensity = n / 10;
+          return (
+            <button
+              key={n}
+              type="button"
+              disabled={submitting}
+              onClick={() => handlePick(n)}
+              className="font-heading font-bold transition-all active:scale-95 disabled:opacity-60"
+              style={{
+                aspectRatio: '1',
+                borderRadius: 7,
+                border: sel ? `2px solid ${KORE_CARDS.crimson}` : '1px solid rgba(103,15,34,0.12)',
+                background: sel
+                  ? `linear-gradient(135deg, rgba(244,199,199,${0.25 + intensity * 0.5}), rgba(231,200,160,${0.18 + intensity * 0.4}))`
+                  : `rgba(255,248,236,${0.4 + intensity * 0.35})`,
+                fontSize: 11,
+                color: sel ? KORE_CARDS.wineDark : 'rgba(103,15,34,0.55)',
+                cursor: submitting ? 'not-allowed' : 'pointer',
+                boxShadow: sel ? '0 4px 10px -4px rgba(154,5,38,0.30)' : 'none',
+              }}
+            >
+              {n}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-center italic mt-2.5 text-[10px]" style={{ color: 'rgba(103,15,34,0.55)' }}>
+        {mood ? `${MOOD_LABELS_DASH[mood - 1]} · Registrado para hoy` : 'Toca un número para registrar.'}
+      </p>
+    </div>
+  );
+}
+
+/* ── Mini card: Motivación quote with sakura petal ────────────────────────── */
+function MotivacionMiniCard({ message }: { message?: string }) {
+  return (
+    <div
+      className="relative overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, #FFF8EC 0%, #F5EFE3 100%)',
+        borderRadius: 16,
+        border: '1px solid rgba(154,5,38,0.10)',
+        padding: 22,
+      }}
+    >
+      <svg
+        className="absolute pointer-events-none"
+        style={{ top: -8, right: -8, width: 60, height: 60, opacity: 0.18, transform: 'rotate(20deg)' }}
+        viewBox="0 0 24 24"
+        fill="none"
+      >
+        <path
+          d="M12 2C13 7 17 8 22 7C18 11 18 14 22 18C17 17 13 19 12 23C11 19 7 17 2 18C6 14 6 11 2 7C7 8 11 7 12 2Z"
+          fill={KORE_CARDS.crimson}
+        />
+      </svg>
+      <span
+        className="absolute font-heading"
+        style={{ top: 4, left: 16, fontSize: 56, color: 'rgba(154,5,38,0.12)', lineHeight: 1, fontWeight: 700 }}
+      >
+        “
+      </span>
+      <div className="relative">
+        <p className="text-[9px] font-bold uppercase" style={{ letterSpacing: '0.18em', color: 'rgba(102,15,34,0.55)' }}>
+          Tu motivación de hoy
+        </p>
+        <p
+          className="font-heading mt-3.5 italic"
+          style={{
+            fontSize: 16, fontWeight: 600,
+            color: KORE_CARDS.wineDark,
+            lineHeight: 1.4,
+            paddingLeft: 12,
+          }}
+        >
+          {message ?? 'Cada día que entrenas, construyes la mejor versión de ti.'}
+        </p>
+        <div
+          className="flex justify-between items-center mt-3 pt-2.5"
+          style={{ borderTop: '1px dashed rgba(102,15,34,0.18)' }}
+        >
+          <span className="text-[10px] italic" style={{ color: 'rgba(51,51,51,0.50)' }}>— Personalizado según tu progreso</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Mini card: PAR-Q+ stamp + dots progress ──────────────────────────────── */
+function ParqMiniCard({ latest }: { latest: import('@/lib/stores/parqStore').ParqAssessment }) {
+  const { yes_count, risk_color } = latest;
+  const totalQ = 7;
+  const stampColor = STATE_COLOR_HEX[risk_color] || KORE_CARDS.amber;
+  const stampTextColor = STATE_TEXT_HEX[risk_color] || KORE_CARDS.amberDark;
+  const dots = Array.from({ length: totalQ }, (_, i) => i < yes_count);
+
+  // Compute "Vigente hasta" = created_at + 90 days
+  const validUntil = (() => {
+    const d = new Date(latest.created_at);
+    d.setDate(d.getDate() + 90);
+    return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
+  })();
+
+  return (
+    <Link
+      href="/my-parq"
+      className="block group"
+      style={{
+        background: KORE_CARDS.cream,
+        borderRadius: 16,
+        border: '1px solid rgba(154,5,38,0.10)',
+        padding: 18,
+        boxShadow: '0 4px 16px -10px rgba(102,15,34,0.10)',
+      }}
+    >
+      <div className="flex items-center justify-between">
+        <div className="font-heading" style={{ fontSize: 15, fontWeight: 600, letterSpacing: '0.04em', color: KORE_CARDS.wineDark }}>
+          PAR-Q<span className="text-[11px]">+</span>
+        </div>
+        <span className="text-[11px]" style={{ color: 'rgba(51,51,51,0.4)' }}>›</span>
+      </div>
+      <div className="mt-3.5 flex items-center gap-3.5">
+        <div
+          className="shrink-0 text-center font-heading uppercase"
+          style={{
+            padding: '8px 12px',
+            border: `2px solid ${stampColor}`,
+            borderRadius: 6,
+            color: stampTextColor,
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: '0.14em',
+            background: `${stampColor}1A`,
+            lineHeight: 1.2,
+            transform: 'rotate(-3deg)',
+          }}
+        >
+          {risk_color === 'green' ? 'Apto' : risk_color === 'yellow' ? <>Apto<br/>con precaución</> : <>Requiere<br/>valoración</>}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[9px] font-bold uppercase" style={{ letterSpacing: '0.10em', color: 'rgba(51,51,51,0.55)' }}>Respuestas afirmativas</p>
+          <div className="flex items-baseline gap-1.5 mt-0.5">
+            <span className="font-heading font-bold leading-none" style={{ fontSize: 22, color: stampTextColor }}>{yes_count}</span>
+            <span className="text-[10px]" style={{ color: 'rgba(51,51,51,0.5)' }}>/ {totalQ}</span>
+          </div>
+          <div className="flex gap-1 mt-2">
+            {dots.map((on, i) => (
+              <span
+                key={i}
+                className="flex-1"
+                style={{
+                  height: 5, borderRadius: 2.5,
+                  background: on ? `linear-gradient(90deg, ${stampColor}, ${stampTextColor})` : 'rgba(102,15,34,0.10)',
+                }}
+              />
+            ))}
+          </div>
+          <p className="text-[10px] mt-2" style={{ color: 'rgba(51,51,51,0.55)' }}>
+            Vigente hasta <strong style={{ color: KORE_CARDS.wineDark }}>{validUntil}</strong>
+          </p>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+/* ── Mobile combined wellness card (Mood + Motivación + PAR-Q+) ─────────── */
+function MobileWellnessCard({
+  todayMood,
+  motivationMessage,
+  parqAssessment,
+}: {
+  todayMood: import('@/lib/stores/profileStore').TodayMood | null;
+  motivationMessage?: string;
+  parqAssessment: import('@/lib/stores/parqStore').ParqAssessment | null;
+}) {
+  const { submitMood } = useProfileStore();
+  const initial = todayMood?.score ?? null;
+  const [mood, setMood] = useState<number | null>(initial);
+  const [submitting, setSubmitting] = useState(false);
+  const [showSelector, setShowSelector] = useState(initial === null);
+
+  useEffect(() => {
+    setMood(todayMood?.score ?? null);
+    setShowSelector(todayMood?.score == null);
+  }, [todayMood?.score]);
+
+  const handlePick = async (n: number) => {
+    setMood(n);
+    setSubmitting(true);
+    try {
+      await submitMood(n);
+      setShowSelector(false);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const parqDisplay = parqAssessment
+    ? (() => {
+        const stampColor = STATE_COLOR_HEX[parqAssessment.risk_color] || KORE_CARDS.amber;
+        const stampTextColor = STATE_TEXT_HEX[parqAssessment.risk_color] || KORE_CARDS.amberDark;
+        const d = new Date(parqAssessment.created_at);
+        d.setDate(d.getDate() + 90);
+        const validUntil = d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+        return { stampColor, stampTextColor, validUntil };
+      })()
+    : null;
+
+  return (
+    <div
+      style={{
+        background: KORE_CARDS.cream,
+        borderRadius: 16,
+        border: '1px solid rgba(154,5,38,0.10)',
+        padding: 18,
+        boxShadow: '0 4px 16px -10px rgba(102,15,34,0.10)',
+      }}
+    >
+      {/* Sección 1 — Ánimo */}
+      <div>
+        <div className="flex items-baseline justify-between gap-2 mb-2.5">
+          <p className="text-[9.5px] font-bold uppercase" style={{ letterSpacing: '0.16em', color: KORE_CARDS.wineDark }}>
+            Tu ánimo hoy
+          </p>
+          <span className="text-[9px] italic" style={{ color: 'rgba(51,51,51,0.45)' }}>
+            {mood ? '✓ registrado' : 'sin registrar'}
+          </span>
+        </div>
+        {!showSelector && mood !== null ? (
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-baseline gap-1.5 min-w-0">
+              <span
+                className="font-heading font-bold tabular-nums leading-none"
+                style={{ fontSize: 22, color: KORE_CARDS.wineDark }}
+              >
+                {mood}
+              </span>
+              <span className="text-[10px]" style={{ color: 'rgba(51,51,51,0.45)' }}>/10</span>
+              <span
+                className="text-[12px] truncate"
+                style={{ color: 'rgba(51,51,51,0.7)', marginLeft: 4 }}
+              >
+                · {MOOD_LABELS_DASH[mood - 1]}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowSelector(true)}
+              className="text-[10.5px] font-semibold uppercase tracking-[0.1em] active:scale-[0.97] transition-transform shrink-0"
+              style={{ color: 'rgba(102,15,34,0.6)' }}
+            >
+              Cambiar
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-10 gap-1">
+            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
+              const sel = mood === n;
+              const intensity = n / 10;
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => handlePick(n)}
+                  className="font-heading font-bold transition-all active:scale-95 disabled:opacity-60"
+                  style={{
+                    aspectRatio: '1',
+                    borderRadius: 6,
+                    border: sel ? `2px solid ${KORE_CARDS.crimson}` : '1px solid rgba(103,15,34,0.12)',
+                    background: sel
+                      ? `linear-gradient(135deg, rgba(244,199,199,${0.25 + intensity * 0.5}), rgba(231,200,160,${0.18 + intensity * 0.4}))`
+                      : `rgba(255,248,236,${0.4 + intensity * 0.35})`,
+                    fontSize: 10.5,
+                    color: sel ? KORE_CARDS.wineDark : 'rgba(103,15,34,0.55)',
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                    boxShadow: sel ? '0 3px 8px -4px rgba(154,5,38,0.30)' : 'none',
+                  }}
+                >
+                  {n}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div style={{ borderTop: '1px solid rgba(102,15,34,0.06)', marginTop: 14, marginBottom: 14 }} />
+
+      {/* Sección 2 — Motivación */}
+      <div className="relative">
+        <p
+          className="text-[9.5px] font-bold uppercase mb-2"
+          style={{ letterSpacing: '0.16em', color: KORE_CARDS.wineDark }}
+        >
+          Tu motivación
+        </p>
+        <svg
+          className="absolute pointer-events-none"
+          style={{ top: -4, right: -4, width: 40, height: 40, opacity: 0.15, transform: 'rotate(20deg)' }}
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden
+        >
+          <path
+            d="M12 2C13 7 17 8 22 7C18 11 18 14 22 18C17 17 13 19 12 23C11 19 7 17 2 18C6 14 6 11 2 7C7 8 11 7 12 2Z"
+            fill={KORE_CARDS.crimson}
+          />
+        </svg>
+        <p
+          className="font-heading italic line-clamp-2 leading-snug pr-8"
+          style={{ fontSize: 14, fontWeight: 600, color: KORE_CARDS.wineDark }}
+        >
+          {motivationMessage ?? 'Cada día que entrenas, construyes la mejor versión de ti.'}
+        </p>
+      </div>
+
+      {/* Sección 3 — PAR-Q+ */}
+      {parqAssessment && parqDisplay && (
+        <>
+          <div style={{ borderTop: '1px solid rgba(102,15,34,0.06)', marginTop: 14, marginBottom: 14 }} />
+          <Link href="/my-parq" className="block group">
+            <div className="flex items-baseline justify-between gap-2 mb-2">
+              <p
+                className="text-[9.5px] font-bold uppercase"
+                style={{ letterSpacing: '0.16em', color: KORE_CARDS.wineDark }}
+              >
+                PAR-Q<span style={{ fontSize: 9 }}>+</span>
+              </p>
+              <span className="text-[11px]" style={{ color: 'rgba(51,51,51,0.4)' }}>›</span>
+            </div>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span
+                className="text-[10.5px] font-bold uppercase whitespace-nowrap"
+                style={{
+                  padding: '4px 9px',
+                  borderRadius: 999,
+                  letterSpacing: '0.08em',
+                  background: `${parqDisplay.stampColor}1A`,
+                  border: `1px solid ${parqDisplay.stampColor}55`,
+                  color: parqDisplay.stampTextColor,
+                }}
+              >
+                {parqAssessment.risk_label}
+              </span>
+              <span className="text-[11px] tabular-nums" style={{ color: 'rgba(51,51,51,0.6)' }}>
+                <strong style={{ color: parqDisplay.stampTextColor }}>{parqAssessment.yes_count}</strong>
+                <span style={{ color: 'rgba(51,51,51,0.4)' }}>/7</span>
+              </span>
+              <span className="text-[10.5px]" style={{ color: 'rgba(51,51,51,0.5)' }}>
+                Vigente hasta <strong style={{ color: KORE_CARDS.wineDark }}>{parqDisplay.validUntil}</strong>
+              </span>
+            </div>
+          </Link>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ── Card chrome ────────────────────────────────────────────────────────── */
+function CardHeader({ title }: { title: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span
+        className="font-heading uppercase"
+        style={{ fontSize: 15, fontWeight: 600, letterSpacing: '0.04em', color: KORE_CARDS.wineDark }}
+      >
+        {title}
+      </span>
+      <span className="text-[11px] flex items-center gap-1.5" style={{ color: 'rgba(51,51,51,0.45)' }}>
+        Ver detalle<span className="text-[14px]">›</span>
+      </span>
+    </div>
+  );
+}
+
+function IndicatorRow({
+  label, state, color, last,
+}: { label: string; state: string; color: string; last?: boolean }) {
+  const dotColor = STATE_COLOR_HEX[color] || KORE_CARDS.emerald;
+  const textColor = STATE_TEXT_HEX[color] || KORE_CARDS.emeraldDark;
+  return (
+    <div
+      className="flex items-center justify-between gap-2"
+      style={{
+        padding: '8px 0',
+        borderBottom: last ? 'none' : '1px solid rgba(102,15,34,0.06)',
+      }}
+    >
+      <div className="flex items-center gap-2.5 min-w-0">
+        <span className="shrink-0" style={{ width: 8, height: 8, borderRadius: 4, background: dotColor }} />
+        <span className="text-[12.5px] font-medium truncate" style={{ color: '#333' }}>{label}</span>
+      </div>
+      <span className="text-[11.5px] font-bold tabular-nums shrink-0" style={{ color: textColor }}>
+        {state}{' '}
+        <span className="font-normal" style={{ color: 'rgba(51,51,51,0.3)' }}>›</span>
+      </span>
+    </div>
+  );
+}
+
+/* ── SessionCard (mobile + desktop) — accordion mobile con GSAP ─────────── */
+type SessionCardProps = {
+  className?: string;
+  mobile?: boolean;
+  formattedDate: string | null;
+  formattedTime: string;
+  sessionInDays: number | null;
+  trainerName: string | null;
+  sessionObjective?: string;
+  expanded?: boolean;
+  onToggle?: () => void;
+};
+
+function SessionCard({
+  className = '',
+  mobile = false,
+  formattedDate,
+  formattedTime,
+  sessionInDays,
+  trainerName,
+  sessionObjective,
+  expanded = false,
+  onToggle,
+}: SessionCardProps) {
+  const accordionRef = useRef<HTMLDivElement>(null);
+  const firstMount = useRef(true);
+
+  useEffect(() => {
+    if (!mobile || !accordionRef.current) return;
+    const el = accordionRef.current;
+
+    if (firstMount.current) {
+      firstMount.current = false;
+      gsap.set(el, expanded
+        ? { height: 'auto', opacity: 1, display: 'block' }
+        : { height: 0, opacity: 0, display: 'none', overflow: 'hidden' });
+      return;
+    }
+
+    if (expanded) {
+      gsap.set(el, { display: 'block', overflow: 'hidden' });
+      gsap.fromTo(
+        el,
+        { height: 0, opacity: 0 },
+        { height: 'auto', opacity: 1, duration: 0.4, ease: 'power3.out' },
+      );
+    } else {
+      gsap.to(el, {
+        height: 0,
+        opacity: 0,
+        duration: 0.28,
+        ease: 'power2.in',
+        onComplete: () => {
+          if (accordionRef.current) gsap.set(accordionRef.current, { display: 'none' });
+        },
+      });
+    }
+  }, [expanded, mobile]);
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-[22px] text-white flex flex-col ${mobile ? 'p-4' : 'p-5'} ${className}`}
+      style={{
+        background: 'linear-gradient(135deg, #670F22 0%, #9A0526 55%, #AB0D2F 100%)',
+        boxShadow: '0 14px 36px -14px rgba(103,15,34,0.55)',
+      }}
+    >
+      <style>{`
+        @keyframes session-orb-a{0%,100%{transform:translate(0,0)}50%{transform:translate(36px,-26px)}}
+        @keyframes session-orb-b{0%,100%{transform:translate(0,0)}50%{transform:translate(-30px,28px)}}
+      `}</style>
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          top: '-12%', right: '-8%', width: 220, height: 220, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(96,165,250,0.45) 0%, transparent 70%)',
+          filter: 'blur(48px)', animation: 'session-orb-a 11s ease-in-out infinite',
+        }}
+      />
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          bottom: '-15%', left: '-6%', width: 180, height: 180, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(30,64,175,0.42) 0%, transparent 70%)',
+          filter: 'blur(50px)', animation: 'session-orb-b 13s ease-in-out infinite',
+        }}
+      />
+
+      {mobile ? (
+        <div className="relative flex flex-col">
+          <p className="text-[10px] text-white/55 uppercase tracking-[0.14em] font-semibold mb-2">
+            Próxima sesión
+          </p>
+          <p className="font-heading text-[20px] font-semibold text-white capitalize leading-tight mb-1">
+            {formattedDate ?? 'Sin sesión agendada'}
+          </p>
+          {formattedDate && (
+            <div className="flex items-center gap-2 text-[13px] text-white/85">
+              <span className="font-semibold tabular-nums">{formattedTime}</span>
+              {trainerName && (
+                <>
+                  <span className="w-1 h-1 rounded-full bg-white/45" aria-hidden />
+                  <span className="truncate">{trainerName}</span>
+                </>
+              )}
+            </div>
+          )}
+          {formattedDate && onToggle && (
+            <button
+              type="button"
+              onClick={onToggle}
+              className="mt-3 flex items-center justify-between w-full text-left text-[11px] text-white/60 font-semibold uppercase tracking-[0.1em] py-1.5 active:scale-[0.99] transition-transform"
+              aria-expanded={expanded}
+            >
+              <span>{expanded ? 'Ocultar detalle' : 'Ver detalle'}</span>
+              <ChevronDown
+                className={`w-4 h-4 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}
+                strokeWidth={2}
+              />
+            </button>
+          )}
+          {formattedDate && (
+            <div
+              ref={accordionRef}
+              style={{ display: 'none', height: 0, opacity: 0, overflow: 'hidden' }}
+            >
+              <div
+                className="mt-2 pt-3 space-y-2.5"
+                style={{ borderTop: '1px solid rgba(255,255,255,0.18)' }}
+              >
+                {sessionInDays !== null && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-white/55 uppercase tracking-[0.1em] font-semibold">Faltan</span>
+                    <span
+                      className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold text-white"
+                      style={{ background: 'rgba(255,255,255,0.15)' }}
+                    >
+                      {sessionInDays} {sessionInDays === 1 ? 'día' : 'días'}
+                    </span>
                   </div>
-                  <div>
-                    <p className={`text-[10px] md:text-xs font-medium ${CTQ[latest.risk_color] || CTQ.green}`}>{latest.risk_label}</p>
-                    <p className="text-[9px] md:text-xs text-kore-gray-dark/40">{latest.yes_count}/7 respuestas afirmativas</p>
-                  </div>
+                )}
+                <div>
+                  <p className="text-[10px] text-white/55 uppercase tracking-[0.1em] font-semibold mb-1">Objetivo</p>
+                  <p className="text-[12px] text-white/80 leading-relaxed">
+                    {sessionObjective ?? 'Continúa tu transformación'}
+                  </p>
                 </div>
-              </Link>
-            );
-          })()}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="relative flex flex-col flex-1">
+          <div className="flex items-start justify-between mb-3">
+            <p className="text-[10px] text-white/55 uppercase tracking-[0.14em] font-semibold">
+              Próxima sesión presencial
+            </p>
+            {sessionInDays !== null && (
+              <span
+                className="px-2.5 py-1 rounded-full text-[11px] font-semibold text-white"
+                style={{ background: 'rgba(255,255,255,0.15)' }}
+              >
+                en {sessionInDays}d
+              </span>
+            )}
+          </div>
+          <p className="font-heading text-[20px] xl:text-[28px] font-semibold text-white capitalize leading-tight mb-1">
+            {formattedDate ?? 'Sin sesión agendada'}
+          </p>
+          {formattedDate && (
+            <p className="text-[13px] xl:text-[14px] text-white/85 mb-3">
+              {formattedTime}
+            </p>
+          )}
+          {trainerName && (
+            <div className="py-3 my-1 flex-1" style={{ borderTop: '1px solid rgba(255,255,255,0.18)', borderBottom: '1px solid rgba(255,255,255,0.18)' }}>
+              <p className="text-[11px] text-white/55 font-semibold uppercase tracking-[0.1em] mb-1">Coach</p>
+              <p className="text-[14px] text-white font-semibold">{trainerName}</p>
+            </div>
+          )}
+          <p className="text-[12px] text-white/70 flex-1 mt-2 leading-relaxed">
+            {sessionObjective ?? 'Continúa tu transformación'}
+          </p>
         </div>
       )}
-
     </div>
   );
 }
@@ -536,6 +1286,10 @@ export default function DashboardPage() {
   const { entries: nutritionEntries, fetchMyEntries: fetchMyNutrition } = useNutritionStore();
   const { assessments: parqAssessments, fetchMyAssessments: fetchMyParq } = useParqStore();
   const profileFetchedRef = useRef(false);
+
+  // Mobile accordion states
+  const [sessionExpanded, setSessionExpanded] = useState(false);
+  const [progressExpanded, setProgressExpanded] = useState(false);
 
   useEffect(() => {
     fetchSubscriptions();
@@ -586,8 +1340,11 @@ export default function DashboardPage() {
 
   // ── Nutrition ──────────────────────────────────────────────
   const mealLabels: Record<string, string> = {
-    breakfast: 'Desayuno', lunch: 'Almuerzo', dinner: 'Cena',
-    snack: 'Merienda', snack2: 'Merienda 2',
+    desayuno: 'Desayuno',
+    media_manana: 'Media mañana',
+    almuerzo: 'Almuerzo',
+    merienda: 'Merienda',
+    cena: 'Cena',
   };
   const mealEntries = nutritionTodayLog?.meal_entries ?? [];
   const nutritionTotal = mealEntries.length;
@@ -668,46 +1425,6 @@ export default function DashboardPage() {
     );
   }
 
-  // ── Shared session card content ────────────────────────────
-  const SessionCard = ({ className = '' }: { className?: string }) => (
-    <div
-      className={`rounded-[22px] p-5 text-white flex flex-col ${className}`}
-      style={{ background: 'linear-gradient(135deg, #9A0526 0%, #AB0D2F 100%)' }}
-    >
-      <div className="flex items-start justify-between mb-3">
-        <p className="text-[10px] text-white/55 uppercase tracking-[0.14em] font-semibold">
-          Próxima sesión presencial
-        </p>
-        {sessionInDays !== null && (
-          <span
-            className="px-2.5 py-1 rounded-full text-[11px] font-semibold text-white"
-            style={{ background: 'rgba(255,255,255,0.15)' }}
-          >
-            en {sessionInDays}d
-          </span>
-        )}
-      </div>
-      <p className="font-heading text-[20px] xl:text-[28px] font-semibold text-white capitalize leading-tight mb-1">
-        {formattedDate ?? 'Sin sesión agendada'}
-      </p>
-      {formattedDate && (
-        <p className="text-[13px] xl:text-[14px] text-white/85 mb-3">
-          {formattedTime}{trainerName ? ` · con ${trainerName.split(' ')[0]}` : ''}
-        </p>
-      )}
-      {trainerName && (
-        <div className="py-3 my-1 flex-1" style={{ borderTop: '1px solid rgba(255,255,255,0.18)', borderBottom: '1px solid rgba(255,255,255,0.18)' }}>
-          <p className="text-[11px] text-white/55 font-semibold uppercase tracking-[0.1em] mb-1">Coach</p>
-          <p className="text-[14px] text-white font-semibold">{trainerName}</p>
-        </div>
-      )}
-      <p className="text-[12px] text-white/70 flex-1 mt-2 leading-relaxed">
-        {upcomingReminder?.session_objective ?? 'Continúa tu transformación'}
-      </p>
-    </div>
-  );
-
-
   return (
     <section className="min-h-screen bg-kore-cream relative overflow-hidden">
       <div className="absolute top-0 right-0 w-64 h-64 opacity-[0.03] pointer-events-none lg:w-96 lg:h-96">
@@ -719,68 +1436,74 @@ export default function DashboardPage() {
       <SubscriptionDashboardToast />
 
       {/* ════════════════ MOBILE LAYOUT ════════════════ */}
-      <div className="xl:hidden px-5 pt-20 pb-24 space-y-3.5">
+      <div className="xl:hidden px-5 pt-6 pb-24 space-y-3.5">
 
-        {/* Header */}
-        <div>
-          <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-kore-gray-dark/40 mb-1.5">
-            Tu espacio
-          </p>
-          <h1 className="font-heading text-[22px] font-semibold text-kore-wine-dark leading-tight">
-            {getGreeting()},<br />{user.name.split(' ')[0]}.
-          </h1>
-        </div>
+        {/* Header — 2 columnas: saludo + stack de badges */}
+        <div className="grid grid-cols-[1fr_auto] gap-3 items-stretch">
+          <div className="min-w-0">
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-kore-gray-dark/40 mb-1.5">
+              Tu espacio
+            </p>
+            <h1 className="font-heading text-[22px] font-semibold text-kore-wine-dark leading-tight">
+              {getGreeting()},<br />{user.name.split(' ')[0]}.
+            </h1>
+          </div>
 
-        {/* Streak strip */}
-        <div className="flex items-stretch gap-2">
-          <div
-            className="flex-1 rounded-2xl px-3.5 py-2.5"
-            style={{ background: 'rgba(255,255,255,0.55)', border: '1px solid rgba(229,229,229,0.5)' }}
-          >
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-2">
-                <Flame className="w-[18px] h-[18px] text-kore-red" strokeWidth={2} />
-                <span className="text-[13px] font-semibold text-kore-gray-dark">
-                  {streakCount} <span className="font-normal text-kore-gray-dark/55">días seguidos</span>
+          <div className="flex flex-col gap-1.5 w-[150px]">
+            {/* Fila 1 — Racha */}
+            <div
+              className="rounded-2xl px-2.5 py-1.5"
+              style={{ background: 'rgba(255,255,255,0.55)', border: '1px solid rgba(229,229,229,0.5)' }}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Flame className="w-[14px] h-[14px] text-kore-red shrink-0" strokeWidth={2} />
+                  <span className="text-[11.5px] font-semibold text-kore-gray-dark truncate">
+                    {streakCount} <span className="font-normal text-kore-gray-dark/55">días</span>
+                  </span>
+                </div>
+                <span className="text-[9px] text-kore-gray-dark/45 tabular-nums font-semibold">
+                  {streakCount}/{longestStreak || '—'}
                 </span>
               </div>
-              <span className="text-[10px] text-kore-gray-dark/45 tabular-nums font-semibold">
-                {streakCount}/{longestStreak || '—'}
-              </span>
+              <div className="h-[3px] bg-kore-gray-dark/[0.08] rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${longestStreak > 0 ? Math.min((streakCount / longestStreak) * 100, 100) : 0}%`,
+                    background: 'linear-gradient(to right, #E00000, #9A0526)',
+                  }}
+                />
+              </div>
             </div>
-            <div className="h-1 bg-kore-gray-dark/[0.08] rounded-full overflow-hidden">
+
+            {/* Fila 2 — Récord + KÓRE */}
+            <div className="flex gap-1.5">
               <div
-                className="h-full rounded-full transition-all duration-700"
-                style={{
-                  width: `${longestStreak > 0 ? Math.min((streakCount / longestStreak) * 100, 100) : 0}%`,
-                  background: 'linear-gradient(to right, #E00000, #9A0526)',
-                }}
-              />
+                className="flex-1 flex items-center justify-center gap-1 rounded-2xl px-2 py-1.5"
+                style={{ background: 'rgba(255,255,255,0.55)', border: '1px solid rgba(229,229,229,0.5)' }}
+                aria-label="Récord de racha"
+              >
+                <Trophy className="w-[13px] h-[13px] text-amber-500" strokeWidth={2} />
+                <span className="text-[12.5px] font-bold text-kore-gray-dark tabular-nums">
+                  {longestStreak || '—'}
+                </span>
+              </div>
+              {koreIndex?.kore_score !== null && koreIndex?.kore_score !== undefined && (
+                <Link
+                  href="/my-diagnosis"
+                  className="flex-1 flex items-center justify-center gap-1 rounded-2xl px-2 py-1.5 hover:bg-white/70 transition-colors active:scale-95"
+                  style={{ background: 'rgba(255,255,255,0.55)', border: '1px solid rgba(229,229,229,0.5)' }}
+                  aria-label="Tu calificación KÓRE"
+                >
+                  <span className="text-[8.5px] font-semibold uppercase tracking-[0.1em] text-kore-gray-dark/55">KÓRE</span>
+                  <span className={`text-[12.5px] font-bold tabular-nums ${scoreColorClass}`}>
+                    {koreIndex.kore_score}
+                  </span>
+                </Link>
+              )}
             </div>
           </div>
-          <div
-            className="flex items-center gap-1.5 rounded-2xl px-3 shrink-0"
-            style={{ background: 'rgba(255,255,255,0.55)', border: '1px solid rgba(229,229,229,0.5)' }}
-            aria-label="Récord de racha"
-          >
-            <Trophy className="w-4 h-4 text-amber-500" strokeWidth={2} />
-            <span className="text-[14px] font-bold text-kore-gray-dark tabular-nums">
-              {longestStreak || '—'}
-            </span>
-          </div>
-          {koreIndex?.kore_score !== null && koreIndex?.kore_score !== undefined && (
-            <Link
-              href="/my-diagnosis"
-              className="flex items-center gap-1.5 rounded-2xl px-3 shrink-0 hover:bg-white/70 transition-colors active:scale-95"
-              style={{ background: 'rgba(255,255,255,0.55)', border: '1px solid rgba(229,229,229,0.5)' }}
-              aria-label="Tu calificación KÓRE"
-            >
-              <span className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-kore-gray-dark/55">KÓRE</span>
-              <span className={`text-[14px] font-bold tabular-nums ${scoreColorClass}`}>
-                {koreIndex.kore_score}
-              </span>
-            </Link>
-          )}
         </div>
 
         <TrainerMessageBanner />
@@ -789,24 +1512,16 @@ export default function DashboardPage() {
         {hasRoutine ? (
           <AnimatedHero>
             <div className="block p-5">
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <p className="text-[10px] text-white/40 uppercase tracking-[0.14em] font-semibold mb-1.5">
-                    {dayLabel} · Día {todayProgDay?.day_number}
-                  </p>
-                  <p className="font-heading text-[26px] font-semibold text-white leading-tight">
-                    ¿Listo para entrenar?
-                  </p>
-                  <p className="text-[13px] text-white/65 mt-1">
-                    {exerciseCount} ejercicios · ~{estimatedMin} min
-                  </p>
-                </div>
-                <div
-                  className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ background: '#E00000', boxShadow: '0 4px 14px rgba(224,0,0,0.5)' }}
-                >
-                  <Play className="w-[18px] h-[18px] text-white ml-0.5" fill="white" strokeWidth={0} />
-                </div>
+              <div className="mb-3">
+                <p className="text-[10px] uppercase tracking-[0.18em] font-semibold mb-1.5" style={{ color: '#E7C8A0' }}>
+                  {dayLabel} · Día {todayProgDay?.day_number}
+                </p>
+                <p className="font-heading text-[26px] font-semibold leading-tight" style={{ color: '#FFF8EC', letterSpacing: '-0.01em' }}>
+                  ¿Listo para entrenar?
+                </p>
+                <p className="text-[13px] mt-1" style={{ color: '#FFE9DC', opacity: 0.75 }}>
+                  {exerciseCount} ejercicios · ~{estimatedMin} min
+                </p>
               </div>
               <div className="border-t border-white/10 pt-3.5 space-y-0">
                 {previewExercises.map((ex, i) => (
@@ -886,6 +1601,23 @@ export default function DashboardPage() {
           </AnimatedHero>
         )}
 
+        {/* Next session */}
+        {!isGuestDashboard && (
+          <SessionCard
+            mobile
+            formattedDate={formattedDate}
+            formattedTime={formattedTime}
+            sessionInDays={sessionInDays}
+            trainerName={trainerName}
+            sessionObjective={upcomingReminder?.session_objective}
+            expanded={sessionExpanded}
+            onToggle={() => setSessionExpanded((v) => !v)}
+          />
+        )}
+
+        {/* Mi progreso + Resumen mensual */}
+        <ProgressTabsCard mobileExpanded={progressExpanded} onToggleMobile={() => setProgressExpanded((v) => !v)} />
+
         {/* Evaluation cards */}
         <RealEvalGrid
           posturoEvals={posturoEvals}
@@ -895,13 +1627,8 @@ export default function DashboardPage() {
           todayMood={todayMood}
           motivationMessage={koreIndex?.kore_message}
           gridClass="grid-cols-2"
+          mobile
         />
-
-        {/* Next session */}
-        {!isGuestDashboard && <SessionCard />}
-
-        {/* Mi progreso + Resumen mensual */}
-        <ProgressTabsCard />
       </div>
 
       {/* ════════════════ DESKTOP LAYOUT ════════════════ */}
@@ -979,16 +1706,16 @@ export default function DashboardPage() {
               {hasRoutine ? (
                 <div className="grid gap-7 p-8" style={{ gridTemplateColumns: '1fr 300px' }}>
                   <div>
-                    <p className="text-[10px] text-white/40 uppercase tracking-[0.14em] font-semibold mb-3">
+                    <p className="text-[10px] uppercase tracking-[0.18em] font-semibold mb-3" style={{ color: '#E7C8A0' }}>
                       {dayLabel} · Día {todayProgDay?.day_number}
                     </p>
                     <h2
-                      className="font-heading text-[42px] font-bold text-white mb-2.5"
-                      style={{ lineHeight: 1.05 }}
+                      className="font-heading text-[42px] font-semibold mb-2.5"
+                      style={{ color: '#FFF8EC', lineHeight: 1.05, letterSpacing: '-0.015em' }}
                     >
                       ¿Listo para<br />entrenar?
                     </h2>
-                    <p className="text-[14px] text-white/65 mb-6">
+                    <p className="text-[14px] mb-6" style={{ color: '#FFE9DC', opacity: 0.8 }}>
                       {exerciseCount} ejercicios · ~{estimatedMin} min
                     </p>
                     <div className="flex gap-2.5">
@@ -1056,11 +1783,11 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="p-8">
-                  <p className="text-[10px] text-white/40 uppercase tracking-[0.14em] font-semibold mb-3">Hoy</p>
-                  <h2 className="font-heading text-[42px] font-bold text-white" style={{ lineHeight: 1.05 }}>
+                  <p className="text-[10px] uppercase tracking-[0.18em] font-semibold mb-3" style={{ color: '#E7C8A0' }}>Hoy</p>
+                  <h2 className="font-heading text-[42px] font-semibold" style={{ color: '#FFF8EC', lineHeight: 1.05, letterSpacing: '-0.015em' }}>
                     Día de descanso
                   </h2>
-                  <p className="text-[14px] text-white/55 mt-2">Descansa, hidrátate y prepárate para mañana.</p>
+                  <p className="text-[14px] mt-2" style={{ color: '#FFE9DC', opacity: 0.7 }}>Descansa, hidrátate y prepárate para mañana.</p>
                 </div>
               )}
             </AnimatedHero>
@@ -1068,7 +1795,14 @@ export default function DashboardPage() {
 
           <div className="col-span-4">
             {!isGuestDashboard ? (
-              <SessionCard className="h-full" />
+              <SessionCard
+                className="h-full"
+                formattedDate={formattedDate}
+                formattedTime={formattedTime}
+                sessionInDays={sessionInDays}
+                trainerName={trainerName}
+                sessionObjective={upcomingReminder?.session_objective}
+              />
             ) : (
               <div className="rounded-[22px] p-6 bg-white/70 border border-white/60 h-full flex items-center justify-center text-center">
                 <p className="text-sm text-kore-gray-dark/40">Modo invitado activo</p>

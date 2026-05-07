@@ -80,6 +80,7 @@ def get_weekly_summary(user, week_number: int | None = None) -> dict:
         days_data.append({
             'date': pd.date.isoformat(),
             'day_type': pd.day_type,
+            'planned_count': len(pd.exercises.all()),
             'exercise_logs': list(dl.exercise_logs.all()) if dl else [],
             'meal_entries': list(nl.meal_entries.all()) if nl else [],
         })
@@ -112,15 +113,18 @@ def get_weekly_summary(user, week_number: int | None = None) -> dict:
         nl = all_nutrition_logs.get(pd.date)
         ex_logs = list(dl.exercise_logs.all()) if dl else []
         meal_entries = list(nl.meal_entries.all()) if nl else []
-        training = compute_training_adherence(ex_logs, pd.day_type)
+        training = compute_training_adherence(ex_logs, pd.day_type, len(pd.exercises.all()))
         nutrition = compute_nutrition_adherence(meal_entries)
         combined = compute_combined_adherence(training, nutrition)
         streak_data.append((pd.date, combined))
 
     streak = compute_streak(streak_data)
+
+    today_iso = today.isoformat()
+    elapsed_days = [d for d in day_adherences if d.date <= today_iso]
     week_avg = round(
-        sum(d.combined_adherence for d in day_adherences) / len(day_adherences), 4
-    ) if day_adherences else 0.0
+        sum(d.combined_adherence for d in elapsed_days) / len(elapsed_days), 4
+    ) if elapsed_days else 0.0
 
     return {
         'week_number': week_number,
@@ -128,6 +132,7 @@ def get_weekly_summary(user, week_number: int | None = None) -> dict:
             {
                 'date': d.date,
                 'day_type': d.day_type,
+                'is_future': d.date > today_iso,
                 'training_adherence': d.training_adherence,
                 'nutrition_adherence': d.nutrition_adherence,
                 'combined_adherence': d.combined_adherence,
@@ -182,7 +187,7 @@ def get_projection(user) -> dict | None:
         nl = nutrition_logs_map.get(pd.date)
         ex_logs = list(dl.exercise_logs.all()) if dl else []
         meal_entries = list(nl.meal_entries.all()) if nl else []
-        training = compute_training_adherence(ex_logs, pd.day_type)
+        training = compute_training_adherence(ex_logs, pd.day_type, len(pd.exercises.all()))
         nutrition = compute_nutrition_adherence(meal_entries)
         daily_adherences.append(compute_combined_adherence(training, nutrition))
 
@@ -253,7 +258,7 @@ def get_monthly_summary(user, program_id: int | None = None) -> dict | None:
         nl = nutrition_logs_map.get(pd.date)
         ex_logs = list(dl.exercise_logs.all()) if dl else []
         meal_entries = list(nl.meal_entries.all()) if nl else []
-        training_total += compute_training_adherence(ex_logs, pd.day_type)
+        training_total += compute_training_adherence(ex_logs, pd.day_type, len(pd.exercises.all()))
         nutrition_total += compute_nutrition_adherence(meal_entries)
         days_count += 1
 
@@ -315,7 +320,7 @@ def get_monthly_summary(user, program_id: int | None = None) -> dict | None:
         nl = nutrition_logs_map.get(pd.date)
         ex_logs = list(dl.exercise_logs.all()) if dl else []
         meal_entries = list(nl.meal_entries.all()) if nl else []
-        t = compute_training_adherence(ex_logs, pd.day_type)
+        t = compute_training_adherence(ex_logs, pd.day_type, len(pd.exercises.all()))
         n = compute_nutrition_adherence(meal_entries)
         streak_data.append((pd.date, compute_combined_adherence(t, n)))
     streak = compute_streak(streak_data)

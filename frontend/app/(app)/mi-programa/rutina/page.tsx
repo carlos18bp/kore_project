@@ -21,7 +21,7 @@ function RutinaShell({ children }: { children: React.ReactNode }) {
     <section
       className="fixed inset-0 z-[55] overflow-y-auto overflow-x-hidden"
       style={{
-        background: 'linear-gradient(135deg, #0b1220 0%, #1e293b 50%, #0b1220 100%)',
+        background: 'linear-gradient(155deg, #2D0F1A 0%, #4A1828 35%, #5C2030 65%, #6B2A3A 100%)',
         animation: 'rutina-shell-fade 280ms ease-out both',
       }}
     >
@@ -30,7 +30,7 @@ function RutinaShell({ children }: { children: React.ReactNode }) {
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            'radial-gradient(ellipse at 80% 20%, #9A052640 0%, transparent 50%), radial-gradient(ellipse at 10% 90%, #6A041A50 0%, transparent 55%)',
+            'radial-gradient(ellipse at 80% 20%, rgba(255,233,220,0.20) 0%, transparent 60%), radial-gradient(ellipse at 10% 90%, rgba(20,5,12,0.65) 0%, transparent 55%)',
           animation: 'rutina-aurora 8s ease-in-out infinite',
         }}
       />
@@ -38,7 +38,7 @@ function RutinaShell({ children }: { children: React.ReactNode }) {
         className="absolute pointer-events-none"
         style={{
           top: '12%', right: '8%', width: 240, height: 240, borderRadius: '50%',
-          background: 'radial-gradient(circle, #E0000066 0%, #AB0D2F22 50%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(255,233,220,0.22) 0%, rgba(244,199,199,0.10) 50%, transparent 70%)',
           filter: 'blur(40px)', animation: 'rutina-orb-1 9s ease-in-out infinite',
         }}
       />
@@ -46,7 +46,7 @@ function RutinaShell({ children }: { children: React.ReactNode }) {
         className="absolute pointer-events-none"
         style={{
           bottom: '8%', left: '12%', width: 280, height: 280, borderRadius: '50%',
-          background: 'radial-gradient(circle, #9A052655 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(244,199,199,0.32) 0%, transparent 70%)',
           filter: 'blur(50px)', animation: 'rutina-orb-2 11s ease-in-out infinite',
         }}
       />
@@ -54,7 +54,7 @@ function RutinaShell({ children }: { children: React.ReactNode }) {
         className="absolute pointer-events-none"
         style={{
           top: '48%', right: '38%', width: 180, height: 180, borderRadius: '50%',
-          background: 'radial-gradient(circle, #CD0C3644 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(168,194,156,0.18) 0%, transparent 70%)',
           filter: 'blur(40px)', animation: 'rutina-orb-3 13s ease-in-out infinite',
         }}
       />
@@ -238,8 +238,8 @@ export default function RutinaPage() {
       <RutinaShell>
         <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
           <div className="text-6xl mb-5">🎉</div>
-          <h2 className="font-heading text-[28px] xl:text-[36px] font-bold text-white leading-[1.05] mb-2">¡Sesión completada!</h2>
-          <p className="text-[14px] text-white/65 mb-8">Terminaste tu rutina del día</p>
+          <h2 className="font-heading text-[28px] xl:text-[36px] font-semibold leading-[1.05] mb-2" style={{ color: '#FFF8EC', letterSpacing: '-0.015em' }}>¡Sesión completada!</h2>
+          <p className="text-[14px] mb-8" style={{ color: '#FFE9DC', opacity: 0.75 }}>Terminaste tu rutina del día</p>
           <div className="flex gap-3 mb-8">
             <div className="bg-emerald-500/10 border border-emerald-500/25 rounded-2xl px-6 py-4 backdrop-blur-sm">
               <p className="font-heading text-[28px] font-bold text-emerald-400 leading-none">{completedCount}</p>
@@ -275,7 +275,7 @@ export default function RutinaPage() {
     return (
       <RutinaShell>
         <div className="min-h-screen flex flex-col">
-          <div className="flex items-center justify-between px-5 pt-14 xl:pt-10 pb-3 shrink-0">
+          <div className="flex items-center justify-between px-5 pt-6 xl:pt-10 pb-3 shrink-0">
             <button onClick={handleClose} aria-label="Cerrar rutina"
               className="w-10 h-10 rounded-full bg-white/10 backdrop-blur border border-white/15 flex items-center justify-center hover:bg-white/15 transition-colors active:scale-95">
               <svg className="w-4 h-4 text-white/80" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -352,7 +352,7 @@ export default function RutinaPage() {
         </div>
 
           <div ref={ctaRef} className="fixed bottom-0 left-0 right-0 z-10 px-5 pb-8 pt-6"
-            style={{ background: 'linear-gradient(to top, #0b1220 65%, transparent)' }}>
+            style={{ background: 'linear-gradient(to top, #2D0F1A 65%, transparent)' }}>
             <div className="max-w-sm mx-auto space-y-2">
               <button onClick={() => setPhase('countdown')}
                 className="w-full bg-[#E00000] text-white font-semibold py-4 rounded-2xl text-[15px] hover:bg-[#C20000] transition-colors shadow-lg active:scale-95">
@@ -389,7 +389,7 @@ export default function RutinaPage() {
     return (
       <RutinaShell>
         <div className="min-h-screen flex flex-col">
-          <div className="flex items-center justify-between px-5 pt-14 xl:pt-10 pb-3 shrink-0">
+          <div className="flex items-center justify-between px-5 pt-6 xl:pt-10 pb-3 shrink-0">
             <button onClick={handleClose} aria-label="Cerrar rutina"
               className="w-10 h-10 rounded-full bg-white/10 backdrop-blur border border-white/15 flex items-center justify-center hover:bg-white/15 transition-colors active:scale-95">
               <svg className="w-4 h-4 text-white/80" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -448,8 +448,8 @@ export default function RutinaPage() {
     return (
       <RutinaShell>
         <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center gap-4">
-          <p className="text-[10.5px] text-white/55 uppercase tracking-[0.18em] font-semibold">Descansa</p>
-          <p className="font-heading text-[20px] xl:text-[24px] font-semibold text-white leading-tight">
+          <p className="text-[10.5px] uppercase tracking-[0.22em] font-semibold" style={{ color: '#E7C8A0' }}>Descansa</p>
+          <p className="font-heading text-[20px] xl:text-[24px] font-semibold leading-tight" style={{ color: '#FFF8EC' }}>
             Siguiente: serie {setIdx + 1} de {pe.sets}
           </p>
           <TimerRing remaining={restRemaining} total={pe.rest_seconds || 60} size={160} />

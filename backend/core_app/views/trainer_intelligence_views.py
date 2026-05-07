@@ -173,7 +173,7 @@ class TrainerClientKPIView(APIView):
                 nl = nutrition_map.get(pd.date)
                 ex_logs = list(dl.exercise_logs.all()) if dl else []
                 meal_entries = list(nl.meal_entries.all()) if nl else []
-                t = compute_training_adherence(ex_logs, pd.day_type)
+                t = compute_training_adherence(ex_logs, pd.day_type, len(pd.exercises.all()))
                 n = compute_nutrition_adherence(meal_entries)
                 c = compute_combined_adherence(t, n)
                 daily_combined_list.append((pd.date, c))
@@ -190,7 +190,8 @@ class TrainerClientKPIView(APIView):
                 training_7d = round(sum(
                     compute_training_adherence(
                         list(daily_logs_map[pd.date].exercise_logs.all()) if daily_logs_map.get(pd.date) else [],
-                        pd.day_type
+                        pd.day_type,
+                        len(pd.exercises.all()),
                     )
                     for pd in program_days if pd.date >= seven_days_ago
                 ) / len([pd for pd in program_days if pd.date >= seven_days_ago]), 4)
@@ -340,7 +341,7 @@ class TrainerComparativeMetricsView(APIView):
                     nl = nlogs.get(pd.date)
                     ex = list(dl.exercise_logs.all()) if dl else []
                     me = list(nl.meal_entries.all()) if nl else []
-                    t = compute_training_adherence(ex, pd.day_type)
+                    t = compute_training_adherence(ex, pd.day_type, len(pd.exercises.all()))
                     n = compute_nutrition_adherence(me)
                     c = compute_combined_adherence(t, n)
                     combined_list.append(c)
@@ -350,7 +351,8 @@ class TrainerComparativeMetricsView(APIView):
                 t_avg = round(sum(
                     compute_training_adherence(
                         list(dlogs[pd.date].exercise_logs.all()) if dlogs.get(pd.date) else [],
-                        pd.day_type
+                        pd.day_type,
+                        len(pd.exercises.all()),
                     ) for pd in pdays
                 ) / len(pdays), 4)
                 n_avg = round(sum(
@@ -408,7 +410,8 @@ class TrainerComparativeMetricsView(APIView):
                 elif module == 'physical':
                     last = PhysicalEvaluation.objects.filter(customer_id=cid).order_by('-evaluation_date').values_list('evaluation_date', flat=True).first()
                 else:
-                    last = ParqAssessment.objects.filter(customer_id=cid).order_by('-evaluation_date').values_list('evaluation_date', flat=True).first()
+                    last_dt = ParqAssessment.objects.filter(customer_id=cid).order_by('-created_at').values_list('created_at', flat=True).first()
+                    last = last_dt.date() if last_dt is not None else None
 
                 if last is None:
                     days_since = threshold + 1
@@ -425,6 +428,48 @@ class TrainerComparativeMetricsView(APIView):
                         'urgency': 'alto' if days_since > threshold * 2 else 'medio',
                     })
 
+        # Most failed exercises and meal blocks (last 7 days)
+        from core_app.models.monthly_program import ExerciseLog
+        from core_app.models.nutrition_daily_log import MealEntry
+        from django.db.models import Count
+
+        most_failed_exercises = list(
+            ExerciseLog.objects
+            .filter(
+                status=ExerciseLog.Status.SKIPPED,
+                daily_log__customer_id__in=customer_ids,
+                daily_log__date__range=(this_week_start, today),
+            )
+            .values('program_exercise__exercise__name')
+            .annotate(count=Count('id'))
+            .order_by('-count')[:10]
+        )
+        most_failed_exercises = [
+            {'name': e['program_exercise__exercise__name'], 'count': e['count']}
+            for e in most_failed_exercises
+        ]
+
+        meal_block_labels = dict(MealEntry.MealBlock.choices)
+        most_failed_meal_blocks = list(
+            MealEntry.objects
+            .filter(
+                status=MealEntry.Status.SKIPPED,
+                daily_log__customer_id__in=customer_ids,
+                daily_log__date__range=(this_week_start, today),
+            )
+            .values('meal_block')
+            .annotate(count=Count('id'))
+            .order_by('-count')
+        )
+        most_failed_meal_blocks = [
+            {
+                'block': m['meal_block'],
+                'block_label': meal_block_labels.get(m['meal_block'], m['meal_block']),
+                'count': m['count'],
+            }
+            for m in most_failed_meal_blocks
+        ]
+
         return Response({
             'adherence_ranking': ranking,
             'improved_this_week': improved,
@@ -434,6 +479,8 @@ class TrainerComparativeMetricsView(APIView):
                 'avg_nutrition_adherence': round(sum(global_nutrition) / len(global_nutrition), 4) if global_nutrition else 0.0,
                 'most_missed_day_of_week': most_missed,
             },
+            'most_failed_exercises': most_failed_exercises,
+            'most_failed_meal_blocks': most_failed_meal_blocks,
             'expired_evaluations': sorted(expired_evals, key=lambda e: e['days_since'], reverse=True),
         })
 
@@ -917,7 +964,7 @@ class TrainerClientDailyLogsView(APIView):
             nl = nutrition_logs.get(pd.date)
             ex_logs = list(dl.exercise_logs.all()) if dl else []
             meal_entries = list(nl.meal_entries.all()) if nl else []
-            training_adh = compute_training_adherence(ex_logs, pd.day_type)
+            training_adh = compute_training_adherence(ex_logs, pd.day_type, len(pd.exercises.all()))
             nutrition_adh = compute_nutrition_adherence(meal_entries)
             combined_adh = compute_combined_adherence(training_adh, nutrition_adh)
 
@@ -1059,8 +1106,8 @@ class TrainerClientSessionsFullView(APIView):
 class TrainerMessagesForCustomerView(APIView):
     """GET /api/my-trainer-messages/
 
-    Returns visible trainer messages for the authenticated customer.
-    Marks them as seen on fetch.
+    Returns visible, non-dismissed trainer messages for the authenticated
+    customer. Marks them as seen on fetch (server-side seen flag).
     """
     permission_classes = [IsAuthenticated]
 
@@ -1070,11 +1117,10 @@ class TrainerMessagesForCustomerView(APIView):
 
         messages = list(
             TrainerMessage.objects
-            .filter(customer=request.user, is_visible=True)
+            .filter(customer=request.user, is_visible=True, dismissed_at__isnull=True)
             .order_by('-created_at')[:10]
         )
 
-        # Mark unseen as seen
         unseen_ids = [m.pk for m in messages if not m.seen_by_customer]
         if unseen_ids:
             TrainerMessage.objects.filter(pk__in=unseen_ids).update(
@@ -1095,3 +1141,27 @@ class TrainerMessagesForCustomerView(APIView):
                 for m in messages
             ]
         })
+
+
+class TrainerMessageDismissView(APIView):
+    """POST /api/my-trainer-messages/<id>/dismiss/
+
+    Customer dismisses a trainer message; it stops appearing in subsequent
+    fetches. Only the message owner can dismiss.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, message_id):
+        if request.user.role != 'customer':
+            return Response({'detail': 'Solo para clientes.'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            msg = TrainerMessage.objects.get(pk=message_id, customer=request.user)
+        except TrainerMessage.DoesNotExist:
+            return Response({'detail': 'Mensaje no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if msg.dismissed_at is None:
+            msg.dismissed_at = timezone.now()
+            msg.save(update_fields=['dismissed_at'])
+
+        return Response({'id': msg.pk, 'dismissed_at': msg.dismissed_at.isoformat()})

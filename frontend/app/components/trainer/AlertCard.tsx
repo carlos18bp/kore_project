@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import type { ClientRiskScore, RiskSignal } from '@/lib/stores/trainerStore';
 import RiskBadge from './RiskBadge';
 
@@ -14,6 +15,14 @@ const BORDER_COLOR: Record<string, string> = {
   medio: 'border-l-amber-400',
   bajo: 'border-l-green-400',
   sin_riesgo: 'border-l-gray-300',
+};
+
+const EVAL_MODULE_PATH: Record<string, { path: string; label: string }> = {
+  anthropometry: { path: 'anthropometry', label: 'Antropometría' },
+  posturometry: { path: 'posturometry', label: 'Posturometría' },
+  physical: { path: 'physical-evaluation', label: 'Evaluación física' },
+  parq: { path: 'parq', label: 'PAR-Q+' },
+  nutrition: { path: 'nutrition', label: 'Nutrición' },
 };
 
 function SignalRow({ signal }: { signal: RiskSignal }) {
@@ -46,9 +55,20 @@ function SignalRow({ signal }: { signal: RiskSignal }) {
   );
 }
 
+function pickEvalModule(signals: RiskSignal[]): { path: string; label: string } | null {
+  // Prefer the signal with the highest severity that has a known module
+  const order = { alto: 0, medio: 1, bajo: 2 } as const;
+  const sorted = [...signals]
+    .filter((s) => s.module && EVAL_MODULE_PATH[s.module])
+    .sort((a, b) => order[a.severity] - order[b.severity]);
+  if (sorted.length === 0) return null;
+  return EVAL_MODULE_PATH[sorted[0].module as string] ?? null;
+}
+
 export default function AlertCard({ alert, onResolve }: Props) {
   const borderColor = BORDER_COLOR[alert.level] ?? BORDER_COLOR.sin_riesgo;
   const allSignals = [...alert.behavioral_signals, ...alert.clinical_signals];
+  const evalModule = pickEvalModule(allSignals);
   const initials = alert.customer_name
     .split(' ')
     .slice(0, 2)
@@ -57,7 +77,7 @@ export default function AlertCard({ alert, onResolve }: Props) {
     .toUpperCase();
 
   return (
-    <div className={`bg-white rounded-2xl border border-black/5 shadow-sm border-l-4 ${borderColor} overflow-hidden`}>
+    <div className={`bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm border-l-4 ${borderColor} overflow-hidden`}>
       <div className="p-4 space-y-3">
         {/* Header */}
         <div className="flex items-start gap-3">
@@ -87,13 +107,27 @@ export default function AlertCard({ alert, onResolve }: Props) {
           </div>
         )}
 
-        {/* Action */}
-        <button
-          onClick={() => onResolve(alert.id)}
-          className="w-full py-2 rounded-xl bg-kore-red/10 text-kore-red text-sm font-medium active:scale-95 transition-transform duration-100"
-        >
-          Resolver alerta
-        </button>
+        {/* Actions */}
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={() => onResolve(alert.id)}
+            className="w-full py-2 rounded-xl bg-kore-red/10 text-kore-red text-sm font-medium active:scale-95 transition-transform duration-100"
+          >
+            Resolver alerta
+          </button>
+          {evalModule && (
+            <Link
+              href={`/trainer/clients/client/${evalModule.path}?id=${alert.customer_id}&from=alert&alertId=${alert.id}`}
+              prefetch={false}
+              className="w-full py-2 rounded-xl bg-kore-gray-dark/[0.04] text-kore-gray-dark/70 text-sm font-medium active:scale-95 transition-transform duration-100 inline-flex items-center justify-center gap-1.5 hover:bg-kore-gray-dark/[0.08]"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Crear evaluación de {evalModule.label}
+            </Link>
+          )}
+        </div>
       </div>
     </div>
   );

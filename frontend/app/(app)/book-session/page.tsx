@@ -38,7 +38,7 @@ function BookingShell({
       ref={containerRef}
       className="fixed inset-0 z-[55] overflow-y-auto overflow-x-hidden"
       style={{
-        background: 'linear-gradient(135deg, #0b1220 0%, #1e293b 50%, #0b1220 100%)',
+        background: 'linear-gradient(155deg, #2D0F1A 0%, #4A1828 35%, #5C2030 65%, #6B2A3A 100%)',
         animation: 'book-shell-fade 280ms ease-out both',
       }}
     >
@@ -47,7 +47,7 @@ function BookingShell({
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            'radial-gradient(ellipse at 80% 20%, #9A052640 0%, transparent 50%), radial-gradient(ellipse at 10% 90%, #6A041A50 0%, transparent 55%)',
+            'radial-gradient(ellipse at 80% 20%, rgba(255,233,220,0.20) 0%, transparent 60%), radial-gradient(ellipse at 10% 90%, rgba(20,5,12,0.65) 0%, transparent 55%)',
           animation: 'book-aurora 8s ease-in-out infinite',
         }}
       />
@@ -55,7 +55,7 @@ function BookingShell({
         className="absolute pointer-events-none"
         style={{
           top: '15%', right: '10%', width: 220, height: 220, borderRadius: '50%',
-          background: 'radial-gradient(circle, #E0000066 0%, #AB0D2F22 50%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(255,233,220,0.22) 0%, rgba(244,199,199,0.10) 50%, transparent 70%)',
           filter: 'blur(40px)', animation: 'book-orb-1 9s ease-in-out infinite',
         }}
       />
@@ -63,7 +63,7 @@ function BookingShell({
         className="absolute pointer-events-none"
         style={{
           bottom: '10%', left: '15%', width: 260, height: 260, borderRadius: '50%',
-          background: 'radial-gradient(circle, #9A052655 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(244,199,199,0.32) 0%, transparent 70%)',
           filter: 'blur(50px)', animation: 'book-orb-2 11s ease-in-out infinite',
         }}
       />
@@ -71,13 +71,13 @@ function BookingShell({
         className="absolute pointer-events-none"
         style={{
           top: '50%', right: '40%', width: 160, height: 160, borderRadius: '50%',
-          background: 'radial-gradient(circle, #CD0C3644 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(168,194,156,0.18) 0%, transparent 70%)',
           filter: 'blur(40px)', animation: 'book-orb-3 13s ease-in-out infinite',
         }}
       />
 
       <div
-        className="relative z-10 max-w-3xl mx-auto w-full px-5 pt-14 xl:pt-6 flex items-center justify-between"
+        className="relative z-10 max-w-3xl mx-auto w-full px-5 pt-6 flex items-center justify-between"
         style={{ animation: 'book-shell-rise 380ms cubic-bezier(0.22, 1, 0.36, 1) 60ms both' }}
       >
         <Link
@@ -508,7 +508,7 @@ function BookSessionContent() {
     return (
       <section
         className="fixed inset-0 z-[55] flex items-center justify-center"
-        style={{ background: 'linear-gradient(135deg, #0b1220 0%, #1e293b 50%, #0b1220 100%)' }}
+        style={{ background: 'linear-gradient(155deg, #2D0F1A 0%, #4A1828 35%, #5C2030 65%, #6B2A3A 100%)' }}
       >
         <div className="animate-spin h-8 w-8 border-2 border-white/30 border-t-white rounded-full" />
       </section>
@@ -522,10 +522,10 @@ function BookSessionContent() {
           <div className="w-14 h-14 mx-auto mb-5 rounded-full bg-white/10 border border-white/15 flex items-center justify-center">
             <CalendarPlus className="w-6 h-6 text-white/70" strokeWidth={1.5} />
           </div>
-          <h2 className="font-heading text-[24px] xl:text-[28px] font-bold text-white mb-2 leading-tight">
+          <h2 className="font-heading text-[24px] xl:text-[28px] font-semibold mb-2 leading-tight" style={{ color: '#FFF8EC', letterSpacing: '-0.01em' }}>
             Necesitas un plan activo
           </h2>
-          <p className="text-[14px] text-white/65 mb-7 leading-relaxed">
+          <p className="text-[14px] mb-7 leading-relaxed" style={{ color: '#FFE9DC', opacity: 0.75 }}>
             Para agendar sesiones debes tener un plan activo. Elige el que mejor se adapte a tus metas.
           </p>
           <Link
@@ -550,14 +550,14 @@ function BookSessionContent() {
 
       {/* Header */}
       <div data-hero="badge" className="mb-5 px-1">
-        <p className="text-[11px] uppercase tracking-[0.18em] text-white/55 font-semibold mb-2">
+        <p className="text-[11px] uppercase tracking-[0.22em] font-semibold mb-2" style={{ color: '#E7C8A0' }}>
           {isReschedule ? 'Reagendar' : 'Próxima sesión'}
         </p>
-        <h1 className="font-heading text-[28px] xl:text-[36px] font-bold text-white leading-[1.05]">
+        <h1 className="font-heading text-[28px] xl:text-[36px] font-semibold leading-[1.05]" style={{ color: '#FFF8EC', letterSpacing: '-0.015em' }}>
           {step === 2 ? 'Confirma tu horario' : 'Agenda tu sesión'}
         </h1>
         {activeSub && (
-          <p className="text-[13px] xl:text-[14px] text-white/65 mt-2">
+          <p className="text-[13px] xl:text-[14px] mt-2" style={{ color: '#FFE9DC', opacity: 0.78 }}>
             Sesión {activeSub.sessions_used + 1} de {activeSub.sessions_total} · {activeSub.package.title}
           </p>
         )}
@@ -693,7 +693,7 @@ export default function BookSessionPage() {
     <Suspense fallback={
       <section
         className="fixed inset-0 z-[55] flex items-center justify-center"
-        style={{ background: 'linear-gradient(135deg, #0b1220 0%, #1e293b 50%, #0b1220 100%)' }}
+        style={{ background: 'linear-gradient(155deg, #2D0F1A 0%, #4A1828 35%, #5C2030 65%, #6B2A3A 100%)' }}
       >
         <div className="animate-spin h-8 w-8 border-2 border-white/30 border-t-white rounded-full" />
       </section>

@@ -7,6 +7,7 @@ import { api } from '@/lib/services/http';
 export type DayAdherence = {
   date: string;
   day_type: string;
+  is_future?: boolean;
   training_adherence: number;
   nutrition_adherence: number;
   combined_adherence: number;

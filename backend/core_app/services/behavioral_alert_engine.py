@@ -231,7 +231,7 @@ def compute_behavioral_signals(customer, trainer, today: date) -> list[dict]:
         nl = nutrition_logs.get(pd.date)
         ex_logs = list(dl.exercise_logs.all()) if dl else []
         meal_entries = list(nl.meal_entries.all()) if nl else []
-        training = compute_training_adherence(ex_logs, pd.day_type)
+        training = compute_training_adherence(ex_logs, pd.day_type, len(pd.exercises.all()))
         nutrition = compute_nutrition_adherence(meal_entries)
         combined = compute_combined_adherence(training, nutrition)
         daily_combined.append((pd.date, combined))

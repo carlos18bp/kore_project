@@ -31,6 +31,7 @@ class TrainerMessage(TimestampedModel):
     is_visible = models.BooleanField(default=True)
     seen_by_customer = models.BooleanField(default=False, db_index=True)
     seen_at = models.DateTimeField(null=True, blank=True)
+    dismissed_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     class Meta:
         ordering = ['-created_at']

@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useRef, useState, Suspense } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { useTrainerStore } from '@/lib/stores/trainerStore';
 import TabBar from '@/app/components/trainer/TabBar';
@@ -10,25 +9,29 @@ import AdherenceRing from '@/app/components/trainer/AdherenceRing';
 import KPIGrid from '@/app/components/trainer/KPIGrid';
 import RiskBadge from '@/app/components/trainer/RiskBadge';
 import AlertCard from '@/app/components/trainer/AlertCard';
+import ClientHeroCard from '@/app/components/trainer/ClientHeroCard';
+import ClientProgramTab from '@/app/components/trainer/ClientProgramTab';
+import MessageComposerCard from '@/app/components/trainer/MessageComposerCard';
+import PostSessionMessageSheet from '@/app/components/trainer/PostSessionMessageSheet';
+import HeroOrbsCard from '@/app/components/shared/HeroOrbsCard';
+import GlowRing from '@/app/components/shared/GlowRing';
+import SectionLabel from '@/app/components/shared/SectionLabel';
+import EmptyState from '@/app/components/shared/EmptyState';
+import ExplainerCard from '@/app/components/shared/ExplainerCard';
+import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 
-type TabId = 'resumen' | 'sesiones' | 'rutina' | 'nutricion' | 'evaluaciones' | 'alertas' | 'creditos' | 'notas';
+type TabId = 'resumen' | 'sesiones' | 'programa' | 'nutricion' | 'evaluaciones' | 'alertas' | 'creditos' | 'notas';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'resumen', label: 'Resumen' },
   { id: 'sesiones', label: 'Sesiones' },
-  { id: 'rutina', label: 'Rutina' },
+  { id: 'programa', label: 'Programa' },
   { id: 'nutricion', label: 'Nutrición' },
   { id: 'evaluaciones', label: 'Evaluaciones' },
   { id: 'alertas', label: 'Alertas' },
   { id: 'creditos', label: 'Créditos' },
   { id: 'notas', label: 'Notas' },
 ];
-
-const GOAL_LABELS: Record<string, string> = {
-  fat_loss: 'Perder grasa', muscle_gain: 'Ganar masa muscular',
-  rehab: 'Rehabilitación', general_health: 'Salud general',
-  sports_performance: 'Rendimiento deportivo',
-};
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
   confirmed: { label: 'Completada', bg: 'bg-green-100', text: 'text-green-700' },
@@ -85,9 +88,6 @@ function TrainerClientDetailPage() {
     fetchClientAlerts,
     resolveAlert,
     fetchAlerts,
-    clientDailyLogs,
-    dailyLogsLoading,
-    fetchClientDailyLogs,
     clientNutritionLogs,
     nutritionLogsLoading,
     fetchClientNutritionLogs,
@@ -104,13 +104,15 @@ function TrainerClientDetailPage() {
   } = useTrainerStore();
 
   const [activeTab, setActiveTab] = useState<TabId>('resumen');
-  const [newMessage, setNewMessage] = useState('');
+  const [postSessionSheet, setPostSessionSheet] = useState<{ sessionId: number } | null>(null);
   const [pauseReason, setPauseReason] = useState('');
   const [showPauseSheet, setShowPauseSheet] = useState(false);
   const [resolvingAlertId, setResolvingAlertId] = useState<number | null>(null);
   const [resolveSheet, setResolveSheet] = useState<number | null>(null);
   const [resolveNote, setResolveNote] = useState('');
   const [resolveType, setResolveType] = useState<'mark_reviewed' | 'private_note' | 'public_note' | 'schedule_eval'>('mark_reviewed');
+  const sectionRef = useRef<HTMLElement>(null);
+  useHeroAnimation(sectionRef);
 
   useEffect(() => {
     if (!clientId) return;
@@ -122,7 +124,6 @@ function TrainerClientDetailPage() {
     if (!clientId) return;
     if (activeTab === 'resumen' && !clientKPIs[clientId]) fetchClientKPI(clientId);
     if (activeTab === 'sesiones' && !clientSessionsFull[clientId]) fetchClientSessionsFull(clientId);
-    if (activeTab === 'rutina' && !clientDailyLogs[clientId]) fetchClientDailyLogs(clientId, 14);
     if (activeTab === 'nutricion' && !clientNutritionLogs[clientId]) fetchClientNutritionLogs(clientId, 14);
     if (activeTab === 'evaluaciones' && !clientKPIs[clientId]) fetchClientKPI(clientId);
     if (activeTab === 'alertas' && !clientAlerts[clientId]) fetchClientAlerts(clientId);
@@ -131,7 +132,6 @@ function TrainerClientDetailPage() {
 
   const kpi = clientKPIs[clientId];
   const alerts = clientAlerts[clientId] ?? [];
-  const dailyLogs = clientDailyLogs[clientId] ?? [];
   const nutritionLogs = clientNutritionLogs[clientId] ?? [];
   const fullSessions = clientSessionsFull[clientId] ?? clientSessions;
   const messages = trainerMessages[clientId] ?? [];
@@ -139,10 +139,9 @@ function TrainerClientDetailPage() {
   const formatDate = (s: string) =>
     new Date(s).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !clientId) return;
-    await sendTrainerMessage(clientId, newMessage.trim());
-    setNewMessage('');
+  const handleSendMessage = async (text: string, triggerType: 'manual' | 'post_session' | 'post_milestone') => {
+    if (!clientId) return;
+    await sendTrainerMessage(clientId, text, triggerType);
     fetchTrainerMessages(clientId);
   };
 
@@ -172,7 +171,7 @@ function TrainerClientDetailPage() {
   }
 
   return (
-    <section className="min-h-screen bg-kore-cream">
+    <section ref={sectionRef} className="min-h-screen bg-kore-cream">
       <div className="w-full px-4 md:px-10 lg:px-16 pt-20 xl:pt-8 pb-24 max-w-2xl xl:max-w-none mx-auto">
 
         {/* Back link */}
@@ -194,40 +193,8 @@ function TrainerClientDetailPage() {
 
         {/* Header: avatar + name + next session */}
         {client && (
-          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-5 mb-5 shadow-lg">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center ring-2 ring-white/20 flex-shrink-0 overflow-hidden">
-                {client.avatar_url ? (
-                  <Image src={client.avatar_url} alt="" fill className="object-cover" />
-                ) : (
-                  <span className="text-xl font-bold text-white">{client.first_name.charAt(0)}</span>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-white font-bold text-lg leading-tight truncate">
-                  {client.first_name} {client.last_name}
-                </p>
-                <p className="text-white/50 text-xs truncate">{GOAL_LABELS[client.profile.primary_goal] ?? client.profile.primary_goal}</p>
-              </div>
-              {alerts.filter(a => a.level === 'alto' || a.level === 'medio').length > 0 && (
-                <RiskBadge level={alerts[0]?.level ?? 'bajo'} size="sm" />
-              )}
-            </div>
-            {client.next_session && (
-              <div className="mt-4 pt-4 border-t border-white/10 flex items-center gap-3">
-                <svg className="w-4 h-4 text-white/40 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                </svg>
-                <div className="min-w-0">
-                  <p className="text-white/50 text-[10px] uppercase tracking-wide">Próxima sesión</p>
-                  <p className="text-white text-sm font-medium">
-                    {new Date(client.next_session.starts_at).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })}
-                    {' '}·{' '}
-                    {new Date(client.next_session.starts_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                  </p>
-                </div>
-              </div>
-            )}
+          <div data-hero="heading" className="mb-5">
+            <ClientHeroCard client={client} alerts={alerts} />
           </div>
         )}
 
@@ -246,51 +213,72 @@ function TrainerClientDetailPage() {
                 </div>
               ) : kpi ? (
                 <>
-                  {/* Adherence rings */}
-                  <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-5 shadow-lg">
-                    <div className="flex items-center justify-around">
-                      <AdherenceRing
-                        value={kpi.behavioral.combined_adherence_7d}
-                        size={100}
-                        strokeWidth={9}
-                        label="Adherencia"
-                        color="rgb(239, 68, 68)"
-                      />
-                      {kpi.clinical.kore_score !== null && (
-                        <div className="text-center">
-                          <p className="text-white/50 text-[10px] font-semibold uppercase tracking-wide mb-1">KORE Score</p>
-                          <p className="text-4xl font-black text-white leading-none">
-                            {Math.round(kpi.clinical.kore_score)}
-                          </p>
-                          <p className="text-white/50 text-xs mt-0.5">{kpi.clinical.kore_category}</p>
-                        </div>
-                      )}
+                  {/* Adherence + KORE Score hero */}
+                  <HeroOrbsCard radius="xl">
+                    <div className="p-5">
+                      <SectionLabel tone="dark" className="mb-4">Estado actual</SectionLabel>
+                      <div className="flex items-center justify-around gap-4">
+                        <GlowRing value={kpi.behavioral.combined_adherence_7d * 100} size={100} stroke={9}>
+                          <div className="text-center">
+                            <p className="text-2xl font-black text-white leading-none tabular-nums">
+                              {Math.round(kpi.behavioral.combined_adherence_7d * 100)}%
+                            </p>
+                            <p className="text-[9px] uppercase tracking-wide text-white/55 mt-0.5">Adherencia</p>
+                          </div>
+                        </GlowRing>
+                        {kpi.clinical.kore_score !== null && (
+                          <div className="text-center">
+                            <p className="text-white/55 text-[10px] font-semibold uppercase tracking-[0.18em] mb-1">KORE Score</p>
+                            <p className="text-4xl font-black text-white leading-none">
+                              {Math.round(kpi.clinical.kore_score)}
+                            </p>
+                            <p className="text-white/50 text-xs mt-0.5">{kpi.clinical.kore_category}</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  </HeroOrbsCard>
 
                   {/* Quick stats */}
-                  <KPIGrid items={[
-                    { label: 'Racha actual', value: kpi.behavioral.streak_current, unit: 'días' },
-                    { label: 'Racha récord', value: kpi.behavioral.streak_longest, unit: 'días' },
-                    { label: 'Sesiones comp.', value: kpi.behavioral.sessions_completed },
-                    { label: 'Créditos rest.', value: kpi.behavioral.sessions_remaining },
-                  ]} />
+                  <div>
+                    <SectionLabel className="mb-2">Conducta y créditos</SectionLabel>
+                    <KPIGrid items={[
+                      { label: 'Racha actual', value: kpi.behavioral.streak_current, unit: 'días' },
+                      { label: 'Racha récord', value: kpi.behavioral.streak_longest, unit: 'días' },
+                      { label: 'Sesiones comp.', value: kpi.behavioral.sessions_completed },
+                      { label: 'Créditos rest.', value: kpi.behavioral.sessions_remaining },
+                    ]} />
+                  </div>
 
                   {/* Clinical grid */}
-                  <KPIGrid columns={3} items={[
-                    { label: 'BMI', value: kpi.clinical.bmi?.toFixed(1) ?? null, color: kpi.clinical.bmi_color },
-                    { label: '% Grasa', value: kpi.clinical.body_fat_pct?.toFixed(1) ?? null, unit: '%', color: kpi.clinical.bf_color },
-                    { label: 'Postural', value: kpi.clinical.global_postural_index?.toFixed(0) ?? null, color: kpi.clinical.postural_color },
-                    { label: 'Física', value: kpi.clinical.physical_general_index?.toFixed(0) ?? null, color: kpi.clinical.physical_color },
-                    { label: 'Nutrición', value: kpi.clinical.nutrition_habit_score?.toFixed(1) ?? null, unit: '/10', color: kpi.clinical.nutrition_color },
-                    { label: 'Ánimo', value: kpi.behavioral.last_mood_score?.toString() ?? null, unit: '/10' },
-                  ]} />
+                  <div>
+                    <SectionLabel className="mb-2">Indicadores clínicos</SectionLabel>
+                    <KPIGrid columns={3} items={[
+                      { label: 'BMI', value: kpi.clinical.bmi?.toFixed(1) ?? null, color: kpi.clinical.bmi_color },
+                      { label: '% Grasa', value: kpi.clinical.body_fat_pct?.toFixed(1) ?? null, unit: '%', color: kpi.clinical.bf_color },
+                      { label: 'Postural', value: kpi.clinical.global_postural_index?.toFixed(0) ?? null, color: kpi.clinical.postural_color },
+                      { label: 'Física', value: kpi.clinical.physical_general_index?.toFixed(0) ?? null, color: kpi.clinical.physical_color },
+                      { label: 'Nutrición', value: kpi.clinical.nutrition_habit_score?.toFixed(1) ?? null, unit: '/10', color: kpi.clinical.nutrition_color },
+                      { label: 'Ánimo', value: kpi.behavioral.last_mood_score?.toString() ?? null, unit: '/10' },
+                    ]} />
+                  </div>
+
+                  {/* KORE Score explainer when low */}
+                  {kpi.clinical.kore_score !== null && kpi.clinical.kore_score < 50 && (
+                    <ExplainerCard
+                      tone="warning"
+                      title="KORE Score bajo"
+                      whatIs="El KORE Score combina composición corporal, postura, condición física y nutrición en un número 0–100."
+                      importance="Un valor inferior a 50 indica oportunidades importantes de mejora en alguno de los pilares."
+                      nextStep="Considera agendar una evaluación física o postural en los próximos días para identificar la palanca con más impacto."
+                    />
+                  )}
 
                   {/* Active alerts preview */}
                   {alerts.length > 0 && (
-                    <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-4">
+                    <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm p-4">
                       <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm font-bold text-kore-gray-dark">Alertas activas</p>
+                        <SectionLabel>Alertas activas</SectionLabel>
                         <button onClick={() => setActiveTab('alertas')} className="text-xs text-kore-red font-medium">Ver todas</button>
                       </div>
                       <div className="space-y-2">
@@ -310,10 +298,10 @@ function TrainerClientDetailPage() {
                   )}
                 </>
               ) : (
-                <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-5 space-y-3">
+                <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm p-5 space-y-3">
                   {client && (
                     <>
-                      <p className="text-sm font-bold text-kore-gray-dark">Sesiones</p>
+                      <SectionLabel>Sesiones</SectionLabel>
                       <KPIGrid items={[
                         { label: 'Completadas', value: client.stats.completed },
                         { label: 'Pendientes', value: client.stats.pending },
@@ -331,8 +319,9 @@ function TrainerClientDetailPage() {
           {activeTab === 'sesiones' && (
             <>
               {/* Upcoming */}
-              <div className="bg-white rounded-2xl border border-black/5 shadow-sm">
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm">
                 <div className="px-4 pt-4 pb-2">
+                  <SectionLabel className="mb-0.5">Agenda</SectionLabel>
                   <p className="text-sm font-bold text-kore-gray-dark">Próximas</p>
                 </div>
                 <div className="px-3 pb-3">
@@ -345,7 +334,7 @@ function TrainerClientDetailPage() {
                     ) : (
                       <div className="space-y-0.5">
                         {upcoming.map((s) => (
-                          <SessionRow key={s.id} session={s} />
+                          <SessionRow key={s.id} session={s} onMessage={(id) => setPostSessionSheet({ sessionId: id })} />
                         ))}
                       </div>
                     );
@@ -354,8 +343,9 @@ function TrainerClientDetailPage() {
               </div>
 
               {/* History */}
-              <div className="bg-white rounded-2xl border border-black/5 shadow-sm">
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm">
                 <div className="px-4 pt-4 pb-2">
+                  <SectionLabel className="mb-0.5">Pasado</SectionLabel>
                   <p className="text-sm font-bold text-kore-gray-dark">Historial</p>
                 </div>
                 <div className="px-3 pb-3">
@@ -372,7 +362,7 @@ function TrainerClientDetailPage() {
                     ) : (
                       <div className="space-y-0.5">
                         {past.map((s) => (
-                          <SessionRow key={s.id} session={s} />
+                          <SessionRow key={s.id} session={s} onMessage={(id) => setPostSessionSheet({ sessionId: id })} />
                         ))}
                       </div>
                     );
@@ -382,79 +372,16 @@ function TrainerClientDetailPage() {
             </>
           )}
 
-          {/* ── RUTINA ── */}
-          {activeTab === 'rutina' && (
-            <>
-              <div className="flex items-center gap-3">
-                <p className="text-xs text-kore-gray-dark/40 flex-1">Últimos 14 días de actividad</p>
-                <button
-                  onClick={() => fetchClientDailyLogs(clientId, 14)}
-                  className="text-xs text-kore-red font-medium"
-                >
-                  Actualizar
-                </button>
-              </div>
-              {dailyLogsLoading && dailyLogs.length === 0 ? (
-                <div className="flex justify-center py-10">
-                  <div className="animate-spin h-6 w-6 border-2 border-kore-red border-t-transparent rounded-full" />
-                </div>
-              ) : dailyLogs.length === 0 ? (
-                <div className="text-center py-10">
-                  <p className="text-sm text-kore-gray-dark/50">Sin registros de rutina</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {dailyLogs.map((day) => (
-                    <div key={day.date} className="bg-white rounded-2xl border border-black/5 shadow-sm p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <p className="text-sm font-semibold text-kore-gray-dark">
-                            {new Date(day.date).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })}
-                          </p>
-                          <p className="text-xs text-kore-gray-dark/40">Día {day.day_number} · {day.day_type}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-12 h-12">
-                            <AdherenceRing value={day.training_adherence} size={48} strokeWidth={5} color="rgb(239, 68, 68)" />
-                          </div>
-                        </div>
-                      </div>
-                      {day.exercises.length > 0 && (
-                        <div className="space-y-1">
-                          {day.exercises.map((ex, i) => {
-                            const done = ex.status === 'completed';
-                            return (
-                              <div key={i} className="flex items-center gap-2">
-                                <span className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${done ? 'bg-green-100' : 'bg-kore-gray-light/30'}`}>
-                                  {done && (
-                                    <svg className="w-2.5 h-2.5 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                                    </svg>
-                                  )}
-                                </span>
-                                <span className={`text-xs flex-1 ${done ? 'text-kore-gray-dark/70' : 'text-kore-gray-dark/40'}`}>
-                                  {ex.exercise_name}
-                                </span>
-                                <span className="text-[10px] text-kore-gray-dark/30">
-                                  {ex.sets}x{ex.reps ?? `${ex.duration_seconds}s`}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
+          {/* ── PROGRAMA ── */}
+          {activeTab === 'programa' && (
+            <ClientProgramTab clientId={clientId} />
           )}
 
           {/* ── NUTRICIÓN ── */}
           {activeTab === 'nutricion' && (
             <>
               <div className="flex items-center justify-between">
-                <p className="text-xs text-kore-gray-dark/40">Últimos 14 días de nutrición</p>
+                <SectionLabel>Últimos 14 días de nutrición</SectionLabel>
                 <button
                   onClick={() => fetchClientNutritionLogs(clientId, 14)}
                   className="text-xs text-kore-red font-medium"
@@ -467,13 +394,14 @@ function TrainerClientDetailPage() {
                   <div className="animate-spin h-6 w-6 border-2 border-kore-red border-t-transparent rounded-full" />
                 </div>
               ) : nutritionLogs.length === 0 ? (
-                <div className="text-center py-10">
-                  <p className="text-sm text-kore-gray-dark/50">Sin registros de nutrición</p>
-                </div>
+                <EmptyState
+                  title="Sin registros de nutrición"
+                  description="Cuando el cliente registre comidas, verás aquí su adherencia diaria y las fotos."
+                />
               ) : (
                 <div className="space-y-3">
                   {nutritionLogs.map((day) => (
-                    <div key={day.date} className="bg-white rounded-2xl border border-black/5 shadow-sm p-4">
+                    <div key={day.date} className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm p-4">
                       <div className="flex items-center justify-between mb-3">
                         <div>
                           <p className="text-sm font-semibold text-kore-gray-dark">
@@ -522,6 +450,7 @@ function TrainerClientDetailPage() {
           {/* ── EVALUACIONES ── */}
           {activeTab === 'evaluaciones' && (
             <>
+              <SectionLabel>Módulos disponibles</SectionLabel>
               {kpiLoading && !kpi ? (
                 <div className="flex justify-center py-10">
                   <div className="animate-spin h-6 w-6 border-2 border-kore-red border-t-transparent rounded-full" />
@@ -532,7 +461,7 @@ function TrainerClientDetailPage() {
                     const lastDate = kpi?.clinical.last_eval_dates?.[mod.key] ?? null;
                     const { color, label } = evalUrgency(lastDate);
                     return (
-                      <div key={mod.key} className="bg-white rounded-2xl border border-black/5 shadow-sm p-4 flex items-center gap-3">
+                      <div key={mod.key} className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm p-4 flex items-center gap-3">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-kore-gray-dark">{mod.label}</p>
                           <p className={`text-xs font-medium ${color}`}>
@@ -556,14 +485,16 @@ function TrainerClientDetailPage() {
           {/* ── ALERTAS ── */}
           {activeTab === 'alertas' && (
             <>
+              <SectionLabel>Alertas activas del cliente</SectionLabel>
               {clientAlertsLoading && alerts.length === 0 ? (
                 <div className="flex justify-center py-10">
                   <div className="animate-spin h-6 w-6 border-2 border-kore-red border-t-transparent rounded-full" />
                 </div>
               ) : alerts.length === 0 ? (
-                <div className="text-center py-10">
-                  <p className="text-sm text-kore-gray-dark/50">Sin alertas registradas</p>
-                </div>
+                <EmptyState
+                  title="Sin alertas registradas"
+                  description="Cuando este cliente cruce un umbral conductual o clínico, su alerta aparecerá aquí."
+                />
               ) : (
                 <div className="space-y-3">
                   {alerts.map((alert) => (
@@ -585,20 +516,21 @@ function TrainerClientDetailPage() {
           {/* ── CRÉDITOS ── */}
           {activeTab === 'creditos' && client?.subscription && (
             <div className="space-y-4">
-              {/* Hero */}
-              <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 shadow-lg text-center">
-                <p className="text-white/50 text-xs font-semibold uppercase tracking-wide mb-2">Sesiones restantes</p>
-                <p className="text-6xl font-black text-white leading-none">{client.subscription.sessions_remaining}</p>
-                <p className="text-white/40 text-sm mt-1">de {client.subscription.sessions_total} totales</p>
-                <div className="w-full h-1.5 bg-white/10 rounded-full mt-3">
-                  <div
-                    className="h-full rounded-full bg-kore-red transition-all duration-700"
-                    style={{ width: `${(client.subscription.sessions_used / client.subscription.sessions_total) * 100}%` }}
-                  />
+              <HeroOrbsCard radius="xl">
+                <div className="p-6 text-center">
+                  <SectionLabel tone="dark" className="mb-2">Sesiones restantes</SectionLabel>
+                  <p className="text-6xl font-black text-white leading-none">{client.subscription.sessions_remaining}</p>
+                  <p className="text-white/40 text-sm mt-1">de {client.subscription.sessions_total} totales</p>
+                  <div className="w-full h-1.5 bg-white/10 rounded-full mt-3">
+                    <div
+                      className="h-full rounded-full bg-kore-red transition-all duration-700"
+                      style={{ width: `${(client.subscription.sessions_used / client.subscription.sessions_total) * 100}%` }}
+                    />
+                  </div>
                 </div>
-              </div>
+              </HeroOrbsCard>
 
-              <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-5 space-y-3">
+              <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm p-5 space-y-3">
                 <DetailRow label="Programa" value={client.subscription.package_title} />
                 <DetailRow
                   label="Valor"
@@ -621,32 +553,16 @@ function TrainerClientDetailPage() {
             </div>
           )}
           {activeTab === 'creditos' && !client?.subscription && (
-            <div className="text-center py-10">
-              <p className="text-sm text-kore-gray-dark/50">Sin suscripción activa</p>
-            </div>
+            <EmptyState
+              title="Sin suscripción activa"
+              description="Cuando el cliente active un paquete, verás aquí los detalles de pago y créditos restantes."
+            />
           )}
 
           {/* ── NOTAS ── */}
           {activeTab === 'notas' && (
             <div className="space-y-4">
-              {/* Composer */}
-              <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-4 space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-kore-gray-dark/40">Nuevo mensaje</p>
-                <textarea
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  rows={3}
-                  placeholder="Escribe un mensaje para este cliente..."
-                  className="w-full rounded-xl border border-kore-gray-light/60 bg-kore-cream/50 px-3 py-2.5 text-sm text-kore-gray-dark placeholder:text-kore-gray-dark/30 resize-none focus:outline-none focus:ring-2 focus:ring-kore-red/30"
-                />
-                <button
-                  onClick={handleSendMessage}
-                  disabled={!newMessage.trim()}
-                  className="w-full py-2.5 rounded-xl bg-kore-red text-white text-sm font-medium active:scale-95 transition-transform duration-100 disabled:opacity-40"
-                >
-                  Enviar mensaje
-                </button>
-              </div>
+              <MessageComposerCard onSubmit={handleSendMessage} />
 
               {/* History */}
               {messagesLoading && messages.length === 0 ? (
@@ -654,24 +570,39 @@ function TrainerClientDetailPage() {
                   <div className="animate-spin h-5 w-5 border-2 border-kore-red border-t-transparent rounded-full" />
                 </div>
               ) : messages.length === 0 ? (
-                <div className="text-center py-6">
-                  <p className="text-sm text-kore-gray-dark/40">Sin mensajes enviados</p>
-                </div>
+                <EmptyState
+                  size="sm"
+                  title="Sin mensajes enviados"
+                  description="Envía el primer mensaje para este cliente desde el composer de arriba."
+                />
               ) : (
                 <div className="space-y-2">
-                  {messages.map((msg) => (
-                    <div key={msg.id} className="bg-white rounded-2xl border border-black/5 shadow-sm p-4">
-                      <p className="text-sm text-kore-gray-dark leading-relaxed">{msg.message}</p>
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-[10px] text-kore-gray-dark/30">
-                          {new Date(msg.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        </span>
-                        <span className={`text-[10px] font-medium ${msg.seen_by_customer ? 'text-green-600' : 'text-kore-gray-dark/30'}`}>
-                          {msg.seen_by_customer ? 'Visto' : 'Pendiente'}
-                        </span>
+                  {messages.map((msg) => {
+                    const triggerLabel = msg.trigger_type === 'post_session'
+                      ? { label: 'Post sesión', dot: 'bg-emerald-400' }
+                      : msg.trigger_type === 'post_milestone'
+                      ? { label: 'Post hito', dot: 'bg-amber-400' }
+                      : { label: 'Manual', dot: 'bg-kore-red' };
+                    return (
+                      <div key={msg.id} className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm p-4">
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <span className={`w-1.5 h-1.5 rounded-full ${triggerLabel.dot}`} />
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-kore-gray-dark/40">
+                            {triggerLabel.label}
+                          </span>
+                        </div>
+                        <p className="text-sm text-kore-gray-dark leading-relaxed">{msg.message}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-[10px] text-kore-gray-dark/30">
+                            {new Date(msg.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </span>
+                          <span className={`text-[10px] font-medium ${msg.seen_by_customer ? 'text-green-600' : 'text-kore-gray-dark/30'}`}>
+                            {msg.seen_by_customer ? 'Visto' : 'Pendiente'}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -761,11 +692,30 @@ function TrainerClientDetailPage() {
           </div>
         </>
       )}
+
+      {/* Post-Session Message Sheet */}
+      {postSessionSheet && client && (
+        <PostSessionMessageSheet
+          customerId={clientId}
+          customerName={`${client.first_name} ${client.last_name}`}
+          sessionId={postSessionSheet.sessionId}
+          onClose={() => {
+            setPostSessionSheet(null);
+            fetchTrainerMessages(clientId);
+          }}
+        />
+      )}
     </section>
   );
 }
 
-function SessionRow({ session }: { session: { id: number; status: string; package_title: string; starts_at: string | null; ends_at: string | null; notes: string; canceled_reason: string; session_notes_for_customer: string; created_at: string } }) {
+function SessionRow({
+  session,
+  onMessage,
+}: {
+  session: { id: number; status: string; package_title: string; starts_at: string | null; ends_at: string | null; notes: string; canceled_reason: string; session_notes_for_customer: string; created_at: string };
+  onMessage?: (sessionId: number) => void;
+}) {
   const sc = STATUS_CONFIG[session.status] ?? { label: session.status, bg: 'bg-gray-100', text: 'text-gray-500' };
   const date = session.starts_at
     ? new Date(session.starts_at).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })
@@ -790,6 +740,15 @@ function SessionRow({ session }: { session: { id: number; status: string; packag
         <p className="text-sm font-medium text-kore-gray-dark truncate">{session.package_title}</p>
         <p className="text-xs text-kore-gray-dark/40 capitalize">{date}{time ? ` · ${time}` : ''}</p>
       </div>
+      {session.status === 'confirmed' && onMessage && (
+        <button
+          onClick={() => onMessage(session.id)}
+          className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-full active:scale-95 transition-all flex-shrink-0"
+          title="Enviar mensaje post-sesión"
+        >
+          Mensaje
+        </button>
+      )}
       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${sc.bg} ${sc.text}`}>
         {sc.label}
       </span>

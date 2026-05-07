@@ -221,6 +221,8 @@ export type ComparativeMetrics = {
     avg_nutrition_adherence: number;
     most_missed_day_of_week: string | null;
   };
+  most_failed_exercises?: Array<{ name: string; count: number }>;
+  most_failed_meal_blocks?: Array<{ block: string; block_label: string; count: number }>;
   expired_evaluations: Array<{
     customer_id: number;
     name: string;
@@ -316,7 +318,7 @@ type TrainerState = {
   }) => Promise<void>;
   fetchPhotoGallery: (customerId?: number) => Promise<void>;
   commentOnPhoto: (mealId: number, comment: string, flagged: boolean) => Promise<void>;
-  sendTrainerMessage: (customerId: number, message: string, triggerType?: string) => Promise<void>;
+  sendTrainerMessage: (customerId: number, message: string, triggerType?: string, triggerRefId?: number) => Promise<void>;
   fetchTrainerMessages: (customerId: number) => Promise<void>;
   fetchComparativeMetrics: () => Promise<void>;
   fetchClientAlerts: (customerId: number) => Promise<void>;
@@ -481,12 +483,14 @@ export const useTrainerStore = create<TrainerState>((set, get) => ({
     }));
   },
 
-  sendTrainerMessage: async (customerId, message, triggerType = 'manual') => {
-    await api.post(
-      '/trainer/messages/',
-      { customer_id: customerId, message, trigger_type: triggerType },
-      { headers: authHeaders() }
-    );
+  sendTrainerMessage: async (customerId, message, triggerType = 'manual', triggerRefId) => {
+    const body: Record<string, unknown> = {
+      customer_id: customerId,
+      message,
+      trigger_type: triggerType,
+    };
+    if (triggerRefId !== undefined) body.trigger_ref_id = triggerRefId;
+    await api.post('/trainer/messages/', body, { headers: authHeaders() });
     await get().fetchTrainerMessages(customerId);
   },
 
