@@ -10,19 +10,23 @@ class AdminSubscriptionSerializer(serializers.ModelSerializer):
 
     Exposes ``status`` as a writable ChoiceField (unlike the customer-facing
     SubscriptionSerializer which computes it).  Also adds ``customer_name``
-    for display in the admin panel.
+    for display in the admin panel and host/guest metadata for duo plans.
     """
 
+    customer_id = serializers.IntegerField(source='customer.id', read_only=True)
     customer_email = serializers.EmailField(source='customer.email', read_only=True)
     customer_name = serializers.SerializerMethodField(read_only=True)
     package = PackageSerializer(read_only=True)
     sessions_remaining = serializers.IntegerField(read_only=True)
     status = serializers.ChoiceField(choices=Subscription.Status.choices, required=False)
+    is_duo = serializers.SerializerMethodField(read_only=True)
+    guest_info = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Subscription
         fields = (
             'id',
+            'customer_id',
             'customer_email',
             'customer_name',
             'package',
@@ -35,6 +39,8 @@ class AdminSubscriptionSerializer(serializers.ModelSerializer):
             'is_recurring',
             'next_billing_date',
             'billing_failed_at',
+            'is_duo',
+            'guest_info',
             'created_at',
             'updated_at',
         )
@@ -43,6 +49,28 @@ class AdminSubscriptionSerializer(serializers.ModelSerializer):
     def get_customer_name(self, obj):
         name = f'{obj.customer.first_name} {obj.customer.last_name}'.strip()
         return name or obj.customer.email
+
+    def get_is_duo(self, obj):
+        return obj.package.category == 'semi_personalizado'
+
+    def get_guest_info(self, obj):
+        try:
+            gl = obj.guest_link
+        except Exception:
+            return None
+        guest_name = None
+        guest_user_id = None
+        if gl.guest_id:
+            full = f'{gl.guest.first_name} {gl.guest.last_name}'.strip()
+            guest_name = full or gl.guest.email
+            guest_user_id = gl.guest_id
+        return {
+            'status': gl.status,
+            'invited_email': gl.invited_email,
+            'guest_name': guest_name,
+            'guest_user_id': guest_user_id,
+            'accepted_at': gl.accepted_at.isoformat() if gl.accepted_at else None,
+        }
 
 
 class SubscriptionSerializer(serializers.ModelSerializer):

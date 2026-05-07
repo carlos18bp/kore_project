@@ -14,6 +14,7 @@ from core_app.views.notification_views import NotificationViewSet
 from core_app.views.package_views import PackageViewSet
 from core_app.views.payment_views import PaymentViewSet
 from core_app.views.subscription_views import SubscriptionViewSet
+from core_app.views.admin_user_views import AdminUserViewSet
 from core_app.views.duo_invite_views import accept_invite, pending_invitation
 from core_app.views.terms_views import TermsAcceptanceCreateView, TermsAcceptanceStatusView
 from core_app.views.anthropometry_views import (
@@ -81,6 +82,7 @@ from core_app.views.trainer_intelligence_views import (
     TrainerClientNutritionLogsView,
     TrainerClientSessionsFullView,
     TrainerMessagesForCustomerView,
+    TrainerMessageDismissView,
 )
 from core_app.views.trainer_profile_views import TrainerProfileViewSet
 from core_app.views.nutrition_daily_views import (
@@ -103,6 +105,7 @@ router.register('faq-categories', FAQCategoryViewSet, basename='faq-category')
 router.register('faqs', FAQItemViewSet, basename='faq')
 router.register('contact-messages', ContactMessageViewSet, basename='contact-message')
 router.register('analytics-events', AnalyticsEventViewSet, basename='analytics-event')
+router.register('admin/users', AdminUserViewSet, basename='admin-user')
 
 urlpatterns = [
     path('subscriptions/accept-invite/', accept_invite, name='subscription-accept-invite'),
@@ -165,6 +168,7 @@ urlpatterns = [
     path('trainer/my-clients/<int:customer_id>/program/<int:program_id>/pause/', TrainerProgramPauseView.as_view(), name='trainer-program-pause'),
     path('trainer/my-clients/<int:customer_id>/program/<int:program_id>/resume/', TrainerProgramResumeView.as_view(), name='trainer-program-resume'),
     path('my-trainer-messages/', TrainerMessagesForCustomerView.as_view(), name='my-trainer-messages'),
+    path('my-trainer-messages/<int:message_id>/dismiss/', TrainerMessageDismissView.as_view(), name='my-trainer-messages-dismiss'),
     # Nutrition daily
     path('my-nutrition-daily/today/', TodayNutritionView.as_view(), name='my-nutrition-daily-today'),
     path('my-nutrition-daily/<int:log_id>/meals/<int:meal_id>/', UpdateMealEntryView.as_view(), name='my-nutrition-daily-update-meal'),

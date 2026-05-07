@@ -3,7 +3,6 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/authStore';
-import AdminSidebar from '@/app/components/layouts/AdminSidebar';
 
 export default function AdminLayout({
   children,
@@ -21,21 +20,25 @@ export default function AdminLayout({
       router.push('/login');
       return;
     }
-    if (user && user.role !== 'admin') {
+    if (!user) return;
+    if (user.must_change_password) {
+      router.replace('/change-password-required');
+      return;
+    }
+    if (user.role !== 'admin') {
       router.replace('/dashboard');
     }
   }, [hydrated, isAuthenticated, user, router]);
 
-  if (!hydrated || !isAuthenticated || !user || user.role !== 'admin') {
+  if (
+    !hydrated ||
+    !isAuthenticated ||
+    !user ||
+    user.role !== 'admin' ||
+    user.must_change_password
+  ) {
     return null;
   }
 
-  return (
-    <div className="min-h-screen bg-kore-cream">
-      <AdminSidebar />
-      <main className="xl:ml-64 pb-20 xl:pb-0">
-        {children}
-      </main>
-    </div>
-  );
+  return <>{children}</>;
 }

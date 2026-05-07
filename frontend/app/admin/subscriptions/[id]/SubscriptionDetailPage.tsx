@@ -1,302 +1,367 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import AdminShell from '@/app/components/admin/AdminShell';
+import Btn from '@/app/components/admin/Btn';
+import Card from '@/app/components/admin/Card';
+import DarkActionCard from '@/app/components/admin/DarkActionCard';
+import Field from '@/app/components/admin/Field';
+import InfoRow from '@/app/components/admin/InfoRow';
+import Input from '@/app/components/admin/Input';
+import MemberCard, {
+  NoGuestCard,
+  PendingMemberCard,
+  RevokedMemberCard,
+} from '@/app/components/admin/MemberCard';
+import Modal from '@/app/components/admin/Modal';
+import SubscriptionHero from '@/app/components/admin/SubscriptionHero';
 import {
   useAdminSubscriptionStore,
   type PatchSubscriptionPayload,
 } from '@/lib/stores/adminSubscriptionStore';
 
-
-const STATUS_OPTIONS = [
-  { label: 'Activa', value: 'active' },
-  { label: 'Expirada', value: 'expired' },
-  { label: 'Cancelada', value: 'canceled' },
-];
-
-const STATUS_PILL: Record<string, string> = {
-  active: 'bg-emerald-100 text-emerald-700',
-  expired: 'bg-amber-100 text-amber-700',
-  canceled: 'bg-rose-100 text-rose-700',
+const CATEGORY_LABEL: Record<string, string> = {
+  semi_personalizado: 'Pareja',
+  personalizado: 'Personalizada',
+  terapeutico: 'Terapéutica',
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  active: 'Activa',
-  expired: 'Expirada',
-  canceled: 'Cancelada',
-};
+const STATUS_LABEL = { active: 'Activa', expired: 'Expirada', canceled: 'Cancelada' } as const;
 
-function toDatetimeLocal(iso: string) {
-  return iso ? iso.slice(0, 16) : '';
+function fmtDate(iso: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('es-CO', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
+function toDateInput(iso: string | null): string {
+  if (!iso) return '';
+  return iso.slice(0, 10);
 }
 
-export default function AdminSubscriptionDetailPage() {
+export default function SubscriptionDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const id = Number(params.id);
-
   const { selected, loading, actionLoading, error, fetchById, patchSubscription, renewSubscription } =
     useAdminSubscriptionStore();
 
   const [form, setForm] = useState<PatchSubscriptionPayload>({});
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [renewSuccess, setRenewSuccess] = useState(false);
-  const [renewedId, setRenewedId] = useState<number | null>(null);
+  const [saveOk, setSaveOk] = useState(false);
+  const [renewOk, setRenewOk] = useState(false);
+  const [renewModal, setRenewModal] = useState(false);
 
   useEffect(() => {
-    if (id) fetchById(id);
+    if (Number.isFinite(id) && id > 0) fetchById(id);
   }, [id, fetchById]);
 
   useEffect(() => {
     if (selected) {
       setForm({
         status: selected.status,
-        sessions_total: selected.sessions_total,
         sessions_used: selected.sessions_used,
         expires_at: selected.expires_at,
-        starts_at: selected.starts_at,
-        is_recurring: selected.is_recurring,
       });
+      setSaveOk(false);
+      setRenewOk(false);
     }
   }, [selected]);
 
+  const dirty = useMemo(() => {
+    if (!selected) return false;
+    if (form.status !== undefined && form.status !== selected.status) return true;
+    if (
+      form.sessions_used !== undefined &&
+      Number(form.sessions_used) !== selected.sessions_used
+    )
+      return true;
+    if (form.expires_at !== undefined && form.expires_at !== selected.expires_at) return true;
+    return false;
+  }, [form, selected]);
+
+  if (!selected || loading) {
+    return (
+      <AdminShell breadcrumb={[{ label: 'Suscripciones', href: '/admin/subscriptions' }]} title="Cargando…">
+        <div className="text-sm text-kore-burgundy/55">{error || 'Cargando…'}</div>
+      </AdminShell>
+    );
+  }
+
+  const categoryLabel = CATEGORY_LABEL[selected.package.category] ?? selected.package.category;
+  const canRenew = selected.status === 'expired' || selected.status === 'canceled';
+
   const handleSave = async () => {
-    setSaveSuccess(false);
+    setSaveOk(false);
     const ok = await patchSubscription(id, form);
-    if (ok) setSaveSuccess(true);
+    if (ok) setSaveOk(true);
+  };
+
+  const handleDiscard = () => {
+    setForm({
+      status: selected.status,
+      sessions_used: selected.sessions_used,
+      expires_at: selected.expires_at,
+    });
   };
 
   const handleRenew = async () => {
-    setRenewSuccess(false);
-    const newSub = await renewSubscription(id);
-    if (newSub) {
-      setRenewSuccess(true);
-      setRenewedId(newSub.id);
+    setRenewModal(false);
+    setRenewOk(false);
+    const result = await renewSubscription(id);
+    if (result) {
+      setRenewOk(true);
       await fetchById(id);
     }
   };
 
-  if (loading && !selected) {
-    return (
-      <div className="px-4 py-20 flex justify-center">
-        <div className="w-6 h-6 border-2 border-kore-red border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (!selected) {
-    return (
-      <div className="px-4 py-20 text-center text-sm text-kore-gray-dark/40">
-        Suscripción no encontrada.
-      </div>
-    );
-  }
-
-  const canRenew = selected.status === 'expired' || selected.status === 'canceled';
-
   return (
-    <div className="px-4 py-6 max-w-2xl mx-auto space-y-5 pt-20 xl:pt-8">
-      {/* Back */}
-      <button
-        onClick={() => router.push('/admin/subscriptions')}
-        className="text-sm text-kore-gray-dark/50 hover:text-kore-red transition-colors"
+    <AdminShell
+      breadcrumb={[
+        { label: 'Panel', href: '/admin/dashboard' },
+        { label: 'Suscripciones', href: '/admin/subscriptions' },
+        { label: `#${selected.id}` },
+      ]}
+      title={selected.package.title}
+    >
+      <Link
+        href="/admin/subscriptions"
+        prefetch={false}
+        className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-kore-burgundy/60 mb-5 hover:text-kore-burgundy"
       >
         ← Volver a suscripciones
-      </button>
+      </Link>
 
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-kore-gray-dark/40 mb-1">
-            Suscripción #{selected.id}
-          </p>
-          <h1 className="text-xl font-bold text-kore-gray-dark">{selected.package.title}</h1>
-        </div>
-        <span
-          className={`mt-1 rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap ${STATUS_PILL[selected.status] ?? 'bg-gray-100 text-gray-600'}`}
-        >
-          {STATUS_LABEL[selected.status] ?? selected.status}
-        </span>
-      </div>
+      <SubscriptionHero
+        id={selected.id}
+        categoryLabel={categoryLabel}
+        packageTitle={selected.package.title}
+        status={selected.status}
+        startsAt={fmtDate(selected.starts_at)}
+        expiresAt={fmtDate(selected.expires_at)}
+        sessionsUsed={selected.sessions_used}
+        sessionsTotal={selected.sessions_total}
+      />
 
-      {/* Info Card */}
-      <div className="bg-white rounded-2xl p-5 border border-kore-gray-light/40 shadow-sm space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-widest text-kore-gray-dark/40">
-          Información del cliente
-        </p>
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div>
-            <p className="text-xs text-kore-gray-dark/40 mb-0.5">Nombre</p>
-            <p className="font-medium text-kore-gray-dark">{selected.customer_name}</p>
+      {/* Plan Pareja */}
+      {selected.is_duo && (
+        <Card className="p-7 mt-5">
+          <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-kore-burgundy/55">
+            Plan Pareja
           </div>
-          <div>
-            <p className="text-xs text-kore-gray-dark/40 mb-0.5">Email</p>
-            <p className="font-medium text-kore-gray-dark">{selected.customer_email}</p>
+          <div className="font-heading text-lg font-semibold text-kore-burgundy mt-1 mb-5">
+            Miembros del plan
           </div>
-          <div>
-            <p className="text-xs text-kore-gray-dark/40 mb-0.5">Precio del paquete</p>
-            <p className="font-medium text-kore-gray-dark">
-              {Number(selected.package.price).toLocaleString('es-CO', { style: 'currency', currency: selected.package.currency, maximumFractionDigits: 0 })}
-            </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-5 items-center">
+            <MemberCard
+              role="Anfitrión"
+              name={selected.customer_name}
+              email={selected.customer_email}
+              userId={selected.customer_id}
+            />
+
+            <div className="flex flex-col items-center gap-1.5">
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center font-heading text-[13px] ${
+                  selected.guest_info?.status === 'accepted'
+                    ? 'bg-kore-sage/20 text-kore-sage-deep'
+                    : selected.guest_info?.status === 'pending'
+                      ? 'bg-kore-amber/20 text-kore-amber-deep'
+                      : 'bg-kore-burgundy/8 text-kore-burgundy/55'
+                }`}
+              >
+                {selected.guest_info?.status === 'accepted'
+                  ? '⌘'
+                  : selected.guest_info?.status === 'pending'
+                    ? '⏳'
+                    : '✕'}
+              </div>
+              <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-kore-burgundy/55">
+                {selected.guest_info?.status === 'accepted'
+                  ? 'Aceptada'
+                  : selected.guest_info?.status === 'pending'
+                    ? 'Pendiente'
+                    : selected.guest_info?.status === 'revoked'
+                      ? 'Revocada'
+                      : 'Sin enviar'}
+              </div>
+              {selected.guest_info?.accepted_at && (
+                <div className="text-[10px] text-kore-burgundy/55">
+                  {fmtDate(selected.guest_info.accepted_at)}
+                </div>
+              )}
+            </div>
+
+            {selected.guest_info?.status === 'accepted' ? (
+              <MemberCard
+                role="Invitado"
+                name={selected.guest_info.guest_name ?? selected.guest_info.invited_email}
+                email={selected.guest_info.invited_email}
+                userId={selected.guest_info.guest_user_id}
+              />
+            ) : selected.guest_info?.status === 'pending' ? (
+              <PendingMemberCard email={selected.guest_info.invited_email} />
+            ) : selected.guest_info?.status === 'revoked' ? (
+              <RevokedMemberCard
+                name={selected.guest_info.guest_name ?? selected.guest_info.invited_email}
+              />
+            ) : (
+              <NoGuestCard />
+            )}
           </div>
-          <div>
-            <p className="text-xs text-kore-gray-dark/40 mb-0.5">Creada</p>
-            <p className="font-medium text-kore-gray-dark">{formatDate(selected.created_at)}</p>
+        </Card>
+      )}
+
+      {!selected.is_duo && (
+        <Card className="p-7 mt-5">
+          <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-kore-burgundy/55">
+            Cliente
           </div>
-        </div>
-      </div>
-
-      {/* Edit Form */}
-      <div className="bg-white rounded-2xl p-5 border border-kore-gray-light/40 shadow-sm space-y-4">
-        <p className="text-xs font-semibold uppercase tracking-widest text-kore-gray-dark/40">
-          Editar suscripción
-        </p>
-
-        {/* Status */}
-        <div>
-          <label className="block text-xs font-medium text-kore-gray-dark/60 mb-1.5">Estado</label>
-          <select
-            value={form.status ?? ''}
-            onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as PatchSubscriptionPayload['status'] }))}
-            className="w-full rounded-xl border border-kore-gray-light/40 px-3 py-2 text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/20"
-          >
-            {STATUS_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Sessions */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-kore-gray-dark/60 mb-1.5">
-              Sesiones totales
-            </label>
-            <input
-              type="number"
-              min={0}
-              value={form.sessions_total ?? ''}
-              onChange={(e) => setForm((f) => ({ ...f, sessions_total: Number(e.target.value) }))}
-              className="w-full rounded-xl border border-kore-gray-light/40 px-3 py-2 text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/20"
+          <div className="font-heading text-lg font-semibold text-kore-burgundy mt-1 mb-5">
+            Información
+          </div>
+          <div className="max-w-md">
+            <MemberCard
+              role="Cliente"
+              name={selected.customer_name}
+              email={selected.customer_email}
+              userId={selected.customer_id}
+              fullWidth
             />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-kore-gray-dark/60 mb-1.5">
-              Sesiones usadas
-            </label>
-            <input
-              type="number"
-              min={0}
-              value={form.sessions_used ?? ''}
-              onChange={(e) => setForm((f) => ({ ...f, sessions_used: Number(e.target.value) }))}
-              className="w-full rounded-xl border border-kore-gray-light/40 px-3 py-2 text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/20"
-            />
-          </div>
-        </div>
+        </Card>
+      )}
 
-        {/* Dates */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-kore-gray-dark/60 mb-1.5">
-              Fecha de inicio
-            </label>
-            <input
-              type="datetime-local"
-              value={toDatetimeLocal(form.starts_at ?? '')}
-              onChange={(e) => setForm((f) => ({ ...f, starts_at: e.target.value + ':00Z' }))}
-              className="w-full rounded-xl border border-kore-gray-light/40 px-3 py-2 text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/20"
-            />
+      {/* Detail + Edit */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-5">
+        <Card className="p-7">
+          <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-kore-burgundy/55">
+            Detalle
           </div>
-          <div>
-            <label className="block text-xs font-medium text-kore-gray-dark/60 mb-1.5">
-              Fecha de vencimiento
-            </label>
-            <input
-              type="datetime-local"
-              value={toDatetimeLocal(form.expires_at ?? '')}
-              onChange={(e) => setForm((f) => ({ ...f, expires_at: e.target.value + ':00Z' }))}
-              className="w-full rounded-xl border border-kore-gray-light/40 px-3 py-2 text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/20"
-            />
+          <div className="font-heading text-lg font-semibold text-kore-burgundy mt-1 mb-4">
+            Información del paquete
           </div>
-        </div>
-
-        {/* Recurring */}
-        <label className="flex items-center gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={!!form.is_recurring}
-            onChange={(e) => setForm((f) => ({ ...f, is_recurring: e.target.checked }))}
-            className="w-4 h-4 rounded accent-kore-red"
+          <InfoRow label="Paquete" value={selected.package.title} />
+          <InfoRow label="Categoría" value={categoryLabel} />
+          <InfoRow label="Inicio" value={fmtDate(selected.starts_at)} />
+          <InfoRow label="Vence" value={fmtDate(selected.expires_at)} />
+          <InfoRow label="Sesiones" value={`${selected.sessions_used} / ${selected.sessions_total}`} />
+          <InfoRow
+            label="Estado"
+            value={STATUS_LABEL[selected.status] ?? selected.status}
+            valuePill={selected.status === 'active' ? 'sage' : 'neutral'}
+            last
           />
-          <span className="text-sm text-kore-gray-dark/70">Renovación automática activa</span>
-        </label>
+        </Card>
 
-        {/* Error */}
-        {error && (
-          <p className="text-xs text-rose-600 bg-rose-50 rounded-xl px-3 py-2">{error}</p>
-        )}
-
-        {/* Success */}
-        {saveSuccess && (
-          <p className="text-xs text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2">
-            Cambios guardados correctamente.
-          </p>
-        )}
-
-        <button
-          onClick={handleSave}
-          disabled={actionLoading}
-          className="w-full bg-kore-red text-white rounded-xl py-2.5 font-medium text-sm hover:bg-kore-red/90 transition-colors disabled:opacity-50"
-        >
-          {actionLoading ? 'Guardando…' : 'Guardar cambios'}
-        </button>
-      </div>
-
-      {/* Manual Renew — admin privilege card */}
-      {canRenew && (
-        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-5 shadow-lg space-y-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-white/40 mb-1">
-              Acción administrativa
-            </p>
-            <p className="text-base font-bold text-white">Renovar manualmente</p>
-            <p className="text-xs text-white/50 mt-1 leading-relaxed">
-              Crea una nueva suscripción activa registrando un pago en efectivo. La suscripción
-              actual queda marcada como expirada.
-            </p>
+        <Card className="p-7">
+          <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-kore-burgundy/55">
+            Editar
+          </div>
+          <div className="font-heading text-lg font-semibold text-kore-burgundy mt-1 mb-4">
+            Ajustes administrativos
           </div>
 
-          {renewSuccess && renewedId && (
-            <div className="bg-emerald-500/20 border border-emerald-500/30 rounded-xl px-3 py-2">
-              <p className="text-xs text-emerald-300">
-                Renovación exitosa. Nueva suscripción #{renewedId} creada.{' '}
-                <button
-                  onClick={() => router.push(`/admin/subscriptions/${renewedId}`)}
-                  className="underline hover:no-underline"
-                >
-                  Ver →
-                </button>
-              </p>
+          <Field label="Estado" className="mb-3.5">
+            <div className="flex gap-1.5 p-1 bg-kore-burgundy/6 rounded-xl border border-kore-burgundy/8">
+              {(['active', 'expired', 'canceled'] as const).map((st) => {
+                const sel = (form.status ?? selected.status) === st;
+                return (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, status: st }))}
+                    className={`flex-1 px-3 py-2 rounded-lg text-[11px] font-semibold transition-all ${
+                      sel
+                        ? 'bg-white text-kore-burgundy shadow-sm'
+                        : 'text-kore-burgundy/65 hover:text-kore-burgundy'
+                    }`}
+                  >
+                    {STATUS_LABEL[st]}
+                  </button>
+                );
+              })}
+            </div>
+          </Field>
+
+          <Field label="Sesiones consumidas" className="mb-3.5">
+            <Input
+              type="number"
+              min={0}
+              max={selected.sessions_total}
+              value={form.sessions_used ?? selected.sessions_used}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, sessions_used: Number(e.target.value) }))
+              }
+            />
+          </Field>
+
+          <Field label="Fecha de vencimiento" className="mb-3.5">
+            <Input
+              type="date"
+              value={toDateInput(form.expires_at ?? selected.expires_at)}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, expires_at: new Date(e.target.value).toISOString() }))
+              }
+            />
+          </Field>
+
+          {saveOk && (
+            <div className="mb-3 px-3 py-2 rounded-xl bg-kore-sage/15 border border-kore-sage/35 text-[11px] font-semibold text-kore-sage-deep">
+              Cambios guardados.
             </div>
           )}
 
-          <button
-            onClick={handleRenew}
-            disabled={actionLoading || renewSuccess}
-            className="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl py-2.5 font-medium text-sm transition-colors disabled:opacity-40"
-          >
-            {actionLoading ? 'Renovando…' : 'Renovar manualmente (Efectivo)'}
-          </button>
-        </div>
+          <div className="flex justify-end gap-2 mt-2">
+            <Btn variant="ghost" size="sm" onClick={handleDiscard} disabled={!dirty}>
+              Descartar
+            </Btn>
+            <Btn
+              variant="primary"
+              size="sm"
+              onClick={handleSave}
+              disabled={!dirty || actionLoading}
+            >
+              {actionLoading ? 'Guardando…' : 'Guardar cambios'}
+            </Btn>
+          </div>
+        </Card>
+      </div>
+
+      {/* Renewal */}
+      <div className="mt-5">
+        {renewOk && (
+          <div className="mb-3 px-4 py-3 rounded-xl bg-kore-sage/15 border border-kore-sage/35 text-[12px] font-semibold text-kore-sage-deep">
+            Suscripción renovada. La actual quedó marcada como expirada y se creó una nueva.
+          </div>
+        )}
+        <DarkActionCard
+          title="Renovación manual"
+          description="Registra un pago en efectivo y extiende la suscripción con las mismas condiciones del paquete actual."
+          cta="Renovar manualmente"
+          icon="↻"
+          onAction={() => setRenewModal(true)}
+          disabled={!canRenew || actionLoading}
+        />
+        {!canRenew && (
+          <div className="mt-2 text-[11px] text-kore-burgundy/55">
+            La renovación manual sólo aplica a suscripciones expiradas o canceladas.
+          </div>
+        )}
+      </div>
+
+      {renewModal && (
+        <Modal
+          title="Renovar suscripción"
+          body={`Se registrará un pago manual y se extenderá la fecha de vencimiento ${selected.sessions_total} sesiones más, equivalente al paquete "${selected.package.title}".`}
+          confirmLabel="Sí, renovar"
+          loading={actionLoading}
+          onClose={() => setRenewModal(false)}
+          onConfirm={handleRenew}
+        />
       )}
-    </div>
+    </AdminShell>
   );
 }

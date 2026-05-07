@@ -15,6 +15,7 @@ export type User = {
   name: string;
   profile_completed: boolean;
   avatar_url: string | null;
+  must_change_password: boolean;
 };
 
 type RegisterParams = {
@@ -48,6 +49,7 @@ type LoginResponse = {
     last_name: string;
     phone: string;
     role: string;
+    must_change_password?: boolean;
   };
   tokens: {
     access: string;
@@ -94,6 +96,7 @@ function mapUser(raw: LoginResponse['user'], extra?: { profile_completed?: boole
     name: [first, last].filter(Boolean).join(' ') || raw.email,
     profile_completed: extra?.profile_completed ?? false,
     avatar_url: extra?.avatar_url ?? null,
+    must_change_password: raw.must_change_password ?? false,
   };
 }
 

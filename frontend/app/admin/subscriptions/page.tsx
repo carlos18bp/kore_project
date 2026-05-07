@@ -1,200 +1,178 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAdminSubscriptionStore, type AdminSubscription } from '@/lib/stores/adminSubscriptionStore';
-
-const STATUS_OPTIONS = [
-  { label: 'Todas', value: '' },
-  { label: 'Activas', value: 'active' },
-  { label: 'Expiradas', value: 'expired' },
-  { label: 'Canceladas', value: 'canceled' },
-];
-
-const STATUS_PILL: Record<string, string> = {
-  active: 'bg-emerald-100 text-emerald-700',
-  expired: 'bg-amber-100 text-amber-700',
-  canceled: 'bg-rose-100 text-rose-700',
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  active: 'Activa',
-  expired: 'Expirada',
-  canceled: 'Cancelada',
-};
+import { useEffect, useMemo, useState } from 'react';
+import AdminShell from '@/app/components/admin/AdminShell';
+import Btn from '@/app/components/admin/Btn';
+import Card from '@/app/components/admin/Card';
+import Input from '@/app/components/admin/Input';
+import SubRow, { type AdminSubRowData } from '@/app/components/admin/SubRow';
+import SubscriptionCategoryTabs from '@/app/components/admin/SubscriptionCategoryTabs';
+import {
+  useAdminSubscriptionStore,
+  type AdminSubscriptionFilters,
+} from '@/lib/stores/adminSubscriptionStore';
 
 const PAGE_SIZE = 10;
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('es-CO', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+type Category = 'semi_personalizado' | 'personalizado' | 'terapeutico';
+
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} className="w-4 h-4">
+      <circle cx="11" cy="11" r="7" strokeLinecap="round" />
+      <path d="M21 21l-4.3-4.3" strokeLinecap="round" />
+    </svg>
+  );
 }
 
+const STATUS_OPTIONS: Array<{ k: '' | 'active' | 'expired' | 'canceled'; label: string }> = [
+  { k: '', label: 'Todas' },
+  { k: 'active', label: 'Activa' },
+  { k: 'expired', label: 'Expirada' },
+  { k: 'canceled', label: 'Cancelada' },
+];
+
 export default function AdminSubscriptionsPage() {
-  const router = useRouter();
   const { subscriptions, totalCount, filters, loading, fetchSubscriptions, setFilters } =
     useAdminSubscriptionStore();
-
   const [searchInput, setSearchInput] = useState(filters.search);
 
-  useEffect(() => {
-    fetchSubscriptions({ page: 1 });
-  }, [fetchSubscriptions]);
+  // Default tab — `semi_personalizado` if not set yet.
+  const activeCategory: Category =
+    (filters.category as Category) || 'semi_personalizado';
 
-  const handleSearch = () => {
+  useEffect(() => {
+    fetchSubscriptions({ page: 1, category: activeCategory });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const counts = useMemo(() => {
+    const acc: Record<Category, number> = {
+      semi_personalizado: 0,
+      personalizado: 0,
+      terapeutico: 0,
+    };
+    // Counts derived from current page only — backend total comes from totalCount per active filter.
+    // We surface the *current* filter count as the active tab count and approximate others to "—".
+    // Better UX would be a dedicated counts endpoint; for MVP we show what we have.
+    if (filters.category) {
+      acc[filters.category as Category] = totalCount;
+    }
+    return acc;
+  }, [filters.category, totalCount]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  const handleCategory = (cat: Category) => {
+    setFilters({ category: cat as AdminSubscriptionFilters['category'], page: 1 });
+    fetchSubscriptions({ category: cat as AdminSubscriptionFilters['category'], page: 1 });
+  };
+
+  const handleSearchSubmit = () => {
+    setFilters({ search: searchInput, page: 1 });
     fetchSubscriptions({ search: searchInput, page: 1 });
   };
 
-  const handleStatusFilter = (value: string) => {
-    fetchSubscriptions({ status: value, page: 1 });
+  const handleStatus = (status: string) => {
+    setFilters({ status, page: 1 });
+    fetchSubscriptions({ status, page: 1 });
   };
 
-  const handlePage = (next: number) => {
+  const handlePage = (delta: 1 | -1) => {
+    const next = Math.min(totalPages, Math.max(1, filters.page + delta));
+    if (next === filters.page) return;
+    setFilters({ page: next });
     fetchSubscriptions({ page: next });
   };
 
-  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
-
   return (
-    <div className="px-4 py-6 max-w-6xl mx-auto space-y-5 pt-20 xl:pt-8">
-      {/* Header */}
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-kore-gray-dark/40 mb-1">
-          Panel de administración
-        </p>
-        <h1 className="text-2xl font-bold text-kore-gray-dark">Suscripciones</h1>
-      </div>
+    <AdminShell
+      breadcrumb={[{ label: 'Panel de administración', href: '/admin/dashboard' }, { label: 'Suscripciones' }]}
+      title="Gestión de suscripciones"
+    >
+      <SubscriptionCategoryTabs active={activeCategory} counts={counts} onChange={handleCategory} />
 
-      {/* Filter bar */}
-      <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm flex flex-wrap gap-3 items-center">
-        {/* Search */}
-        <div className="flex gap-2 flex-1 min-w-48">
-          <input
-            type="text"
-            placeholder="Buscar por email o nombre…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className="flex-1 rounded-xl border border-kore-gray-light/40 px-3 py-2 text-sm text-kore-gray-dark focus:outline-none focus:ring-2 focus:ring-kore-red/20"
-          />
-          <button
-            onClick={handleSearch}
-            className="bg-kore-red text-white rounded-xl px-4 py-2 text-sm font-medium hover:bg-kore-red/90 transition-colors"
-          >
-            Buscar
-          </button>
-        </div>
-
-        {/* Status pills */}
-        <div className="flex gap-2 flex-wrap">
-          {STATUS_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => {
-                setFilters({ status: opt.value });
-                handleStatusFilter(opt.value);
+      <Card className="p-4 mb-5">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-[240px]">
+            <Input
+              icon={<SearchIcon />}
+              placeholder="Buscar cliente, email o paquete…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSearchSubmit();
               }}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                filters.status === opt.value
-                  ? 'bg-kore-red text-white'
-                  : 'bg-white border border-kore-gray-light/40 text-kore-gray-dark/60 hover:border-kore-red/30'
-              }`}
-            >
-              {opt.label}
-            </button>
+            />
+          </div>
+          <div className="flex gap-1.5 p-1 bg-kore-burgundy/6 rounded-xl border border-kore-burgundy/8">
+            {STATUS_OPTIONS.map((s) => {
+              const sel = filters.status === s.k;
+              return (
+                <button
+                  key={s.k || 'all'}
+                  type="button"
+                  onClick={() => handleStatus(s.k)}
+                  className={`px-3.5 py-2 rounded-lg text-[11px] font-semibold tracking-wide transition-all ${
+                    sel
+                      ? 'bg-white text-kore-burgundy shadow-sm'
+                      : 'text-kore-burgundy/65 hover:text-kore-burgundy'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </Card>
+
+      {!loading && subscriptions.length === 0 ? (
+        <div className="p-14 text-center bg-white/55 rounded-2xl border border-dashed border-kore-burgundy/15">
+          <div className="font-heading text-lg font-semibold text-kore-burgundy">
+            Sin suscripciones
+          </div>
+          <div className="text-[13px] text-kore-burgundy/60 mt-2">
+            No hay resultados con los filtros aplicados.
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          <div className="grid grid-cols-[2fr_1.6fr_1.4fr_1fr_0.9fr_28px] gap-4 px-5 text-[9px] font-bold uppercase tracking-[0.20em] text-kore-burgundy/55">
+            <div>Cliente</div>
+            <div>Paquete</div>
+            <div>Sesiones</div>
+            <div>Vence</div>
+            <div>Estado</div>
+            <div></div>
+          </div>
+          {subscriptions.map((sub) => (
+            <SubRow key={sub.id} sub={sub as AdminSubRowData} />
           ))}
         </div>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white rounded-2xl border border-kore-gray-light/40 shadow-sm overflow-hidden">
-        {/* Table header */}
-        <div className="grid grid-cols-[auto_1fr_1fr_auto_auto_auto_auto] gap-x-4 px-4 py-3 bg-kore-cream">
-          <span className="text-xs font-semibold uppercase tracking-widest text-kore-gray-dark/50">#</span>
-          <span className="text-xs font-semibold uppercase tracking-widest text-kore-gray-dark/50">Cliente</span>
-          <span className="text-xs font-semibold uppercase tracking-widest text-kore-gray-dark/50">Paquete</span>
-          <span className="text-xs font-semibold uppercase tracking-widest text-kore-gray-dark/50">Estado</span>
-          <span className="text-xs font-semibold uppercase tracking-widest text-kore-gray-dark/50">Sesiones</span>
-          <span className="text-xs font-semibold uppercase tracking-widest text-kore-gray-dark/50">Vence</span>
-          <span className="text-xs font-semibold uppercase tracking-widest text-kore-gray-dark/50"></span>
-        </div>
-
-        {/* Rows */}
-        {loading ? (
-          <div className="px-4 py-12 text-center">
-            <div className="inline-block w-5 h-5 border-2 border-kore-red border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : subscriptions.length === 0 ? (
-          <div className="px-4 py-12 text-center text-sm text-kore-gray-dark/40">
-            No hay suscripciones que coincidan con los filtros.
-          </div>
-        ) : (
-          subscriptions.map((sub: AdminSubscription) => (
-            <div
-              key={sub.id}
-              className="grid grid-cols-[auto_1fr_1fr_auto_auto_auto_auto] gap-x-4 px-4 py-3 border-t border-kore-gray-light/20 hover:bg-kore-cream/50 transition-colors items-center"
-            >
-              <span className="text-xs text-kore-gray-dark/40 font-mono">{sub.id}</span>
-
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-kore-gray-dark truncate">{sub.customer_name}</p>
-                <p className="text-xs text-kore-gray-dark/40 truncate">{sub.customer_email}</p>
-              </div>
-
-              <p className="text-sm text-kore-gray-dark/80 truncate">{sub.package.title}</p>
-
-              <span
-                className={`rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ${STATUS_PILL[sub.status] ?? 'bg-gray-100 text-gray-600'}`}
-              >
-                {STATUS_LABEL[sub.status] ?? sub.status}
-              </span>
-
-              <span className="text-sm text-kore-gray-dark/60 whitespace-nowrap">
-                {sub.sessions_used}/{sub.sessions_total}
-              </span>
-
-              <span className="text-xs text-kore-gray-dark/50 whitespace-nowrap">
-                {formatDate(sub.expires_at)}
-              </span>
-
-              <button
-                onClick={() => router.push(`/admin/subscriptions/${sub.id}`)}
-                className="text-xs font-medium text-kore-red hover:underline whitespace-nowrap"
-              >
-                Ver →
-              </button>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-1">
-          <p className="text-xs text-kore-gray-dark/40">
-            {totalCount} suscripciones · Página {filters.page} de {totalPages}
-          </p>
-          <div className="flex gap-2">
-            <button
-              disabled={filters.page <= 1}
-              onClick={() => handlePage(filters.page - 1)}
-              className="px-3 py-1.5 rounded-xl text-sm border border-kore-gray-light/40 text-kore-gray-dark/60 disabled:opacity-30 hover:bg-kore-cream transition-colors"
-            >
-              ← Anterior
-            </button>
-            <button
-              disabled={filters.page >= totalPages}
-              onClick={() => handlePage(filters.page + 1)}
-              className="px-3 py-1.5 rounded-xl text-sm border border-kore-gray-light/40 text-kore-gray-dark/60 disabled:opacity-30 hover:bg-kore-cream transition-colors"
-            >
-              Siguiente →
-            </button>
-          </div>
-        </div>
       )}
-    </div>
+
+      <div className="flex items-center justify-between mt-6 px-1">
+        <div className="text-xs text-kore-burgundy/60">
+          {totalCount} suscripcion{totalCount === 1 ? '' : 'es'}
+        </div>
+        <div className="flex items-center gap-2">
+          <Btn variant="ghost" size="sm" onClick={() => handlePage(-1)} disabled={filters.page === 1}>
+            ← Anterior
+          </Btn>
+          <div className="px-3.5 py-2 text-[11px] font-semibold text-kore-burgundy">
+            Página {filters.page} de {totalPages}
+          </div>
+          <Btn
+            variant="ghost"
+            size="sm"
+            onClick={() => handlePage(1)}
+            disabled={filters.page === totalPages}
+          >
+            Siguiente →
+          </Btn>
+        </div>
+      </div>
+    </AdminShell>
   );
 }

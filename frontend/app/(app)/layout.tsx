@@ -39,6 +39,10 @@ export default function AppLayout({
 
   useEffect(() => {
     if (!hydrated || !isAuthenticated || !user) return;
+    if (user.must_change_password && pathname !== '/change-password-required') {
+      router.replace('/change-password-required');
+      return;
+    }
     if (isAdmin) {
       router.replace('/admin/dashboard');
       return;
@@ -48,7 +52,7 @@ export default function AppLayout({
     } else if (!isTrainer && isOnTrainerRoute) {
       router.replace('/dashboard');
     }
-  }, [hydrated, isAuthenticated, user, isAdmin, isTrainer, isOnTrainerRoute, router]);
+  }, [hydrated, isAuthenticated, user, isAdmin, isTrainer, isOnTrainerRoute, pathname, router]);
 
   useEffect(() => {
     if (hydrated && isAuthenticated && user && !isTrainer && !isAdmin) {

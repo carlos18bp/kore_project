@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 
-from core_app.models import Package, Payment, Subscription, User
+from core_app.models import Package, Payment, Subscription, SubscriptionGuest, User
 
 FIXED_NOW = timezone.make_aware(datetime(2024, 6, 1, 10, 0, 0))
 
@@ -221,3 +221,55 @@ def test_admin_renew_forbidden_for_trainer(api_client, trainer, expired_sub):
     url = reverse('subscription-admin-renew', kwargs={'pk': expired_sub.pk})
     resp = api_client.post(url, {}, format='json')
     assert resp.status_code == status.HTTP_403_FORBIDDEN
+
+
+# ── New: ?category= filter and is_duo / guest_info exposure ────────────────
+
+@pytest.mark.django_db
+def test_admin_list_filter_by_category(api_client, admin_user, customer):
+    duo_pkg = Package.objects.create(
+        title='Duo', sessions_count=8, validity_days=60,
+        price='240000', currency='COP', is_active=True, category='semi_personalizado',
+    )
+    individual_pkg = Package.objects.create(
+        title='Solo', sessions_count=8, validity_days=30,
+        price='320000', currency='COP', is_active=True, category='personalizado',
+    )
+    Subscription.objects.create(
+        customer=customer, package=duo_pkg,
+        sessions_total=8, sessions_used=0, status=Subscription.Status.ACTIVE,
+        starts_at=FIXED_NOW, expires_at=FIXED_NOW + timedelta(days=60),
+    )
+    Subscription.objects.create(
+        customer=customer, package=individual_pkg,
+        sessions_total=8, sessions_used=0, status=Subscription.Status.ACTIVE,
+        starts_at=FIXED_NOW, expires_at=FIXED_NOW + timedelta(days=30),
+    )
+    api_client.force_authenticate(user=admin_user)
+    resp = api_client.get(reverse('subscription-list'), {'category': 'semi_personalizado'})
+    assert resp.status_code == status.HTTP_200_OK
+    results = resp.data.get('results', resp.data)
+    assert all(r['package']['category'] == 'semi_personalizado' for r in results)
+
+
+@pytest.mark.django_db
+def test_admin_serializer_includes_is_duo_and_guest_info(api_client, admin_user, customer):
+    duo_pkg = Package.objects.create(
+        title='Duo', sessions_count=8, validity_days=60,
+        price='240000', currency='COP', is_active=True, category='semi_personalizado',
+    )
+    sub = Subscription.objects.create(
+        customer=customer, package=duo_pkg,
+        sessions_total=8, sessions_used=0, status=Subscription.Status.ACTIVE,
+        starts_at=FIXED_NOW, expires_at=FIXED_NOW + timedelta(days=60),
+    )
+    SubscriptionGuest.objects.create(
+        subscription=sub, invited_email='guest@example.com',
+        status=SubscriptionGuest.STATUS_PENDING, token='tok-x',
+    )
+    api_client.force_authenticate(user=admin_user)
+    resp = api_client.get(reverse('subscription-detail', kwargs={'pk': sub.pk}))
+    assert resp.status_code == status.HTTP_200_OK
+    assert resp.data['is_duo'] is True
+    assert resp.data['guest_info']['status'] == 'pending'
+    assert resp.data['guest_info']['invited_email'] == 'guest@example.com'

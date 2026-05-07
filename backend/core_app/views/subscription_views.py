@@ -261,15 +261,20 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         if is_admin_user(self.request.user):
             search = self.request.query_params.get('search', '').strip()
             status_filter = self.request.query_params.get('status', '').strip()
+            category_filter = self.request.query_params.get('category', '').strip()
             if search:
                 qs = qs.filter(
                     Q(customer__email__icontains=search)
                     | Q(customer__first_name__icontains=search)
                     | Q(customer__last_name__icontains=search)
+                    | Q(package__title__icontains=search)
+                    | Q(guest_link__invited_email__icontains=search)
                 )
             if status_filter in Subscription.Status.values:
                 qs = qs.filter(status=status_filter)
-            return qs
+            if category_filter in {'personalizado', 'semi_personalizado', 'terapeutico'}:
+                qs = qs.filter(package__category=category_filter)
+            return qs.distinct()
         return qs.filter(
             Q(customer=self.request.user) |
             Q(guest_link__guest=self.request.user, guest_link__status=SubscriptionGuest.STATUS_ACCEPTED)

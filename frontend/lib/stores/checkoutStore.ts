@@ -140,6 +140,7 @@ function applyAutoLoginSession(autoLogin: NonNullable<PaymentIntentResult['auto_
     name: [first, last].filter(Boolean).join(' ') || autoLogin.user.email,
     profile_completed: false,
     avatar_url: null,
+    must_change_password: false,
   };
 
   Cookies.set('kore_token', autoLogin.access, { expires: 7 });

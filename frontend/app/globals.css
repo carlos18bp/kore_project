@@ -28,6 +28,22 @@
   --color-kore-gray-light: #E5E5E5;
   --color-kore-gray-dark: #333333;
   --color-kore-black: #000000;
+
+  /* Japandi (dark hero) palette — text & accents on the wine gradient */
+  --color-kore-ivory: #FFF8EC;       /* warm white — big titles on dark */
+  --color-kore-cream-warm: #FFE9DC;  /* light cream — body text on dark */
+  --color-kore-gold: #E7C8A0;        /* warm gold — eyebrows / accents */
+  --color-kore-gold-deep: #C9A77A;   /* deeper gold — secondary accent */
+  --color-kore-sage: #A8C29C;        /* sage green — positive accent */
+  --color-kore-sage-soft: #C2D6B8;   /* soft sage */
+  --color-kore-petal: #F4C7C7;       /* soft pink — fat / negative-tinted accent */
+  --color-kore-amber: #E5C97A;       /* warm amber — warning / pending accent */
+  --color-kore-amber-deep: #A88A2E;  /* deeper amber */
+  --color-kore-sage-deep: #669959;   /* deeper sage — primary on positive */
+  --color-kore-wine-deep: #2D0F1A;   /* deepest wine — gradient start */
+  --color-kore-wine-mid: #4A1828;    /* mid wine */
+  --color-kore-wine: #5C2030;        /* main wine */
+  --color-kore-wine-warm: #6B2A3A;   /* warm wine — gradient end */
 }
 
 /* ============================================
@@ -75,6 +91,8 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
   font-weight: 600;
   line-height: 1.2;
+}
+:where(h1, h2, h3, h4, h5, h6) {
   color: var(--color-kore-wine-dark);
 }
 
@@ -89,6 +107,16 @@ h1, h2, h3, h4, h5, h6 {
   50% {
     transform: translateY(-20px);
   }
+}
+
+/* Admin pulse dot — for "needs attention" indicators */
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(168, 194, 156, 0.55); }
+  50% { box-shadow: 0 0 0 6px rgba(168, 194, 156, 0); }
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 2s infinite;
 }
 
 .animate-bounce-slow {

@@ -2,14 +2,23 @@ import { create } from 'zustand';
 import { api } from '@/lib/services/http';
 import Cookies from 'js-cookie';
 
+export type AdminSubscriptionGuestInfo = {
+  status: 'pending' | 'accepted' | 'revoked';
+  invited_email: string;
+  guest_name: string | null;
+  guest_user_id: number | null;
+  accepted_at: string | null;
+};
+
 export type AdminSubscription = {
   id: number;
+  customer_id: number;
   customer_email: string;
   customer_name: string;
   package: {
     id: number;
     title: string;
-    category: string;
+    category: 'personalizado' | 'semi_personalizado' | 'terapeutico';
     sessions_count: number;
     session_duration_minutes: number;
     price: string;
@@ -25,6 +34,8 @@ export type AdminSubscription = {
   is_recurring: boolean;
   next_billing_date: string | null;
   billing_failed_at: string | null;
+  is_duo: boolean;
+  guest_info: AdminSubscriptionGuestInfo | null;
   created_at: string;
   updated_at: string;
 };
@@ -42,6 +53,7 @@ export type PatchSubscriptionPayload = {
 export type AdminSubscriptionFilters = {
   search: string;
   status: string;
+  category: 'personalizado' | 'semi_personalizado' | 'terapeutico' | '';
   page: number;
 };
 
@@ -71,7 +83,7 @@ export const useAdminSubscriptionStore = create<AdminSubscriptionState>((set, ge
   subscriptions: [],
   totalCount: 0,
   selected: null,
-  filters: { search: '', status: '', page: 1 },
+  filters: { search: '', status: '', category: '', page: 1 },
   loading: false,
   actionLoading: false,
   error: '',
@@ -84,7 +96,7 @@ export const useAdminSubscriptionStore = create<AdminSubscriptionState>((set, ge
     subscriptions: [],
     totalCount: 0,
     selected: null,
-    filters: { search: '', status: '', page: 1 },
+    filters: { search: '', status: '', category: '', page: 1 },
     error: '',
   }),
 
@@ -95,6 +107,7 @@ export const useAdminSubscriptionStore = create<AdminSubscriptionState>((set, ge
     const params: Record<string, string | number> = { page: merged.page };
     if (merged.search) params.search = merged.search;
     if (merged.status) params.status = merged.status;
+    if (merged.category) params.category = merged.category;
 
     try {
       const { data } = await api.get('/subscriptions/', {
