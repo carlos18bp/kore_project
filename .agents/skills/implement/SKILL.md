@@ -1,6 +1,6 @@
 ---
 name: implement
-description: "Implement a Kore Project feature or fix using the repo's existing architecture and minimal targeted verification. Use when the user asks to build, code, or fix something."
+description: "Implement a Azurita feature or fix using the repo's existing architecture and minimal targeted verification. Use when the user asks to build, code, or fix something."
 argument-hint: "[feature, refactor, bugfix, or concrete implementation request]"
 ---
 
@@ -11,7 +11,7 @@ argument-hint: "[feature, refactor, bugfix, or concrete implementation request]"
 - Read only the memory files that materially affect the change.
 - Identify the smallest useful verification commands before changing code.
 
-## Kore Project Rules
+## Azurita Rules
 - Backend DRF views stay function-based unless the user explicitly asks otherwise.
 - Keep business logic out of views when a service, serializer, helper, or model method is the better fit.
 - Frontend stores use Pinia Options API.

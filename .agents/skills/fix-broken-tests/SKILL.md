@@ -1,6 +1,6 @@
 ---
 name: fix-broken-tests
-description: "Fix a user-provided set of broken Kore Project tests with minimal code changes and only targeted regression runs."
+description: "Fix a user-provided set of broken Azurita tests with minimal code changes and only targeted regression runs."
 ---
 
 # Fix Broken Tests Workflow
