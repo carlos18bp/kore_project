@@ -91,22 +91,38 @@ export default function NewSubscriptionClient() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
-  // Load packages once.
+  // Load all packages by walking the paginated /packages/ endpoint.
+  // The default DRF pagination caps each page at 10 and ignores ?page_size,
+  // so we follow `next` until exhausted instead of relying on a single call.
   useEffect(() => {
     let alive = true;
     setPackagesLoading(true);
-    api.get('/packages/', { headers: authHeaders() })
-      .then(({ data }) => {
+
+    (async () => {
+      try {
+        const all: PackageItem[] = [];
+        let page = 1;
+        while (alive) {
+          const { data } = await api.get('/packages/', {
+            headers: authHeaders(),
+            params: { page },
+          });
+          const results: PackageItem[] = (data?.results ?? data ?? []) as PackageItem[];
+          all.push(...results);
+          if (!data?.next) break;
+          page += 1;
+          if (page > 20) break; // safety stop
+        }
         if (!alive) return;
-        const list: PackageItem[] = (data.results ?? data) as PackageItem[];
-        setPackages(list.filter((p) => p.is_active));
+        setPackages(all.filter((p) => p.is_active));
         setPackagesLoading(false);
-      })
-      .catch(() => {
+      } catch {
         if (!alive) return;
         setPackageError('No se pudieron cargar los paquetes.');
         setPackagesLoading(false);
-      });
+      }
+    })();
+
     return () => {
       alive = false;
     };
