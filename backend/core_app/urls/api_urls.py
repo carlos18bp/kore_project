@@ -92,6 +92,7 @@ from core_app.views.nutrition_daily_views import (
     NutritionHistoryView,
 )
 from core_app.views.progress_views import WeeklySummaryView, ProjectionView, MonthlySummaryView
+from core_app.views.trainer_assignment_views import TrainerAssignmentSummaryView
 
 router = DefaultRouter()
 router.register('packages', PackageViewSet, basename='package')
@@ -174,4 +175,5 @@ urlpatterns = [
     path('my-nutrition-daily/<int:log_id>/meals/<int:meal_id>/', UpdateMealEntryView.as_view(), name='my-nutrition-daily-update-meal'),
     path('my-nutrition-daily/<int:log_id>/meals/<int:meal_id>/photo/', MealEntryPhotoView.as_view(), name='my-nutrition-daily-meal-photo'),
     path('my-nutrition-daily/history/', NutritionHistoryView.as_view(), name='my-nutrition-daily-history'),
+    path('admin/trainers/assignment-summary/', TrainerAssignmentSummaryView.as_view(), name='admin-trainer-assignment-summary'),
 ]

@@ -120,3 +120,47 @@ def test_admin_patch_assigning_trainer_to_a_trainer_is_rejected(admin_client, tr
                               {'assigned_trainer_id': trainer_b.id}, format='json')
     assert resp.status_code == 400
     assert 'assigned_trainer_id' in resp.data
+
+
+@pytest.fixture
+def package(db):
+    return Package.objects.create(
+        title='P', short_description='s', category='personalizado',
+        sessions_count=10, session_duration_minutes=60, price=1, currency='COP',
+        validity_days=30, is_active=True, order=1,
+    )
+
+
+def _active_sub(customer, package):
+    return Subscription.objects.create(
+        customer=customer, package=package, status=Subscription.Status.ACTIVE,
+        starts_at=timezone.now(), expires_at=timezone.now() + timezone.timedelta(days=30),
+        sessions_used=0, sessions_total=10,
+    )
+
+
+@pytest.mark.django_db
+def test_assignment_summary_counts(admin_client, trainer_a, trainer_b, package):
+    c_assigned = User.objects.create_user(email='ca@kore.com', password='x', role=User.Role.CUSTOMER)
+    c_unassigned = User.objects.create_user(email='cu@kore.com', password='x', role=User.Role.CUSTOMER)
+    c_no_sub = User.objects.create_user(email='cn@kore.com', password='x', role=User.Role.CUSTOMER)
+    _active_sub(c_assigned, package)
+    _active_sub(c_unassigned, package)
+    c_assigned.assigned_trainer = trainer_a
+    c_assigned.save(update_fields=['assigned_trainer'])
+
+    resp = admin_client.get('/api/admin/trainers/assignment-summary/')
+    assert resp.status_code == 200
+    assert resp.data['active_customers'] == 2
+    assert resp.data['assigned'] == 1
+    assert resp.data['unassigned'] == 1
+    per = {row['trainer_id']: row['client_count'] for row in resp.data['per_trainer']}
+    assert per[trainer_a.id] == 1
+    assert per[trainer_b.id] == 0
+
+
+@pytest.mark.django_db
+def test_assignment_summary_requires_admin(customer):
+    c = APIClient()
+    c.force_authenticate(user=customer)
+    assert c.get('/api/admin/trainers/assignment-summary/').status_code in (403, 401)
