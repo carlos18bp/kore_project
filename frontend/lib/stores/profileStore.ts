@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import Cookies from 'js-cookie';
 import { api } from '@/lib/services/http';
-import { useAuthStore } from '@/lib/stores/authStore';
+import { useAuthStore, type AssignedTrainer } from '@/lib/stores/authStore';
 
 export type CustomerProfile = {
   avatar_url: string | null;
@@ -34,6 +34,7 @@ export type ProfileData = {
   must_change_password?: boolean;
   customer_profile: CustomerProfile | null;
   today_mood: TodayMood | null;
+  assigned_trainer?: AssignedTrainer | null;
 };
 
 type UpdateProfilePayload = {
@@ -100,7 +101,7 @@ function syncAuthStoreUser(profile: ProfileData) {
     profile_completed: cp?.profile_completed ?? false,
     avatar_url: cp?.avatar_url ?? null,
     must_change_password: profile.must_change_password ?? false,
-    assigned_trainer: null,
+    assigned_trainer: profile.assigned_trainer ?? null,
   };
 
   // Only update authStore if data actually changed to prevent infinite re-render loops

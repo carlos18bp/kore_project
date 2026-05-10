@@ -344,5 +344,34 @@ describe('profileStore', () => {
 
       expect((Cookies.set as jest.Mock).mock.calls.length).toBe(setCookieCalls);
     });
+
+    it('propagates assigned_trainer from profile response into auth store', async () => {
+      const trainer = {
+        id: 7,
+        first_name: 'Carlos',
+        last_name: 'Ruiz',
+        location: 'Bogotá',
+        session_duration_minutes: 60,
+      };
+      mockedApi.get.mockResolvedValueOnce({
+        data: { user: { ...MOCK_PROFILE_RESPONSE.user, assigned_trainer: trainer } },
+      });
+
+      await useProfileStore.getState().fetchProfile();
+
+      const { useAuthStore } = await import('@/lib/stores/authStore');
+      const authUser = useAuthStore.getState().user;
+      expect(authUser?.assigned_trainer).toEqual(trainer);
+    });
+
+    it('propagates null assigned_trainer when absent from profile response', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: MOCK_PROFILE_RESPONSE });
+
+      await useProfileStore.getState().fetchProfile();
+
+      const { useAuthStore } = await import('@/lib/stores/authStore');
+      const authUser = useAuthStore.getState().user;
+      expect(authUser?.assigned_trainer).toBeNull();
+    });
   });
 });

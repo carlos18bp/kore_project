@@ -1,5 +1,6 @@
 """Admin-only summary of trainer ↔ client assignment coverage."""
 
+from django.db.models import Count, Q
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -31,16 +32,20 @@ class TrainerAssignmentSummaryView(APIView):
         active_count = active_customers.count()
         assigned_count = active_customers.filter(assigned_trainer__isnull=False).count()
 
-        per_trainer = []
-        for tp in TrainerProfile.objects.select_related('user').order_by('user__first_name'):
-            per_trainer.append({
+        trainers = (
+            TrainerProfile.objects.select_related('user')
+            .annotate(client_count=Count('assigned_clients', filter=Q(assigned_clients__role=User.Role.CUSTOMER)))
+            .order_by('user__first_name')
+        )
+        per_trainer = [
+            {
                 'trainer_id': tp.id,
                 'first_name': tp.user.first_name,
                 'last_name': tp.user.last_name,
-                'client_count': User.objects.filter(
-                    assigned_trainer=tp, role=User.Role.CUSTOMER,
-                ).count(),
-            })
+                'client_count': tp.client_count,
+            }
+            for tp in trainers
+        ]
 
         return Response({
             'active_customers': active_count,
