@@ -13,6 +13,8 @@ from core_app.services.booking_rules import has_trainer_travel_buffer_conflict
 from core_app.services.slot_schedule import BOOKING_HORIZON_DAYS
 
 
+# Raised (instead of serializers.ValidationError) so the 400 body carries a machine-readable
+# `code` field alongside `detail`; the frontend keys off `code == 'no_trainer_assigned'`.
 class NoTrainerAssignedException(APIException):
     """Raised when a customer without an assigned trainer attempts to book."""
 
@@ -148,18 +150,16 @@ class BookingSerializer(serializers.ModelSerializer):
             serializers.ValidationError: If any check fails.
         """
         request = self.context.get('request')
-        gate_customer = getattr(request, 'user', None) if request else None
-        if gate_customer is not None and getattr(gate_customer, 'is_authenticated', False):
-            if getattr(gate_customer, 'role', None) == 'customer':
-                assigned = getattr(gate_customer, 'assigned_trainer', None)
+        customer = getattr(request, 'user', None) if request else None
+        if customer is not None and getattr(customer, 'is_authenticated', False):
+            if getattr(customer, 'role', None) == 'customer':
+                assigned = getattr(customer, 'assigned_trainer', None)
                 if assigned is None:
                     raise NoTrainerAssignedException()
                 attrs['trainer'] = assigned
 
         slot = attrs.get('slot')
         trainer = attrs.get('trainer')
-        request = self.context.get('request')
-        customer = getattr(request, 'user', None) if request else None
 
         if slot is not None and slot.trainer_id is not None:
             chosen_trainer = attrs.get('trainer')
