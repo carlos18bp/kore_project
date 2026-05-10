@@ -187,3 +187,63 @@ def test_profile_assigned_trainer_null_when_unassigned(customer):
     resp = c.get('/api/auth/profile/')
     assert resp.status_code == 200
     assert resp.data['user']['assigned_trainer'] is None
+
+
+@pytest.fixture
+def future_slot(db, trainer_a):
+    now = timezone.now()
+    starts = now + timezone.timedelta(hours=20)
+    return AvailabilitySlot.objects.create(
+        trainer=trainer_a, starts_at=starts, ends_at=starts + timezone.timedelta(hours=1),
+        is_active=True, is_blocked=False,
+    )
+
+
+@pytest.fixture
+def future_slot_other(db, trainer_b):
+    now = timezone.now()
+    starts = now + timezone.timedelta(hours=21)
+    return AvailabilitySlot.objects.create(
+        trainer=trainer_b, starts_at=starts, ends_at=starts + timezone.timedelta(hours=1),
+        is_active=True, is_blocked=False,
+    )
+
+
+@pytest.mark.django_db
+def test_booking_blocked_without_assigned_trainer(customer, package, future_slot):
+    sub = _active_sub(customer, package)
+    c = APIClient()
+    c.force_authenticate(user=customer)
+    resp = c.post('/api/bookings/', {
+        'package_id': package.id, 'slot_id': future_slot.id, 'subscription_id': sub.id,
+    }, format='json')
+    assert resp.status_code == 400
+    assert resp.data.get('code') == 'no_trainer_assigned'
+
+
+@pytest.mark.django_db
+def test_booking_succeeds_with_assigned_trainer_and_forces_trainer(customer, package, future_slot, trainer_a):
+    customer.assigned_trainer = trainer_a
+    customer.save(update_fields=['assigned_trainer'])
+    sub = _active_sub(customer, package)
+    c = APIClient()
+    c.force_authenticate(user=customer)
+    resp = c.post('/api/bookings/', {
+        'package_id': package.id, 'slot_id': future_slot.id, 'subscription_id': sub.id,
+    }, format='json')
+    assert resp.status_code == 201, resp.data
+    assert Booking.objects.get(id=resp.data['id']).trainer_id == trainer_a.id
+
+
+@pytest.mark.django_db
+def test_booking_rejected_for_slot_of_another_trainer(customer, package, future_slot_other, trainer_a):
+    customer.assigned_trainer = trainer_a
+    customer.save(update_fields=['assigned_trainer'])
+    sub = _active_sub(customer, package)
+    c = APIClient()
+    c.force_authenticate(user=customer)
+    resp = c.post('/api/bookings/', {
+        'package_id': package.id, 'slot_id': future_slot_other.id, 'subscription_id': sub.id,
+    }, format='json')
+    assert resp.status_code == 400
+    assert 'slot_id' in resp.data

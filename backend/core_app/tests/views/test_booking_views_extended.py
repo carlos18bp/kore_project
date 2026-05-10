@@ -17,6 +17,15 @@ from core_app.models import (
 )
 from core_app.tests.helpers import get_results
 
+
+@pytest.fixture
+def assigned_trainer(db):
+    """Create a trainer and return the profile — used to satisfy the booking gate."""
+    u = User.objects.create_user(
+        email='ext_default_trainer@example.com', password='p', role=User.Role.TRAINER,
+    )
+    return TrainerProfile.objects.create(user=u, specialty='General')
+
 FIXED_NOW = datetime(2026, 1, 15, 12, 0, tzinfo=dt_timezone.utc)
 
 
@@ -369,8 +378,11 @@ class TestUpcomingReminder:
 class TestOnlyNextSessionValidation:
     """Validates customer can hold sequential future bookings."""
 
-    def test_can_book_two_future_sessions_sequentially(self, api_client, customer, package):
+    def test_can_book_two_future_sessions_sequentially(self, api_client, customer, package, assigned_trainer):
         """Allows creating two sequential future bookings for the same customer."""
+        customer.assigned_trainer = assigned_trainer
+        customer.save(update_fields=['assigned_trainer'])
+
         slot1 = _make_slot(hours_ahead=48)
         slot2 = _make_slot(hours_ahead=72)
 

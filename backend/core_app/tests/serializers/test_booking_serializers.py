@@ -27,9 +27,21 @@ def freeze_now(monkeypatch):
 
 
 @pytest.fixture
-def customer(db):
-    """Create a customer user used as serializer request actor."""
-    return User.objects.create_user(email='book_s_cust@example.com', password='p')
+def default_trainer(db):
+    """Create a default trainer profile so customer passes the assigned-trainer gate."""
+    trainer_user = User.objects.create_user(
+        email='default_trainer@example.com', password='p', role=User.Role.TRAINER,
+    )
+    return TrainerProfile.objects.create(user=trainer_user, specialty='General')
+
+
+@pytest.fixture
+def customer(db, default_trainer):
+    """Create a customer user with an assigned trainer to pass the booking gate."""
+    u = User.objects.create_user(email='book_s_cust@example.com', password='p')
+    u.assigned_trainer = default_trainer
+    u.save(update_fields=['assigned_trainer'])
+    return u
 
 
 @pytest.fixture
@@ -39,12 +51,13 @@ def package(db):
 
 
 @pytest.fixture
-def future_slot(db):
-    """Create a bookable future slot for happy-path serializer scenarios."""
+def future_slot(db, default_trainer):
+    """Create a bookable future slot belonging to default_trainer for happy-path scenarios."""
     now = FIXED_NOW
     return AvailabilitySlot.objects.create(
         starts_at=now + timedelta(hours=26),
         ends_at=now + timedelta(hours=27),
+        trainer=default_trainer,
     )
 
 
@@ -191,11 +204,13 @@ class TestBookingSerializerValidation:
     def test_trainer_buffer_rejects_slot_within_45_minutes(self, package):
         """Reject slot when same trainer lacks the required 45-minute buffer."""
         customer_a = User.objects.create_user(email='buffer_a@example.com', password='p')
-        customer_b = User.objects.create_user(email='buffer_b@example.com', password='p')
         trainer_user = User.objects.create_user(
             email='buffer_trainer@example.com', password='p', role=User.Role.TRAINER,
         )
         trainer = TrainerProfile.objects.create(user=trainer_user, specialty='Mobility')
+        customer_b = User.objects.create_user(email='buffer_b@example.com', password='p')
+        customer_b.assigned_trainer = trainer
+        customer_b.save(update_fields=['assigned_trainer'])
 
         now = FIXED_NOW
         existing_slot = AvailabilitySlot.objects.create(
@@ -229,11 +244,13 @@ class TestBookingSerializerValidation:
     def test_trainer_buffer_allows_slot_exactly_at_45_minutes(self, package):
         """Allow slot when start is exactly 45 minutes after prior booking end."""
         customer_a = User.objects.create_user(email='buffer_allow_a@example.com', password='p')
-        customer_b = User.objects.create_user(email='buffer_allow_b@example.com', password='p')
         trainer_user = User.objects.create_user(
             email='buffer_allow_trainer@example.com', password='p', role=User.Role.TRAINER,
         )
         trainer = TrainerProfile.objects.create(user=trainer_user, specialty='Mobility')
+        customer_b = User.objects.create_user(email='buffer_allow_b@example.com', password='p')
+        customer_b.assigned_trainer = trainer
+        customer_b.save(update_fields=['assigned_trainer'])
 
         now = FIXED_NOW
         existing_slot = AvailabilitySlot.objects.create(
@@ -332,9 +349,11 @@ class TestBookingSerializerValidation:
         """Validate with no slot in attrs skips slot checks (branch 106→109)."""
         request = _make_request(customer)
         serializer = BookingSerializer(data={}, context={'request': request})
-        # Call validate directly with empty attrs (no slot)
+        # Call validate directly with empty attrs (no slot).
+        # The trainer gate runs and injects attrs['trainer'] for authenticated customers.
         result = serializer.validate({})
-        assert result == {}
+        assert result.get('trainer') == customer.assigned_trainer
+        assert result.get('slot') is None
 
 
 @pytest.mark.django_db
