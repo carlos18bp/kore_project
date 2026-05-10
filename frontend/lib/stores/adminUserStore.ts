@@ -33,8 +33,28 @@ export type AdminUserSubscriptionEntry = {
   role: 'host' | 'guest' | 'individual';
 };
 
+export type AssignedTrainerRef = { id: number; first_name: string; last_name: string };
+
+export type AssignedClientRow = {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  is_active: boolean;
+  active_package: string | null;
+};
+
+export type AssignmentSummary = {
+  active_customers: number;
+  assigned: number;
+  unassigned: number;
+  per_trainer: { trainer_id: number; first_name: string; last_name: string; client_count: number }[];
+};
+
 export type AdminUserDetail = AdminUser & {
   subscriptions: AdminUserSubscriptionEntry[];
+  assigned_trainer: AssignedTrainerRef | null;   // present when role==='customer', else null
+  assigned_clients: AssignedClientRow[] | null;  // present when role==='trainer', else null
 };
 
 export type AdminUserFilters = {
@@ -57,6 +77,7 @@ export type UpdateUserPayload = {
   phone?: string;
   role?: 'customer' | 'trainer';
   is_active?: boolean;
+  assigned_trainer_id?: number | null;
 };
 
 type AdminUserState = {
@@ -67,6 +88,7 @@ type AdminUserState = {
   loading: boolean;
   actionLoading: boolean;
   error: string;
+  assignmentSummary: AssignmentSummary | null;
 
   fetchUsers: (filters?: Partial<AdminUserFilters>) => Promise<void>;
   fetchById: (id: number) => Promise<void>;
@@ -77,6 +99,8 @@ type AdminUserState = {
   deleteUser: (id: number) => Promise<boolean>;
   setFilters: (f: Partial<AdminUserFilters>) => void;
   reset: () => void;
+  fetchAssignmentSummary: () => Promise<void>;
+  assignTrainer: (customerId: number, trainerId: number | null) => Promise<{ ok: true } | { ok: false; errors: Record<string, string[]> }>;
 };
 
 function authHeaders() {
@@ -92,6 +116,7 @@ export const useAdminUserStore = create<AdminUserState>((set, get) => ({
   loading: false,
   actionLoading: false,
   error: '',
+  assignmentSummary: null,
 
   setFilters: (f) => set((state) => ({ filters: { ...state.filters, ...f } })),
 
@@ -102,6 +127,7 @@ export const useAdminUserStore = create<AdminUserState>((set, get) => ({
       selected: null,
       filters: { search: '', role: 'all', page: 1 },
       error: '',
+      assignmentSummary: null,
     }),
 
   fetchUsers: async (filters) => {
@@ -199,6 +225,35 @@ export const useAdminUserStore = create<AdminUserState>((set, get) => ({
     } catch {
       set({ error: 'No se pudo eliminar el usuario.', actionLoading: false });
       return false;
+    }
+  },
+
+  fetchAssignmentSummary: async () => {
+    try {
+      const { data } = await api.get('/admin/trainers/assignment-summary/', { headers: authHeaders() });
+      set({ assignmentSummary: data as AssignmentSummary });
+    } catch {
+      set({ assignmentSummary: null });
+    }
+  },
+
+  assignTrainer: async (customerId, trainerId) => {
+    set({ actionLoading: true, error: '' });
+    try {
+      const { data } = await api.patch(
+        `/admin/users/${customerId}/`,
+        { assigned_trainer_id: trainerId },
+        { headers: authHeaders() },
+      );
+      set((state) => ({
+        selected: state.selected && state.selected.id === customerId ? data : state.selected,
+        actionLoading: false,
+      }));
+      return { ok: true };
+    } catch (err: unknown) {
+      const errResp = (err as { response?: { data?: Record<string, string[]> } }).response;
+      set({ actionLoading: false });
+      return { ok: false, errors: errResp?.data ?? {} };
     }
   },
 }));
