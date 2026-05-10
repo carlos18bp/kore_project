@@ -264,26 +264,48 @@ export default function NewSubscriptionClient() {
         onChange={(e) => setCustomerSearch(e.target.value)}
       />
       <div className="mt-3 max-h-64 overflow-auto flex flex-col gap-1">
-        {users.slice(0, 12).map((u) => (
-          <button
-            key={u.id}
-            type="button"
-            onClick={() => setCustomerId(u.id)}
-            className="text-left px-3 py-2 rounded-lg hover:bg-kore-burgundy/5 border border-transparent hover:border-kore-burgundy/10"
-          >
-            <div className="text-[13px] font-semibold text-kore-burgundy">
-              {u.full_name || u.email}
-            </div>
-            <div className="text-[11px] text-kore-burgundy/55">
-              {u.email} · {u.has_active_subscription ? 'con plan activo' : 'sin plan'}
-            </div>
-          </button>
-        ))}
-        {users.length === 0 && customerSearch && (
-          <div className="text-[12px] text-kore-burgundy/50 px-2 py-3">
-            Sin resultados para “{customerSearch}”.
-          </div>
-        )}
+        {(() => {
+          // Picker only surfaces customers without an active subscription — the
+          // evolve flow is reached from the user's detail page, not from here.
+          const eligible = users.filter((u) => !u.has_active_subscription);
+          const hiddenWithActive = users.length - eligible.length;
+
+          if (eligible.length === 0) {
+            return (
+              <div className="text-[12px] text-kore-burgundy/55 px-2 py-3 leading-relaxed">
+                {users.length === 0
+                  ? customerSearch
+                    ? <>Sin resultados para “{customerSearch}”.</>
+                    : <>Escribe para buscar un cliente.</>
+                  : <>Todos los clientes de esta búsqueda ya tienen plan activo. Para evolucionar el plan de un cliente, entra a su ficha en <strong>/admin/users</strong> y usa el botón <strong>Evolucionar plan</strong>.</>}
+              </div>
+            );
+          }
+
+          return (
+            <>
+              {eligible.slice(0, 12).map((u) => (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => setCustomerId(u.id)}
+                  className="text-left px-3 py-2 rounded-lg hover:bg-kore-burgundy/5 border border-transparent hover:border-kore-burgundy/10"
+                >
+                  <div className="text-[13px] font-semibold text-kore-burgundy">
+                    {u.full_name || u.email}
+                  </div>
+                  <div className="text-[11px] text-kore-burgundy/55">{u.email}</div>
+                </button>
+              ))}
+              {hiddenWithActive > 0 && (
+                <div className="text-[10px] text-kore-burgundy/45 italic px-2 pt-2">
+                  {hiddenWithActive} cliente{hiddenWithActive === 1 ? '' : 's'} con plan activo
+                  oculto{hiddenWithActive === 1 ? '' : 's'} (usa su ficha para evolucionar el plan).
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
     </Card>
   );
