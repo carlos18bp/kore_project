@@ -12,7 +12,7 @@ type NavItem = {
   soon?: boolean;
 };
 
-function Icon({ kind }: { kind: 'home' | 'people' | 'card' | 'box' | 'chart' | 'logout' }) {
+function Icon({ kind }: { kind: 'home' | 'people' | 'card' | 'plans' | 'chart' | 'logout' }) {
   const props = {
     className: 'w-[18px] h-[18px]',
     fill: 'none',
@@ -44,11 +44,12 @@ function Icon({ kind }: { kind: 'home' | 'people' | 'card' | 'box' | 'chart' | '
           <path d="M2 10h20" />
         </svg>
       );
-    case 'box':
+    case 'plans':
       return (
         <svg {...props}>
-          <path d="M21 16V8l-9-5-9 5v8l9 5 9-5z" />
-          <path d="M3 8l9 5 9-5M12 13v10" />
+          <rect x="4" y="3" width="16" height="18" rx="2" />
+          <path d="M9 3v3h6V3" />
+          <path d="M8 11h8M8 15h8M8 19h5" />
         </svg>
       );
     case 'chart':
@@ -72,7 +73,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', label: 'Panel', href: '/admin/dashboard', icon: <Icon kind="home" /> },
   { key: 'users', label: 'Usuarios', href: '/admin/users', icon: <Icon kind="people" /> },
   { key: 'subscriptions', label: 'Suscripciones', href: '/admin/subscriptions', icon: <Icon kind="card" /> },
-  { key: 'packages', label: 'Paquetes', href: '#', icon: <Icon kind="box" />, soon: true },
+  { key: 'plans', label: 'Planes', href: '/admin/plans', icon: <Icon kind="plans" /> },
   { key: 'reports', label: 'Reportes', href: '#', icon: <Icon kind="chart" />, soon: true },
 ];
 
