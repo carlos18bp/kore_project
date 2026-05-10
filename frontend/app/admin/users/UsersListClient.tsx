@@ -22,12 +22,16 @@ function SearchIcon() {
 }
 
 export default function UsersListClient() {
-  const { users, totalCount, filters, loading, fetchUsers, setFilters } = useAdminUserStore();
+  const { users, totalCount, filters, loading, fetchUsers, setFilters, assignmentSummary, fetchAssignmentSummary } = useAdminUserStore();
   const [searchInput, setSearchInput] = useState(filters.search);
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  useEffect(() => {
+    if (filters.role === 'trainer') fetchAssignmentSummary();
+  }, [filters.role, fetchAssignmentSummary]);
 
   const stats = useMemo(() => {
     const active = users.filter((u) => u.is_active).length;
@@ -142,6 +146,47 @@ export default function UsersListClient() {
           </Link>
         </div>
       </Card>
+
+      {/* Trainer coverage card */}
+      {filters.role === 'trainer' && assignmentSummary && (
+        <Card className="p-5 mb-5">
+          <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-kore-burgundy/55 mb-2">
+            Cobertura de entrenadores
+          </div>
+          <div className="flex items-end gap-6 flex-wrap">
+            <div>
+              <div className="text-3xl font-black tracking-tight text-kore-burgundy tabular-nums">{assignmentSummary.active_customers}</div>
+              <div className="text-[11px] text-kore-burgundy/55">clientes activos</div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-kore-sage tabular-nums">{assignmentSummary.assigned}</div>
+              <div className="text-[11px] text-kore-burgundy/55">con entrenador</div>
+            </div>
+            <div>
+              <div className={`text-2xl font-bold tabular-nums ${assignmentSummary.unassigned > 0 ? 'text-amber-500' : 'text-kore-burgundy/40'}`}>{assignmentSummary.unassigned}</div>
+              <div className="text-[11px] text-kore-burgundy/55">sin entrenador</div>
+            </div>
+            <div className="flex-1 min-w-[140px]">
+              <div className="h-2 rounded-full bg-kore-burgundy/8 overflow-hidden flex">
+                <div className="h-full bg-kore-sage" style={{ width: `${assignmentSummary.active_customers ? (assignmentSummary.assigned / assignmentSummary.active_customers) * 100 : 0}%` }} />
+                <div className="h-full bg-amber-400" style={{ width: `${assignmentSummary.active_customers ? (assignmentSummary.unassigned / assignmentSummary.active_customers) * 100 : 0}%` }} />
+              </div>
+            </div>
+          </div>
+          {assignmentSummary.unassigned > 0 && (
+            <div className="mt-3 text-[11px] font-semibold text-amber-600">⚠ {assignmentSummary.unassigned} cliente(s) activo(s) sin entrenador asignado.</div>
+          )}
+          {assignmentSummary.per_trainer.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {assignmentSummary.per_trainer.map((p) => (
+                <span key={p.trainer_id} className="rounded-full px-3 py-1 text-[11px] font-semibold bg-kore-burgundy/6 text-kore-burgundy">
+                  {p.first_name} {p.last_name} · {p.client_count}
+                </span>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Table */}
       {!loading && users.length === 0 ? (
