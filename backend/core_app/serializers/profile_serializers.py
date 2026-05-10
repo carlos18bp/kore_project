@@ -54,6 +54,7 @@ class ProfileResponseSerializer(serializers.Serializer):
     role = serializers.CharField()
     customer_profile = CustomerProfileSerializer(read_only=True)
     today_mood = serializers.SerializerMethodField()
+    assigned_trainer = serializers.SerializerMethodField()
 
     def get_today_mood(self, user):
         today = timezone.localdate()
@@ -61,6 +62,18 @@ class ProfileResponseSerializer(serializers.Serializer):
         if entry:
             return {'score': entry.score, 'notes': entry.notes, 'date': str(entry.date)}
         return None
+
+    def get_assigned_trainer(self, user):
+        tp = getattr(user, 'assigned_trainer', None)
+        if tp is None:
+            return None
+        return {
+            'id': tp.id,
+            'first_name': tp.user.first_name,
+            'last_name': tp.user.last_name,
+            'location': tp.location,
+            'session_duration_minutes': tp.session_duration_minutes,
+        }
 
 
 class UpdateProfileSerializer(serializers.Serializer):

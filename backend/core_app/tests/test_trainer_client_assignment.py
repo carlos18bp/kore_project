@@ -164,3 +164,26 @@ def test_assignment_summary_requires_admin(customer):
     c = APIClient()
     c.force_authenticate(user=customer)
     assert c.get('/api/admin/trainers/assignment-summary/').status_code in (403, 401)
+
+
+@pytest.mark.django_db
+def test_profile_includes_assigned_trainer(customer, trainer_a):
+    customer.assigned_trainer = trainer_a
+    customer.save(update_fields=['assigned_trainer'])
+    c = APIClient()
+    c.force_authenticate(user=customer)
+    resp = c.get('/api/auth/profile/')
+    assert resp.status_code == 200
+    at = resp.data['user']['assigned_trainer']
+    assert at['id'] == trainer_a.id
+    assert at['session_duration_minutes'] == 60
+    assert 'location' in at
+
+
+@pytest.mark.django_db
+def test_profile_assigned_trainer_null_when_unassigned(customer):
+    c = APIClient()
+    c.force_authenticate(user=customer)
+    resp = c.get('/api/auth/profile/')
+    assert resp.status_code == 200
+    assert resp.data['user']['assigned_trainer'] is None
