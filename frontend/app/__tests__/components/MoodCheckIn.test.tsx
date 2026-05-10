@@ -33,6 +33,7 @@ function setupStores(overrides: {
   });
 
   mockedUseProfileStore.mockReturnValue({
+    profile: { customer_profile: { profile_completed: true } },
     todayMood: null,
     fetchProfile: mockFetchProfile,
     submitMood: mockSubmitMood,
@@ -74,6 +75,20 @@ describe('MoodCheckIn', () => {
 
   it('renders nothing when profile is not completed', async () => {
     const { mockFetchProfile } = setupStores({ auth: { user: { id: '1', profile_completed: false } } });
+    const { container } = render(<MoodCheckIn />);
+
+    await waitFor(() => expect(mockFetchProfile).toHaveBeenCalled());
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('renders nothing when customer_profile is incomplete even if user.profile_completed is true', async () => {
+    const { mockFetchProfile } = setupStores({
+      profile: { profile: { customer_profile: { profile_completed: false } } },
+    });
     const { container } = render(<MoodCheckIn />);
 
     await waitFor(() => expect(mockFetchProfile).toHaveBeenCalled());

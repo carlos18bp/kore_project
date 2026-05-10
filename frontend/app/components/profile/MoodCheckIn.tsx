@@ -18,7 +18,7 @@ function getScoreColor(score: number) {
 
 export default function MoodCheckIn() {
   const { user, hydrated } = useAuthStore();
-  const { todayMood, fetchProfile, submitMood, moodModalOpen, closeMoodModal } = useProfileStore();
+  const { profile, todayMood, fetchProfile, submitMood, moodModalOpen, closeMoodModal } = useProfileStore();
   const [autoVisible, setAutoVisible] = useState(false);
   const [profileFetched, setProfileFetched] = useState(false);
   const [score, setScore] = useState(7);
@@ -33,13 +33,20 @@ export default function MoodCheckIn() {
     fetchProfile().then(() => setProfileFetched(true));
   }, [hydrated, user, fetchProfile]);
 
+  // Gate the auto-open behind the strict customer-profile flag so the mood modal
+  // never stacks on top of ProfileCompletionCTA. authStore's user.profile_completed
+  // is looser than profileStore's customer_profile.profile_completed; requiring both
+  // keeps priority as: change-password (redirect) → profile completion → mood.
+  const customerProfileComplete = profile?.customer_profile?.profile_completed === true;
+  const profileFullyComplete = user?.profile_completed === true && customerProfileComplete;
+
   useEffect(() => {
     if (!profileFetched) return;
     if (todayMood) return;
-    if (user && !user.profile_completed) return;
+    if (!profileFullyComplete) return;
     if (typeof window !== 'undefined' && sessionStorage.getItem('kore_mood_dismissed')) return;
     setAutoVisible(true);
-  }, [profileFetched, todayMood, user]);
+  }, [profileFetched, todayMood, profileFullyComplete]);
 
   // Manual opens via the dashboard CTA take precedence over the auto-show flow and
   // ignore the kore_mood_dismissed flag (the user is explicitly asking for it).
