@@ -86,15 +86,20 @@ class AdminUserDetailSerializer(AdminUserListSerializer):
         tp = getattr(user, 'trainer_profile', None)
         if tp is None:
             return []
-        clients = (
+        clients = list(
             User.objects.filter(assigned_trainer=tp, role=User.Role.CUSTOMER)
             .order_by('first_name', 'last_name')
         )
+        active_subs = {
+            sub.customer_id: sub
+            for sub in Subscription.objects.filter(
+                customer_id__in=[c.id for c in clients],
+                status=Subscription.Status.ACTIVE,
+            ).select_related('package').order_by('customer_id', 'created_at')
+        }
         out = []
         for c in clients:
-            active_sub = Subscription.objects.filter(
-                customer=c, status=Subscription.Status.ACTIVE,
-            ).select_related('package').first()
+            active_sub = active_subs.get(c.id)
             out.append({
                 'id': c.id,
                 'first_name': c.first_name,

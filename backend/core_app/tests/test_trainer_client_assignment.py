@@ -1,5 +1,6 @@
 import pytest
 from django.utils import timezone
+from rest_framework.test import APIClient
 
 from core_app.models import (
     AvailabilitySlot, Booking, Package, Subscription, TrainerProfile, User,
@@ -43,9 +44,6 @@ def test_deleting_trainer_profile_unassigns_clients(customer, trainer_a):
     trainer_a.delete()
     customer.refresh_from_db()
     assert customer.assigned_trainer is None
-
-
-from rest_framework.test import APIClient
 
 
 @pytest.fixture
