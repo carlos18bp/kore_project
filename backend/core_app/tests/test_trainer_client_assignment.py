@@ -247,3 +247,47 @@ def test_booking_rejected_for_slot_of_another_trainer(customer, package, future_
     }, format='json')
     assert resp.status_code == 400
     assert 'slot_id' in resp.data
+
+
+@pytest.mark.django_db
+def test_trainer_my_clients_returns_assigned_not_booking_derived(future_slot, package, trainer_a, trainer_b):
+    # c_booking has a booking with trainer_a but is NOT assigned to them
+    c_booking = User.objects.create_user(email='cb@kore.com', password='x', role=User.Role.CUSTOMER,
+                                         first_name='Booked', last_name='Only')
+    Booking.objects.create(customer=c_booking, package=package, slot=future_slot,
+                           trainer=trainer_a, status=Booking.Status.PENDING)
+    # c_assigned is assigned to trainer_a but has no booking
+    c_assigned = User.objects.create_user(email='cas@kore.com', password='x', role=User.Role.CUSTOMER,
+                                          first_name='Assigned', last_name='User')
+    c_assigned.assigned_trainer = trainer_a
+    c_assigned.save(update_fields=['assigned_trainer'])
+
+    c = APIClient()
+    c.force_authenticate(user=trainer_a.user)
+    resp = c.get('/api/trainer/my-clients/')
+    assert resp.status_code == 200
+    ids = [row['id'] for row in resp.data]
+    assert c_assigned.id in ids
+    assert c_booking.id not in ids
+
+
+@pytest.mark.django_db
+def test_trainer_can_view_assigned_client_detail(trainer_a, trainer_b):
+    """An assigned-but-never-booked client is reachable via the detail view."""
+    c_assigned = User.objects.create_user(email='detail_assigned@kore.com', password='x',
+                                          role=User.Role.CUSTOMER,
+                                          first_name='Detail', last_name='Assigned')
+    c_assigned.assigned_trainer = trainer_a
+    c_assigned.save(update_fields=['assigned_trainer'])
+
+    c = APIClient()
+    c.force_authenticate(user=trainer_a.user)
+    resp = c.get(f'/api/trainer/my-clients/{c_assigned.id}/')
+    assert resp.status_code == 200
+    assert resp.data['id'] == c_assigned.id
+
+    # trainer_b must NOT be able to view trainer_a's assigned client
+    c2 = APIClient()
+    c2.force_authenticate(user=trainer_b.user)
+    resp2 = c2.get(f'/api/trainer/my-clients/{c_assigned.id}/')
+    assert resp2.status_code == 404

@@ -33,14 +33,8 @@ class TrainerClientListView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        customer_ids = (
-            Booking.objects.filter(trainer=trainer_profile)
-            .values_list('customer_id', flat=True)
-            .distinct()
-        )
-
         customers = (
-            User.objects.filter(id__in=customer_ids, role=User.Role.CUSTOMER)
+            User.objects.filter(assigned_trainer=trainer_profile, role=User.Role.CUSTOMER)
             .select_related('customer_profile')
             .annotate(
                 total_sessions=Count(
@@ -117,10 +111,13 @@ class TrainerClientDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        is_assigned = User.objects.filter(
+            id=customer_id, assigned_trainer=trainer_profile, role=User.Role.CUSTOMER
+        ).exists()
         has_bookings = Booking.objects.filter(
             trainer=trainer_profile, customer_id=customer_id
         ).exists()
-        if not has_bookings:
+        if not is_assigned and not has_bookings:
             return Response(
                 {'detail': 'Cliente no encontrado.'},
                 status=status.HTTP_404_NOT_FOUND,
