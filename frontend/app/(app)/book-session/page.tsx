@@ -299,6 +299,15 @@ function BookSessionContent() {
     return activeBookings.find((b) => b.id === rescheduleBookingId) ?? null;
   }, [activeBookings, isReschedule, rescheduleBookingId]);
 
+  // For the reschedule flow, populate the store trainer from the booking being rescheduled.
+  // bookingToReschedule is computed asynchronously (after fetchBookings resolves), so this
+  // effect re-runs whenever it becomes available.
+  useEffect(() => {
+    if (isReschedule && bookingToReschedule?.trainer) {
+      useBookingStore.setState({ trainer: bookingToReschedule.trainer });
+    }
+  }, [isReschedule, bookingToReschedule?.trainer]);
+
   const rescheduleNeighbors = useMemo(() => {
     if (!bookingToReschedule) return { previous: null, next: null };
     const ordered = [...activeBookings].sort(
