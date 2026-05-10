@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import AdminShell from '@/app/components/admin/AdminShell';
 import Btn from '@/app/components/admin/Btn';
 import Card from '@/app/components/admin/Card';
@@ -90,6 +91,12 @@ export default function AdminSubscriptionsPage() {
       breadcrumb={[{ label: 'Panel de administración', href: '/admin/dashboard' }, { label: 'Suscripciones' }]}
       title="Gestión de suscripciones"
     >
+      <div className="flex items-center justify-end mb-3">
+        <Link href="/admin/subscriptions/new">
+          <Btn variant="primary" size="sm">＋ Crear suscripción</Btn>
+        </Link>
+      </div>
+
       <SubscriptionCategoryTabs active={activeCategory} counts={counts} onChange={handleCategory} />
 
       <Card className="p-4 mb-5">

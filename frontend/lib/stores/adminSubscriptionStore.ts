@@ -40,6 +40,23 @@ export type AdminSubscription = {
   updated_at: string;
 };
 
+export type AdminCreateSubscriptionPayload = {
+  action: 'create' | 'evolve';
+  customer_id: number;
+  package_id: number;
+  payment_method: 'cash' | 'transfer';
+  starts_at?: string;
+  expires_at?: string;
+  sessions_used?: number;
+  notes?: string;
+};
+
+export type AdminCreateSubscriptionError = {
+  status: number;
+  detail: string;
+  expectedAction: 'create' | 'evolve' | null;
+};
+
 export type PatchSubscriptionPayload = {
   status?: 'active' | 'expired' | 'canceled';
   sessions_total?: number;
@@ -70,6 +87,9 @@ type AdminSubscriptionState = {
   fetchById: (id: number) => Promise<void>;
   patchSubscription: (id: number, payload: PatchSubscriptionPayload) => Promise<boolean>;
   renewSubscription: (id: number) => Promise<AdminSubscription | null>;
+  createOrEvolveSubscription: (
+    payload: AdminCreateSubscriptionPayload,
+  ) => Promise<{ ok: true; subscription: AdminSubscription } | { ok: false; error: AdminCreateSubscriptionError }>;
   setFilters: (f: Partial<AdminSubscriptionFilters>) => void;
   reset: () => void;
 };
@@ -152,6 +172,27 @@ export const useAdminSubscriptionStore = create<AdminSubscriptionState>((set, ge
     } catch {
       set({ error: 'No se pudo renovar la suscripción.', actionLoading: false });
       return null;
+    }
+  },
+
+  createOrEvolveSubscription: async (payload) => {
+    set({ actionLoading: true, error: '' });
+    try {
+      const { data } = await api.post('/subscriptions/admin-create/', payload, {
+        headers: authHeaders(),
+      });
+      set({ actionLoading: false });
+      return { ok: true as const, subscription: data as AdminSubscription };
+    } catch (err) {
+      const e = err as { response?: { status?: number; data?: { detail?: string; expected_action?: 'create' | 'evolve' } } };
+      const status = e.response?.status ?? 0;
+      const detail = e.response?.data?.detail ?? 'No se pudo registrar la suscripción.';
+      const expectedAction = e.response?.data?.expected_action ?? null;
+      set({ actionLoading: false, error: detail });
+      return {
+        ok: false as const,
+        error: { status, detail, expectedAction },
+      };
     }
   },
 }));

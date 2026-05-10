@@ -309,6 +309,16 @@ export default function UserDetailClient() {
             ))}
           </div>
         )}
+
+        {selected.role === 'customer' && (
+          <div className="mt-4 flex justify-end">
+            <Link href={`/admin/subscriptions/new?customer=${selected.id}`}>
+              <Btn variant="primary" size="sm">
+                {selected.has_active_subscription ? 'Evolucionar plan' : '＋ Crear suscripción'}
+              </Btn>
+            </Link>
+          </div>
+        )}
       </Card>
 
       {/* Acciones admin */}
