@@ -100,6 +100,7 @@ function syncAuthStoreUser(profile: ProfileData) {
     profile_completed: cp?.profile_completed ?? false,
     avatar_url: cp?.avatar_url ?? null,
     must_change_password: profile.must_change_password ?? false,
+    assigned_trainer: null,
   };
 
   // Only update authStore if data actually changed to prevent infinite re-render loops

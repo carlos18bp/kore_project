@@ -141,6 +141,7 @@ function applyAutoLoginSession(autoLogin: NonNullable<PaymentIntentResult['auto_
     profile_completed: false,
     avatar_url: null,
     must_change_password: false,
+    assigned_trainer: null,
   };
 
   Cookies.set('kore_token', autoLogin.access, { expires: 7 });

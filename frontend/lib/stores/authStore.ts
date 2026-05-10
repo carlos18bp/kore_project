@@ -5,6 +5,14 @@ import { AxiosError } from 'axios';
 import { useSubscriptionStore } from './subscriptionStore';
 import { useBookingStore } from './bookingStore';
 
+export type AssignedTrainer = {
+  id: number;
+  first_name: string;
+  last_name: string;
+  location: string;
+  session_duration_minutes: number;
+};
+
 export type User = {
   id: string;
   email: string;
@@ -16,6 +24,7 @@ export type User = {
   profile_completed: boolean;
   avatar_url: string | null;
   must_change_password: boolean;
+  assigned_trainer: AssignedTrainer | null;
 };
 
 type RegisterParams = {
@@ -74,6 +83,7 @@ type ProfileResponse = {
       profile_completed: boolean;
     } | null;
     today_mood?: { score: number; notes: string; date: string } | null;
+    assigned_trainer?: AssignedTrainer | null;
   };
 };
 
@@ -83,7 +93,7 @@ function clearAuthCookies() {
   Cookies.remove('kore_user');
 }
 
-function mapUser(raw: LoginResponse['user'], extra?: { profile_completed?: boolean; avatar_url?: string | null }): User {
+export function mapUser(raw: LoginResponse['user'], extra?: { profile_completed?: boolean; avatar_url?: string | null; assigned_trainer?: AssignedTrainer | null }): User {
   const first = raw.first_name || '';
   const last = raw.last_name || '';
   return {
@@ -97,6 +107,7 @@ function mapUser(raw: LoginResponse['user'], extra?: { profile_completed?: boole
     profile_completed: extra?.profile_completed ?? false,
     avatar_url: extra?.avatar_url ?? null,
     must_change_password: raw.must_change_password ?? false,
+    assigned_trainer: extra?.assigned_trainer ?? null,
   };
 }
 
@@ -223,6 +234,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const user = mapUser(data.user, {
           profile_completed: cp?.profile_completed ?? false,
           avatar_url: cp?.avatar_url ?? null,
+          assigned_trainer: data.user.assigned_trainer ?? null,
         });
         Cookies.set('kore_user', JSON.stringify(user), { expires: 7 });
         set({ user, accessToken: token, isAuthenticated: true, hydrated: true });
