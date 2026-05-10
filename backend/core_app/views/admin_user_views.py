@@ -115,6 +115,12 @@ class AdminUserViewSet(viewsets.ViewSet):
         serializer = AdminUserUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
 
+        if 'assigned_trainer' in serializer.validated_data and user.role != User.Role.CUSTOMER:
+            return Response(
+                {'assigned_trainer_id': ['Solo los clientes pueden tener un entrenador asignado.']},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         for field, value in serializer.validated_data.items():
             setattr(user, field, value)
         user.save()

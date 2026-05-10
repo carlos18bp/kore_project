@@ -88,3 +88,35 @@ def test_admin_detail_trainer_includes_assigned_clients(admin_client, customer, 
     clients = resp.data['assigned_clients']
     assert [c['id'] for c in clients] == [customer.id]
     assert clients[0]['email'] == 'c1@kore.com'
+
+
+@pytest.mark.django_db
+def test_admin_patch_assigns_trainer_to_customer(admin_client, customer, trainer_a):
+    resp = admin_client.patch(f'/api/admin/users/{customer.id}/',
+                              {'assigned_trainer_id': trainer_a.id}, format='json')
+    assert resp.status_code == 200
+    customer.refresh_from_db()
+    assert customer.assigned_trainer_id == trainer_a.id
+    assert resp.data['assigned_trainer']['id'] == trainer_a.id
+
+
+@pytest.mark.django_db
+def test_admin_patch_reassigns_then_clears(admin_client, customer, trainer_a, trainer_b):
+    admin_client.patch(f'/api/admin/users/{customer.id}/',
+                       {'assigned_trainer_id': trainer_a.id}, format='json')
+    admin_client.patch(f'/api/admin/users/{customer.id}/',
+                       {'assigned_trainer_id': trainer_b.id}, format='json')
+    customer.refresh_from_db()
+    assert customer.assigned_trainer_id == trainer_b.id
+    admin_client.patch(f'/api/admin/users/{customer.id}/',
+                       {'assigned_trainer_id': None}, format='json')
+    customer.refresh_from_db()
+    assert customer.assigned_trainer_id is None
+
+
+@pytest.mark.django_db
+def test_admin_patch_assigning_trainer_to_a_trainer_is_rejected(admin_client, trainer_a, trainer_b):
+    resp = admin_client.patch(f'/api/admin/users/{trainer_a.user_id}/',
+                              {'assigned_trainer_id': trainer_b.id}, format='json')
+    assert resp.status_code == 400
+    assert 'assigned_trainer_id' in resp.data
