@@ -135,6 +135,7 @@ type BookingState = {
   setStep: (step: BookingStep) => void;
   setSelectedDate: (date: string | null) => void;
   setSelectedSlot: (slot: Slot | null) => void;
+  setTrainerFromAssigned: (t: { id: number; first_name: string; last_name: string; location: string; session_duration_minutes: number } | null) => void;
   reset: () => void;
 
   // Actions — API
@@ -211,6 +212,16 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   setStep: (step) => set({ step }),
   setSelectedDate: (date) => set({ selectedDate: date, selectedSlot: null }),
   setSelectedSlot: (slot) => set({ selectedSlot: slot }),
+  setTrainerFromAssigned: (t) => {
+    if (!t) { set({ trainer: null }); return; }
+    set({
+      trainer: {
+        id: t.id, user_id: 0, first_name: t.first_name, last_name: t.last_name,
+        email: '', specialty: '', bio: '', location: t.location,
+        session_duration_minutes: t.session_duration_minutes,
+      },
+    });
+  },
   reset: () =>
     set({
       step: 1,
@@ -228,7 +239,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
         headers: authHeaders(),
       });
       const trainers = data.results ?? data;
-      set({ trainers: Array.isArray(trainers) ? trainers : [], trainer: (Array.isArray(trainers) ? trainers[0] : null) ?? null });
+      set({ trainers: Array.isArray(trainers) ? trainers : [] });
     } catch {
       set({ error: 'No se pudieron cargar los entrenadores.' });
     } finally {

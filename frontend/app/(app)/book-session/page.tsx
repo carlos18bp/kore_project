@@ -3,7 +3,7 @@
 import { Suspense, useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { X, ArrowRight, CalendarPlus } from 'lucide-react';
+import { X, ArrowRight, Calendar, CalendarPlus } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useBookingStore, type Slot } from '@/lib/stores/bookingStore';
 import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
@@ -212,6 +212,15 @@ function BookSessionContent() {
     fetchTrainers();
     fetchSubscriptions();
   }, [fetchTrainers, fetchSubscriptions]);
+
+  // Sync the assigned trainer from the auth profile into the booking store.
+  // Only for the normal booking flow — reschedule loads its trainer from the booking.
+  const assignedTrainer = user?.assigned_trainer ?? null;
+  useEffect(() => {
+    if (!isReschedule) {
+      useBookingStore.getState().setTrainerFromAssigned(assignedTrainer);
+    }
+  }, [assignedTrainer, isReschedule]);
 
   // Get all active subscriptions
   const activeSubscriptions = useMemo(
@@ -512,6 +521,30 @@ function BookSessionContent() {
       >
         <div className="animate-spin h-8 w-8 border-2 border-white/30 border-t-white rounded-full" />
       </section>
+    );
+  }
+
+  if (user.role === 'customer' && !user.assigned_trainer && !isReschedule) {
+    return (
+      <BookingShell>
+        <div className="w-full max-w-md mx-auto text-center pt-8">
+          <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-white/10 border border-white/15 flex items-center justify-center">
+            <Calendar className="w-7 h-7 text-white/70" strokeWidth={1.5} />
+          </div>
+          <h1 className="font-heading text-[24px] xl:text-[28px] font-semibold mb-3 leading-tight" style={{ color: '#FFF8EC', letterSpacing: '-0.01em' }}>
+            Aún no puedes agendar
+          </h1>
+          <p className="text-[14px] mb-7 leading-relaxed" style={{ color: '#FFE9DC', opacity: 0.75 }}>
+            Estamos asignándote un entrenador. En cuanto te asignen uno podrás reservar tus sesiones desde aquí.
+          </p>
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 bg-kore-red hover:bg-kore-red-dark text-white font-medium px-7 py-3 rounded-xl transition-colors text-sm"
+          >
+            Volver al inicio
+          </Link>
+        </div>
+      </BookingShell>
     );
   }
 
