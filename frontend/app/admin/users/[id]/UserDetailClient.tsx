@@ -20,6 +20,7 @@ import {
   type AdminUserDetail,
   type UpdateUserPayload,
 } from '@/lib/stores/adminUserStore';
+import { useBookingStore } from '@/lib/stores/bookingStore';
 
 function fmtDate(iso: string | null): string {
   if (!iso) return '—';
@@ -71,16 +72,24 @@ export default function UserDetailClient() {
     resetUserPassword,
     toggleActive,
     deleteUser,
+    assignTrainer,
   } = useAdminUserStore();
+
+  const { trainers } = useBookingStore();
 
   const [edit, setEdit] = useState<EditState | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [resetModal, setResetModal] = useState(false);
   const [deleteModal, setDeleteModal] = useState(false);
+  const [assigning, setAssigning] = useState(false);
 
   useEffect(() => {
     if (Number.isFinite(id) && id > 0) fetchById(id);
   }, [id, fetchById]);
+
+  useEffect(() => {
+    if (selected?.role === 'customer') useBookingStore.getState().fetchTrainers();
+  }, [selected?.role]);
 
   useEffect(() => {
     if (selected) setEdit(fromUser(selected));
@@ -320,6 +329,65 @@ export default function UserDetailClient() {
           </div>
         )}
       </Card>
+
+      {/* Asignación de entrenador (solo clientes) */}
+      {selected.role === 'customer' && (
+        <Card className="p-7 mt-5">
+          <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-kore-burgundy/55">Asignación</div>
+          <div className="font-heading text-lg font-semibold text-kore-burgundy mt-1 mb-4">Entrenador asignado</div>
+          <Field label="Entrenador" error={errors.assigned_trainer_id}>
+            <select
+              className="w-full rounded-xl border border-kore-burgundy/12 bg-white px-3.5 py-2.5 text-sm text-kore-burgundy"
+              value={selected.assigned_trainer?.id ?? ''}
+              disabled={assigning || actionLoading}
+              onChange={async (e) => {
+                const val = e.target.value === '' ? null : Number(e.target.value);
+                setAssigning(true);
+                const res = await assignTrainer(selected.id, val);
+                setAssigning(false);
+                if (!res.ok) {
+                  setErrors((p) => ({ ...p, assigned_trainer_id: Object.values(res.errors)[0]?.[0] ?? 'No se pudo asignar.' }));
+                } else {
+                  setErrors((p) => { const n = { ...p }; delete n.assigned_trainer_id; return n; });
+                }
+              }}
+            >
+              <option value="">— Sin asignar —</option>
+              {trainers.map((t) => (
+                <option key={t.id} value={t.id}>{t.first_name} {t.last_name}</option>
+              ))}
+            </select>
+          </Field>
+          {!selected.assigned_trainer && (
+            <div className="mt-2 text-[11px] font-semibold text-amber-600">Este cliente no puede agendar sesiones hasta que le asignes un entrenador.</div>
+          )}
+        </Card>
+      )}
+
+      {/* Clientes asignados (solo entrenadores) */}
+      {selected.role === 'trainer' && (
+        <Card className="p-7 mt-5">
+          <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-kore-burgundy/55">Clientes</div>
+          <div className="font-heading text-lg font-semibold text-kore-burgundy mt-1 mb-4">Clientes asignados ({selected.assigned_clients?.length ?? 0})</div>
+          {(selected.assigned_clients?.length ?? 0) === 0 ? (
+            <div className="p-7 text-center rounded-xl bg-kore-burgundy/4 border border-dashed border-kore-burgundy/15 text-[13px] text-kore-burgundy/60">Este entrenador no tiene clientes asignados todavía.</div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {selected.assigned_clients!.map((c) => (
+                <div key={c.id} className="flex items-center justify-between rounded-xl bg-white border border-kore-burgundy/8 px-4 py-3">
+                  <div className="min-w-0">
+                    <Link href={`/admin/users/${c.id}`} prefetch={false} className="text-sm font-semibold text-kore-burgundy hover:underline">
+                      {[c.first_name, c.last_name].filter(Boolean).join(' ') || c.email}
+                    </Link>
+                    <div className="text-[11px] text-kore-burgundy/55 truncate">{c.email}{c.active_package ? ` · ${c.active_package}` : ''}</div>
+                  </div>
+                  <Btn variant="ghost" size="sm" disabled={actionLoading} onClick={async () => { await assignTrainer(c.id, null); await fetchById(id); }}>Quitar</Btn>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Acciones admin */}
       <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr] gap-3.5 mt-5">
