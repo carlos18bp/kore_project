@@ -7,7 +7,7 @@ trainers continue using ``UserSerializer`` and the auth-facing serializers.
 from django.db.models import Q
 from rest_framework import serializers
 
-from core_app.models import Subscription, SubscriptionGuest, User
+from core_app.models import Subscription, SubscriptionGuest, TrainerProfile, User
 
 
 # ---------------------------------------------------------------------------
@@ -57,16 +57,53 @@ class AdminUserListSerializer(serializers.ModelSerializer):
 
 
 class AdminUserDetailSerializer(AdminUserListSerializer):
-    """Detail representation that also includes the user's subscriptions."""
+    """Detail representation: subscriptions + trainer assignment."""
 
     subscriptions = serializers.SerializerMethodField()
+    assigned_trainer = serializers.SerializerMethodField()
+    assigned_clients = serializers.SerializerMethodField()
 
     class Meta(AdminUserListSerializer.Meta):
-        fields = AdminUserListSerializer.Meta.fields + ('subscriptions',)
+        fields = AdminUserListSerializer.Meta.fields + (
+            'subscriptions', 'assigned_trainer', 'assigned_clients',
+        )
 
     def get_subscriptions(self, user):
         subs = list(_subscriptions_for_user(user))
         return [_serialize_subscription_for_user(sub, user) for sub in subs]
+
+    def get_assigned_trainer(self, user):
+        if user.role != User.Role.CUSTOMER:
+            return None
+        tp = user.assigned_trainer
+        if tp is None:
+            return None
+        return {'id': tp.id, 'first_name': tp.user.first_name, 'last_name': tp.user.last_name}
+
+    def get_assigned_clients(self, user):
+        if user.role != User.Role.TRAINER:
+            return None
+        tp = getattr(user, 'trainer_profile', None)
+        if tp is None:
+            return []
+        clients = (
+            User.objects.filter(assigned_trainer=tp, role=User.Role.CUSTOMER)
+            .order_by('first_name', 'last_name')
+        )
+        out = []
+        for c in clients:
+            active_sub = Subscription.objects.filter(
+                customer=c, status=Subscription.Status.ACTIVE,
+            ).select_related('package').first()
+            out.append({
+                'id': c.id,
+                'first_name': c.first_name,
+                'last_name': c.last_name,
+                'email': c.email,
+                'is_active': c.is_active,
+                'active_package': active_sub.package.title if active_sub else None,
+            })
+        return out
 
 
 # ---------------------------------------------------------------------------
@@ -107,6 +144,12 @@ class AdminUserUpdateSerializer(serializers.Serializer):
         required=False,
     )
     is_active = serializers.BooleanField(required=False)
+    assigned_trainer_id = serializers.PrimaryKeyRelatedField(
+        queryset=TrainerProfile.objects.all(),
+        source='assigned_trainer',
+        required=False,
+        allow_null=True,
+    )
 
 
 # ---------------------------------------------------------------------------
