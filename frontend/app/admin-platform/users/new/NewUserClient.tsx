@@ -70,8 +70,8 @@ export default function NewUserClient() {
     return (
       <AdminShell
         breadcrumb={[
-          { label: 'Panel de administración', href: '/admin/dashboard' },
-          { label: 'Usuarios', href: '/admin/users' },
+          { label: 'Panel de administración', href: '/admin-platform/dashboard' },
+          { label: 'Usuarios', href: '/admin-platform/users' },
           { label: 'Inscribir' },
         ]}
         title="Usuario inscrito"
@@ -89,7 +89,7 @@ export default function NewUserClient() {
             se les pedirá cambiar la contraseña temporal.
           </div>
           <div className="flex justify-center gap-2.5">
-            <Btn variant="ghost" onClick={() => router.push('/admin/users')}>
+            <Btn variant="ghost" onClick={() => router.push('/admin-platform/users')}>
               Ver lista de usuarios
             </Btn>
             <Btn
@@ -111,15 +111,15 @@ export default function NewUserClient() {
   return (
     <AdminShell
       breadcrumb={[
-        { label: 'Panel de administración', href: '/admin/dashboard' },
-        { label: 'Usuarios', href: '/admin/users' },
+        { label: 'Panel de administración', href: '/admin-platform/dashboard' },
+        { label: 'Usuarios', href: '/admin-platform/users' },
         { label: 'Inscribir' },
       ]}
       title="Inscribir nuevo usuario"
     >
       <div className="max-w-[720px] mx-auto">
         <Link
-          href="/admin/users"
+          href="/admin-platform/users"
           prefetch={false}
           className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-kore-burgundy/60 mb-5 hover:text-kore-burgundy"
         >
@@ -202,7 +202,7 @@ export default function NewUserClient() {
           />
 
           <div className="flex justify-end gap-2.5 mt-6">
-            <Btn variant="ghost" type="button" onClick={() => router.push('/admin/users')}>
+            <Btn variant="ghost" type="button" onClick={() => router.push('/admin-platform/users')}>
               Cancelar
             </Btn>
             <Btn variant="primary" type="submit" disabled={actionLoading}>

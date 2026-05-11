@@ -205,7 +205,7 @@ export default function NewSubscriptionClient() {
     const result = await createOrEvolveSubscription(payload);
     if (result.ok) {
       setConfirmOpen(false);
-      router.push(`/admin/subscriptions/${result.subscription.id}`);
+      router.push(`/admin-platform/subscriptions/${result.subscription.id}`);
       return;
     }
 
@@ -277,7 +277,7 @@ export default function NewSubscriptionClient() {
                   ? customerSearch
                     ? <>Sin resultados para “{customerSearch}”.</>
                     : <>Escribe para buscar un cliente.</>
-                  : <>Todos los clientes de esta búsqueda ya tienen plan activo. Para evolucionar el plan de un cliente, entra a su ficha en <strong>/admin/users</strong> y usa el botón <strong>Evolucionar plan</strong>.</>}
+                  : <>Todos los clientes de esta búsqueda ya tienen plan activo. Para evolucionar el plan de un cliente, entra a su ficha en <strong>/admin-platform/users</strong> y usa el botón <strong>Evolucionar plan</strong>.</>}
               </div>
             );
           }
@@ -330,8 +330,8 @@ export default function NewSubscriptionClient() {
   return (
     <AdminShell
       breadcrumb={[
-        { label: 'Panel de administración', href: '/admin/dashboard' },
-        { label: 'Suscripciones', href: '/admin/subscriptions' },
+        { label: 'Panel de administración', href: '/admin-platform/dashboard' },
+        { label: 'Suscripciones', href: '/admin-platform/subscriptions' },
         { label: 'Crear' },
       ]}
       title="Crear / Evolucionar suscripción"

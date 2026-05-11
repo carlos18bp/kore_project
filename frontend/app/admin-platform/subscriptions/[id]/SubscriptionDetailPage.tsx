@@ -89,7 +89,7 @@ export default function SubscriptionDetailPage() {
 
   if (!selected || loading) {
     return (
-      <AdminShell breadcrumb={[{ label: 'Suscripciones', href: '/admin/subscriptions' }]} title="Cargando…">
+      <AdminShell breadcrumb={[{ label: 'Suscripciones', href: '/admin-platform/subscriptions' }]} title="Cargando…">
         <div className="text-sm text-kore-burgundy/55">{error || 'Cargando…'}</div>
       </AdminShell>
     );
@@ -127,7 +127,7 @@ export default function SubscriptionDetailPage() {
     const res = await deleteSubscription(id);
     setDeleteModal(false);
     if (res.ok) {
-      router.push('/admin/subscriptions');
+      router.push('/admin-platform/subscriptions');
     } else {
       setDeleteErr(res.detail);
     }
@@ -136,14 +136,14 @@ export default function SubscriptionDetailPage() {
   return (
     <AdminShell
       breadcrumb={[
-        { label: 'Panel', href: '/admin/dashboard' },
-        { label: 'Suscripciones', href: '/admin/subscriptions' },
+        { label: 'Panel', href: '/admin-platform/dashboard' },
+        { label: 'Suscripciones', href: '/admin-platform/subscriptions' },
         { label: `#${selected.id}` },
       ]}
       title={selected.package.title}
     >
       <Link
-        href="/admin/subscriptions"
+        href="/admin-platform/subscriptions"
         prefetch={false}
         className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-kore-burgundy/60 mb-5 hover:text-kore-burgundy"
       >

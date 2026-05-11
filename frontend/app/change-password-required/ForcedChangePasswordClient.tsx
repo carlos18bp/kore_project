@@ -10,7 +10,7 @@ import Field from '@/app/components/admin/Field';
 import Input from '@/app/components/admin/Input';
 
 function targetForRole(role: string | undefined): string {
-  if (role === 'admin') return '/admin/dashboard';
+  if (role === 'admin') return '/admin-platform/dashboard';
   if (role === 'trainer') return '/trainer/dashboard';
   return '/dashboard';
 }

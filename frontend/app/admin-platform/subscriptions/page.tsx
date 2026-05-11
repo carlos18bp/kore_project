@@ -88,11 +88,11 @@ export default function AdminSubscriptionsPage() {
 
   return (
     <AdminShell
-      breadcrumb={[{ label: 'Panel de administración', href: '/admin/dashboard' }, { label: 'Suscripciones' }]}
+      breadcrumb={[{ label: 'Panel de administración', href: '/admin-platform/dashboard' }, { label: 'Suscripciones' }]}
       title="Gestión de suscripciones"
     >
       <div className="flex items-center justify-end mb-3">
-        <Link href="/admin/subscriptions/new">
+        <Link href="/admin-platform/subscriptions/new">
           <Btn variant="primary" size="sm">＋ Crear suscripción</Btn>
         </Link>
       </div>

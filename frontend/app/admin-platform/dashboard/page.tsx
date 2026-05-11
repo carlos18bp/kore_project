@@ -65,7 +65,7 @@ export default function AdminDashboardPage() {
             Ver, filtrar y editar suscripciones por categoría (Pareja, Personalizada, Terapéutica).
           </p>
         </div>
-        <Link href="/admin/subscriptions" prefetch={false}>
+        <Link href="/admin-platform/subscriptions" prefetch={false}>
           <Btn variant="primary">Ver todas</Btn>
         </Link>
       </Card>
@@ -77,7 +77,7 @@ export default function AdminDashboardPage() {
             Inscribir clientes y entrenadores, ver suscripciones por usuario.
           </p>
         </div>
-        <Link href="/admin/users" prefetch={false}>
+        <Link href="/admin-platform/users" prefetch={false}>
           <Btn variant="ghost">Ver usuarios</Btn>
         </Link>
       </Card>

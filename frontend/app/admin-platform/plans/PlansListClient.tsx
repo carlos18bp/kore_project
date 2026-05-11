@@ -180,7 +180,7 @@ export default function PlansListClient() {
   return (
     <AdminShell
       breadcrumb={[
-        { label: 'Panel de administración', href: '/admin/dashboard' },
+        { label: 'Panel de administración', href: '/admin-platform/dashboard' },
         { label: 'Planes' },
       ]}
       title="Gestión de planes"

@@ -44,7 +44,7 @@ export default function AppLayout({
       return;
     }
     if (isAdmin) {
-      router.replace('/admin/dashboard');
+      router.replace('/admin-platform/dashboard');
       return;
     }
     if (isTrainer && !isOnTrainerRoute) {

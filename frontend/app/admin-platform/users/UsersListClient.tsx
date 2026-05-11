@@ -63,7 +63,7 @@ export default function UsersListClient() {
   return (
     <AdminShell
       breadcrumb={[
-        { label: 'Panel de administración', href: '/admin/dashboard' },
+        { label: 'Panel de administración', href: '/admin-platform/dashboard' },
         { label: 'Usuarios' },
       ]}
       title="Gestión de usuarios"
@@ -141,7 +141,7 @@ export default function UsersListClient() {
             })}
           </div>
           <div className="flex-1" />
-          <Link href="/admin/users/new" prefetch={false}>
+          <Link href="/admin-platform/users/new" prefetch={false}>
             <Btn variant="primary">＋ Inscribir usuario</Btn>
           </Link>
         </div>

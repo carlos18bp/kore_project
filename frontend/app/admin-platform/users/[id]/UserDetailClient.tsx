@@ -97,7 +97,7 @@ export default function UserDetailClient() {
 
   if (!selected || !edit || loading) {
     return (
-      <AdminShell breadcrumb={[{ label: 'Usuarios', href: '/admin/users' }]} title="Cargando…">
+      <AdminShell breadcrumb={[{ label: 'Usuarios', href: '/admin-platform/users' }]} title="Cargando…">
         <div className="text-sm text-kore-burgundy/55">{error || 'Cargando…'}</div>
       </AdminShell>
     );
@@ -156,7 +156,7 @@ export default function UserDetailClient() {
   const handleDelete = async () => {
     const ok = await deleteUser(id);
     setDeleteModal(false);
-    if (ok) router.push('/admin/users');
+    if (ok) router.push('/admin-platform/users');
   };
 
   const fullName =
@@ -165,14 +165,14 @@ export default function UserDetailClient() {
   return (
     <AdminShell
       breadcrumb={[
-        { label: 'Panel', href: '/admin/dashboard' },
-        { label: 'Usuarios', href: '/admin/users' },
+        { label: 'Panel', href: '/admin-platform/dashboard' },
+        { label: 'Usuarios', href: '/admin-platform/users' },
         { label: `#${selected.id}` },
       ]}
       title={fullName}
     >
       <Link
-        href="/admin/users"
+        href="/admin-platform/users"
         prefetch={false}
         className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-kore-burgundy/60 mb-5 hover:text-kore-burgundy"
       >
@@ -321,7 +321,7 @@ export default function UserDetailClient() {
 
         {selected.role === 'customer' && (
           <div className="mt-4 flex justify-end">
-            <Link href={`/admin/subscriptions/new?customer=${selected.id}`}>
+            <Link href={`/admin-platform/subscriptions/new?customer=${selected.id}`}>
               <Btn variant="primary" size="sm">
                 {selected.has_active_subscription ? 'Evolucionar plan' : '＋ Crear suscripción'}
               </Btn>
@@ -376,7 +376,7 @@ export default function UserDetailClient() {
               {selected.assigned_clients!.map((c) => (
                 <div key={c.id} className="flex items-center justify-between rounded-xl bg-white border border-kore-burgundy/8 px-4 py-3">
                   <div className="min-w-0">
-                    <Link href={`/admin/users/${c.id}`} prefetch={false} className="text-sm font-semibold text-kore-burgundy hover:underline">
+                    <Link href={`/admin-platform/users/${c.id}`} prefetch={false} className="text-sm font-semibold text-kore-burgundy hover:underline">
                       {[c.first_name, c.last_name].filter(Boolean).join(' ') || c.email}
                     </Link>
                     <div className="text-[11px] text-kore-burgundy/55 truncate">{c.email}{c.active_package ? ` · ${c.active_package}` : ''}</div>

@@ -44,7 +44,7 @@ export default function MemberCard({ role, name, email, userId, fullWidth }: Pro
   const widthClass = fullWidth ? 'block' : '';
   if (userId) {
     return (
-      <Link href={`/admin/users/${userId}`} prefetch={false} className={widthClass}>
+      <Link href={`/admin-platform/users/${userId}`} prefetch={false} className={widthClass}>
         {inner}
       </Link>
     );

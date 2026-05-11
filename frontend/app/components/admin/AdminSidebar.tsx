@@ -70,10 +70,10 @@ function Icon({ kind }: { kind: 'home' | 'people' | 'card' | 'plans' | 'chart' |
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { key: 'dashboard', label: 'Panel', href: '/admin/dashboard', icon: <Icon kind="home" /> },
-  { key: 'users', label: 'Usuarios', href: '/admin/users', icon: <Icon kind="people" /> },
-  { key: 'subscriptions', label: 'Suscripciones', href: '/admin/subscriptions', icon: <Icon kind="card" /> },
-  { key: 'plans', label: 'Planes', href: '/admin/plans', icon: <Icon kind="plans" /> },
+  { key: 'dashboard', label: 'Panel', href: '/admin-platform/dashboard', icon: <Icon kind="home" /> },
+  { key: 'users', label: 'Usuarios', href: '/admin-platform/users', icon: <Icon kind="people" /> },
+  { key: 'subscriptions', label: 'Suscripciones', href: '/admin-platform/subscriptions', icon: <Icon kind="card" /> },
+  { key: 'plans', label: 'Planes', href: '/admin-platform/plans', icon: <Icon kind="plans" /> },
   { key: 'reports', label: 'Reportes', href: '#', icon: <Icon kind="chart" />, soon: true },
 ];
 
@@ -84,7 +84,7 @@ export default function AdminSidebar() {
 
   const isActive = (item: NavItem) => {
     if (item.soon) return false;
-    if (item.key === 'dashboard') return pathname === '/admin/dashboard';
+    if (item.key === 'dashboard') return pathname === '/admin-platform/dashboard';
     return pathname?.startsWith(item.href);
   };
 
@@ -108,7 +108,7 @@ export default function AdminSidebar() {
     <aside className="fixed left-0 top-0 h-dvh w-[248px] bg-gradient-to-br from-kore-wine-deep via-kore-wine-mid to-kore-wine flex-col z-50 hidden xl:flex border-r border-kore-gold/10">
       {/* Logo */}
       <div className="px-6 pt-7 pb-5 border-b border-kore-gold/10">
-        <Link href="/admin/dashboard" prefetch={false}>
+        <Link href="/admin-platform/dashboard" prefetch={false}>
           <span className="font-heading text-2xl font-bold tracking-[0.16em] text-kore-ivory">
             KÓRE
           </span>
