@@ -10,6 +10,7 @@ import MobileBottomNav from '@/app/components/layouts/MobileBottomNav';
 import TrainerMobileBottomNav from '@/app/components/layouts/TrainerMobileBottomNav';
 import ProfileCompletionCTA from '@/app/components/profile/ProfileCompletionCTA';
 import MoodCheckIn from '@/app/components/profile/MoodCheckIn';
+import TrainerMessageModal from '@/app/components/dashboard/TrainerMessageModal';
 
 const ALLOWED_WITHOUT_SUBSCRIPTION = ['/subscription', '/profile'];
 
@@ -80,6 +81,7 @@ export default function AppLayout({
       </main>
       {!isTrainer && <ProfileCompletionCTA />}
       {!isTrainer && <MoodCheckIn />}
+      {!isTrainer && !isAdmin && <TrainerMessageModal />}
     </div>
   );
 }

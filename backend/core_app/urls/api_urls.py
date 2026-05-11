@@ -52,6 +52,7 @@ from core_app.views.exercise_views import ExerciseListView
 from core_app.views.monthly_program_views import (
     ApproveProgramView,
     CustomerProgramListView,
+    DeleteProgramView,
     EditProgramExerciseView,
     GenerateProgramView,
     MyProgramView,
@@ -61,6 +62,7 @@ from core_app.views.monthly_program_views import (
 )
 from core_app.views.trainer_client_views import (
     TrainerClientDetailView,
+    TrainerClientFitnessLevelView,
     TrainerClientListView,
     TrainerClientSessionsView,
     TrainerDashboardStatsView,
@@ -93,6 +95,16 @@ from core_app.views.nutrition_daily_views import (
 )
 from core_app.views.progress_views import WeeklySummaryView, ProjectionView, MonthlySummaryView
 from core_app.views.trainer_assignment_views import TrainerAssignmentSummaryView
+from core_app.views.nutrition_plan_views import (
+    ApproveNutritionPlanView,
+    CustomerNutritionPlanListView,
+    CustomerNutritionPlanWeekView,
+    DeleteNutritionPlanView,
+    EditPlanMealView,
+    GenerateNutritionPlanView,
+    MealSuggestionCatalogView,
+    NutritionPlanDetailView,
+)
 
 router = DefaultRouter()
 router.register('packages', PackageViewSet, basename='package')
@@ -118,6 +130,7 @@ urlpatterns = [
     path('trainer/my-clients/', TrainerClientListView.as_view(), name='trainer-client-list'),
     path('trainer/my-clients/<int:customer_id>/', TrainerClientDetailView.as_view(), name='trainer-client-detail'),
     path('trainer/my-clients/<int:customer_id>/sessions/', TrainerClientSessionsView.as_view(), name='trainer-client-sessions'),
+    path('trainer/my-clients/<int:customer_id>/fitness-level/', TrainerClientFitnessLevelView.as_view(), name='trainer-client-fitness-level'),
     path('trainer/dashboard-stats/', TrainerDashboardStatsView.as_view(), name='trainer-dashboard-stats'),
     path('trainer/my-clients/<int:customer_id>/anthropometry/', TrainerAnthropometryListCreateView.as_view(), name='trainer-anthropometry-list-create'),
     path('trainer/my-clients/<int:customer_id>/anthropometry/<int:eval_id>/', TrainerAnthropometryDetailView.as_view(), name='trainer-anthropometry-detail'),
@@ -145,6 +158,7 @@ urlpatterns = [
     path('monthly-programs/generate/', GenerateProgramView.as_view(), name='monthly-program-generate'),
     path('monthly-programs/<int:program_id>/', ProgramDetailView.as_view(), name='monthly-program-detail'),
     path('monthly-programs/<int:program_id>/approve/', ApproveProgramView.as_view(), name='monthly-program-approve'),
+    path('monthly-programs/<int:program_id>/delete/', DeleteProgramView.as_view(), name='monthly-program-delete'),
     path('monthly-programs/<int:program_id>/days/<int:day_id>/exercises/<int:ex_id>/', EditProgramExerciseView.as_view(), name='monthly-program-edit-exercise'),
     path('my-program/', MyProgramView.as_view(), name='my-program'),
     path('my-program/today/', TodayProgramView.as_view(), name='my-program-today'),
@@ -176,4 +190,13 @@ urlpatterns = [
     path('my-nutrition-daily/<int:log_id>/meals/<int:meal_id>/photo/', MealEntryPhotoView.as_view(), name='my-nutrition-daily-meal-photo'),
     path('my-nutrition-daily/history/', NutritionHistoryView.as_view(), name='my-nutrition-daily-history'),
     path('admin/trainers/assignment-summary/', TrainerAssignmentSummaryView.as_view(), name='admin-trainer-assignment-summary'),
+    # Nutrition plans (trainer-curated weekly plans)
+    path('nutrition-plans/customer/<int:customer_id>/', CustomerNutritionPlanListView.as_view(), name='nutrition-plan-list'),
+    path('nutrition-plans/generate/', GenerateNutritionPlanView.as_view(), name='nutrition-plan-generate'),
+    path('nutrition-plans/<int:plan_id>/', NutritionPlanDetailView.as_view(), name='nutrition-plan-detail'),
+    path('nutrition-plans/<int:plan_id>/approve/', ApproveNutritionPlanView.as_view(), name='nutrition-plan-approve'),
+    path('nutrition-plans/<int:plan_id>/delete/', DeleteNutritionPlanView.as_view(), name='nutrition-plan-delete'),
+    path('nutrition-plans/<int:plan_id>/days/<int:day_id>/meals/<int:meal_id>/', EditPlanMealView.as_view(), name='nutrition-plan-edit-meal'),
+    path('meal-suggestions/', MealSuggestionCatalogView.as_view(), name='meal-suggestions'),
+    path('my-nutrition-plan/', CustomerNutritionPlanWeekView.as_view(), name='my-nutrition-plan'),
 ]

@@ -723,6 +723,7 @@ export default function MyNutritionPage() {
 
   const habitScore = latest?.habit_score ? parseFloat(latest.habit_score) : null;
   const habitColorStroke = { green: '#10B981', yellow: '#F59E0B', red: '#EF4444' }[latest?.habit_color ?? ''] ?? '#AB0D2F';
+  const isNutritionApproved = !!latest?.trainer_approved_at;
 
   // Macro targets derived from program goal + calorie estimates
   const macros = totalKcal > 0 ? (() => {
@@ -1134,8 +1135,38 @@ export default function MyNutritionPage() {
                 })}
               </div>
 
-              {/* ── 8 Hábitos accordion (debajo del timeline) ─────────────────── */}
-              {latest && (() => {
+              {/* ── 8 Hábitos accordion — solo visible si el entrenador aprobó ── */}
+              {latest && !isNutritionApproved && (
+                <div
+                  className="mt-5 rounded-[18px] overflow-hidden"
+                  style={{
+                    background: 'rgba(255,255,255,0.65)',
+                    border: '1px solid rgba(229,201,122,0.30)',
+                    boxShadow: '0 4px 16px -10px rgba(45,15,26,0.10)',
+                    padding: '18px 20px',
+                  }}
+                >
+                  <p className="text-[9px] font-bold uppercase" style={{ letterSpacing: '0.22em', color: 'rgba(103,15,34,0.55)' }}>
+                    Tus 8 hábitos
+                  </p>
+                  <p className="font-heading text-[17px] font-semibold mt-1" style={{ color: '#670F22' }}>
+                    Análisis en revisión
+                  </p>
+                  <p className="text-[12px] mt-2 leading-relaxed" style={{ color: 'rgba(103,15,34,0.65)' }}>
+                    Tu entrenador está revisando tu evaluación nutricional. Pronto verás tu análisis de hábitos y recomendaciones personalizadas.
+                  </p>
+                  <div
+                    className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full"
+                    style={{ background: 'rgba(229,201,122,0.15)', border: '1px solid rgba(229,201,122,0.35)' }}
+                  >
+                    <span style={{ width: 6, height: 6, borderRadius: 3, background: '#E5C97A', display: 'inline-block' }} />
+                    <span className="text-[10px] font-semibold uppercase" style={{ letterSpacing: '0.14em', color: '#A88A2E' }}>
+                      Pendiente de aprobación
+                    </span>
+                  </div>
+                </div>
+              )}
+              {latest && isNutritionApproved && (() => {
                 const strengths = HABIT_METRICS.filter((m) => m.isGood(latest));
                 const improvements = HABIT_METRICS.filter((m) => !m.isGood(latest));
                 return (
@@ -1266,8 +1297,34 @@ export default function MyNutritionPage() {
                 </div>
               </div>
 
-              {/* ─── Habits redesign ─── Hero · 8 hábitos · trayectoria · siguiente paso */}
-              {latest && habitScore !== null && (() => {
+              {/* Score card — solo visible si el entrenador aprobó */}
+              {latest && !isNutritionApproved && (
+                <div
+                  style={{
+                    borderRadius: 18, padding: '20px 20px',
+                    background: 'linear-gradient(135deg, #2D0F1A 0%, #4A1828 55%, #5C2030 100%)',
+                    boxShadow: '0 8px 24px -10px rgba(45,15,26,0.45)',
+                  }}
+                >
+                  <p style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.24em', textTransform: 'uppercase', color: 'rgba(231,200,160,0.60)', marginBottom: 10 }}>
+                    Score nutricional
+                  </p>
+                  <p style={{ fontFamily: 'Cinzel, serif', fontSize: 19, fontWeight: 600, color: '#FFF8EC', marginBottom: 6 }}>
+                    En revisión
+                  </p>
+                  <p style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 12, color: 'rgba(255,248,236,0.55)', lineHeight: 1.55 }}>
+                    Tu entrenador está revisando tu evaluación. Una vez aprobada verás tu score y tendencia.
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: 3, background: '#E5C97A', display: 'inline-block' }} />
+                    <span style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: '#E5C97A' }}>
+                      Pendiente de aprobación
+                    </span>
+                  </div>
+                </div>
+              )}
+              {/* ─── Habits score (only when approved) ─────────────────────────── */}
+              {latest && habitScore !== null && isNutritionApproved && (() => {
                 const ringR = 38;
                 const ringCirc = 2 * Math.PI * ringR;
                 const ringPctVal = Math.min(habitScore / 10, 1);
