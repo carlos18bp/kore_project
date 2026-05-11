@@ -38,84 +38,90 @@ function BookingShell({
     <section
       ref={containerRef}
       className="fixed inset-0 z-[55] overflow-y-auto overflow-x-hidden"
-      style={{
-        background: 'linear-gradient(155deg, #2D0F1A 0%, #4A1828 35%, #5C2030 65%, #6B2A3A 100%)',
-        animation: 'book-shell-fade 280ms ease-out both',
-      }}
     >
       <style>{BOOKING_HERO_STYLES}</style>
+      {/* Background layer: at least one viewport tall, but grows with the
+          scrollable content so the gradient never cuts off mid-page. */}
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="relative min-h-screen w-full overflow-hidden"
         style={{
-          background:
-            'radial-gradient(ellipse at 80% 20%, rgba(255,233,220,0.20) 0%, transparent 60%), radial-gradient(ellipse at 10% 90%, rgba(20,5,12,0.65) 0%, transparent 55%)',
-          animation: 'book-aurora 8s ease-in-out infinite',
+          background: 'linear-gradient(155deg, #2D0F1A 0%, #4A1828 35%, #5C2030 65%, #6B2A3A 100%)',
+          animation: 'book-shell-fade 280ms ease-out both',
         }}
-      />
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          top: '15%', right: '10%', width: 220, height: 220, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(255,233,220,0.22) 0%, rgba(244,199,199,0.10) 50%, transparent 70%)',
-          filter: 'blur(40px)', animation: 'book-orb-1 9s ease-in-out infinite',
-        }}
-      />
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          bottom: '10%', left: '15%', width: 260, height: 260, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(244,199,199,0.32) 0%, transparent 70%)',
-          filter: 'blur(50px)', animation: 'book-orb-2 11s ease-in-out infinite',
-        }}
-      />
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          top: '50%', right: '40%', width: 160, height: 160, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(168,194,156,0.18) 0%, transparent 70%)',
-          filter: 'blur(40px)', animation: 'book-orb-3 13s ease-in-out infinite',
-        }}
-      />
-
-      <div
-        className="relative z-10 max-w-3xl mx-auto w-full px-5 pt-6 flex items-center justify-between"
-        style={{ animation: 'book-shell-rise 380ms cubic-bezier(0.22, 1, 0.36, 1) 60ms both' }}
       >
-        <Link
-          href="/dashboard"
-          aria-label="Volver al panel"
-          className="w-10 h-10 rounded-full bg-white/10 backdrop-blur border border-white/15 flex items-center justify-center hover:bg-white/15 transition-colors active:scale-95"
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              'radial-gradient(ellipse at 80% 20%, rgba(255,233,220,0.20) 0%, transparent 60%), radial-gradient(ellipse at 10% 90%, rgba(20,5,12,0.65) 0%, transparent 55%)',
+            animation: 'book-aurora 8s ease-in-out infinite',
+          }}
+        />
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            top: '15%', right: '10%', width: 220, height: 220, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(255,233,220,0.22) 0%, rgba(244,199,199,0.10) 50%, transparent 70%)',
+            filter: 'blur(40px)', animation: 'book-orb-1 9s ease-in-out infinite',
+          }}
+        />
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            bottom: '10%', left: '15%', width: 260, height: 260, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(244,199,199,0.32) 0%, transparent 70%)',
+            filter: 'blur(50px)', animation: 'book-orb-2 11s ease-in-out infinite',
+          }}
+        />
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            top: '50%', right: '40%', width: 160, height: 160, borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(168,194,156,0.18) 0%, transparent 70%)',
+            filter: 'blur(40px)', animation: 'book-orb-3 13s ease-in-out infinite',
+          }}
+        />
+
+        <div
+          className="relative z-10 max-w-3xl mx-auto w-full px-5 pt-6 flex items-center justify-between"
+          style={{ animation: 'book-shell-rise 380ms cubic-bezier(0.22, 1, 0.36, 1) 60ms both' }}
         >
-          <X className="w-4 h-4 text-white/80" strokeWidth={2} />
-        </Link>
-        {typeof step === 'number' && step < 3 && (
-          <div className="flex items-center gap-2.5">
-            <span className="text-[10.5px] uppercase tracking-[0.18em] text-white/55 font-semibold">
-              Paso {step} de 2
-            </span>
-            <div className="flex items-center gap-1">
-              {[1, 2].map((s) => (
-                <div
-                  key={s}
-                  className={`h-1 rounded-full transition-all ${
-                    s === step
-                      ? 'w-8 bg-kore-red'
-                      : s < step
-                      ? 'w-4 bg-white/55'
-                      : 'w-4 bg-white/15'
-                  }`}
-                />
-              ))}
+          <Link
+            href="/dashboard"
+            aria-label="Volver al panel"
+            className="w-10 h-10 rounded-full bg-white/10 backdrop-blur border border-white/15 flex items-center justify-center hover:bg-white/15 transition-colors active:scale-95"
+          >
+            <X className="w-4 h-4 text-white/80" strokeWidth={2} />
+          </Link>
+          {typeof step === 'number' && step < 3 && (
+            <div className="flex items-center gap-2.5">
+              <span className="text-[10.5px] uppercase tracking-[0.18em] text-white/55 font-semibold">
+                Paso {step} de 2
+              </span>
+              <div className="flex items-center gap-1">
+                {[1, 2].map((s) => (
+                  <div
+                    key={s}
+                    className={`h-1 rounded-full transition-all ${
+                      s === step
+                        ? 'w-8 bg-kore-red'
+                        : s < step
+                        ? 'w-4 bg-white/55'
+                        : 'w-4 bg-white/15'
+                    }`}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
 
-      <div
-        className="relative z-10 max-w-3xl mx-auto w-full px-5 pt-6 pb-12"
-        style={{ animation: 'book-shell-rise 460ms cubic-bezier(0.22, 1, 0.36, 1) 140ms both' }}
-      >
-        {children}
+        <div
+          className="relative z-10 max-w-3xl mx-auto w-full px-5 pt-6 pb-12"
+          style={{ animation: 'book-shell-rise 460ms cubic-bezier(0.22, 1, 0.36, 1) 140ms both' }}
+        >
+          {children}
+        </div>
       </div>
     </section>
   );
