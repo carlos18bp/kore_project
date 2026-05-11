@@ -308,40 +308,10 @@ function BookSessionContent() {
     }
   }, [isReschedule, bookingToReschedule?.trainer]);
 
-  const rescheduleNeighbors = useMemo(() => {
-    if (!bookingToReschedule) return { previous: null, next: null };
-    const ordered = [...activeBookings].sort(
-      (a, b) => new Date(a.slot.starts_at).getTime() - new Date(b.slot.starts_at).getTime(),
-    );
-    const index = ordered.findIndex((b) => b.id === bookingToReschedule.id);
-    return {
-      previous: index > 0 ? ordered[index - 1] : null,
-      next: index >= 0 && index < ordered.length - 1 ? ordered[index + 1] : null,
-    };
-  }, [activeBookings, bookingToReschedule]);
-
-  const lastActiveBooking = useMemo(() => {
-    if (isReschedule) return null;
-    if (activeBookings.length === 0) return null;
-    return [...activeBookings].sort(
-      (a, b) => new Date(b.slot.ends_at).getTime() - new Date(a.slot.ends_at).getTime(),
-    )[0];
-  }, [activeBookings, isReschedule]);
-
-  // Minimum allowed slot start time
-  const minSlotStartTime = useMemo(() => {
-    if (isReschedule && bookingToReschedule) {
-      return rescheduleNeighbors.previous ? new Date(rescheduleNeighbors.previous.slot.ends_at) : null;
-    }
-    if (!lastActiveBooking) return null;
-    return new Date(lastActiveBooking.slot.ends_at);
-  }, [bookingToReschedule, isReschedule, lastActiveBooking, rescheduleNeighbors.previous]);
-
-  // Maximum allowed slot end time for reschedule (before next session starts)
-  const maxSlotEndTime = useMemo(() => {
-    if (!isReschedule || !bookingToReschedule) return null;
-    return rescheduleNeighbors.next ? new Date(rescheduleNeighbors.next.slot.starts_at) : null;
-  }, [bookingToReschedule, isReschedule, rescheduleNeighbors.next]);
+  // Note: a user may book any available day. The only timing constraints are the
+  // 16-hour minimum advance and the 30-day horizon (enforced below and in the
+  // backend serializer). There is intentionally no "must be after your last
+  // session" / "between neighbouring sessions" restriction.
 
   // Fetch occupied sessions only for the selected day and trainer.
   useEffect(() => {
@@ -365,23 +335,11 @@ function BookSessionContent() {
       const weekDay = day.getDay();
       if (!WEEKDAY_WINDOWS[weekDay]) continue;
 
-      if (minSlotStartTime) {
-        const dayEnd = new Date(day);
-        dayEnd.setHours(23, 59, 59, 999);
-        if (dayEnd < minSlotStartTime) continue;
-      }
-
-      if (maxSlotEndTime) {
-        const dayStart = new Date(day);
-        dayStart.setHours(0, 0, 0, 0);
-        if (dayStart > maxSlotEndTime) continue;
-      }
-
       dates.add(toDateKey(day));
     }
 
     return dates;
-  }, [minSlotStartTime, maxSlotEndTime]);
+  }, []);
 
   // Build virtual slots for the selected date from fixed windows and booked-day conflicts.
   const slotsForDate = useMemo(() => {
@@ -417,8 +375,6 @@ function BookSessionContent() {
         if (slotEnd.getTime() > windowEnd.getTime()) break;
         if (slotEnd.getTime() <= nowMs) continue;
         if (slotStart.getTime() < nowMs + 16 * 60 * 60 * 1000) continue;
-        if (minSlotStartTime && slotStart < minSlotStartTime) continue;
-        if (maxSlotEndTime && slotEnd > maxSlotEndTime) continue;
         if (hasTravelBufferConflict(slotStart, slotEnd, dayBookedSlots)) continue;
 
         generated.push({
@@ -436,8 +392,6 @@ function BookSessionContent() {
     return generated;
   }, [
     dayBookedSlots,
-    maxSlotEndTime,
-    minSlotStartTime,
     selectedDate,
     trainer?.id,
     trainer?.session_duration_minutes,

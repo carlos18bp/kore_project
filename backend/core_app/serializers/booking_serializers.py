@@ -35,12 +35,13 @@ class BookingSerializer(serializers.ModelSerializer):
     ``subscription_id`` as primary-key references.
 
     Validations enforced on create:
-    - Slot must be active, unblocked, and in the future.
+    - Slot must be active, unblocked, in the future, and within the 30-day horizon.
+    - Slot must start at least 16 hours from now.
     - Slot must not already be booked.
     - No time-overlap with the customer's other active bookings.
     - Slot must respect a 45-minute travel buffer for the same trainer.
     - If a subscription is provided, it must have remaining sessions.
-    - New session must start after the end of the last session in the same subscription.
+    - The customer must have an assigned trainer, and the slot must belong to them.
     """
 
     customer_id = serializers.IntegerField(read_only=True, source='customer.id')

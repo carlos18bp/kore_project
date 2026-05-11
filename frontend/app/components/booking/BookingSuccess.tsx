@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import type { BookingData } from '@/lib/stores/bookingStore';
 
@@ -10,6 +11,12 @@ type Props = {
 };
 
 export default function BookingSuccess({ booking, onReset }: Props) {
+  // Render through a portal to <body> so the overlay covers the full viewport
+  // instead of being clipped/positioned by the animated booking-shell container
+  // (an ancestor with a `transform` becomes the containing block for `fixed`).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const slotStart = new Date(booking.slot.starts_at);
   const slotEnd = new Date(booking.slot.ends_at);
   const trainerName = booking.trainer
@@ -23,7 +30,9 @@ export default function BookingSuccess({ booking, onReset }: Props) {
     [onReset],
   );
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-white/40 backdrop-blur-md"
       data-testid="booking-success-backdrop"
@@ -108,6 +117,7 @@ export default function BookingSuccess({ booking, onReset }: Props) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
