@@ -1,5 +1,6 @@
 import Cookies from 'js-cookie';
 import { useAdminUserStore } from '@/lib/stores/adminUserStore';
+import type { AdminUserDetail } from '@/lib/stores/adminUserStore';
 import { api } from '@/lib/services/http';
 
 jest.mock('js-cookie', () => ({
@@ -67,7 +68,7 @@ describe('adminUserStore.assignTrainer / fetchAssignmentSummary', () => {
       };
       (mockedApi.patch as jest.Mock).mockResolvedValueOnce({ data: updatedUser });
       // pre-set selected to the same user
-      useAdminUserStore.setState({ selected: { ...updatedUser, assigned_trainer: null } as any });
+      useAdminUserStore.setState({ selected: { ...updatedUser, assigned_trainer: null } as AdminUserDetail });
       await useAdminUserStore.getState().assignTrainer(5, 3);
       expect(useAdminUserStore.getState().selected).toEqual(updatedUser);
     });
@@ -81,7 +82,7 @@ describe('adminUserStore.assignTrainer / fetchAssignmentSummary', () => {
         subscriptions: [],
       };
       (mockedApi.patch as jest.Mock).mockResolvedValueOnce({ data: updatedUser });
-      const otherUser = { id: 99, role: 'customer', assigned_trainer: null, assigned_clients: null, subscriptions: [] } as any;
+      const otherUser = { id: 99, role: 'customer', assigned_trainer: null, assigned_clients: null, subscriptions: [] } as AdminUserDetail;
       useAdminUserStore.setState({ selected: otherUser });
       await useAdminUserStore.getState().assignTrainer(5, 3);
       expect(useAdminUserStore.getState().selected).toEqual(otherUser);
