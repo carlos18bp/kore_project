@@ -341,11 +341,14 @@ class BookingViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='upcoming-reminder')
     def upcoming_reminder(self, request):
-        """Return the user's next confirmed booking for dashboard reminders.
+        """Return the user's next upcoming booking for dashboard reminders.
 
-        Looks for the soonest confirmed booking whose slot starts in the
-        future.  The frontend uses this to display a reminder modal when
-        the user opens the dashboard.
+        Looks for the soonest active (non-canceled) booking whose slot starts
+        in the future.  Bookings are ``pending`` while upcoming and become
+        ``confirmed`` automatically once the slot has passed (see the
+        ``auto_complete_past_bookings`` task), so both states are accepted —
+        in practice only ``pending`` ones have a future slot.  The frontend
+        uses this for the "próxima sesión" card and the login reminder modal.
 
         Returns:
             Response: Booking data if found, or ``{"detail": null}`` with 204.
@@ -353,7 +356,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         next_booking = (
             Booking.objects.filter(
                 customer=request.user,
-                status=Booking.Status.CONFIRMED,
+                status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
                 slot__starts_at__gt=timezone.now(),
             )
             .select_related('customer', 'package', 'slot', 'trainer__user', 'subscription')

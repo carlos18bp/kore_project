@@ -360,6 +360,29 @@ class TestUpcomingReminder:
         assert response.status_code == status.HTTP_200_OK
         assert response.data['id'] is not None
 
+    def test_returns_pending_future_booking(self, api_client, customer, package):
+        """A freshly-created (pending) future booking shows up in the reminder."""
+        slot = _make_slot(hours_ahead=24)
+        slot.is_blocked = True
+        slot.save()
+        booking = _make_booking(customer, package, slot, stat=Booking.Status.PENDING)
+
+        api_client.force_authenticate(user=customer)
+        response = api_client.get(reverse('booking-upcoming-reminder'))
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['id'] == booking.id
+
+    def test_excludes_canceled_future_booking(self, api_client, customer, package):
+        """A canceled future booking must not be returned."""
+        slot = _make_slot(hours_ahead=24)
+        _make_booking(customer, package, slot, stat=Booking.Status.CANCELED)
+
+        api_client.force_authenticate(user=customer)
+        response = api_client.get(reverse('booking-upcoming-reminder'))
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
     def test_returns_204_when_no_upcoming(self, api_client, customer):
         """Upcoming reminder returns 204 when customer has no upcoming bookings."""
         api_client.force_authenticate(user=customer)
