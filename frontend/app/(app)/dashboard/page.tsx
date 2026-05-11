@@ -1597,6 +1597,13 @@ export default function DashboardPage() {
               </p>
               <p className="font-heading text-[22px] font-semibold text-white">Día de recuperación</p>
               <p className="text-[13px] text-white/55 mt-2">Descansa, estira y prepárate para mañana.</p>
+              <Link
+                href="/book-session"
+                className="inline-flex items-center gap-2 mt-5 h-11 px-5 rounded-xl font-medium text-[13px] text-white/85 hover:bg-white/[0.12] transition-colors active:scale-95"
+                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)' }}
+              >
+                <Calendar className="w-3.5 h-3.5" strokeWidth={2} /> Agendar sesión
+              </Link>
             </div>
           </AnimatedHero>
         )}
@@ -1788,6 +1795,13 @@ export default function DashboardPage() {
                     Día de descanso
                   </h2>
                   <p className="text-[14px] mt-2" style={{ color: '#FFE9DC', opacity: 0.7 }}>Descansa, hidrátate y prepárate para mañana.</p>
+                  <Link
+                    href="/book-session"
+                    className="inline-flex items-center gap-2 mt-6 h-[50px] px-[18px] text-white rounded-xl font-medium text-[13px] hover:bg-white/[0.12] transition-colors active:scale-95"
+                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)' }}
+                  >
+                    <Calendar className="w-3.5 h-3.5" strokeWidth={2} /> Agendar sesión
+                  </Link>
                 </div>
               )}
             </AnimatedHero>
