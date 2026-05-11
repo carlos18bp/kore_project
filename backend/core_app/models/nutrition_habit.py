@@ -66,6 +66,10 @@ class NutritionHabit(TimestampedModel):
 
     notes = models.TextField(blank=True)
 
+    # ── Trainer review ──
+    trainer_notes = models.TextField(blank=True)
+    trainer_approved_at = models.DateTimeField(null=True, blank=True)
+
     # ── Computed fields ──
     habit_score = models.DecimalField(
         max_digits=4, decimal_places=2, null=True, blank=True,

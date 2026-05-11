@@ -17,6 +17,8 @@ export type NutritionHabit = {
   habit_score: string | null;
   habit_category: string;
   habit_color: string;
+  trainer_notes: string;
+  trainer_approved_at: string | null;
   created_at: string;
 };
 
@@ -40,6 +42,7 @@ type NutritionState = {
   fetchMyEntries: () => Promise<void>;
   createEntry: (data: NutritionFormData) => Promise<NutritionHabit | null>;
   fetchClientEntries: (clientId: number) => Promise<void>;
+  approveEntry: (clientId: number, evalId: number, trainerNotes: string) => Promise<void>;
 };
 
 function authHeaders() {
@@ -94,5 +97,16 @@ export const useNutritionStore = create<NutritionState>((set) => ({
     } catch {
       set({ error: 'No se pudieron cargar los registros de nutrición.', loading: false });
     }
+  },
+
+  approveEntry: async (clientId: number, evalId: number, trainerNotes: string) => {
+    try {
+      const { data } = await api.patch(
+        `/trainer/my-clients/${clientId}/nutrition/${evalId}/`,
+        { trainer_notes: trainerNotes, approve: true },
+        { headers: authHeaders() },
+      );
+      set((s) => ({ entries: s.entries.map((e) => (e.id === evalId ? data : e)) }));
+    } catch { /* noop */ }
   },
 }));

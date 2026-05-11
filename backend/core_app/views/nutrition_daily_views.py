@@ -22,8 +22,39 @@ MEAL_BLOCKS = [
 ]
 
 
+def _get_plan_suggestions_for_today(customer, today):
+    """Return trainer-curated suggestions from published WeeklyNutritionPlan, or None."""
+    from core_app.models import WeeklyNutritionPlan
+
+    plan = (
+        WeeklyNutritionPlan.objects.filter(
+            customer=customer,
+            status=WeeklyNutritionPlan.Status.PUBLISHED,
+            week_start__lte=today,
+            week_end__gte=today,
+        )
+        .prefetch_related('days__meals__suggestion')
+        .first()
+    )
+    if not plan:
+        return None
+
+    plan_day = plan.days.filter(date=today).first()
+    if not plan_day:
+        return None
+
+    return {
+        meal.meal_block: meal.suggestion
+        for meal in plan_day.meals.select_related('suggestion').all()
+    }
+
+
 class TodayNutritionView(APIView):
-    """GET — today's NutritionDailyLog with 5 MealEntries (creates if needed)."""
+    """GET — today's NutritionDailyLog with 5 MealEntries (creates if needed).
+
+    If there is a published WeeklyNutritionPlan covering today, its curated
+    meal suggestions are used instead of the auto-rotation.
+    """
 
     permission_classes = [IsAuthenticated]
 
@@ -36,7 +67,11 @@ class TodayNutritionView(APIView):
         )
 
         if log_created:
-            suggestions = get_daily_suggestions(request.user, today)
+            plan_suggestions = _get_plan_suggestions_for_today(request.user, today)
+            if plan_suggestions is not None:
+                suggestions = plan_suggestions
+            else:
+                suggestions = get_daily_suggestions(request.user, today)
             MealEntry.objects.bulk_create([
                 MealEntry(
                     daily_log=log,

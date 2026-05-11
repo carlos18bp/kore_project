@@ -29,6 +29,7 @@ from .nutrition_daily_log import NutritionDailyLog, MealEntry
 from .trainer_alert import ClientRiskScore
 from .trainer_alert_resolution import TrainerAlertResolution
 from .trainer_message import TrainerMessage
+from .weekly_nutrition_plan import WeeklyNutritionPlan, WeeklyPlanDay, WeeklyPlanMeal
 
 __all__ = [
     'User',
@@ -70,4 +71,7 @@ __all__ = [
     'ClientRiskScore',
     'TrainerAlertResolution',
     'TrainerMessage',
+    'WeeklyNutritionPlan',
+    'WeeklyPlanDay',
+    'WeeklyPlanMeal',
 ]
