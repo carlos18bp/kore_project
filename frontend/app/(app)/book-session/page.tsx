@@ -14,6 +14,7 @@ import TimeSlotPicker from '@/app/components/booking/TimeSlotPicker';
 import BookingConfirmation from '@/app/components/booking/BookingConfirmation';
 import BookingSuccess from '@/app/components/booking/BookingSuccess';
 import NoSessionsModal from '@/app/components/booking/NoSessionsModal';
+import UpcomingSessionsCard from '@/app/components/booking/UpcomingSessionsCard';
 
 const BOOKING_HERO_STYLES = `
   @keyframes book-orb-1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(40px,-30px) scale(1.15)}}
@@ -341,6 +342,19 @@ function BookSessionContent() {
     return dates;
   }, []);
 
+  // Days that already have a (non-canceled, future) booked session — get a marker dot.
+  const bookedDates = useMemo(() => {
+    const dates = new Set<string>();
+    const nowMs = Date.now();
+    for (const b of bookings) {
+      if (b.status === 'canceled') continue;
+      const start = new Date(b.slot.starts_at);
+      if (start.getTime() <= nowMs) continue;
+      dates.add(toDateKey(start));
+    }
+    return dates;
+  }, [bookings]);
+
   // Build virtual slots for the selected date from fixed windows and booked-day conflicts.
   const slotsForDate = useMemo(() => {
     if (!selectedDate) return [];
@@ -609,6 +623,7 @@ function BookSessionContent() {
               </p>
               <BookingCalendar
                 availableDates={availableDates}
+                bookedDates={bookedDates}
                 selectedDate={selectedDate}
                 onSelectDate={(date) => {
                   if (!hasNoSessions) {
@@ -674,6 +689,11 @@ function BookSessionContent() {
             }}
           />
         </div>
+      )}
+
+      {/* Upcoming / past sessions for context */}
+      {step !== 3 && bookings.length > 0 && (
+        <UpcomingSessionsCard bookings={bookings} className="mt-6" />
       )}
 
       {/* Success modal (overlays on top of the page) */}

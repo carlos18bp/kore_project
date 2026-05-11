@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import Image from 'next/image';
 import gsap from 'gsap';
@@ -22,6 +23,7 @@ import { useNutritionDailyStore } from '@/lib/stores/nutritionDailyStore';
 import { useProgramStore } from '@/lib/stores/programStore';
 import { useProgressStore } from '@/lib/stores/progressStore';
 import UpcomingSessionReminder from '@/app/components/booking/UpcomingSessionReminder';
+import UpcomingSessionsCard from '@/app/components/booking/UpcomingSessionsCard';
 import SubscriptionExpiryReminder from '@/app/components/subscription/SubscriptionExpiryReminder';
 import SubscriptionDashboardToast from '@/app/components/subscription/SubscriptionDashboardToast';
 import ProgressTabsCard from '@/app/components/program/ProgressTabsCard';
@@ -1085,6 +1087,7 @@ type SessionCardProps = {
   sessionObjective?: string;
   expanded?: boolean;
   onToggle?: () => void;
+  onShowUpcoming?: () => void;
 };
 
 function SessionCard({
@@ -1097,6 +1100,7 @@ function SessionCard({
   sessionObjective,
   expanded = false,
   onToggle,
+  onShowUpcoming,
 }: SessionCardProps) {
   const accordionRef = useRef<HTMLDivElement>(null);
   const firstMount = useRef(true);
@@ -1224,6 +1228,16 @@ function SessionCard({
               </div>
             </div>
           )}
+          {onShowUpcoming && (
+            <button
+              type="button"
+              onClick={onShowUpcoming}
+              className="mt-3 inline-flex items-center gap-1.5 self-start rounded-lg px-3 py-1.5 text-[11px] font-semibold text-white/85 hover:bg-white/[0.12] transition-colors active:scale-95"
+              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)' }}
+            >
+              <Calendar className="w-3.5 h-3.5" strokeWidth={2} /> Próximas sesiones
+            </button>
+          )}
         </div>
       ) : (
         <div className="relative flex flex-col flex-1">
@@ -1257,6 +1271,16 @@ function SessionCard({
           <p className="text-[12px] text-white/70 flex-1 mt-2 leading-relaxed">
             {sessionObjective ?? 'Continúa tu transformación'}
           </p>
+          {onShowUpcoming && (
+            <button
+              type="button"
+              onClick={onShowUpcoming}
+              className="mt-3 inline-flex items-center gap-1.5 self-start rounded-lg px-3 py-1.5 text-[11px] font-semibold text-white/85 hover:bg-white/[0.12] transition-colors active:scale-95"
+              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)' }}
+            >
+              <Calendar className="w-3.5 h-3.5" strokeWidth={2} /> Próximas sesiones
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -1290,6 +1314,7 @@ export default function DashboardPage() {
   // Mobile accordion states
   const [sessionExpanded, setSessionExpanded] = useState(false);
   const [progressExpanded, setProgressExpanded] = useState(false);
+  const [showUpcoming, setShowUpcoming] = useState(false);
 
   useEffect(() => {
     fetchSubscriptions();
@@ -1434,6 +1459,18 @@ export default function DashboardPage() {
       <UpcomingSessionReminder />
       <SubscriptionExpiryReminder />
       <SubscriptionDashboardToast />
+
+      {showUpcoming && createPortal(
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-sm p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowUpcoming(false); }}
+        >
+          <div className="w-full max-w-md">
+            <UpcomingSessionsCard bookings={bookings} onClose={() => setShowUpcoming(false)} />
+          </div>
+        </div>,
+        document.body,
+      )}
 
       {/* ════════════════ MOBILE LAYOUT ════════════════ */}
       <div className="xl:hidden px-5 pt-6 pb-24 space-y-3.5">
@@ -1619,6 +1656,7 @@ export default function DashboardPage() {
             sessionObjective={upcomingReminder?.session_objective}
             expanded={sessionExpanded}
             onToggle={() => setSessionExpanded((v) => !v)}
+            onShowUpcoming={() => setShowUpcoming(true)}
           />
         )}
 
@@ -1816,6 +1854,7 @@ export default function DashboardPage() {
                 sessionInDays={sessionInDays}
                 trainerName={trainerName}
                 sessionObjective={upcomingReminder?.session_objective}
+                onShowUpcoming={() => setShowUpcoming(true)}
               />
             ) : (
               <div className="rounded-[22px] p-6 bg-white/70 border border-white/60 h-full flex items-center justify-center text-center">
