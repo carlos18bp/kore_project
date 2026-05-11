@@ -64,12 +64,13 @@ class TrainerRiskDashboardView(APIView):
             ClientRiskScore.Level.SIN_RIESGO: 3,
         }
 
-        # Latest non-stale score per customer
+        # Latest non-stale score per customer (with resolutions prefetched)
         customer_ids = _trainer_customer_ids(trainer)
         scores = (
             ClientRiskScore.objects
             .filter(trainer=trainer, customer_id__in=customer_ids, is_stale=False)
             .select_related('customer')
+            .prefetch_related('resolutions')
             .order_by('customer_id', '-computed_at')
         )
         # Deduplicate: keep first (latest) per customer
@@ -91,13 +92,24 @@ class TrainerRiskDashboardView(APIView):
 
         clients_by_risk = [
             {
+                'id': s.id,
                 'customer_id': s.customer_id,
-                'name': f'{s.customer.first_name} {s.customer.last_name}',
+                'customer_name': f'{s.customer.first_name} {s.customer.last_name}'.strip() or s.customer.email,
                 'avatar_url': s.customer.avatar_url if hasattr(s.customer, 'avatar_url') else None,
                 'level': s.level,
                 'signals_count': len(s.behavioral_signals) + len(s.clinical_signals),
-                'last_computed': s.computed_at.isoformat(),
+                'computed_at': s.computed_at.isoformat(),
                 'kore_score': float(s.kore_score) if s.kore_score is not None else None,
+                'behavioral_signals': s.behavioral_signals,
+                'clinical_signals': s.clinical_signals,
+                'resolutions': [
+                    {
+                        'signal_type': r.signal_type,
+                        'resolved_at': r.resolved_at.isoformat(),
+                        'note': r.note,
+                    }
+                    for r in s.resolutions.all()
+                ],
             }
             for s in unique_scores
         ]
@@ -236,11 +248,11 @@ class TrainerClientKPIView(APIView):
             'anthropometry': latest_anthro.evaluation_date.isoformat() if latest_anthro else None,
             'posturometry': latest_posturo.evaluation_date.isoformat() if latest_posturo else None,
             'physical': latest_physical.evaluation_date.isoformat() if latest_physical else None,
-            'parq': ParqAssessment.objects.filter(customer=customer).order_by('-evaluation_date').values_list('evaluation_date', flat=True).first(),
+            'parq': ParqAssessment.objects.filter(customer=customer).order_by('-created_at').values_list('created_at', flat=True).first(),
             'nutrition': latest_nutrition.created_at.date().isoformat() if latest_nutrition else None,
         }
         if last_eval_dates['parq']:
-            last_eval_dates['parq'] = last_eval_dates['parq'].isoformat()
+            last_eval_dates['parq'] = last_eval_dates['parq'].date().isoformat()
 
         return Response({
             'behavioral': {
@@ -1085,6 +1097,7 @@ class TrainerClientSessionsFullView(APIView):
                 'ends_at': b.slot.end_time.isoformat() if b.slot else None,
                 'notes': b.notes,
                 'canceled_reason': b.canceled_reason,
+                'session_objective': b.session_objective or '',
                 'session_notes_for_customer': b.session_notes_for_customer if hasattr(b, 'session_notes_for_customer') else '',
                 'created_at': b.created_at.isoformat(),
             }

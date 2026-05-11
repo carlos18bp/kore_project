@@ -111,6 +111,224 @@ def detect_postural_exercise_conflict(
     }
 
 
+def detect_anthropometry_critical(
+    bmi: float | None,
+    bmi_category: str,
+    bf_color: str,
+    waist_risk_color: str,
+    whr_color: str,
+    whe_color: str,
+    eval_date: 'date | None',
+) -> list[dict]:
+    """
+    Returns a list of signals for critical anthropometric findings:
+    - Obesity (BMI >= 30)
+    - Critical body fat (bf_color == 'rojo')
+    - Critical waist circumference risk (waist_risk_color or whr_color or whe_color == 'rojo')
+    """
+    signals = []
+    last_eval = eval_date.isoformat() if eval_date else None
+
+    if bmi is not None and bmi >= 30:
+        category_label = bmi_category or 'Obesidad'
+        severity = 'alto' if bmi >= 35 else 'medio'
+        signals.append({
+            'type': 'anthropometry_obesity',
+            'label': f'IMC en rango de {category_label}: {round(bmi, 1)}',
+            'severity': severity,
+            'detail': f'IMC: {round(bmi, 1)} kg/m². Categoría: {category_label}.',
+            'module': 'anthropometry',
+            'last_eval_date': last_eval,
+        })
+
+    if bf_color == 'rojo':
+        signals.append({
+            'type': 'anthropometry_body_fat_critical',
+            'label': 'Porcentaje de grasa corporal crítico',
+            'severity': 'medio',
+            'detail': 'El porcentaje de grasa corporal está en zona de riesgo (rojo).',
+            'module': 'anthropometry',
+            'last_eval_date': last_eval,
+        })
+
+    if 'rojo' in (waist_risk_color, whr_color, whe_color):
+        signals.append({
+            'type': 'anthropometry_waist_risk',
+            'label': 'Riesgo cardiovascular por medidas de cintura',
+            'severity': 'medio',
+            'detail': 'Uno o más indicadores de riesgo por cintura están en zona roja (ICC, ICT o perímetro).',
+            'module': 'anthropometry',
+            'last_eval_date': last_eval,
+        })
+
+    return signals
+
+
+def detect_posturometry_multiple_alterations(
+    segment_scores: dict,
+    findings: dict,
+    eval_date: 'date | None',
+    threshold: int = 3,
+) -> dict | None:
+    """
+    Returns a signal when 3+ postural segments have alterations.
+    Uses segment_scores JSONField (keys are segment names, values have 'score' < 3 = altered).
+    Falls back to findings if segment_scores is empty.
+    """
+    altered_segments: list[str] = []
+
+    if segment_scores and isinstance(segment_scores, dict):
+        for segment, data in segment_scores.items():
+            if isinstance(data, dict) and data.get('score', 3) < 3:
+                altered_segments.append(segment)
+    elif findings and isinstance(findings, dict):
+        for view, view_findings in findings.items():
+            if isinstance(view_findings, list):
+                for item in view_findings:
+                    seg = item if isinstance(item, str) else (item.get('segment') if isinstance(item, dict) else None)
+                    if seg and seg not in altered_segments:
+                        altered_segments.append(seg)
+
+    if len(altered_segments) < threshold:
+        return None
+
+    return {
+        'type': 'posturometry_multiple_alterations',
+        'label': f'{len(altered_segments)} segmentos posturales alterados',
+        'severity': 'alto' if len(altered_segments) >= 5 else 'medio',
+        'detail': f'Alteraciones en: {", ".join(altered_segments[:6])}{"..." if len(altered_segments) > 6 else ""}.',
+        'module': 'posturometry',
+        'last_eval_date': eval_date.isoformat() if eval_date else None,
+    }
+
+
+def detect_physical_low_fitness(
+    general_index: float | None,
+    general_category: str,
+    eval_date: 'date | None',
+) -> dict | None:
+    """Returns a signal if the physical general_index is in the very low range (<= 1.5)."""
+    if general_index is None:
+        return None
+    if general_index <= 1.5:
+        return {
+            'type': 'physical_low_fitness',
+            'label': f'Condición física muy baja: {general_category or round(general_index, 2)}',
+            'severity': 'alto' if general_index <= 1.0 else 'medio',
+            'detail': f'Índice de condición física general: {round(general_index, 2)}/5. Categoría: {general_category or "Muy bajo"}.',
+            'module': 'physical',
+            'last_eval_date': eval_date.isoformat() if eval_date else None,
+        }
+    return None
+
+
+def detect_parq_high_risk(
+    yes_count: int,
+    q1_heart: bool,
+    q2_chest: bool,
+    q3_dizziness: bool,
+    q7_medical_supervision: bool,
+    risk_classification: str,
+    eval_date: 'date | None',
+) -> dict | None:
+    """
+    Returns a signal if PAR-Q+ indicates high risk:
+    - yes_count >= 3, OR
+    - Any critical single question (q1, q2, q3, q7) answered Yes
+    """
+    critical_yes = q1_heart or q2_chest or q3_dizziness or q7_medical_supervision
+    if yes_count == 0:
+        return None
+
+    if yes_count >= 3 or critical_yes:
+        severity = 'alto' if (yes_count >= 3 or q2_chest or q3_dizziness or q7_medical_supervision) else 'medio'
+        critical_labels = []
+        if q1_heart:
+            critical_labels.append('condición cardíaca/hipertensión')
+        if q2_chest:
+            critical_labels.append('dolor de pecho')
+        if q3_dizziness:
+            critical_labels.append('mareos/pérdida de conocimiento')
+        if q7_medical_supervision:
+            critical_labels.append('requiere supervisión médica')
+
+        detail = f'{yes_count} respuesta(s) positiva(s) en PAR-Q+.'
+        if critical_labels:
+            detail += f' Factores críticos: {", ".join(critical_labels)}.'
+        if risk_classification:
+            detail += f' Clasificación: {risk_classification}.'
+
+        return {
+            'type': 'parq_high_risk',
+            'label': f'PAR-Q+: {yes_count} factor{"es" if yes_count > 1 else ""} de riesgo',
+            'severity': severity,
+            'detail': detail,
+            'module': 'parq',
+            'last_eval_date': eval_date.isoformat() if eval_date else None,
+        }
+    return None
+
+
+def detect_nutrition_habits_specific(
+    ultraprocessed_weekly: int | None,
+    water_liters: float | None,
+    eats_breakfast: bool | None,
+    sugary_drinks_weekly: int | None,
+    eval_date: 'date | None',
+) -> list[dict]:
+    """
+    Returns specific signals for individual problematic nutrition habits:
+    - Ultra-processed consumption > 7/week
+    - Water intake < 1 L/day
+    - Not eating breakfast regularly
+    - Sugary drinks > 7/week
+    """
+    signals = []
+    last_eval = eval_date.isoformat() if eval_date else None
+
+    if ultraprocessed_weekly is not None and ultraprocessed_weekly > 7:
+        signals.append({
+            'type': 'nutrition_ultraprocessed_high',
+            'label': f'Consumo alto de ultraprocesados: {ultraprocessed_weekly}×/sem',
+            'severity': 'alto' if ultraprocessed_weekly > 14 else 'medio',
+            'detail': f'Consumo de alimentos ultraprocesados: {ultraprocessed_weekly} veces por semana (recomendado: ≤7).',
+            'module': 'nutrition',
+            'last_eval_date': last_eval,
+        })
+
+    if water_liters is not None and float(water_liters) < 1.0:
+        signals.append({
+            'type': 'nutrition_low_water',
+            'label': f'Hidratación muy baja: {water_liters}L/día',
+            'severity': 'medio',
+            'detail': f'Ingesta de agua: {water_liters}L/día (recomendado: ≥2L).',
+            'module': 'nutrition',
+            'last_eval_date': last_eval,
+        })
+
+    if eats_breakfast is False:
+        signals.append({
+            'type': 'nutrition_skips_breakfast',
+            'label': 'No desayuna regularmente',
+            'severity': 'bajo',
+            'detail': 'El cliente reporta no desayunar de manera regular.',
+            'module': 'nutrition',
+            'last_eval_date': last_eval,
+        })
+
+    if sugary_drinks_weekly is not None and sugary_drinks_weekly > 7:
+        signals.append({
+            'type': 'nutrition_sugary_drinks_high',
+            'label': f'Consumo alto de bebidas azucaradas: {sugary_drinks_weekly}×/sem',
+            'severity': 'medio',
+            'detail': f'Bebidas azucaradas: {sugary_drinks_weekly} veces por semana (recomendado: ≤7).',
+            'module': 'nutrition',
+            'last_eval_date': last_eval,
+        })
+
+    return signals
+
+
 def detect_nutritional_deficit(
     habit_score: float | None,
     previous_habit_score: float | None,
@@ -187,7 +405,7 @@ def compute_clinical_signals(customer, trainer, today: date) -> list[dict]:
         'physical': _last_eval_date(
             PhysicalEvaluation.objects.filter(customer=customer)
         ),
-        'parq': _last_eval_date(
+        'parq': _last_nutrition_date(
             ParqAssessment.objects.filter(customer=customer)
         ),
         'nutrition': _last_nutrition_date(
@@ -197,7 +415,25 @@ def compute_clinical_signals(customer, trainer, today: date) -> list[dict]:
 
     signals.extend(detect_expired_evaluations(last_eval_dates, today))
 
-    # ── Postural / exercise conflict ──
+    # ── Anthropometry critical findings ──
+    latest_anthro = (
+        AnthropometryEvaluation.objects
+        .filter(customer=customer)
+        .order_by('-evaluation_date')
+        .first()
+    )
+    if latest_anthro:
+        signals.extend(detect_anthropometry_critical(
+            bmi=float(latest_anthro.bmi) if latest_anthro.bmi else None,
+            bmi_category=latest_anthro.bmi_category or '',
+            bf_color=latest_anthro.bf_color or '',
+            waist_risk_color=latest_anthro.waist_risk_color or '',
+            whr_color=latest_anthro.whr_color or '',
+            whe_color=latest_anthro.whe_color or '',
+            eval_date=latest_anthro.evaluation_date,
+        ))
+
+    # ── Posturometry: multiple alterations ──
     latest_posturo = (
         PosturometryEvaluation.objects
         .filter(customer=customer)
@@ -205,7 +441,15 @@ def compute_clinical_signals(customer, trainer, today: date) -> list[dict]:
         .first()
     )
     if latest_posturo:
-        # Collect segment names with any alteration (findings stored as dict in JSONField)
+        signal = detect_posturometry_multiple_alterations(
+            segment_scores=latest_posturo.segment_scores or {},
+            findings=latest_posturo.findings or {},
+            eval_date=latest_posturo.evaluation_date,
+        )
+        if signal:
+            signals.append(signal)
+
+        # Postural / exercise conflict (existing logic)
         postural_findings = []
         findings_data = getattr(latest_posturo, 'findings', None) or {}
         if isinstance(findings_data, dict):
@@ -233,7 +477,59 @@ def compute_clinical_signals(customer, trainer, today: date) -> list[dict]:
                     signal['last_eval_date'] = latest_posturo.evaluation_date.isoformat()
                     signals.append(signal)
 
-    # ── Nutritional deficit ──
+    # ── Physical fitness: low general index ──
+    latest_physical = (
+        PhysicalEvaluation.objects
+        .filter(customer=customer)
+        .order_by('-evaluation_date')
+        .first()
+    )
+    if latest_physical:
+        signal = detect_physical_low_fitness(
+            general_index=float(latest_physical.general_index) if latest_physical.general_index else None,
+            general_category=latest_physical.general_category or '',
+            eval_date=latest_physical.evaluation_date,
+        )
+        if signal:
+            signals.append(signal)
+
+    # ── PAR-Q high risk ──
+    latest_parq = (
+        ParqAssessment.objects
+        .filter(customer=customer)
+        .order_by('-created_at')
+        .first()
+    )
+    if latest_parq:
+        signal = detect_parq_high_risk(
+            yes_count=latest_parq.yes_count,
+            q1_heart=latest_parq.q1_heart_condition,
+            q2_chest=latest_parq.q2_chest_pain,
+            q3_dizziness=latest_parq.q3_dizziness,
+            q7_medical_supervision=latest_parq.q7_medical_supervision,
+            risk_classification=latest_parq.risk_classification or '',
+            eval_date=latest_parq.created_at.date(),
+        )
+        if signal:
+            signals.append(signal)
+
+    # ── Nutrition habits: specific issues ──
+    latest_nutrition_habit = (
+        NutritionHabit.objects
+        .filter(customer=customer)
+        .order_by('-created_at')
+        .first()
+    )
+    if latest_nutrition_habit:
+        signals.extend(detect_nutrition_habits_specific(
+            ultraprocessed_weekly=latest_nutrition_habit.ultraprocessed_weekly,
+            water_liters=float(latest_nutrition_habit.water_liters),
+            eats_breakfast=latest_nutrition_habit.eats_breakfast,
+            sugary_drinks_weekly=latest_nutrition_habit.sugary_drinks_weekly,
+            eval_date=latest_nutrition_habit.created_at.date(),
+        ))
+
+    # ── Nutritional deficit (habit score) ──
     nutrition_evals = list(
         NutritionHabit.objects
         .filter(customer=customer)

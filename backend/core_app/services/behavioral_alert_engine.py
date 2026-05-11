@@ -157,6 +157,95 @@ def detect_unachieved_milestone(
     return None
 
 
+def detect_low_training_adherence(
+    daily_training: list[tuple[date, float]],
+    window: int = 7,
+) -> dict | None:
+    """Returns a signal if training-only adherence averaged below 0.50 over the last N days."""
+    if not daily_training:
+        return None
+    recent = [v for _, v in daily_training[-window:]]
+    if not recent:
+        return None
+    avg = sum(recent) / len(recent)
+    if avg < 0.30:
+        return {
+            'type': 'low_training_adherence',
+            'label': f'Entrenamiento muy bajo: {round(avg * 100)}% últimos {len(recent)}d',
+            'severity': 'alto',
+            'detail': f'Adherencia de entrenamiento promedio últimos {len(recent)} días: {round(avg * 100, 1)}%',
+            'since_date': daily_training[-window][0].isoformat() if len(daily_training) >= window else daily_training[0][0].isoformat(),
+        }
+    if avg < 0.50:
+        return {
+            'type': 'low_training_adherence',
+            'label': f'Entrenamiento bajo: {round(avg * 100)}% últimos {len(recent)}d',
+            'severity': 'medio',
+            'detail': f'Adherencia de entrenamiento promedio últimos {len(recent)} días: {round(avg * 100, 1)}%',
+            'since_date': daily_training[-window][0].isoformat() if len(daily_training) >= window else daily_training[0][0].isoformat(),
+        }
+    return None
+
+
+def detect_low_nutrition_daily_adherence(
+    daily_nutrition: list[tuple[date, float]],
+    window: int = 7,
+) -> dict | None:
+    """Returns a signal if nutrition log meal completion averaged below 0.50 over the last N days."""
+    if not daily_nutrition:
+        return None
+    recent = [v for _, v in daily_nutrition[-window:]]
+    if not recent:
+        return None
+    avg = sum(recent) / len(recent)
+    if avg < 0.30:
+        return {
+            'type': 'low_nutrition_daily_adherence',
+            'label': f'Registro nutricional muy bajo: {round(avg * 100)}% últimos {len(recent)}d',
+            'severity': 'alto',
+            'detail': f'Cumplimiento de comidas diarias promedio últimos {len(recent)} días: {round(avg * 100, 1)}%',
+            'since_date': daily_nutrition[-window][0].isoformat() if len(daily_nutrition) >= window else daily_nutrition[0][0].isoformat(),
+        }
+    if avg < 0.50:
+        return {
+            'type': 'low_nutrition_daily_adherence',
+            'label': f'Registro nutricional bajo: {round(avg * 100)}% últimos {len(recent)}d',
+            'severity': 'medio',
+            'detail': f'Cumplimiento de comidas diarias promedio últimos {len(recent)} días: {round(avg * 100, 1)}%',
+            'since_date': daily_nutrition[-window][0].isoformat() if len(daily_nutrition) >= window else daily_nutrition[0][0].isoformat(),
+        }
+    return None
+
+
+def detect_nutrition_plan_not_followed(
+    has_published_plan: bool,
+    daily_nutrition: list[tuple[date, float]],
+    window: int = 7,
+) -> dict | None:
+    """
+    Returns a signal when a trainer-curated WeeklyNutritionPlan exists but
+    the client's daily meal log compliance is still below 0.40.
+    """
+    if not has_published_plan or not daily_nutrition:
+        return None
+    recent = [v for _, v in daily_nutrition[-window:]]
+    if not recent:
+        return None
+    avg = sum(recent) / len(recent)
+    if avg < 0.40:
+        return {
+            'type': 'nutrition_plan_not_followed',
+            'label': f'Plan nutricional no seguido: {round(avg * 100)}%',
+            'severity': 'medio',
+            'detail': (
+                f'Existe un plan nutricional activo pero la adherencia al registro '
+                f'de comidas es {round(avg * 100, 1)}% en los últimos {len(recent)} días.'
+            ),
+            'since_date': daily_nutrition[-window][0].isoformat() if len(daily_nutrition) >= window else daily_nutrition[0][0].isoformat(),
+        }
+    return None
+
+
 # ── ORM orchestrator ─────────────────────────────────────────────────────────
 
 def compute_behavioral_signals(customer, trainer, today: date) -> list[dict]:
@@ -166,6 +255,7 @@ def compute_behavioral_signals(customer, trainer, today: date) -> list[dict]:
     """
     from core_app.models.monthly_program import DailyLog, MonthlyProgram, ProgramDay
     from core_app.models import MoodEntry, NutritionDailyLog
+    from core_app.models.weekly_nutrition_plan import WeeklyNutritionPlan
     from core_app.services.adherence_calculator import (
         compute_combined_adherence,
         compute_nutrition_adherence,
@@ -187,7 +277,7 @@ def compute_behavioral_signals(customer, trainer, today: date) -> list[dict]:
     window_start = program.start_date
     window_end = today
 
-    # Fetch last 14 days of DailyLog with exercise_logs
+    # Fetch DailyLog with exercise_logs over the program window
     daily_logs_qs = (
         DailyLog.objects
         .filter(customer=customer, date__range=(window_start, window_end))
@@ -208,7 +298,7 @@ def compute_behavioral_signals(customer, trainer, today: date) -> list[dict]:
     if signal:
         signals.append(signal)
 
-    # Build daily combined adherence list (last 14 days)
+    # Build daily adherence lists over the program window
     program_days_qs = (
         ProgramDay.objects
         .filter(program=program, date__range=(window_start, window_end))
@@ -223,6 +313,8 @@ def compute_behavioral_signals(customer, trainer, today: date) -> list[dict]:
     }
 
     daily_combined: list[tuple[date, float]] = []
+    daily_training: list[tuple[date, float]] = []
+    daily_nutrition: list[tuple[date, float]] = []
     daily_adherences: list[float] = []
     program_days_list = list(program_days_qs)
 
@@ -235,9 +327,32 @@ def compute_behavioral_signals(customer, trainer, today: date) -> list[dict]:
         nutrition = compute_nutrition_adherence(meal_entries)
         combined = compute_combined_adherence(training, nutrition)
         daily_combined.append((pd.date, combined))
+        daily_training.append((pd.date, training))
+        daily_nutrition.append((pd.date, nutrition))
         daily_adherences.append(combined)
 
     signal = detect_low_adherence_sustained(daily_combined)
+    if signal:
+        signals.append(signal)
+
+    # Training-only low adherence (last 7 days)
+    signal = detect_low_training_adherence(daily_training)
+    if signal:
+        signals.append(signal)
+
+    # Nutrition daily log low adherence (last 7 days)
+    signal = detect_low_nutrition_daily_adherence(daily_nutrition)
+    if signal:
+        signals.append(signal)
+
+    # Nutrition plan not followed
+    has_published_plan = WeeklyNutritionPlan.objects.filter(
+        customer=customer,
+        status=WeeklyNutritionPlan.Status.PUBLISHED,
+        week_start__lte=today,
+        week_end__gte=today,
+    ).exists()
+    signal = detect_nutrition_plan_not_followed(has_published_plan, daily_nutrition)
     if signal:
         signals.append(signal)
 

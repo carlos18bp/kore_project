@@ -502,22 +502,15 @@ def complete_finished_programs():
 def compute_daily_alerts():
     """At 06:00 daily: compute behavioral and clinical risk scores for all active clients.
 
-    For each customer with an active published program, runs both alert engines,
-    determines the overall risk level, creates a ClientRiskScore, and marks the
-    previous score for that customer+trainer as stale.
-
     Runs after close_daily_logs (23:55) so all DailyLog records for the previous
     day are complete and reliable.
     """
     from django.utils.timezone import localdate
-    from core_app.models import ClientRiskScore
     from core_app.models.monthly_program import MonthlyProgram
-    from core_app.services.behavioral_alert_engine import compute_behavioral_signals
-    from core_app.services.clinical_alert_engine import compute_clinical_signals
+    from core_app.services.risk_score_service import recompute_risk_score
 
     today = localdate()
     processed = 0
-    with_risk = 0
     errors = 0
 
     active_programs = (
@@ -528,51 +521,17 @@ def compute_daily_alerts():
     )
 
     for program in active_programs:
-        customer = program.customer
-        trainer = program.trainer
-        if trainer is None:
+        if program.trainer is None:
             continue
         try:
-            behavioral = compute_behavioral_signals(customer, trainer, today)
-            clinical = compute_clinical_signals(customer, trainer, today)
-
-            all_signals = behavioral + clinical
-            severities = {s['severity'] for s in all_signals}
-
-            if 'alto' in severities:
-                level = ClientRiskScore.Level.ALTO
-            elif 'medio' in severities:
-                level = ClientRiskScore.Level.MEDIO
-            elif 'bajo' in severities:
-                level = ClientRiskScore.Level.BAJO
-            else:
-                level = ClientRiskScore.Level.SIN_RIESGO
-
-            # Mark previous scores for this customer+trainer as stale
-            ClientRiskScore.objects.filter(
-                customer=customer, trainer=trainer, is_stale=False
-            ).update(is_stale=True)
-
-            ClientRiskScore.objects.create(
-                customer=customer,
-                trainer=trainer,
-                level=level,
-                behavioral_signals=behavioral,
-                clinical_signals=clinical,
-            )
-
+            recompute_risk_score(program.customer, today=today)
             processed += 1
-            if level != ClientRiskScore.Level.SIN_RIESGO:
-                with_risk += 1
-
         except Exception as exc:
             logger.exception(
-                'compute_daily_alerts: error processing customer %s: %s', customer.pk, exc
+                'compute_daily_alerts: error processing customer %s: %s',
+                program.customer.pk, exc,
             )
             errors += 1
 
-    logger.info(
-        'compute_daily_alerts: processed=%d with_risk=%d errors=%d',
-        processed, with_risk, errors,
-    )
-    return {'processed': processed, 'with_risk': with_risk, 'errors': errors}
+    logger.info('compute_daily_alerts: processed=%d errors=%d', processed, errors)
+    return {'processed': processed, 'errors': errors}
