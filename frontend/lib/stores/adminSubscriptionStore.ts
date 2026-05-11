@@ -87,6 +87,7 @@ type AdminSubscriptionState = {
   fetchById: (id: number) => Promise<void>;
   patchSubscription: (id: number, payload: PatchSubscriptionPayload) => Promise<boolean>;
   renewSubscription: (id: number) => Promise<AdminSubscription | null>;
+  deleteSubscription: (id: number) => Promise<{ ok: true } | { ok: false; detail: string }>;
   createOrEvolveSubscription: (
     payload: AdminCreateSubscriptionPayload,
   ) => Promise<{ ok: true; subscription: AdminSubscription } | { ok: false; error: AdminCreateSubscriptionError }>;
@@ -172,6 +173,24 @@ export const useAdminSubscriptionStore = create<AdminSubscriptionState>((set, ge
     } catch {
       set({ error: 'No se pudo renovar la suscripción.', actionLoading: false });
       return null;
+    }
+  },
+
+  deleteSubscription: async (id: number) => {
+    set({ actionLoading: true, error: '' });
+    try {
+      await api.delete(`/subscriptions/${id}/admin-delete/`, { headers: authHeaders() });
+      set((state) => ({
+        subscriptions: state.subscriptions.filter((s) => s.id !== id),
+        selected: state.selected?.id === id ? null : state.selected,
+        actionLoading: false,
+      }));
+      return { ok: true as const };
+    } catch (err) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      const detail = e.response?.data?.detail ?? 'No se pudo eliminar la suscripción.';
+      set({ error: detail, actionLoading: false });
+      return { ok: false as const, detail };
     }
   },
 

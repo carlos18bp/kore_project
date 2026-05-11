@@ -5,6 +5,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.core import signing
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -12,7 +13,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from django.db.models import Q
+from django.db.models import ProtectedError, Q
 
 from core_app.models import Package, Payment, PaymentIntent, Subscription, SubscriptionGuest, User
 from core_app.permissions import is_admin_user
@@ -865,6 +866,32 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
             self.get_serializer(new_sub, context={'request': request}).data,
             status=status.HTTP_201_CREATED,
         )
+
+    @action(detail=True, methods=['delete'], url_path='admin-delete')
+    def admin_delete(self, request, pk=None):
+        """Permanently delete a subscription. Admin-only.
+
+        Intended to undo a subscription created by mistake so a correct one
+        can be created. The subscription's ``Payment`` records and guest link
+        (if any) are removed too; related ``Booking`` rows survive but lose
+        their subscription link (the FK is ``SET_NULL``). Returns 403 for
+        non-admin callers, 409 if some other protected relation blocks it.
+        """
+        if not is_admin_user(request.user):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        sub = self.get_object()
+        try:
+            with transaction.atomic():
+                SubscriptionGuest.objects.filter(subscription=sub).delete()
+                Payment.objects.filter(subscription=sub).delete()
+                sub.delete()
+        except ProtectedError:
+            return Response(
+                {'detail': 'No se puede eliminar: la suscripción tiene registros vinculados que lo impiden.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=['post'], url_path='admin-create')
     def admin_create(self, request):

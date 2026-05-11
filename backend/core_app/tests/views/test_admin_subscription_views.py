@@ -223,6 +223,45 @@ def test_admin_renew_forbidden_for_trainer(api_client, trainer, expired_sub):
     assert resp.status_code == status.HTTP_403_FORBIDDEN
 
 
+# ── admin-delete ─────────────────────────────────────────────────────────────
+
+@pytest.mark.django_db
+def test_admin_delete_removes_subscription(api_client, admin_user, active_sub):
+    api_client.force_authenticate(user=admin_user)
+    url = reverse('subscription-admin-delete', kwargs={'pk': active_sub.pk})
+    resp = api_client.delete(url)
+    assert resp.status_code == status.HTTP_204_NO_CONTENT
+    assert not Subscription.objects.filter(pk=active_sub.pk).exists()
+
+
+@pytest.mark.django_db
+def test_admin_delete_cascades_payments_and_guest_link(api_client, admin_user, active_sub):
+    Payment.objects.create(
+        subscription=active_sub, customer=active_sub.customer,
+        status=Payment.Status.CONFIRMED, amount='300000', currency='COP',
+        provider=Payment.Provider.CASH, confirmed_at=timezone.now(),
+    )
+    SubscriptionGuest.objects.create(
+        subscription=active_sub, invited_email='guest@kore.com',
+        token=SubscriptionGuest.generate_token(),
+    )
+
+    api_client.force_authenticate(user=admin_user)
+    resp = api_client.delete(reverse('subscription-admin-delete', kwargs={'pk': active_sub.pk}))
+    assert resp.status_code == status.HTTP_204_NO_CONTENT
+    assert not Subscription.objects.filter(pk=active_sub.pk).exists()
+    assert not Payment.objects.filter(subscription_id=active_sub.pk).exists()
+    assert not SubscriptionGuest.objects.filter(subscription_id=active_sub.pk).exists()
+
+
+@pytest.mark.django_db
+def test_admin_delete_forbidden_for_customer(api_client, customer, active_sub):
+    api_client.force_authenticate(user=customer)
+    resp = api_client.delete(reverse('subscription-admin-delete', kwargs={'pk': active_sub.pk}))
+    assert resp.status_code == status.HTTP_403_FORBIDDEN
+    assert Subscription.objects.filter(pk=active_sub.pk).exists()
+
+
 # ── New: ?category= filter and is_duo / guest_info exposure ────────────────
 
 @pytest.mark.django_db

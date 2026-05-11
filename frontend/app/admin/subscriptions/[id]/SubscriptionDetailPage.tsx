@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import AdminShell from '@/app/components/admin/AdminShell';
 import Btn from '@/app/components/admin/Btn';
@@ -16,6 +16,7 @@ import MemberCard, {
   RevokedMemberCard,
 } from '@/app/components/admin/MemberCard';
 import Modal from '@/app/components/admin/Modal';
+import SoftActionCard from '@/app/components/admin/SoftActionCard';
 import SubscriptionHero from '@/app/components/admin/SubscriptionHero';
 import {
   useAdminSubscriptionStore,
@@ -44,14 +45,19 @@ function toDateInput(iso: string | null): string {
 
 export default function SubscriptionDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const id = Number(params.id);
-  const { selected, loading, actionLoading, error, fetchById, patchSubscription, renewSubscription } =
-    useAdminSubscriptionStore();
+  const {
+    selected, loading, actionLoading, error,
+    fetchById, patchSubscription, renewSubscription, deleteSubscription,
+  } = useAdminSubscriptionStore();
 
   const [form, setForm] = useState<PatchSubscriptionPayload>({});
   const [saveOk, setSaveOk] = useState(false);
   const [renewOk, setRenewOk] = useState(false);
   const [renewModal, setRenewModal] = useState(false);
+  const [deleteModal, setDeleteModal] = useState(false);
+  const [deleteErr, setDeleteErr] = useState('');
 
   useEffect(() => {
     if (Number.isFinite(id) && id > 0) fetchById(id);
@@ -113,6 +119,17 @@ export default function SubscriptionDetailPage() {
     if (result) {
       setRenewOk(true);
       await fetchById(id);
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleteErr('');
+    const res = await deleteSubscription(id);
+    setDeleteModal(false);
+    if (res.ok) {
+      router.push('/admin/subscriptions');
+    } else {
+      setDeleteErr(res.detail);
     }
   };
 
@@ -352,6 +369,23 @@ export default function SubscriptionDetailPage() {
         )}
       </div>
 
+      {/* Delete */}
+      <div className="mt-5">
+        {deleteErr && (
+          <div className="mb-3 px-4 py-3 rounded-xl bg-rose-400/15 border border-rose-400/35 text-[12px] font-semibold text-rose-600">
+            {deleteErr}
+          </div>
+        )}
+        <SoftActionCard
+          tone="danger"
+          title="Eliminar suscripción"
+          description="Borra la suscripción de forma permanente (junto con sus registros de pago y el vínculo de invitado, si tiene). Las sesiones agendadas se conservan pero pierden el vínculo a esta suscripción. Úsalo para deshacer una suscripción creada por error y poder crear la correcta."
+          cta="Eliminar"
+          onAction={() => setDeleteModal(true)}
+          disabled={actionLoading}
+        />
+      </div>
+
       {renewModal && (
         <Modal
           title="Renovar suscripción"
@@ -360,6 +394,18 @@ export default function SubscriptionDetailPage() {
           loading={actionLoading}
           onClose={() => setRenewModal(false)}
           onConfirm={handleRenew}
+        />
+      )}
+
+      {deleteModal && (
+        <Modal
+          title={`Eliminar suscripción #${selected.id}`}
+          body={`Se eliminará permanentemente la suscripción de ${selected.customer_name || selected.customer_email} (paquete "${selected.package.title}"), incluidos sus registros de pago. Esta acción no se puede deshacer.`}
+          confirmLabel="Eliminar permanentemente"
+          danger
+          loading={actionLoading}
+          onClose={() => setDeleteModal(false)}
+          onConfirm={handleDelete}
         />
       )}
     </AdminShell>
