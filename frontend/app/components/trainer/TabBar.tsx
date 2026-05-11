@@ -21,20 +21,31 @@ export default function TabBar({ tabs, activeTab, onChange }: Props) {
   }, [activeTab]);
 
   return (
-    <div className="sticky top-0 z-20 bg-kore-cream/95 backdrop-blur-sm -mx-4 px-4 py-2 border-b border-black/5">
-      <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
-        {tabs.map((tab) => {
-          const isActive = tab.id === activeTab;
+    <div style={{ position: 'relative', borderBottom: '1px solid rgba(103,15,34,0.10)', marginBottom: 0 }}>
+      <div style={{ display: 'flex', gap: 0, overflowX: 'auto', scrollbarWidth: 'none' }}>
+        {tabs.map(tab => {
+          const sel = tab.id === activeTab;
           return (
             <button
               key={tab.id}
-              ref={isActive ? activeRef : undefined}
+              ref={sel ? activeRef : undefined}
               onClick={() => onChange(tab.id)}
-              className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-150 active:scale-95 ${
-                isActive
-                  ? 'bg-kore-red text-white shadow-sm'
-                  : 'bg-white/60 text-kore-gray-dark/50 border border-white/60 hover:bg-white/80'
-              }`}
+              style={{
+                padding: '14px 18px',
+                border: 'none',
+                background: 'transparent',
+                fontFamily: 'Montserrat, sans-serif',
+                fontSize: 11,
+                fontWeight: sel ? 700 : 500,
+                letterSpacing: '0.10em',
+                textTransform: 'uppercase',
+                color: sel ? '#670F22' : 'rgba(103,15,34,0.55)',
+                borderBottom: sel ? '2px solid #670F22' : '2px solid transparent',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 120ms',
+                marginBottom: -1,
+              }}
             >
               {tab.label}
             </button>

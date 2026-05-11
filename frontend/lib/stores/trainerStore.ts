@@ -78,6 +78,8 @@ export type ClientDetail = {
     canceled: number;
     pending: number;
   };
+  fitness_level_computed: number;
+  fitness_level_override: number | null;
 };
 
 export type ClientSession = {
@@ -88,6 +90,7 @@ export type ClientSession = {
   ends_at: string | null;
   notes: string;
   canceled_reason: string;
+  session_objective: string;
   session_notes_for_customer: string;
   created_at: string;
 };
@@ -327,6 +330,7 @@ type TrainerState = {
   fetchClientDailyLogs: (customerId: number, days?: number) => Promise<void>;
   fetchClientNutritionLogs: (customerId: number, days?: number) => Promise<void>;
   fetchClientSessionsFull: (customerId: number) => Promise<void>;
+  updateSessionObjective: (customerId: number, bookingId: number, objective: string) => Promise<void>;
 };
 
 function authHeaders() {
@@ -582,5 +586,19 @@ export const useTrainerStore = create<TrainerState>((set, get) => ({
     } catch {
       set({ sessionsFullLoading: false });
     }
+  },
+
+  updateSessionObjective: async (customerId, bookingId, objective) => {
+    try {
+      await api.patch(`/bookings/${bookingId}/session-prep/`, { session_objective: objective }, { headers: authHeaders() });
+      set((s) => ({
+        clientSessionsFull: {
+          ...s.clientSessionsFull,
+          [customerId]: (s.clientSessionsFull[customerId] ?? []).map(sess =>
+            sess.id === bookingId ? { ...sess, session_objective: objective } : sess
+          ),
+        },
+      }));
+    } catch { /* noop */ }
   },
 }));

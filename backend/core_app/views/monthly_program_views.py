@@ -96,7 +96,15 @@ class DailyLogSerializer(serializers.ModelSerializer):
 # ---------------------------------------------------------------------------
 
 class GenerateProgramView(APIView):
-    """POST — generate a draft program for a given customer_id."""
+    """POST — generate a draft program for a given customer_id.
+
+    Rules enforced here:
+    - Only one draft per customer is allowed at a time.
+    - When regenerating (start_date supplied) the existing draft for that period
+      is deleted first so the new one replaces it cleanly.
+    - When no start_date is given the view derives it from the latest published
+      program's end_date + 1 day (falls back to today if none exists).
+    """
 
     permission_classes = [IsAuthenticated]
 
@@ -108,20 +116,47 @@ class GenerateProgramView(APIView):
         if not customer_id:
             return Response({'detail': 'customer_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        try:
+            from core_app.models import User
+            customer = User.objects.get(pk=customer_id, role='customer')
+        except User.DoesNotExist:
+            return Response({'detail': 'Customer not found.'}, status=status.HTTP_404_NOT_FOUND)
+
         start_date_raw = request.data.get('start_date')
+        regenerate = bool(start_date_raw)  # explicit start_date means "regenerate this draft"
+
         if start_date_raw:
             try:
                 start_date = date.fromisoformat(start_date_raw)
             except (ValueError, TypeError):
                 return Response({'detail': 'Invalid start_date format (use YYYY-MM-DD).'}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            start_date = date.today()
+            # Derive start_date from the end of the latest published program
+            latest_published = (
+                MonthlyProgram.objects
+                .filter(customer=customer, status__in=[MonthlyProgram.Status.PUBLISHED, MonthlyProgram.Status.COMPLETED])
+                .order_by('-end_date')
+                .first()
+            )
+            if latest_published:
+                from datetime import timedelta
+                start_date = latest_published.end_date + timedelta(days=1)
+            else:
+                start_date = date.today()
 
-        try:
-            from core_app.models import User
-            customer = User.objects.get(pk=customer_id, role='customer')
-        except User.DoesNotExist:
-            return Response({'detail': 'Customer not found.'}, status=status.HTTP_404_NOT_FOUND)
+        # Guard: only one draft allowed per customer
+        existing_drafts = MonthlyProgram.objects.filter(
+            customer=customer, status=MonthlyProgram.Status.DRAFT
+        )
+        if existing_drafts.exists():
+            if regenerate:
+                # Replace the existing draft (delete it so the generator creates a fresh one)
+                existing_drafts.delete()
+            else:
+                return Response(
+                    {'detail': 'Ya existe un borrador para este cliente. Publícalo o elimínalo antes de crear uno nuevo.'},
+                    status=status.HTTP_409_CONFLICT,
+                )
 
         program = generate_monthly_program(customer_id=customer.pk, start_date=start_date)
         return Response(
@@ -169,6 +204,24 @@ class ApproveProgramView(APIView):
         program.approved_at = timezone.now()
         program.save(update_fields=['status', 'approved_at', 'trainer_notes'])
         return Response({'id': program.pk, 'status': program.status})
+
+
+class DeleteProgramView(APIView):
+    """DELETE — discard a draft program (drafts only; published programs cannot be deleted)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, program_id):
+        if not (is_admin_user(request.user) or request.user.role == 'trainer'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            program = MonthlyProgram.objects.get(pk=program_id, status=MonthlyProgram.Status.DRAFT)
+        except MonthlyProgram.DoesNotExist:
+            return Response({'detail': 'Draft program not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        program.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class EditProgramExerciseView(APIView):

@@ -9,63 +9,74 @@ import AdherenceRing from '@/app/components/trainer/AdherenceRing';
 import KPIGrid from '@/app/components/trainer/KPIGrid';
 import RiskBadge from '@/app/components/trainer/RiskBadge';
 import AlertCard from '@/app/components/trainer/AlertCard';
-import ClientHeroCard from '@/app/components/trainer/ClientHeroCard';
 import ClientProgramTab from '@/app/components/trainer/ClientProgramTab';
-import MessageComposerCard from '@/app/components/trainer/MessageComposerCard';
 import PostSessionMessageSheet from '@/app/components/trainer/PostSessionMessageSheet';
-import HeroOrbsCard from '@/app/components/shared/HeroOrbsCard';
-import GlowRing from '@/app/components/shared/GlowRing';
 import SectionLabel from '@/app/components/shared/SectionLabel';
 import EmptyState from '@/app/components/shared/EmptyState';
-import ExplainerCard from '@/app/components/shared/ExplainerCard';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
+import EvalAntropTab from '@/app/components/trainer/evals/EvalAntropTab';
+import EvalPosturTab from '@/app/components/trainer/evals/EvalPosturTab';
+import EvalFisicaTab from '@/app/components/trainer/evals/EvalFisicaTab';
+import EvalParqTab from '@/app/components/trainer/evals/EvalParqTab';
+import NotesTab from '@/app/components/trainer/NotesTab';
+import ClientNutritionTab from '@/app/components/trainer/ClientNutritionTab';
 
-type TabId = 'resumen' | 'sesiones' | 'programa' | 'nutricion' | 'evaluaciones' | 'alertas' | 'creditos' | 'notas';
+type TabId =
+  | 'resumen' | 'programa'
+  | 'antrop' | 'postur' | 'fisica' | 'parq'
+  | 'nutri' | 'alertas' | 'notas';
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: 'resumen', label: 'Resumen' },
-  { id: 'sesiones', label: 'Sesiones' },
-  { id: 'programa', label: 'Programa' },
-  { id: 'nutricion', label: 'Nutrición' },
-  { id: 'evaluaciones', label: 'Evaluaciones' },
-  { id: 'alertas', label: 'Alertas' },
-  { id: 'creditos', label: 'Créditos' },
-  { id: 'notas', label: 'Notas' },
+  { id: 'resumen',   label: 'Resumen' },
+  { id: 'programa',  label: 'Programa' },
+  { id: 'antrop',    label: 'Antropometría' },
+  { id: 'postur',    label: 'Posturometría' },
+  { id: 'fisica',    label: 'Ev. Física' },
+  { id: 'parq',      label: 'PAR-Q+' },
+  { id: 'nutri',     label: 'Nutrición' },
+  { id: 'alertas',   label: 'Alertas' },
+  { id: 'notas',     label: 'Notas' },
 ];
 
-const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  confirmed: { label: 'Completada', bg: 'bg-green-100', text: 'text-green-700' },
-  pending: { label: 'Pendiente', bg: 'bg-amber-100', text: 'text-amber-700' },
-  canceled: { label: 'Cancelada', bg: 'bg-red-100', text: 'text-red-600' },
+const EVAL_LINKS: Record<string, { label: string; path: string; desc: string }> = {
+  antrop: { label: 'Antropometría', path: 'anthropometry',       desc: 'Composición corporal, IMC, pliegues cutáneos y perímetros.' },
+  postur: { label: 'Posturometría', path: 'posturometry',        desc: 'Análisis de alineación postural y correcciones.' },
+  fisica: { label: 'Ev. Física',    path: 'physical-evaluation', desc: 'Fuerza, resistencia y capacidad funcional.' },
+  parq:   { label: 'PAR-Q+',        path: 'parq',                desc: 'Cuestionario de aptitud física y contraindicaciones.' },
 };
 
-const EVAL_MODULES = [
-  { key: 'anthropometry', label: 'Antropometría', path: 'anthropometry' },
-  { key: 'posturometry', label: 'Posturometría', path: 'posturometry' },
-  { key: 'physical', label: 'Eval. Física', path: 'physical-evaluation' },
-  { key: 'parq', label: 'PAR-Q+', path: 'parq' },
-  { key: 'nutrition', label: 'Nutrición', path: 'nutrition' },
-];
+const STATUS_CFG: Record<string, { label: string; bg: string; text: string }> = {
+  confirmed: { label: 'Completada', bg: 'bg-kore-sage/20',   text: 'text-kore-sage-deep' },
+  pending:   { label: 'Pendiente',  bg: 'bg-amber-100',      text: 'text-amber-700' },
+  canceled:  { label: 'Cancelada',  bg: 'bg-red-100',        text: 'text-red-600' },
+};
 
 const MEAL_LABELS: Record<string, string> = {
   breakfast: 'Desayuno', morning_snack: 'Media mañana', lunch: 'Almuerzo',
   afternoon_snack: 'Merienda', dinner: 'Cena',
 };
 
-function evalUrgency(lastDate: string | null): { color: string; label: string } {
-  if (!lastDate) return { color: 'text-kore-red', label: 'Sin registro' };
-  const days = Math.floor((Date.now() - new Date(lastDate).getTime()) / 86400000);
-  if (days > 120) return { color: 'text-kore-red', label: `${days}d` };
-  if (days > 60) return { color: 'text-amber-600', label: `${days}d` };
-  return { color: 'text-green-600', label: `${days}d` };
+function initials(name: string) {
+  return name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
+}
+
+function koreColor(score: number | null) {
+  if (!score) return '#9CA3AF';
+  if (score >= 75) return '#669959';
+  if (score >= 50) return '#D97706';
+  return '#9A0526';
+}
+
+function evalUrgency(d: string | null) {
+  if (!d) return { color: 'text-kore-crimson', label: 'Sin registro' };
+  const days = Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+  if (days > 120) return { color: 'text-kore-crimson', label: `${days}d` };
+  if (days > 60)  return { color: 'text-amber-600',    label: `${days}d` };
+  return { color: 'text-kore-sage-deep', label: `${days}d` };
 }
 
 export default function TrainerClientDetailWrapper() {
-  return (
-    <Suspense>
-      <TrainerClientDetailPage />
-    </Suspense>
-  );
+  return <Suspense><TrainerClientDetailPage /></Suspense>;
 }
 
 function TrainerClientDetailPage() {
@@ -73,34 +84,16 @@ function TrainerClientDetailPage() {
   const clientId = Number(searchParams.get('id'));
 
   const {
-    selectedClient: client,
-    clientLoading,
-    clientSessions,
-    sessionsLoading,
-    fetchClientDetail,
-    fetchClientSessions,
+    selectedClient: client, clientLoading, fetchClientDetail,
+    clientSessions, fetchClientSessions,
     error,
-    clientKPIs,
-    kpiLoading,
-    fetchClientKPI,
-    clientAlerts,
-    clientAlertsLoading,
-    fetchClientAlerts,
-    resolveAlert,
-    fetchAlerts,
-    clientNutritionLogs,
-    nutritionLogsLoading,
-    fetchClientNutritionLogs,
-    clientSessionsFull,
-    sessionsFullLoading,
-    fetchClientSessionsFull,
-    trainerMessages,
-    messagesLoading,
-    sendTrainerMessage,
-    fetchTrainerMessages,
-    pauseProgram,
-    resumeProgram,
-    programActionLoading,
+    clientKPIs, kpiLoading, fetchClientKPI,
+    clientAlerts, clientAlertsLoading, fetchClientAlerts,
+    resolveAlert, fetchAlerts,
+    clientNutritionLogs, nutritionLogsLoading, fetchClientNutritionLogs,
+    clientSessionsFull, sessionsFullLoading, fetchClientSessionsFull,
+    trainerMessages, messagesLoading, sendTrainerMessage, fetchTrainerMessages,
+    pauseProgram, programActionLoading,
   } = useTrainerStore();
 
   const [activeTab, setActiveTab] = useState<TabId>('resumen');
@@ -122,19 +115,22 @@ function TrainerClientDetailPage() {
 
   useEffect(() => {
     if (!clientId) return;
-    if (activeTab === 'resumen' && !clientKPIs[clientId]) fetchClientKPI(clientId);
-    if (activeTab === 'sesiones' && !clientSessionsFull[clientId]) fetchClientSessionsFull(clientId);
-    if (activeTab === 'nutricion' && !clientNutritionLogs[clientId]) fetchClientNutritionLogs(clientId, 14);
-    if (activeTab === 'evaluaciones' && !clientKPIs[clientId]) fetchClientKPI(clientId);
-    if (activeTab === 'alertas' && !clientAlerts[clientId]) fetchClientAlerts(clientId);
-    if (activeTab === 'notas' && !trainerMessages[clientId]) fetchTrainerMessages(clientId);
+    if (activeTab === 'resumen'  && !clientKPIs[clientId])          fetchClientKPI(clientId);
+    if (activeTab === 'resumen'  && !clientSessionsFull[clientId])  fetchClientSessionsFull(clientId);
+    if (activeTab === 'nutri'    && !clientNutritionLogs[clientId]) fetchClientNutritionLogs(clientId, 14);
+    if (activeTab === 'alertas'  && !clientAlerts[clientId])        fetchClientAlerts(clientId);
+    if (activeTab === 'notas'    && !trainerMessages[clientId])     fetchTrainerMessages(clientId);
+    if ((activeTab === 'antrop' || activeTab === 'postur' || activeTab === 'fisica' || activeTab === 'parq') && !clientKPIs[clientId]) {
+      fetchClientKPI(clientId);
+    }
   }, [activeTab, clientId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const kpi = clientKPIs[clientId];
-  const alerts = clientAlerts[clientId] ?? [];
+  const kpi          = clientKPIs[clientId];
+  const alerts       = clientAlerts[clientId] ?? [];
   const nutritionLogs = clientNutritionLogs[clientId] ?? [];
   const fullSessions = clientSessionsFull[clientId] ?? clientSessions;
-  const messages = trainerMessages[clientId] ?? [];
+  const messages     = trainerMessages[clientId] ?? [];
+  const programId    = null as number | null;
 
   const formatDate = (s: string) =>
     new Date(s).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -159,26 +155,25 @@ function TrainerClientDetailPage() {
     }
   };
 
-  const activeProgram = client?.subscription;
-  const programId = kpi?.behavioral?.sessions_remaining != null ? null : null;
-
   if (clientLoading && !client) {
     return (
       <section className="min-h-screen bg-kore-cream flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-2 border-kore-red border-t-transparent rounded-full" />
+        <div className="animate-spin h-8 w-8 border-2 rounded-full"
+          style={{ borderColor: 'rgba(103,15,34,0.15)', borderTopColor: '#670F22' }} />
       </section>
     );
   }
 
+  const topAlert = alerts.find(a => a.level === 'alto') ?? alerts.find(a => a.level === 'medio');
+
   return (
     <section ref={sectionRef} className="min-h-screen bg-kore-cream">
-      <div className="w-full px-4 md:px-10 lg:px-16 pt-20 xl:pt-8 pb-24 max-w-2xl xl:max-w-none mx-auto">
+      <div className="px-5 xl:px-10 pt-20 xl:pt-8 pb-24 space-y-4">
 
-        {/* Back link */}
-        <Link
-          href="/trainer/clients"
-          className="inline-flex items-center gap-1 text-xs text-kore-gray-dark/40 hover:text-kore-red transition-colors mb-4"
-        >
+        {/* Back */}
+        <Link href="/trainer/clients"
+          className="inline-flex items-center gap-1 font-body text-[11px] transition-colors"
+          style={{ color: 'rgba(103,15,34,0.45)' }}>
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
           </svg>
@@ -186,109 +181,187 @@ function TrainerClientDetailPage() {
         </Link>
 
         {error && (
-          <div className="bg-kore-red/5 border border-kore-red/20 rounded-xl px-4 py-3 mb-4">
-            <p className="text-sm text-kore-red">{error}</p>
+          <div className="rounded-[14px] px-4 py-3" style={{ background: 'rgba(154,5,38,0.06)', border: '1px solid rgba(154,5,38,0.15)' }}>
+            <p className="font-body text-[13px] text-kore-crimson">{error}</p>
           </div>
         )}
 
-        {/* Header: avatar + name + next session */}
+        {/* ── Client Header ── */}
         {client && (
-          <div data-hero="heading" className="mb-5">
-            <ClientHeroCard client={client} alerts={alerts} />
+          <div style={{ padding: '8px 4px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 18 }}>
+              {/* Avatar */}
+              <div style={{ width: 68, height: 68, borderRadius: '50%', background: 'linear-gradient(135deg, #F4C7C7, #E7C8A0)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '2px solid rgba(231,200,160,0.50)', overflow: 'hidden' }}>
+                {client.avatar_url
+                  ? <img src={client.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <span style={{ fontFamily: 'Cinzel, serif', fontSize: 24, fontWeight: 700, color: '#2D0F1A' }}>
+                      {initials(`${client.first_name} ${client.last_name}`)}
+                    </span>}
+              </div>
+
+              {/* Info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {/* Name + badge inline */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <h1 style={{ fontFamily: 'Cinzel, serif', fontSize: 'clamp(22px, 5vw, 30px)', fontWeight: 600, color: '#670F22', letterSpacing: '-0.005em', lineHeight: 1.1, margin: 0 }}>
+                    {client.first_name} {client.last_name}
+                  </h1>
+                  {topAlert && <RiskBadge level={topAlert.level} size="sm" />}
+                </div>
+
+                {/* Metadata — single bullet line */}
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0, marginTop: 7, fontFamily: 'Montserrat, sans-serif', fontSize: 11, color: 'rgba(103,15,34,0.55)' }}>
+                  <span>{client.email}</span>
+                  {client.subscription && (
+                    <>
+                      <span style={{ margin: '0 7px', opacity: 0.45 }}>•</span>
+                      <span>{client.subscription.package_title}</span>
+                    </>
+                  )}
+                  <span style={{ margin: '0 7px', opacity: 0.45 }}>•</span>
+                  <span>{client.stats.completed}/{client.stats.total} sesiones</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Stats strip */}
+            <div style={{ display: 'flex', gap: 1, marginTop: 20, borderRadius: 14, overflow: 'hidden', background: 'rgba(103,15,34,0.06)' }}>
+              {[
+                { label: 'Completadas', value: client.stats.completed },
+                { label: 'Sesiones',    value: client.subscription?.sessions_remaining ?? 0 },
+                { label: 'Canceladas',  value: client.stats.canceled },
+                { label: 'Total',       value: client.stats.total },
+              ].map(s => (
+                <div key={s.label} style={{ flex: 1, padding: '10px 4px', textAlign: 'center', background: '#F5EFE3' }}>
+                  <p style={{ fontFamily: 'Cinzel, serif', fontSize: 18, fontWeight: 600, color: '#670F22', lineHeight: 1, margin: 0 }}>{s.value}</p>
+                  <p style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.16em', color: 'rgba(103,15,34,0.45)', marginTop: 4, marginBottom: 0 }}>{s.label}</p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Tab bar */}
-        <TabBar tabs={TABS} activeTab={activeTab} onChange={(id) => setActiveTab(id as TabId)} />
+        {/* ── Tab bar ── */}
+        <TabBar tabs={TABS} activeTab={activeTab} onChange={id => setActiveTab(id as TabId)} />
 
-        {/* Tab content */}
-        <div className="pt-4 space-y-4">
+        {/* ── Tab content ── */}
+        <div className="space-y-4 pt-5">
 
           {/* ── RESUMEN ── */}
           {activeTab === 'resumen' && (
             <>
               {kpiLoading && !kpi ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin h-6 w-6 border-2 border-kore-red border-t-transparent rounded-full" />
+                <div className="flex justify-center py-12">
+                  <div className="animate-spin h-6 w-6 border-2 rounded-full"
+                    style={{ borderColor: 'rgba(103,15,34,0.15)', borderTopColor: '#670F22' }} />
                 </div>
               ) : kpi ? (
                 <>
-                  {/* Adherence + KORE Score hero */}
-                  <HeroOrbsCard radius="xl">
-                    <div className="p-5">
-                      <SectionLabel tone="dark" className="mb-4">Estado actual</SectionLabel>
-                      <div className="flex items-center justify-around gap-4">
-                        <GlowRing value={kpi.behavioral.combined_adherence_7d * 100} size={100} stroke={9}>
-                          <div className="text-center">
-                            <p className="text-2xl font-black text-white leading-none tabular-nums">
-                              {Math.round(kpi.behavioral.combined_adherence_7d * 100)}%
-                            </p>
-                            <p className="text-[9px] uppercase tracking-wide text-white/55 mt-0.5">Adherencia</p>
-                          </div>
-                        </GlowRing>
-                        {kpi.clinical.kore_score !== null && (
-                          <div className="text-center">
-                            <p className="text-white/55 text-[10px] font-semibold uppercase tracking-[0.18em] mb-1">KORE Score</p>
-                            <p className="text-4xl font-black text-white leading-none">
-                              {Math.round(kpi.clinical.kore_score)}
-                            </p>
-                            <p className="text-white/50 text-xs mt-0.5">{kpi.clinical.kore_category}</p>
-                          </div>
-                        )}
+                  {/* Dark hero — KÓRE arc + module scores */}
+                  <div className="rounded-[22px] p-6"
+                    style={{ background: 'linear-gradient(135deg, #2D0F1A 0%, #4A1828 50%, #670F22 100%)' }}>
+                    <p className="font-body text-[10px] font-bold tracking-[0.22em] uppercase mb-4"
+                      style={{ color: 'rgba(231,200,160,0.65)' }}>Índice de salud KÓRE</p>
+
+                    {/* KÓRE arc */}
+                    <div className="flex items-center gap-6">
+                      <div className="flex-shrink-0">
+                        <KoreArc score={kpi.clinical.kore_score} />
+                      </div>
+
+                      {/* Module scores */}
+                      <div className="flex-1 space-y-2.5">
+                        {[
+                          { label: 'IMC',         value: kpi.clinical.bmi,                    unit: '',    color: kpi.clinical.bmi_color },
+                          { label: '% Grasa',     value: kpi.clinical.body_fat_pct,            unit: '%',   color: kpi.clinical.bf_color },
+                          { label: 'Postura',     value: kpi.clinical.global_postural_index,  unit: '',    color: kpi.clinical.postural_color },
+                          { label: 'Física',      value: kpi.clinical.physical_general_index, unit: '',    color: kpi.clinical.physical_color },
+                        ].map(m => (
+                          <ModuleScoreBar key={m.label} {...m} />
+                        ))}
                       </div>
                     </div>
-                  </HeroOrbsCard>
 
-                  {/* Quick stats */}
-                  <div>
-                    <SectionLabel className="mb-2">Conducta y créditos</SectionLabel>
+                    {/* Adherence row */}
+                    <div className="mt-5 pt-4 grid grid-cols-3 gap-3"
+                      style={{ borderTop: '1px solid rgba(231,200,160,0.15)' }}>
+                      {[
+                        { label: 'Entrenamiento', value: kpi.behavioral.training_adherence_7d },
+                        { label: 'Nutrición',     value: kpi.behavioral.nutrition_adherence_7d },
+                        { label: 'Combinada',     value: kpi.behavioral.combined_adherence_7d },
+                      ].map(a => (
+                        <div key={a.label} className="text-center">
+                          <p className="font-heading text-[22px] font-semibold text-kore-ivory leading-none">
+                            {Math.round(a.value * 100)}%
+                          </p>
+                          <p className="font-body text-[9px] font-bold uppercase tracking-wide mt-1"
+                            style={{ color: 'rgba(231,200,160,0.55)' }}>{a.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Behavioral KPIs */}
+                  <div className="bg-white/65 rounded-[22px] p-5"
+                    style={{ border: '1px solid rgba(103,15,34,0.08)' }}>
+                    <p className="font-body text-[10px] font-bold tracking-[0.22em] uppercase mb-3"
+                      style={{ color: 'rgba(103,15,34,0.55)' }}>Conducta y racha</p>
                     <KPIGrid items={[
-                      { label: 'Racha actual', value: kpi.behavioral.streak_current, unit: 'días' },
-                      { label: 'Racha récord', value: kpi.behavioral.streak_longest, unit: 'días' },
+                      { label: 'Racha actual',   value: kpi.behavioral.streak_current,   unit: 'días' },
+                      { label: 'Racha récord',   value: kpi.behavioral.streak_longest,   unit: 'días' },
                       { label: 'Sesiones comp.', value: kpi.behavioral.sessions_completed },
-                      { label: 'Créditos rest.', value: kpi.behavioral.sessions_remaining },
+                      { label: 'Sesiones rest.', value: kpi.behavioral.sessions_remaining },
                     ]} />
                   </div>
 
-                  {/* Clinical grid */}
-                  <div>
-                    <SectionLabel className="mb-2">Indicadores clínicos</SectionLabel>
-                    <KPIGrid columns={3} items={[
-                      { label: 'BMI', value: kpi.clinical.bmi?.toFixed(1) ?? null, color: kpi.clinical.bmi_color },
-                      { label: '% Grasa', value: kpi.clinical.body_fat_pct?.toFixed(1) ?? null, unit: '%', color: kpi.clinical.bf_color },
-                      { label: 'Postural', value: kpi.clinical.global_postural_index?.toFixed(0) ?? null, color: kpi.clinical.postural_color },
-                      { label: 'Física', value: kpi.clinical.physical_general_index?.toFixed(0) ?? null, color: kpi.clinical.physical_color },
-                      { label: 'Nutrición', value: kpi.clinical.nutrition_habit_score?.toFixed(1) ?? null, unit: '/10', color: kpi.clinical.nutrition_color },
-                      { label: 'Ánimo', value: kpi.behavioral.last_mood_score?.toString() ?? null, unit: '/10' },
-                    ]} />
-                  </div>
-
-                  {/* KORE Score explainer when low */}
-                  {kpi.clinical.kore_score !== null && kpi.clinical.kore_score < 50 && (
-                    <ExplainerCard
-                      tone="warning"
-                      title="KORE Score bajo"
-                      whatIs="El KORE Score combina composición corporal, postura, condición física y nutrición en un número 0–100."
-                      importance="Un valor inferior a 50 indica oportunidades importantes de mejora en alguno de los pilares."
-                      nextStep="Considera agendar una evaluación física o postural en los próximos días para identificar la palanca con más impacto."
-                    />
+                  {/* Next session */}
+                  {client?.next_session && (
+                    <div className="bg-white/65 rounded-[22px] p-5"
+                      style={{ border: '1px solid rgba(103,15,34,0.08)' }}>
+                      <p className="font-body text-[10px] font-bold tracking-[0.22em] uppercase mb-2"
+                        style={{ color: 'rgba(103,15,34,0.55)' }}>Próxima sesión</p>
+                      <p className="font-heading text-[17px] font-semibold text-kore-wine-dark">
+                        {new Date(client.next_session.starts_at).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}
+                      </p>
+                      <p className="font-body text-[13px] mt-0.5" style={{ color: 'rgba(103,15,34,0.50)' }}>
+                        {new Date(client.next_session.starts_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                        {' · '}{client.next_session.package_title}
+                      </p>
+                    </div>
                   )}
 
-                  {/* Active alerts preview */}
+                  {/* Recent sessions */}
+                  {clientSessions.length > 0 && (
+                    <div className="bg-white/65 rounded-[22px] p-5"
+                      style={{ border: '1px solid rgba(103,15,34,0.08)' }}>
+                      <p className="font-body text-[10px] font-bold tracking-[0.22em] uppercase mb-3"
+                        style={{ color: 'rgba(103,15,34,0.55)' }}>Sesiones recientes</p>
+                      <div className="space-y-1">
+                        {clientSessions.slice(0, 4).map(s => (
+                          <SessionRow key={s.id} session={s} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Alerts preview */}
                   {alerts.length > 0 && (
-                    <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm p-4">
+                    <div className="bg-white/65 rounded-[22px] p-5"
+                      style={{ border: '1px solid rgba(103,15,34,0.08)' }}>
                       <div className="flex items-center justify-between mb-3">
-                        <SectionLabel>Alertas activas</SectionLabel>
-                        <button onClick={() => setActiveTab('alertas')} className="text-xs text-kore-red font-medium">Ver todas</button>
+                        <p className="font-body text-[10px] font-bold tracking-[0.22em] uppercase"
+                          style={{ color: 'rgba(103,15,34,0.55)' }}>Alertas activas</p>
+                        <button onClick={() => setActiveTab('alertas')}
+                          className="font-body text-[12px] font-semibold text-kore-crimson">Ver todas</button>
                       </div>
                       <div className="space-y-2">
-                        {alerts.slice(0, 2).map((a) => (
+                        {alerts.slice(0, 2).map(a => (
                           <div key={a.id} className="flex items-center gap-2">
                             <RiskBadge level={a.level} size="sm" />
-                            <span className="text-xs text-kore-gray-dark/60">
-                              {(a.behavioral_signals.length + a.clinical_signals.length)} señales
+                            <span className="font-body text-[12px]" style={{ color: 'rgba(103,15,34,0.55)' }}>
+                              {a.behavioral_signals.length + a.clinical_signals.length} señales
                             </span>
-                            <span className="text-xs text-kore-gray-dark/30 ml-auto">
+                            <span className="font-body text-[11px] ml-auto" style={{ color: 'rgba(103,15,34,0.35)' }}>
                               {new Date(a.computed_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
                             </span>
                           </div>
@@ -298,356 +371,103 @@ function TrainerClientDetailPage() {
                   )}
                 </>
               ) : (
-                <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm p-5 space-y-3">
-                  {client && (
-                    <>
-                      <SectionLabel>Sesiones</SectionLabel>
-                      <KPIGrid items={[
-                        { label: 'Completadas', value: client.stats.completed },
-                        { label: 'Pendientes', value: client.stats.pending },
-                        { label: 'Canceladas', value: client.stats.canceled },
-                        { label: 'Total', value: client.stats.total },
-                      ]} />
-                    </>
-                  )}
-                </div>
+                /* fallback when no kpi */
+                client && (
+                  <div className="bg-white/65 rounded-[22px] p-5"
+                    style={{ border: '1px solid rgba(103,15,34,0.08)' }}>
+                    <p className="font-body text-[10px] font-bold tracking-[0.22em] uppercase mb-3"
+                      style={{ color: 'rgba(103,15,34,0.55)' }}>Sesiones</p>
+                    <KPIGrid items={[
+                      { label: 'Completadas', value: client.stats.completed },
+                      { label: 'Pendientes',  value: client.stats.pending },
+                      { label: 'Canceladas',  value: client.stats.canceled },
+                      { label: 'Total',       value: client.stats.total },
+                    ]} />
+                  </div>
+                )
               )}
-            </>
-          )}
-
-          {/* ── SESIONES ── */}
-          {activeTab === 'sesiones' && (
-            <>
-              {/* Upcoming */}
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm">
-                <div className="px-4 pt-4 pb-2">
-                  <SectionLabel className="mb-0.5">Agenda</SectionLabel>
-                  <p className="text-sm font-bold text-kore-gray-dark">Próximas</p>
-                </div>
-                <div className="px-3 pb-3">
-                  {(() => {
-                    const upcoming = (fullSessions.length > 0 ? fullSessions : clientSessions).filter(
-                      (s) => s.status === 'pending' && s.starts_at && new Date(s.starts_at) > new Date()
-                    );
-                    return upcoming.length === 0 ? (
-                      <p className="text-sm text-kore-gray-dark/40 text-center py-4">Sin sesiones próximas</p>
-                    ) : (
-                      <div className="space-y-0.5">
-                        {upcoming.map((s) => (
-                          <SessionRow key={s.id} session={s} onMessage={(id) => setPostSessionSheet({ sessionId: id })} />
-                        ))}
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
-
-              {/* History */}
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm">
-                <div className="px-4 pt-4 pb-2">
-                  <SectionLabel className="mb-0.5">Pasado</SectionLabel>
-                  <p className="text-sm font-bold text-kore-gray-dark">Historial</p>
-                </div>
-                <div className="px-3 pb-3">
-                  {sessionsLoading || sessionsFullLoading ? (
-                    <div className="flex justify-center py-6">
-                      <div className="animate-spin h-5 w-5 border-2 border-kore-red border-t-transparent rounded-full" />
-                    </div>
-                  ) : (() => {
-                    const past = (fullSessions.length > 0 ? fullSessions : clientSessions).filter(
-                      (s) => s.status === 'confirmed' || s.status === 'canceled'
-                    );
-                    return past.length === 0 ? (
-                      <p className="text-sm text-kore-gray-dark/40 text-center py-4">Sin historial de sesiones</p>
-                    ) : (
-                      <div className="space-y-0.5">
-                        {past.map((s) => (
-                          <SessionRow key={s.id} session={s} onMessage={(id) => setPostSessionSheet({ sessionId: id })} />
-                        ))}
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
             </>
           )}
 
           {/* ── PROGRAMA ── */}
-          {activeTab === 'programa' && (
-            <ClientProgramTab clientId={clientId} />
-          )}
+          {activeTab === 'programa' && <ClientProgramTab clientId={clientId} />}
+
+          {/* ── SESIONES ── */}
+          {/* ── EVAL TABS ── */}
+          {activeTab === 'antrop' && <EvalAntropTab clientId={clientId} />}
+          {activeTab === 'postur' && <EvalPosturTab clientId={clientId} />}
+          {activeTab === 'fisica' && <EvalFisicaTab clientId={clientId} />}
+          {activeTab === 'parq'   && <EvalParqTab   clientId={clientId} />}
 
           {/* ── NUTRICIÓN ── */}
-          {activeTab === 'nutricion' && (
-            <>
-              <div className="flex items-center justify-between">
-                <SectionLabel>Últimos 14 días de nutrición</SectionLabel>
-                <button
-                  onClick={() => fetchClientNutritionLogs(clientId, 14)}
-                  className="text-xs text-kore-red font-medium"
-                >
-                  Actualizar
-                </button>
-              </div>
-              {nutritionLogsLoading && nutritionLogs.length === 0 ? (
-                <div className="flex justify-center py-10">
-                  <div className="animate-spin h-6 w-6 border-2 border-kore-red border-t-transparent rounded-full" />
-                </div>
-              ) : nutritionLogs.length === 0 ? (
-                <EmptyState
-                  title="Sin registros de nutrición"
-                  description="Cuando el cliente registre comidas, verás aquí su adherencia diaria y las fotos."
-                />
-              ) : (
-                <div className="space-y-3">
-                  {nutritionLogs.map((day) => (
-                    <div key={day.date} className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <p className="text-sm font-semibold text-kore-gray-dark">
-                            {new Date(day.date).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })}
-                          </p>
-                          <p className="text-xs text-kore-gray-dark/40">{day.is_closed ? 'Cerrado' : 'Abierto'}</p>
-                        </div>
-                        <div className="w-12 h-12">
-                          <AdherenceRing value={day.adherence} size={48} strokeWidth={5} color="rgb(52, 211, 153)" />
-                        </div>
-                      </div>
-                      {day.meals.length > 0 && (
-                        <div className="space-y-1.5">
-                          {day.meals.map((meal) => (
-                            <div key={meal.meal_entry_id} className="flex items-start gap-2">
-                              <span className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${meal.status === 'completed' ? 'bg-green-400' : meal.status === 'skipped' ? 'bg-gray-300' : 'bg-amber-300'}`} />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium text-kore-gray-dark/70">
-                                  {MEAL_LABELS[meal.meal_block] ?? meal.meal_block}
-                                </p>
-                                {meal.notes && (
-                                  <p className="text-[10px] text-kore-gray-dark/40 truncate">{meal.notes}</p>
-                                )}
-                                {meal.trainer_comment && (
-                                  <p className="text-[10px] text-kore-red/70 italic truncate">Tu nota: {meal.trainer_comment}</p>
-                                )}
-                              </div>
-                              {meal.photo_url && (
-                                <span className="w-4 h-4 flex-shrink-0 rounded bg-kore-cream flex items-center justify-center">
-                                  <svg className="w-2.5 h-2.5 text-kore-gray-dark/40" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-                                  </svg>
-                                </span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-
-          {/* ── EVALUACIONES ── */}
-          {activeTab === 'evaluaciones' && (
-            <>
-              <SectionLabel>Módulos disponibles</SectionLabel>
-              {kpiLoading && !kpi ? (
-                <div className="flex justify-center py-10">
-                  <div className="animate-spin h-6 w-6 border-2 border-kore-red border-t-transparent rounded-full" />
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {EVAL_MODULES.map((mod) => {
-                    const lastDate = kpi?.clinical.last_eval_dates?.[mod.key] ?? null;
-                    const { color, label } = evalUrgency(lastDate);
-                    return (
-                      <div key={mod.key} className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm p-4 flex items-center gap-3">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-kore-gray-dark">{mod.label}</p>
-                          <p className={`text-xs font-medium ${color}`}>
-                            {lastDate ? `Hace ${label}` : 'Sin registro'}
-                          </p>
-                        </div>
-                        <Link
-                          href={`/trainer/clients/client/${mod.path}?id=${clientId}`}
-                          className="px-3 py-1.5 rounded-xl bg-kore-cream text-kore-gray-dark/60 text-xs font-medium active:scale-95 transition-transform duration-100 flex-shrink-0"
-                        >
-                          Ver
-                        </Link>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
+          {activeTab === 'nutri' && (
+            <ClientNutritionTab clientId={clientId} nutritionLogs={nutritionLogs} />
           )}
 
           {/* ── ALERTAS ── */}
           {activeTab === 'alertas' && (
             <>
-              <SectionLabel>Alertas activas del cliente</SectionLabel>
-              {clientAlertsLoading && alerts.length === 0 ? (
-                <div className="flex justify-center py-10">
-                  <div className="animate-spin h-6 w-6 border-2 border-kore-red border-t-transparent rounded-full" />
-                </div>
-              ) : alerts.length === 0 ? (
-                <EmptyState
-                  title="Sin alertas registradas"
-                  description="Cuando este cliente cruce un umbral conductual o clínico, su alerta aparecerá aquí."
-                />
-              ) : (
-                <div className="space-y-3">
-                  {alerts.map((alert) => (
-                    <AlertCard
-                      key={alert.id}
-                      alert={alert}
-                      onResolve={(id) => {
-                        setResolveNote('');
-                        setResolveType('mark_reviewed');
-                        setResolveSheet(id);
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
+              <p className="font-body text-[10px] font-bold tracking-[0.22em] uppercase"
+                style={{ color: 'rgba(103,15,34,0.55)' }}>Alertas activas del cliente</p>
+              {clientAlertsLoading && alerts.length === 0 ? <Spinner /> :
+                alerts.length === 0 ? (
+                  <EmptyState title="Sin alertas registradas"
+                    description="Cuando el cliente cruce un umbral conductual o clínico, su alerta aparecerá aquí." />
+                ) : (
+                  <div className="space-y-3">
+                    {alerts.map(alert => (
+                      <AlertCard key={alert.id} alert={alert}
+                        onResolve={id => { setResolveNote(''); setResolveType('mark_reviewed'); setResolveSheet(id); }} />
+                    ))}
+                  </div>
+                )}
             </>
           )}
 
-          {/* ── CRÉDITOS ── */}
-          {activeTab === 'creditos' && client?.subscription && (
-            <div className="space-y-4">
-              <HeroOrbsCard radius="xl">
-                <div className="p-6 text-center">
-                  <SectionLabel tone="dark" className="mb-2">Sesiones restantes</SectionLabel>
-                  <p className="text-6xl font-black text-white leading-none">{client.subscription.sessions_remaining}</p>
-                  <p className="text-white/40 text-sm mt-1">de {client.subscription.sessions_total} totales</p>
-                  <div className="w-full h-1.5 bg-white/10 rounded-full mt-3">
-                    <div
-                      className="h-full rounded-full bg-kore-red transition-all duration-700"
-                      style={{ width: `${(client.subscription.sessions_used / client.subscription.sessions_total) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              </HeroOrbsCard>
-
-              <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm p-5 space-y-3">
-                <DetailRow label="Programa" value={client.subscription.package_title} />
-                <DetailRow
-                  label="Valor"
-                  value={new Intl.NumberFormat('es-CO', { style: 'currency', currency: client.subscription.package_currency, minimumFractionDigits: 0 }).format(parseFloat(client.subscription.package_price))}
-                />
-                <DetailRow label="Estado" value={client.subscription.status} />
-                <DetailRow label="Inicio" value={formatDate(client.subscription.starts_at)} />
-                <DetailRow label="Vencimiento" value={formatDate(client.subscription.expires_at)} />
-                {client.subscription.next_billing_date && (
-                  <DetailRow label="Próximo cobro" value={formatDate(client.subscription.next_billing_date)} />
-                )}
-                <DetailRow label="Cobro automático" value={client.subscription.is_recurring ? 'Sí' : 'No'} />
-                {client.last_payment && (
-                  <DetailRow
-                    label="Último pago"
-                    value={`${new Intl.NumberFormat('es-CO', { style: 'currency', currency: client.last_payment.currency, minimumFractionDigits: 0 }).format(parseFloat(client.last_payment.amount))} · ${formatDate(client.last_payment.created_at)}`}
-                  />
-                )}
-              </div>
-            </div>
-          )}
-          {activeTab === 'creditos' && !client?.subscription && (
-            <EmptyState
-              title="Sin suscripción activa"
-              description="Cuando el cliente active un paquete, verás aquí los detalles de pago y créditos restantes."
-            />
-          )}
-
-          {/* ── NOTAS ── */}
+          {/* ── NOTAS / MENSAJES ── */}
           {activeTab === 'notas' && (
-            <div className="space-y-4">
-              <MessageComposerCard onSubmit={handleSendMessage} />
-
-              {/* History */}
-              {messagesLoading && messages.length === 0 ? (
-                <div className="flex justify-center py-6">
-                  <div className="animate-spin h-5 w-5 border-2 border-kore-red border-t-transparent rounded-full" />
-                </div>
-              ) : messages.length === 0 ? (
-                <EmptyState
-                  size="sm"
-                  title="Sin mensajes enviados"
-                  description="Envía el primer mensaje para este cliente desde el composer de arriba."
-                />
-              ) : (
-                <div className="space-y-2">
-                  {messages.map((msg) => {
-                    const triggerLabel = msg.trigger_type === 'post_session'
-                      ? { label: 'Post sesión', dot: 'bg-emerald-400' }
-                      : msg.trigger_type === 'post_milestone'
-                      ? { label: 'Post hito', dot: 'bg-amber-400' }
-                      : { label: 'Manual', dot: 'bg-kore-red' };
-                    return (
-                      <div key={msg.id} className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm p-4">
-                        <div className="flex items-center gap-1.5 mb-1.5">
-                          <span className={`w-1.5 h-1.5 rounded-full ${triggerLabel.dot}`} />
-                          <span className="text-[10px] font-semibold uppercase tracking-wide text-kore-gray-dark/40">
-                            {triggerLabel.label}
-                          </span>
-                        </div>
-                        <p className="text-sm text-kore-gray-dark leading-relaxed">{msg.message}</p>
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="text-[10px] text-kore-gray-dark/30">
-                            {new Date(msg.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
-                          </span>
-                          <span className={`text-[10px] font-medium ${msg.seen_by_customer ? 'text-green-600' : 'text-kore-gray-dark/30'}`}>
-                            {msg.seen_by_customer ? 'Visto' : 'Pendiente'}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            <NotesTab
+              clientId={clientId}
+              onSendMessage={handleSendMessage}
+              messages={messages}
+              messagesLoading={messagesLoading}
+            />
           )}
 
         </div>
       </div>
 
-      {/* Resolve Alert Sheet */}
+      {/* ── Resolve Alert Sheet ── */}
       {resolveSheet !== null && (
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" onClick={() => setResolveSheet(null)} />
           <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl">
             <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 bg-kore-gray-light rounded-full" />
+              <div className="w-10 h-1 rounded-full" style={{ background: 'rgba(103,15,34,0.15)' }} />
             </div>
             <div className="px-4 pt-2 pb-8 space-y-4">
-              <p className="text-base font-semibold text-kore-gray-dark">Resolver alerta</p>
+              <p className="font-heading text-[16px] font-semibold text-kore-wine-dark">Resolver alerta</p>
               <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-                {(['mark_reviewed', 'private_note', 'public_note', 'schedule_eval'] as const).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setResolveType(t)}
-                    className={`flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${resolveType === t ? 'bg-kore-gray-dark text-white' : 'bg-kore-cream text-kore-gray-dark/60'}`}
-                  >
+                {(['mark_reviewed', 'private_note', 'public_note', 'schedule_eval'] as const).map(t => (
+                  <button key={t} onClick={() => setResolveType(t)}
+                    className={`flex-shrink-0 px-3 py-1.5 rounded-xl font-body text-[12px] font-semibold transition-all ${resolveType === t ? 'bg-kore-wine-dark text-kore-ivory' : 'bg-kore-cream text-kore-wine-dark/60'}`}>
                     {{ mark_reviewed: 'Revisado', private_note: 'Nota privada', public_note: 'Nota pública', schedule_eval: 'Agendar eval' }[t]}
                   </button>
                 ))}
               </div>
               {resolveType !== 'mark_reviewed' && (
-                <textarea
-                  value={resolveNote}
-                  onChange={(e) => setResolveNote(e.target.value)}
-                  rows={3}
+                <textarea value={resolveNote} onChange={e => setResolveNote(e.target.value)} rows={3}
                   placeholder="Escribe una nota..."
-                  className="w-full rounded-xl border border-kore-gray-light/60 bg-kore-cream/50 px-3 py-2.5 text-sm text-kore-gray-dark resize-none focus:outline-none focus:ring-2 focus:ring-kore-red/30"
-                />
+                  className="w-full rounded-xl px-3 py-2.5 font-body text-[13px] text-kore-wine-dark resize-none focus:outline-none"
+                  style={{ border: '1px solid rgba(103,15,34,0.12)', background: 'rgba(245,239,227,0.50)' }} />
               )}
               <div className="flex gap-3">
-                <button onClick={() => setResolveSheet(null)} className="flex-1 py-3 rounded-xl bg-kore-cream text-kore-gray-dark/60 text-sm font-medium active:scale-95 transition-transform duration-100">Cancelar</button>
-                <button
-                  onClick={handleResolveAlert}
-                  disabled={resolvingAlertId !== null}
-                  className="flex-1 py-3 rounded-xl bg-kore-red text-white text-sm font-medium active:scale-95 transition-transform duration-100 disabled:opacity-60"
-                >
+                <button onClick={() => setResolveSheet(null)}
+                  className="flex-1 py-3 rounded-xl font-body text-[14px] font-semibold"
+                  style={{ background: 'rgba(103,15,34,0.06)', color: 'rgba(103,15,34,0.60)' }}>Cancelar</button>
+                <button onClick={handleResolveAlert} disabled={resolvingAlertId !== null}
+                  className="flex-1 py-3 rounded-xl font-body text-[14px] font-semibold active:scale-95 transition-all disabled:opacity-60"
+                  style={{ background: 'linear-gradient(135deg, #670F22, #9A0526)', color: '#FFF8EC' }}>
                   {resolvingAlertId ? 'Guardando...' : 'Confirmar'}
                 </button>
               </div>
@@ -656,25 +476,24 @@ function TrainerClientDetailPage() {
         </>
       )}
 
-      {/* Pause Sheet */}
+      {/* ── Pause Sheet ── */}
       {showPauseSheet && (
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" onClick={() => setShowPauseSheet(false)} />
           <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl">
             <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 bg-kore-gray-light rounded-full" />
+              <div className="w-10 h-1 rounded-full" style={{ background: 'rgba(103,15,34,0.15)' }} />
             </div>
             <div className="px-4 pt-2 pb-8 space-y-4">
-              <p className="text-base font-semibold text-kore-gray-dark">Pausar programa</p>
-              <textarea
-                value={pauseReason}
-                onChange={(e) => setPauseReason(e.target.value)}
-                rows={3}
+              <p className="font-heading text-[16px] font-semibold text-kore-wine-dark">Pausar programa</p>
+              <textarea value={pauseReason} onChange={e => setPauseReason(e.target.value)} rows={3}
                 placeholder="Motivo de la pausa..."
-                className="w-full rounded-xl border border-kore-gray-light/60 bg-kore-cream/50 px-3 py-2.5 text-sm text-kore-gray-dark resize-none focus:outline-none focus:ring-2 focus:ring-kore-red/30"
-              />
+                className="w-full rounded-xl px-3 py-2.5 font-body text-[13px] text-kore-wine-dark resize-none focus:outline-none"
+                style={{ border: '1px solid rgba(103,15,34,0.12)', background: 'rgba(245,239,227,0.50)' }} />
               <div className="flex gap-3">
-                <button onClick={() => setShowPauseSheet(false)} className="flex-1 py-3 rounded-xl bg-kore-cream text-kore-gray-dark/60 text-sm font-medium">Cancelar</button>
+                <button onClick={() => setShowPauseSheet(false)}
+                  className="flex-1 py-3 rounded-xl font-body text-[14px] font-semibold"
+                  style={{ background: 'rgba(103,15,34,0.06)', color: 'rgba(103,15,34,0.60)' }}>Cancelar</button>
                 <button
                   onClick={async () => {
                     if (!programId) return;
@@ -683,8 +502,8 @@ function TrainerClientDetailPage() {
                     setPauseReason('');
                   }}
                   disabled={programActionLoading}
-                  className="flex-1 py-3 rounded-xl bg-kore-red text-white text-sm font-medium disabled:opacity-60"
-                >
+                  className="flex-1 py-3 rounded-xl font-body text-[14px] font-semibold disabled:opacity-60"
+                  style={{ background: 'linear-gradient(135deg, #670F22, #9A0526)', color: '#FFF8EC' }}>
                   {programActionLoading ? 'Pausando...' : 'Confirmar pausa'}
                 </button>
               </div>
@@ -693,19 +512,94 @@ function TrainerClientDetailPage() {
         </>
       )}
 
-      {/* Post-Session Message Sheet */}
+      {/* ── Post-Session Sheet ── */}
       {postSessionSheet && client && (
         <PostSessionMessageSheet
           customerId={clientId}
           customerName={`${client.first_name} ${client.last_name}`}
           sessionId={postSessionSheet.sessionId}
-          onClose={() => {
-            setPostSessionSheet(null);
-            fetchTrainerMessages(clientId);
-          }}
+          onClose={() => { setPostSessionSheet(null); fetchTrainerMessages(clientId); }}
         />
       )}
     </section>
+  );
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function KoreArc({ score }: { score: number | null }) {
+  const r = 46, sw = 9;
+  const circ = 2 * Math.PI * r;
+  const pct  = score != null ? Math.max(0, Math.min(100, score)) / 100 : 0;
+  const offset = circ * (1 - pct);
+
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: 110, height: 110 }}>
+      <svg width={110} height={110} viewBox="0 0 110 110">
+        <circle cx={55} cy={55} r={r} fill="none" strokeWidth={sw}
+          stroke="rgba(255,248,236,0.10)" />
+        <circle cx={55} cy={55} r={r} fill="none" strokeWidth={sw}
+          stroke={score != null ? '#E7C8A0' : 'rgba(231,200,160,0.30)'}
+          strokeLinecap="round"
+          strokeDasharray={circ}
+          strokeDashoffset={offset}
+          transform="rotate(-90 55 55)"
+          style={{ transition: 'stroke-dashoffset 0.8s ease-out' }} />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <p className="font-heading text-[28px] font-semibold text-kore-ivory leading-none">
+          {score != null ? Math.round(score) : '—'}
+        </p>
+        <p className="font-body text-[9px] font-bold uppercase tracking-wide mt-0.5"
+          style={{ color: 'rgba(231,200,160,0.60)' }}>KÓRE</p>
+      </div>
+    </div>
+  );
+}
+
+function ModuleScoreBar({ label, value, unit, color }: { label: string; value: number | null; unit: string; color: string }) {
+  const colorMap: Record<string, string> = {
+    green: '#669959', yellow: '#D97706', red: '#9A0526',
+    teal: '#A8C29C',  orange: '#EA580C', gray: '#9CA3AF',
+  };
+  const barColor = colorMap[color] ?? '#E7C8A0';
+  const pct = value != null ? Math.min(100, Math.max(0, value)) : 0;
+
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-1">
+        <p className="font-body text-[10px] font-bold uppercase tracking-wide"
+          style={{ color: 'rgba(231,200,160,0.60)' }}>{label}</p>
+        <p className="font-heading text-[14px] font-semibold text-kore-ivory">
+          {value != null ? `${value.toFixed(1)}${unit}` : '—'}
+        </p>
+      </div>
+      <div className="h-1 w-full rounded-full" style={{ background: 'rgba(255,255,255,0.10)' }}>
+        <div className="h-full rounded-full transition-all duration-700"
+          style={{ width: `${pct}%`, background: barColor }} />
+      </div>
+    </div>
+  );
+}
+
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-white/65 rounded-[22px]" style={{ border: '1px solid rgba(103,15,34,0.08)' }}>
+      <div className="px-4 pt-4 pb-2">
+        <p className="font-body text-[10px] font-bold tracking-[0.22em] uppercase"
+          style={{ color: 'rgba(103,15,34,0.55)' }}>{title}</p>
+      </div>
+      <div className="px-3 pb-3">{children}</div>
+    </div>
+  );
+}
+
+function Spinner() {
+  return (
+    <div className="flex justify-center py-10">
+      <div className="animate-spin h-6 w-6 border-2 rounded-full"
+        style={{ borderColor: 'rgba(103,15,34,0.15)', borderTopColor: '#670F22' }} />
+    </div>
   );
 }
 
@@ -716,7 +610,7 @@ function SessionRow({
   session: { id: number; status: string; package_title: string; starts_at: string | null; ends_at: string | null; notes: string; canceled_reason: string; session_notes_for_customer: string; created_at: string };
   onMessage?: (sessionId: number) => void;
 }) {
-  const sc = STATUS_CONFIG[session.status] ?? { label: session.status, bg: 'bg-gray-100', text: 'text-gray-500' };
+  const sc = STATUS_CFG[session.status] ?? { label: session.status, bg: 'bg-gray-100', text: 'text-gray-500' };
   const date = session.starts_at
     ? new Date(session.starts_at).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })
     : '—';
@@ -724,43 +618,33 @@ function SessionRow({
     ? new Date(session.starts_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })
     : '';
   return (
-    <div className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-kore-cream/60 transition-colors">
+    <div className="flex items-center gap-3 px-2 py-2.5 rounded-xl transition-colors"
+      style={{ ':hover': { background: 'rgba(103,15,34,0.04)' } } as React.CSSProperties}>
       <div className={`w-8 h-8 rounded-full ${sc.bg} flex items-center justify-center flex-shrink-0`}>
         <svg className={`w-4 h-4 ${sc.text}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-          {session.status === 'confirmed' ? (
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          ) : session.status === 'canceled' ? (
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          ) : (
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-          )}
+          {session.status === 'confirmed'
+            ? <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            : session.status === 'canceled'
+            ? <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            : <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />}
         </svg>
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-kore-gray-dark truncate">{session.package_title}</p>
-        <p className="text-xs text-kore-gray-dark/40 capitalize">{date}{time ? ` · ${time}` : ''}</p>
+        <p className="font-body text-[13px] font-semibold text-kore-wine-dark truncate">{session.package_title}</p>
+        <p className="font-body text-[11px] capitalize" style={{ color: 'rgba(103,15,34,0.40)' }}>
+          {date}{time ? ` · ${time}` : ''}
+        </p>
       </div>
       {session.status === 'confirmed' && onMessage && (
-        <button
-          onClick={() => onMessage(session.id)}
-          className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-full active:scale-95 transition-all flex-shrink-0"
-          title="Enviar mensaje post-sesión"
-        >
+        <button onClick={() => onMessage(session.id)}
+          className="font-body text-[10px] font-bold px-2 py-1 rounded-full active:scale-95 transition-all flex-shrink-0"
+          style={{ color: '#669959', background: 'rgba(168,194,156,0.18)' }}>
           Mensaje
         </button>
       )}
-      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${sc.bg} ${sc.text}`}>
+      <span className={`font-body text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${sc.bg} ${sc.text}`}>
         {sc.label}
       </span>
-    </div>
-  );
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between text-sm gap-2">
-      <span className="text-kore-gray-dark/50 flex-shrink-0">{label}</span>
-      <span className="font-medium text-kore-gray-dark text-right">{value}</span>
     </div>
   );
 }
