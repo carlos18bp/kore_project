@@ -812,20 +812,18 @@ export default function MyNutritionPage() {
                   <span className="mt-3 inline-block px-3 py-1 rounded-full border border-white/20 bg-white/10 text-[10px] font-semibold text-white/70">Día cerrado</span>
                 )}
 
-                {/* Macro bars */}
+                {/* Macro bars — label / value stacked so the 3 columns breathe */}
                 {macros && (
-                  <div className="mt-5 grid grid-cols-3 gap-3.5" style={{ maxWidth: 480 }}>
+                  <div className="mt-5 grid grid-cols-3 gap-x-5 gap-y-3 sm:gap-x-7" style={{ maxWidth: 480 }}>
                     {macros.map(({ label, eaten, goal, unit, color }) => {
                       const pct = goal > 0 ? Math.min(100, (eaten / goal) * 100) : 0;
                       return (
-                        <div key={label}>
-                          <div className="flex justify-between mb-1.5">
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-white/60">{label}</span>
-                            <span className="text-[11px] font-semibold text-white/85 tabular-nums">
-                              {eaten}<span className="opacity-50">/{goal}{unit}</span>
-                            </span>
-                          </div>
-                          <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.12)' }}>
+                        <div key={label} className="min-w-0">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-white/55 leading-none whitespace-nowrap">{label}</p>
+                          <p className="text-[13px] font-semibold text-white/90 tabular-nums leading-none mt-1.5 whitespace-nowrap">
+                            {eaten}<span className="text-white/45 font-medium">/{goal}{unit}</span>
+                          </p>
+                          <div className="h-1 rounded-full overflow-hidden mt-2" style={{ background: 'rgba(255,255,255,0.12)' }}>
                             <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color, boxShadow: `0 0 12px ${color}99`, transition: 'width 700ms ease-out' }} />
                           </div>
                         </div>
