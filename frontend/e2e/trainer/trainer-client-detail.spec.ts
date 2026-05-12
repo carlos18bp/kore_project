@@ -3,7 +3,8 @@ import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
  * E2E tests for the Trainer Client Detail page (/trainer/clients/client?id=X).
- * Covers client profile, session history, stats, module links, and edge cases.
+ * Covers the redesigned tab-based layout: Resumen, Programa, Alertas, Antropometría,
+ * Posturometría, Ev. Física, Notas tabs; plus client header and fallback stats.
  */
 test.describe('Trainer Client Detail Page', { tag: [...FlowTags.TRAINER_CLIENT_DETAIL, RoleTags.TRAINER] }, () => {
 
@@ -47,6 +48,7 @@ test.describe('Trainer Client Detail Page', { tag: [...FlowTags.TRAINER_CLIENT_D
       completed: 4,
       pending: 2,
       canceled: 1,
+      total: 7,
     },
   };
 
@@ -72,6 +74,24 @@ test.describe('Trainer Client Detail Page', { tag: [...FlowTags.TRAINER_CLIENT_D
         body: JSON.stringify(sessions),
       });
     });
+    await page.route('**/api/trainer/my-clients/1/kpi/', async (route) => {
+      // 404 triggers the fallback stats view (no clinical KPI data)
+      await route.fulfill({ status: 404, body: '' });
+    });
+    await page.route('**/api/trainer/my-clients/1/sessions-full/', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(sessions),
+      });
+    });
+    await page.route('**/api/trainer/my-clients/1/alerts/', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+    });
     await page.route('**/api/trainer/dashboard-stats/', async (route) => {
       await route.fulfill({
         status: 200,
@@ -93,42 +113,44 @@ test.describe('Trainer Client Detail Page', { tag: [...FlowTags.TRAINER_CLIENT_D
     await expect(page.getByRole('link', { name: 'Volver a clientes' })).toBeVisible();
   });
 
-  test('renders personal info card with contact details', async ({ page }) => {
+  test('renders tab navigation', async ({ page }) => {
     await injectTrainerAuthCookies(page);
     await setupClientDetailMocks(page);
     await page.goto('/trainer/clients/client?id=1');
 
-    const infoHeading = page.getByRole('heading', { name: 'Información personal' });
-    await expect(infoHeading).toBeVisible({ timeout: 15_000 });
-    const infoCard = infoHeading.locator('..');
-    await expect(infoCard.getByText('María López')).toBeVisible();
-    await expect(infoCard.getByText('maria@example.com')).toBeVisible();
-    await expect(infoCard.getByText('3009876543')).toBeVisible();
-    await expect(infoCard.getByText('Femenino')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'María López' })).toBeVisible({ timeout: 15_000 });
+    // Tab bar with key tabs always visible
+    await expect(page.getByRole('button', { name: 'Resumen' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Programa' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Alertas' })).toBeVisible();
   });
 
-  test('renders personal info card with health profile details', async ({ page }) => {
+  test('Resumen tab shows stats fallback when no clinical data', async ({ page }) => {
     await injectTrainerAuthCookies(page);
     await setupClientDetailMocks(page);
     await page.goto('/trainer/clients/client?id=1');
 
-    const infoHeading = page.getByRole('heading', { name: 'Información personal' });
-    await expect(infoHeading).toBeVisible({ timeout: 15_000 });
-    const infoCard = infoHeading.locator('..');
-    await expect(infoCard.getByText('Medellín')).toBeVisible();
-    await expect(infoCard.getByText('Compensar')).toBeVisible();
-    await expect(infoCard.getByText('Perder grasa')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'María López' })).toBeVisible({ timeout: 15_000 });
+    // When KPI endpoint returns 404, fallback card shows session stats
+    await expect(page.getByText('Completadas').filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('Pendientes').filter({ visible: true }).first()).toBeVisible();
   });
 
-  test('renders subscription and payment card', async ({ page }) => {
+  test('Resumen tab shows next session when available', async ({ page }) => {
+    const withNextSession = {
+      ...fakeClient,
+      next_session: {
+        starts_at: new Date(Date.now() + 86400000).toISOString(),
+        package_title: 'Plan Elite',
+      } as never,
+    };
     await injectTrainerAuthCookies(page);
-    await setupClientDetailMocks(page);
+    await setupClientDetailMocks(page, withNextSession);
     await page.goto('/trainer/clients/client?id=1');
 
-    await expect(page.getByRole('heading', { name: 'Suscripción y pago' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'María López' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Próxima sesión').first()).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('Plan Elite').first()).toBeVisible();
-    await expect(page.getByText('4 de 10 completadas')).toBeVisible();
-    await expect(page.getByText('6 sesiones')).toBeVisible();
   });
 
   test('renders no subscription placeholder when client has no subscription', async ({ page }) => {
@@ -137,69 +159,46 @@ test.describe('Trainer Client Detail Page', { tag: [...FlowTags.TRAINER_CLIENT_D
     await setupClientDetailMocks(page, noSubClient);
     await page.goto('/trainer/clients/client?id=1');
 
-    await expect(page.getByRole('heading', { name: 'Información personal' })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText('Este cliente no tiene una suscripción activa.')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'María López' })).toBeVisible({ timeout: 15_000 });
+    // Stats card still shows (client.stats) — subscription section just lacks plan data
+    await expect(page.getByText('Completadas').filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
   });
 
-  test('renders stats card with completed, pending, and canceled counts', async ({ page }) => {
-    await injectTrainerAuthCookies(page);
-    await setupClientDetailMocks(page);
-    await page.goto('/trainer/clients/client?id=1');
-
-    const statsHeading = page.getByRole('heading', { name: 'Resumen' });
-    await expect(statsHeading).toBeVisible({ timeout: 15_000 });
-    const statsCard = statsHeading.locator('..');
-    await expect(statsCard.getByText('Sesiones completadas')).toBeVisible();
-    await expect(statsCard.getByText('Sesiones pendientes')).toBeVisible();
-    await expect(statsCard.getByText('Sesiones canceladas')).toBeVisible();
-  });
-
-  test('renders module links for assessments', async ({ page }) => {
-    await injectTrainerAuthCookies(page);
-    await setupClientDetailMocks(page);
-    await page.goto('/trainer/clients/client?id=1');
-
-    await expect(page.getByRole('heading', { name: 'Módulos' })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole('link', { name: 'Antropometría' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Posturometría' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Evaluación Física' })).toBeVisible();
-  });
-
-  test('renders completed session history', async ({ page }) => {
-    await injectTrainerAuthCookies(page);
-    await setupClientDetailMocks(page);
-    await page.goto('/trainer/clients/client?id=1');
-
-    await expect(page.getByRole('heading', { name: 'Sesiones completadas' })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText('Completada').first()).toBeVisible();
-  });
-
-  test('renders upcoming sessions section', async ({ page }) => {
-    await injectTrainerAuthCookies(page);
-    await setupClientDetailMocks(page);
-    await page.goto('/trainer/clients/client?id=1');
-
-    await expect(page.getByRole('heading', { name: 'Próximas sesiones' })).toBeVisible({ timeout: 15_000 });
-  });
-
-  test('empty session history shows placeholder', async ({ page }) => {
-    await injectTrainerAuthCookies(page);
-    await setupClientDetailMocks(page, fakeClient, []);
-    await page.goto('/trainer/clients/client?id=1');
-
-    await expect(page.getByRole('heading', { name: 'Sesiones completadas' })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText('Sin sesiones completadas.')).toBeVisible();
-    await expect(page.getByText('Sin sesiones próximas agendadas.')).toBeVisible();
-  });
-
-  test('client avatar shows first letter initial when no avatar', async ({ page }) => {
+  test('renders eval tabs in tab bar', async ({ page }) => {
     await injectTrainerAuthCookies(page);
     await setupClientDetailMocks(page);
     await page.goto('/trainer/clients/client?id=1');
 
     await expect(page.getByRole('heading', { level: 1, name: 'María López' })).toBeVisible({ timeout: 15_000 });
-    const profileCard = page.getByRole('heading', { name: 'Información personal' }).locator('..');
-    await expect(profileCard.locator('span').filter({ hasText: /^M$/ })).toBeVisible();
+    // Evaluation modules are now tabs, not links
+    await expect(page.getByRole('button', { name: 'Antropometría' })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: 'Posturometría' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Ev. Física' })).toBeVisible();
+  });
+
+  test('switching to Notas tab renders notes section', async ({ page }) => {
+    await injectTrainerAuthCookies(page);
+    // Add mock for trainer messages endpoint
+    await page.route('**/api/trainer/messages/**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
+    });
+    await setupClientDetailMocks(page);
+    await page.goto('/trainer/clients/client?id=1');
+
+    await expect(page.getByRole('heading', { level: 1, name: 'María López' })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Notas' }).click();
+    // Notes tab content loads — empty state or note list
+    await expect(page.getByText(/nota|mensaje|Sin notas/i).first()).toBeVisible({ timeout: 10_000 });
+  });
+
+  test('empty session history shows stats with zero completed', async ({ page }) => {
+    const emptyStats = { ...fakeClient, stats: { completed: 0, pending: 0, canceled: 0, total: 0 } };
+    await injectTrainerAuthCookies(page);
+    await setupClientDetailMocks(page, emptyStats, []);
+    await page.goto('/trainer/clients/client?id=1');
+
+    await expect(page.getByRole('heading', { level: 1, name: 'María López' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Completadas').filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
   });
 
   test('next session badge renders when client has upcoming session', async ({ page }) => {

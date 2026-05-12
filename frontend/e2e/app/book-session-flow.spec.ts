@@ -10,7 +10,7 @@ test.describe('Book Session Flow', { tag: [...FlowTags.BOOKING_SESSION_FLOW, Rol
 
   test('calendar renders with month navigation', async ({ page }) => {
     // Calendar should show current month label
-    const monthLabel = page.locator('h3.capitalize');
+    const monthLabel = page.locator('h3.capitalize').first();
     await expect(monthLabel).toBeVisible();
 
     // Day name headers should be visible
@@ -101,7 +101,7 @@ test.describe('Book Session Flow', { tag: [...FlowTags.BOOKING_SESSION_FLOW, Rol
   });
 
   test('calendar year-boundary navigation: Jan→Dec and Dec→Jan', async ({ page }) => {
-    const monthLabel = page.locator('h3.capitalize');
+    const monthLabel = page.locator('h3.capitalize').first();
     await expect(monthLabel).toBeVisible();
 
     const prevBtn = page.getByLabel('Mes anterior');

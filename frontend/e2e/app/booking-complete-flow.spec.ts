@@ -186,14 +186,14 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
     await expect(main.getByText('En persona')).toBeVisible();
   }
 
-  async function expectSuccessModal(main: import('@playwright/test').Locator) {
-    const modal = main.locator('.fixed.inset-0.z-50');
+  async function expectSuccessModal(page: import('@playwright/test').Page) {
+    const modal = page.locator('[data-testid="booking-success-backdrop"]');
     await expect(modal.getByText('Tu entrenamiento está agendado')).toBeVisible({ timeout: 10_000 });
     await expect(modal.getByText('Hemos enviado un correo electrónico')).toBeVisible();
     await expect(modal.getByText('Entrenamiento presencial')).toBeVisible();
     await expect(modal.getByText('Germán Franco')).toBeVisible();
-    await expect(modal.getByText('reprogramar o cancelar')).toBeVisible();
-    await expect(modal.getByText('Agendar otra sesión')).toBeVisible();
+    await expect(modal.getByText('tu programa')).toBeVisible();
+    await expect(modal.getByRole('button', { name: 'Volver al panel' })).toBeVisible();
   }
 
   test('full flow: select date → slot → confirmation → confirm booking → success', async ({ page }) => {
@@ -206,7 +206,7 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
     await expect(main.getByRole('button', { name: 'Confirmar' })).toBeVisible();
     await main.getByRole('button', { name: 'Confirmar' }).click();
 
-    await expectSuccessModal(main);
+    await expectSuccessModal(page);
   });
 
   test('confirmation step "Atrás" button returns to step 1', async ({ page }) => {
@@ -224,11 +224,11 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
     await page.getByRole('button', { name: 'Atrás' }).click();
 
     // Should return to step 1 — calendar and slots are visible (selectedDate is kept)
-    await expect(page.getByText('Seleccionar horario')).toBeVisible();
+    await expect(page.getByText(/Paso 1 de 2/)).toBeVisible();
     await expect(page.getByText('Lun', { exact: true })).toBeVisible();
   });
 
-  test('success screen "Agendar otra sesión" resets to step 1', async ({ page }) => {
+  test('success screen "Volver al panel" navigates to dashboard', async ({ page }) => {
     await mockLoginAsTestUser(page);
     await setupMocks(page);
     await mockSuccessfulBookingCreate(page);
@@ -241,13 +241,14 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
     await selectPrimarySlot(page);
     await expect(page.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
     await page.getByRole('button', { name: 'Confirmar' }).click();
-    await expect(page.getByText('Tu entrenamiento está agendado')).toBeVisible({ timeout: 10_000 });
 
-    // Click "Agendar otra sesión"
-    await page.getByText('Agendar otra sesión').click();
+    const modal = page.locator('[data-testid="booking-success-backdrop"]');
+    await expect(modal.getByText('Tu entrenamiento está agendado')).toBeVisible({ timeout: 10_000 });
 
-    // Should return to step 1 — reset() clears selectedDate
-    await expect(page.getByText('Selecciona una fecha en el calendario para ver los horarios disponibles.')).toBeVisible({ timeout: 10_000 });
+    await modal.getByRole('button', { name: 'Volver al panel' }).click();
+
+    // "Volver al panel" navigates to /dashboard
+    await expect(page).toHaveURL(/\/dashboard/, { timeout: 10_000 });
   });
 
 

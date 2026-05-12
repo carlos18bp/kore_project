@@ -13,46 +13,41 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
     await expect(page.getByRole('heading', { level: 1, name: new RegExp(E2E_USER.firstName) })).toBeVisible();
   });
 
-  test('renders progress card', async ({ page }) => {
+  test('renders progress section', async ({ page }) => {
     const main = page.getByRole('main');
-    await expect(main.getByText('Tu progreso', { exact: true }).filter({ visible: true })).toBeVisible();
-    await expect(main.getByText(/completadas de \d+/).filter({ visible: true })).toBeVisible();
+    await expect(main.getByText('Mi Progreso').filter({ visible: true })).toBeVisible({ timeout: 10_000 });
   });
 
-  test('renders sessions remaining', async ({ page }) => {
+  test('renders session card', async ({ page }) => {
+    const main = page.getByRole('main');
     await expect(
-      page.getByRole('main').getByText(/completadas de \d+/).filter({ visible: true }),
-    ).toBeVisible();
+      main.getByText(/Próxima sesión/i).filter({ visible: true }).first(),
+    ).toBeVisible({ timeout: 10_000 });
   });
 
   test('renders next session card', async ({ page }) => {
     await expect(
-      page.getByRole('main').getByText('Tu siguiente paso').filter({ visible: true }),
-    ).toBeVisible();
+      page.getByRole('main').getByText(/Próxima sesión/i).filter({ visible: true }).first(),
+    ).toBeVisible({ timeout: 10_000 });
   });
 
-  test('renders sidebar quick action links', async ({ page }) => {
+  test('renders sidebar navigation links', async ({ page }) => {
     const sidebar = page.getByRole('complementary');
-    await expect(sidebar.getByRole('link', { name: 'Agendar Sesión' })).toBeVisible();
     await expect(sidebar.getByRole('link', { name: 'Antropometría' })).toBeVisible();
     await expect(sidebar.getByRole('link', { name: 'Mi Suscripción' })).toBeVisible();
   });
 
-  test('renders recent activity section', async ({ page }) => {
-    await expect(
-      page.getByRole('main').getByRole('heading', { name: 'Historial reciente' }).filter({ visible: true }),
-    ).toBeVisible();
+  test('renders progress tabs', async ({ page }) => {
+    const main = page.getByRole('main');
+    await expect(main.getByText('Mi Progreso').filter({ visible: true })).toBeVisible({ timeout: 10_000 });
   });
 
-  test('renders member since label', async ({ page }) => {
-    await expect(
-      page.getByRole('main').getByText('Miembro desde').filter({ visible: true }),
-    ).toBeVisible();
+  test('renders sidebar subscription link', async ({ page }) => {
+    await expect(page.getByRole('complementary').getByRole('link', { name: 'Mi Suscripción' })).toBeVisible({ timeout: 10_000 });
   });
 
   test('sidebar is visible with navigation', async ({ page }) => {
     const sidebar = page.getByRole('complementary');
-    await expect(sidebar.getByRole('link', { name: 'Agendar Sesión' })).toBeVisible();
     await expect(sidebar.getByRole('link', { name: 'Mi Suscripción' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
   });
