@@ -62,6 +62,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('Creating test users with full fake data...'))
         self.stdout.write(self.style.SUCCESS('=' * 60))
 
+        self._purge_existing_test_data()
         trainer_profile = self._create_trainer(password)
         customer = self._create_customer(password)
         self._create_evaluations(customer, trainer_profile)
@@ -79,9 +80,21 @@ class Command(BaseCommand):
         self.stdout.write(f'  Customer: {CUSTOMER_EMAIL} / {password}')
         self.stdout.write(self.style.SUCCESS('=' * 60))
 
-    def _create_trainer(self, password):
-        User.objects.filter(email=TRAINER_EMAIL).delete()
+    def _purge_existing_test_data(self):
+        """Delete any prior test data in FK-dependency order so re-runs are idempotent.
 
+        Several FKs onto the test users are ``PROTECT`` (``Subscription.customer``,
+        ``Payment.customer``) and ``Booking.slot`` PROTECTs the trainer's slots,
+        which cascade from ``TrainerProfile`` — so the rows must be removed before
+        the users themselves can be deleted.
+        """
+        Booking.objects.filter(customer__email=CUSTOMER_EMAIL).delete()
+        Booking.objects.filter(slot__trainer__user__email=TRAINER_EMAIL).delete()
+        Payment.objects.filter(customer__email=CUSTOMER_EMAIL).delete()
+        Subscription.objects.filter(customer__email=CUSTOMER_EMAIL).delete()
+        User.objects.filter(email__in=[TRAINER_EMAIL, CUSTOMER_EMAIL]).delete()
+
+    def _create_trainer(self, password):
         user = User.objects.create_user(
             email=TRAINER_EMAIL,
             password=password,
@@ -104,8 +117,6 @@ class Command(BaseCommand):
         return profile
 
     def _create_customer(self, password):
-        User.objects.filter(email=CUSTOMER_EMAIL).delete()
-
         user = User.objects.create_user(
             email=CUSTOMER_EMAIL,
             password=password,

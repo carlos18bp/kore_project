@@ -80,3 +80,10 @@ class TestCreateTestUsers:
         assert PosturometryEvaluation.objects.filter(customer=customer).exists()
         assert PhysicalEvaluation.objects.filter(customer=customer).exists()
         assert ParqAssessment.objects.filter(customer=customer).exists()
+
+    def test_can_be_rerun_without_protected_error(self):
+        call_command('create_test_users', stdout=StringIO())
+        call_command('create_test_users', stdout=StringIO())
+
+        assert User.objects.filter(email=TRAINER_EMAIL, role=User.Role.TRAINER).count() == 1
+        assert User.objects.filter(email=CUSTOMER_EMAIL, role=User.Role.CUSTOMER).count() == 1
