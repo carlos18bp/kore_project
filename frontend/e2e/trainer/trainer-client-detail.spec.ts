@@ -59,6 +59,36 @@ test.describe('Trainer Client Detail Page', { tag: [...FlowTags.TRAINER_CLIENT_D
     { id: 104, status: 'pending', starts_at: new Date(Date.now() + 2 * 86400000).toISOString(), package_title: 'Plan Elite' },
   ];
 
+  const fakeKPI = {
+    behavioral: {
+      training_adherence_7d: 0.8,
+      nutrition_adherence_7d: 0.7,
+      combined_adherence_7d: 0.75,
+      streak_current: 4,
+      streak_longest: 9,
+      sessions_completed: 4,
+      sessions_remaining: 6,
+      last_activity_date: new Date().toISOString(),
+      last_mood_score: 7,
+    },
+    clinical: {
+      kore_score: 68,
+      kore_color: 'yellow',
+      kore_category: 'Bueno',
+      bmi: 23.4,
+      bmi_color: 'green',
+      body_fat_pct: 18.2,
+      bf_color: 'green',
+      global_postural_index: 72,
+      postural_color: 'yellow',
+      physical_general_index: 65,
+      physical_color: 'yellow',
+      nutrition_habit_score: 70,
+      nutrition_color: 'yellow',
+      last_eval_dates: {},
+    },
+  };
+
   async function setupClientDetailMocks(page: import('@playwright/test').Page, client = fakeClient, sessions = fakeSessions) {
     await page.route('**/api/trainer/my-clients/1/', async (route) => {
       await route.fulfill({
@@ -136,7 +166,7 @@ test.describe('Trainer Client Detail Page', { tag: [...FlowTags.TRAINER_CLIENT_D
     await expect(page.getByText('Pendientes').filter({ visible: true }).first()).toBeVisible();
   });
 
-  test('Resumen tab shows next session when available', async ({ page }) => {
+  test('Resumen tab shows next session card when client has upcoming session and clinical data', async ({ page }) => {
     const withNextSession = {
       ...fakeClient,
       next_session: {
@@ -146,6 +176,10 @@ test.describe('Trainer Client Detail Page', { tag: [...FlowTags.TRAINER_CLIENT_D
     };
     await injectTrainerAuthCookies(page);
     await setupClientDetailMocks(page, withNextSession);
+    // Provide clinical KPI data so the Resumen hero (and next-session card) renders.
+    await page.route('**/api/trainer/my-clients/1/kpi/', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(fakeKPI) });
+    });
     await page.goto('/trainer/clients/client?id=1');
 
     await expect(page.getByRole('heading', { level: 1, name: 'María López' })).toBeVisible({ timeout: 15_000 });
@@ -201,19 +235,13 @@ test.describe('Trainer Client Detail Page', { tag: [...FlowTags.TRAINER_CLIENT_D
     await expect(page.getByText('Completadas').filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
   });
 
-  test('next session badge renders when client has upcoming session', async ({ page }) => {
-    const withNextSession = {
-      ...fakeClient,
-      next_session: {
-        starts_at: new Date(Date.now() + 86400000).toISOString(),
-        package_title: 'Plan Elite',
-      } as never,
-    };
+  test('client header shows the active package name', async ({ page }) => {
     await injectTrainerAuthCookies(page);
-    await setupClientDetailMocks(page, withNextSession);
+    await setupClientDetailMocks(page);
     await page.goto('/trainer/clients/client?id=1');
 
-    await expect(page.getByText('Próxima sesión').first()).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText('Plan Elite').first()).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'María López' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Plan Elite').first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('4/7 sesiones')).toBeVisible();
   });
 });

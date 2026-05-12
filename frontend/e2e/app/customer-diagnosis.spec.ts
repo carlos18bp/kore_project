@@ -53,12 +53,11 @@ test.describe('Customer Diagnosis Page', { tag: [...FlowTags.CUSTOMER_DIAGNOSIS,
     await expect(page.getByText(/Última evaluación/i)).toBeVisible();
   });
 
-  test('renders primary index card titles for composition and lean mass', async ({ page }) => {
+  test('renders indicators section with active composition card', async ({ page }) => {
     await goToDiagnosisWithData(page);
 
-    await expect(page.getByText('Tu composición corporal').first()).toBeVisible();
-    await expect(page.getByText('Tu masa grasa').first()).toBeVisible();
-    await expect(page.getByText('Tu masa libre de grasa').first()).toBeVisible();
+    await expect(page.getByText('Indicadores en detalle')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 3, name: 'Tu composición corporal' })).toBeVisible();
   });
 
   test('renders trainer notes when present', async ({ page }) => {
@@ -68,12 +67,12 @@ test.describe('Customer Diagnosis Page', { tag: [...FlowTags.CUSTOMER_DIAGNOSIS,
     await expect(page.getByText(/Buen progreso en masa muscular/)).toBeVisible();
   });
 
-  test('renders index cards section with expandable indicators', async ({ page }) => {
+  test('renders indicators section with selectable metric pills', async ({ page }) => {
     await goToDiagnosisWithData(page);
 
-    await expect(page.getByText('Tus indicadores en detalle')).toBeVisible();
-    await expect(page.getByText('Tu composición corporal').first()).toBeVisible();
-    await expect(page.getByText('Tu peso y estatura').first()).toBeVisible();
+    await expect(page.getByText('Indicadores en detalle')).toBeVisible();
+    await expect(page.getByRole('button', { name: /% Grasa/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Masa magra/ })).toBeVisible();
   });
 
   test('empty state shows placeholder when no evaluations exist', async ({ page }) => {

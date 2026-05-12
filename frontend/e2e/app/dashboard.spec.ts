@@ -83,9 +83,9 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
   };
 
   const bookingList = [
-    { id: 61, status: 'confirmed', slot: { id: 201, starts_at: new Date(Date.now() - 2 * 86400000).toISOString(), ends_at: new Date(Date.now() - 2 * 86400000 + 3600000).toISOString() }, package: { title: 'Plan Elite' } },
-    { id: 62, status: 'canceled', slot: { id: 202, starts_at: new Date(Date.now() - 5 * 86400000).toISOString(), ends_at: new Date(Date.now() - 5 * 86400000 + 3600000).toISOString() }, package: { title: 'Plan Elite' } },
-    { id: 63, status: 'pending', slot: { id: 203, starts_at: new Date(Date.now() - 7 * 86400000).toISOString(), ends_at: new Date(Date.now() - 7 * 86400000 + 3600000).toISOString() }, package: null },
+    { id: 61, status: 'confirmed', slot: { id: 201, starts_at: new Date(Date.now() - 2 * 86400000).toISOString(), ends_at: new Date(Date.now() - 2 * 86400000 + 3600000).toISOString() }, trainer: null, package: { title: 'Plan Elite' } },
+    { id: 62, status: 'canceled', slot: { id: 202, starts_at: new Date(Date.now() - 5 * 86400000).toISOString(), ends_at: new Date(Date.now() - 5 * 86400000 + 3600000).toISOString() }, trainer: null, package: { title: 'Plan Elite' } },
+    { id: 63, status: 'pending', slot: { id: 203, starts_at: new Date(Date.now() - 7 * 86400000).toISOString(), ends_at: new Date(Date.now() - 7 * 86400000 + 3600000).toISOString() }, trainer: null, package: null },
   ];
 
   async function setupDashboardMocks(page: import('@playwright/test').Page) {
@@ -102,7 +102,7 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
     await page.route('**/api/availability-slots/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0, results: [] }) }));
   }
 
-  test('active subscription shows program name and sessions count', async ({ page }) => {
+  test('active subscription renders the dashboard layout', async ({ page }) => {
     await setupDashboardMocks(page);
     await page.route('**/api/subscriptions/**', async (route) => {
       const url = route.request().url();
@@ -117,8 +117,8 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
 
     await page.goto('/dashboard');
     const main = page.getByRole('main');
-    await expect(main.getByText('3 sesiones')).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('completadas de 10')).toBeVisible();
+    await expect(main.getByRole('heading', { level: 1, name: /Usuario/ })).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('Sin sesión agendada').filter({ visible: true }).first()).toBeVisible();
   });
 
   test('upcoming session shows formatted date in Proxima sesion card', async ({ page }) => {
@@ -143,7 +143,7 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
     await expect(main.getByText('Próxima sesión').filter({ visible: true })).toBeVisible({ timeout: 10_000 });
   });
 
-  test('recent activity shows confirmed, canceled and pending booking statuses', async ({ page }) => {
+  test('upcoming sessions modal lists past booking statuses', async ({ page }) => {
     await setupDashboardMocks(page);
     await page.route('**/api/subscriptions/**', async (route) => {
       const url = route.request().url();
@@ -161,9 +161,12 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
     });
 
     await page.goto('/dashboard');
-    const main = page.getByRole('main');
-    await expect(main.getByText('Historial reciente').filter({ visible: true })).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('Completada', { exact: true }).filter({ visible: true }).first()).toBeVisible();
-    await expect(main.getByText('Cancelada', { exact: true }).filter({ visible: true }).first()).toBeVisible();
+    await page.getByRole('button', { name: /Próximas sesiones/ }).first().click();
+
+    await expect(page.getByRole('heading', { name: 'Mis sesiones' })).toBeVisible({ timeout: 5_000 });
+    await page.getByRole('button', { name: /Pasadas\s*\(/ }).click();
+    await expect(page.getByText('Realizada', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Cancelada', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Agendada', { exact: true }).first()).toBeVisible();
   });
 });

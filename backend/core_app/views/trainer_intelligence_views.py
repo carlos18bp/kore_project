@@ -307,7 +307,7 @@ class TrainerComparativeMetricsView(APIView):
             compute_combined_adherence, compute_nutrition_adherence, compute_training_adherence,
         )
 
-        today = date.today()
+        today = timezone.now().date()
         this_week_start = today - timedelta(days=6)
         last_week_start = today - timedelta(days=13)
 

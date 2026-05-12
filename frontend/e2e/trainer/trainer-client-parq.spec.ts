@@ -48,8 +48,8 @@ test.describe('Trainer Client PAR-Q Page', { tag: [...FlowTags.TRAINER_CLIENT_PA
     await setupParqMocks(page);
     await page.goto('/trainer/clients/client/parq?clientId=1');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'PAR-Q+ del Cliente' })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/Historial de evaluaciones PAR-Q/)).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Cuestionario de aptitud' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Historial del cliente')).toBeVisible();
   });
 
   test('renders risk assessment badge with label and count', async ({ page }) => {
@@ -85,7 +85,8 @@ test.describe('Trainer Client PAR-Q Page', { tag: [...FlowTags.TRAINER_CLIENT_PA
     await setupParqMocks(page, []);
     await page.goto('/trainer/clients/client/parq?clientId=1');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'PAR-Q+ del Cliente' })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/El cliente aún no ha completado el PAR-Q/)).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Cuestionario de aptitud' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Sin evaluaciones PAR-Q+')).toBeVisible();
+    await expect(page.getByText(/El cliente aún no ha completado el cuestionario/)).toBeVisible();
   });
 });

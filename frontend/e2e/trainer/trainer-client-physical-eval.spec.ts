@@ -85,7 +85,7 @@ test.describe('Trainer Client Physical Evaluation Page', { tag: [...FlowTags.TRA
     await setupPhysicalEvalMocks(page);
     await page.goto('/trainer/clients/client/physical-evaluation?id=1');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Evaluación Física' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'Capacidad funcional' })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('link', { name: /Volver al cliente/i })).toBeVisible();
   });
 
@@ -94,7 +94,7 @@ test.describe('Trainer Client Physical Evaluation Page', { tag: [...FlowTags.TRA
     await setupPhysicalEvalMocks(page);
     await page.goto('/trainer/clients/client/physical-evaluation?id=1');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Evaluación Física' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'Capacidad funcional' })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('button', { name: /Nueva evaluación/i })).toBeVisible();
   });
 
@@ -103,7 +103,7 @@ test.describe('Trainer Client Physical Evaluation Page', { tag: [...FlowTags.TRA
     await setupPhysicalEvalMocks(page);
     await page.goto('/trainer/clients/client/physical-evaluation?id=1');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Evaluación Física' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'Capacidad funcional' })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('General', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('Fuerza', { exact: true }).first()).toBeVisible();
   });
@@ -113,7 +113,7 @@ test.describe('Trainer Client Physical Evaluation Page', { tag: [...FlowTags.TRA
     await setupPhysicalEvalMocks(page);
     await page.goto('/trainer/clients/client/physical-evaluation?id=1');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Evaluación Física' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'Capacidad funcional' })).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: /Nueva evaluación/i }).click();
 
     await expect(page.getByText('Sentadillas en 1 minuto')).toBeVisible();
@@ -124,7 +124,7 @@ test.describe('Trainer Client Physical Evaluation Page', { tag: [...FlowTags.TRA
     await setupPhysicalEvalMocks(page, []);
     await page.goto('/trainer/clients/client/physical-evaluation?id=1');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Evaluación Física' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'Capacidad funcional' })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('button', { name: /Nueva evaluación/i })).toBeVisible();
   });
 });
