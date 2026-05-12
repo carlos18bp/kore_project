@@ -1,0 +1,200 @@
+import { render, screen, act, fireEvent, waitFor } from '@testing-library/react';
+import ClientNutritionTab from '@/app/components/trainer/ClientNutritionTab';
+import { api } from '@/lib/services/http';
+
+jest.mock('@/lib/services/http', () => ({
+  api: { get: jest.fn(), post: jest.fn(), patch: jest.fn(), delete: jest.fn() },
+}));
+jest.mock('js-cookie', () => ({ get: jest.fn(), set: jest.fn(), remove: jest.fn() }));
+jest.mock('@/app/components/trainer/evals/EvalNutriTab', () => ({
+  __esModule: true,
+  default: () => <div>eval-nutri-stub</div>,
+}));
+
+const mockedApi = api as jest.Mocked<typeof api>;
+const CLIENT_ID = 7;
+
+// ─── Fixtures ────────────────────────────────────────────────────────────────
+function makeMeals(): unknown[] {
+  return [
+    { id: 11, meal_block: 'desayuno', meal_block_label: 'Desayuno', meal_block_time: '07:00', order: 1,
+      suggestion: { id: 100, title: 'Avena con frutas', description: '', calories_estimate: 350, nova_max: 1, goal_tags: [] }, trainer_notes: '' },
+    { id: 12, meal_block: 'almuerzo', meal_block_label: 'Almuerzo', meal_block_time: '13:00', order: 2,
+      suggestion: { id: 101, title: 'Pollo con arroz', description: '', calories_estimate: 600, nova_max: 2, goal_tags: [] }, trainer_notes: '' },
+  ];
+}
+
+function makeDays(): unknown[] {
+  return [
+    { id: 1, day_number: 1, week_number: 1, date: '2026-01-05', meals: makeMeals() },
+    { id: 2, day_number: 2, week_number: 1, date: '2026-01-06', meals: makeMeals() },
+    { id: 8, day_number: 8, week_number: 2, date: '2026-01-12', meals: makeMeals() },
+  ];
+}
+
+function draftPlan() {
+  return {
+    id: 50, status: 'draft', goal: 'fat_loss', fitness_level: 2,
+    week_start: '2026-01-05', week_end: '2026-01-11', trainer_notes: 'Sube proteína',
+    approved_at: null, created_at: '2026-01-01T00:00:00Z', days: makeDays(),
+  };
+}
+
+function publishedPlan() {
+  return {
+    id: 51, status: 'published', goal: 'fat_loss', fitness_level: 2,
+    week_start: '2026-01-05', week_end: '2026-01-11', trainer_notes: 'Plan vigente',
+    approved_at: '2026-01-03T00:00:00Z', created_at: '2026-01-01T00:00:00Z', days: makeDays(),
+  };
+}
+
+const HABIT_SUMMARY = {
+  id: 1, meals_per_day: 5, water_liters: '2.5', fruit_weekly: 12, vegetable_weekly: 14,
+  protein_frequency: 5, ultraprocessed_weekly: 1, sugary_drinks_weekly: 0, eats_breakfast: true,
+  habit_score: '8.2', habit_category: 'Saludable', habit_color: 'green',
+  trainer_approved_at: null, created_at: '2026-01-01T00:00:00Z',
+};
+
+const MEAL_CATALOG = [
+  { id: 200, title: 'Yogur griego con miel', meal_block: 'desayuno', calories_estimate: 250, nova_max: 1, goal_tags: [], description: '' },
+  { id: 201, title: 'Tostadas integrales', meal_block: 'desayuno', calories_estimate: 300, nova_max: 2, goal_tags: [], description: '' },
+];
+
+// Configures api.get to resolve depending on URL. `planList` is the list endpoint,
+// `planDetail` is the detail endpoint result.
+function setupApi(opts: { planList?: unknown[]; planDetail?: unknown | null; habit?: unknown[] } = {}) {
+  const planList = opts.planList ?? [];
+  const planDetail = opts.planDetail ?? null;
+  const habit = opts.habit ?? [HABIT_SUMMARY];
+  mockedApi.get.mockImplementation((url: string) => {
+    if (url.includes('/nutrition-plans/customer/')) return Promise.resolve({ data: planList });
+    if (url.includes('/meal-suggestions/')) return Promise.resolve({ data: { results: MEAL_CATALOG } });
+    if (url.includes('/nutrition/')) return Promise.resolve({ data: habit });
+    if (/\/nutrition-plans\/\d+\/$/.test(url)) return Promise.resolve({ data: planDetail });
+    return Promise.resolve({ data: {} });
+  });
+}
+
+describe('ClientNutritionTab', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedApi.post.mockResolvedValue({ data: {} });
+    mockedApi.patch.mockResolvedValue({ data: {} });
+    mockedApi.delete.mockResolvedValue({ data: {} });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('shows the empty state with a generate CTA when there are no plans', async () => {
+    setupApi({ planList: [] });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+
+    expect(await screen.findByText('Sin plan nutricional')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Generar plan de nutrición/ })).toBeInTheDocument();
+  });
+
+  it('renders a Borrador badge with draft actions when a draft plan loads', async () => {
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+
+    expect(await screen.findByText('Borrador')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Publicar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Regenerar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Eliminar borrador' })).toBeInTheDocument();
+  });
+
+  it('renders a Publicado badge with the compliance grid when a published plan loads', async () => {
+    setupApi({ planList: [{ id: 51, status: 'published' }], planDetail: publishedPlan() });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+
+    expect(await screen.findByText('Publicado')).toBeInTheDocument();
+    expect(screen.getByText(/Cumplimiento · 7 días/)).toBeInTheDocument();
+  });
+
+  it('renders the four week navigation pills with week 1 selectable', async () => {
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+
+    expect(await screen.findByRole('button', { name: /Semana 1/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Semana 4/ })).toBeInTheDocument();
+  });
+
+  it('switches the visible day cards when a different week pill is clicked', async () => {
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Semana 2/ }));
+    });
+
+    expect(screen.getByText('Semana 2 · día a día')).toBeInTheDocument();
+  });
+
+  it('keeps the trainer-notes textarea read-only when the plan is published', async () => {
+    setupApi({ planList: [{ id: 51, status: 'published' }], planDetail: publishedPlan() });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Publicado');
+
+    const textarea = screen.getByPlaceholderText('Escribe una nota orientativa para el cliente...');
+    expect(textarea).toHaveAttribute('readonly');
+  });
+
+  it('reveals meal rows when a day card is expanded', async () => {
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getAllByText('2 comidas')[0]);
+    });
+
+    expect(screen.getAllByText('Avena con frutas').length).toBeGreaterThan(0);
+  });
+
+  it('opens the meal swap picker after clicking Cambiar', async () => {
+    jest.useFakeTimers();
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await act(async () => { await Promise.resolve(); });
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getAllByText('2 comidas')[0]);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getAllByRole('button', { name: 'Cambiar' })[0]);
+    });
+    await act(async () => { jest.advanceTimersByTime(300); });
+
+    expect(screen.getByPlaceholderText('Buscar sugerencia...')).toBeInTheDocument();
+  });
+
+  it('calls the generate endpoint when the empty-state CTA is clicked', async () => {
+    setupApi({ planList: [] });
+    mockedApi.post.mockResolvedValueOnce({ data: { ...draftPlan(), id: 99 } });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Sin plan nutricional');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Generar plan de nutrición/ }));
+    });
+
+    expect(mockedApi.post).toHaveBeenCalledWith(
+      '/nutrition-plans/generate/',
+      { customer_id: CLIENT_ID },
+      expect.anything(),
+    );
+  });
+});
