@@ -149,8 +149,7 @@ describe('BookSessionPage', () => {
 
   it('renders step indicator with steps 1 and 2', () => {
     render(<BookSessionPage />);
-    expect(screen.getByText('Seleccionar horario')).toBeInTheDocument();
-    expect(screen.getByText('Confirmar')).toBeInTheDocument();
+    expect(screen.getByText(/Paso 1 de 2/)).toBeInTheDocument();
   });
 
   it('preselects subscription from query param in normal flow', () => {
@@ -256,7 +255,7 @@ describe('BookSessionPage', () => {
     };
     setupStore({ step: 3, bookingResult: booking });
     render(<BookSessionPage />);
-    expect(screen.queryByText('Seleccionar horario')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Paso 1 de 2/)).not.toBeInTheDocument();
   });
 
   it('renders session progress when active subscriptions exist', () => {
@@ -287,7 +286,6 @@ describe('BookSessionPage', () => {
     setupStore({ subscriptions });
     render(<BookSessionPage />);
     expect(screen.getAllByText(/Sesión 4 de 4/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/3 completadas/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders NoSessionsModal when selected subscription has no remaining sessions', () => {

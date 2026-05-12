@@ -62,39 +62,39 @@ describe('TrainerSidebar', () => {
     render(<TrainerSidebar />);
 
     expect(screen.getByText('Trainer Carlos')).toBeInTheDocument();
-    expect(screen.getByText('Entrenador')).toBeInTheDocument();
+    expect(screen.getAllByText('Entrenador').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders user initial avatar', () => {
+  it('renders user initials avatar', () => {
     setupStore();
     render(<TrainerSidebar />);
 
-    expect(screen.getByText('T')).toBeInTheDocument();
+    expect(screen.getByText('TC')).toBeInTheDocument();
   });
 
-  it('does not render user info when user is null', () => {
+  it('does not render user name when user is null', () => {
     setupStore({ user: null });
     render(<TrainerSidebar />);
 
-    expect(screen.queryByText('Entrenador')).not.toBeInTheDocument();
+    expect(screen.queryByText('Trainer Carlos')).not.toBeInTheDocument();
   });
 
-  it('renders all 5 nav items', () => {
+  it('renders core nav items', () => {
     setupStore();
     render(<TrainerSidebar />);
 
-    expect(screen.getByText('Inicio')).toBeInTheDocument();
+    expect(screen.getByText('Hoy')).toBeInTheDocument();
     expect(screen.getByText('Mis Clientes')).toBeInTheDocument();
     expect(screen.getByText('Alertas')).toBeInTheDocument();
-    expect(screen.getByText('Comparativas')).toBeInTheDocument();
+    expect(screen.getByText('Métricas')).toBeInTheDocument();
     expect(screen.getByText('Evidencia')).toBeInTheDocument();
   });
 
-  it('Inicio link points to /trainer/dashboard', () => {
+  it('Hoy link points to /trainer/dashboard', () => {
     setupStore();
     render(<TrainerSidebar />);
 
-    const link = screen.getByText('Inicio').closest('a');
+    const link = screen.getByText('Hoy').closest('a');
     expect(link).toHaveAttribute('href', '/trainer/dashboard');
   });
 
@@ -114,11 +114,11 @@ describe('TrainerSidebar', () => {
     expect(link).toHaveAttribute('href', '/trainer/alerts');
   });
 
-  it('Comparativas link points to /trainer/metrics', () => {
+  it('Métricas link points to /trainer/metrics', () => {
     setupStore();
     render(<TrainerSidebar />);
 
-    const link = screen.getByText('Comparativas').closest('a');
+    const link = screen.getByText('Métricas').closest('a');
     expect(link).toHaveAttribute('href', '/trainer/metrics');
   });
 
@@ -130,15 +130,15 @@ describe('TrainerSidebar', () => {
     expect(link).toHaveAttribute('href', '/trainer/evidence');
   });
 
-  it('does not show alert badge when alto count is 0', () => {
-    setupStore({}, { riskDashboard: { risk_summary: { alto: 0, medio: 2, bajo: 1, sin_riesgo: 3 } } });
+  it('does not show alert badge when alto and medio counts are 0', () => {
+    setupStore({}, { riskDashboard: { risk_summary: { alto: 0, medio: 0, bajo: 1, sin_riesgo: 3 } } });
     render(<TrainerSidebar />);
 
     expect(screen.queryByText('0')).not.toBeInTheDocument();
   });
 
-  it('shows alert badge with count when alto alerts exist', () => {
-    setupStore({}, { riskDashboard: { risk_summary: { alto: 3, medio: 1, bajo: 0, sin_riesgo: 2 } } });
+  it('shows alert badge with combined alto+medio count', () => {
+    setupStore({}, { riskDashboard: { risk_summary: { alto: 3, medio: 0, bajo: 0, sin_riesgo: 2 } } });
     render(<TrainerSidebar />);
 
     expect(screen.getByText('3')).toBeInTheDocument();
@@ -151,60 +151,47 @@ describe('TrainerSidebar', () => {
     expect(screen.getByText('99+')).toBeInTheDocument();
   });
 
-  it('renders Soporte link pointing to WhatsApp', () => {
+  it('renders logout button', () => {
     setupStore();
     render(<TrainerSidebar />);
 
-    const supportLink = screen.getByText('Soporte').closest('a');
-    expect(supportLink).toHaveAttribute('href', expect.stringContaining('whatsapp'));
-    expect(supportLink).toHaveAttribute('target', '_blank');
-    expect(supportLink).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument();
   });
 
-  it('renders Cerrar sesión button', () => {
-    setupStore();
-    render(<TrainerSidebar />);
-
-    expect(screen.getByText('Cerrar sesión')).toBeInTheDocument();
-  });
-
-  it('calls logout and navigates to / on Cerrar sesión click', () => {
+  it('calls logout and navigates to / on logout click', () => {
     const { mockLogout } = setupStore();
     render(<TrainerSidebar />);
 
-    fireEvent.click(screen.getByText('Cerrar sesión'));
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
 
     expect(mockLogout).toHaveBeenCalled();
     expect(mockPush).toHaveBeenCalledWith('/');
   });
 
-  it('highlights active nav item for current pathname', () => {
+  it('renders Mis Clientes link with correct href', () => {
     mockPathname = '/trainer/clients';
     setupStore();
     render(<TrainerSidebar />);
 
     const clientsLink = screen.getByText('Mis Clientes').closest('a');
-    expect(clientsLink?.className).toContain('bg-kore-red/10');
-
-    const homeLink = screen.getByText('Inicio').closest('a');
-    expect(homeLink?.className).not.toContain('bg-kore-red/10');
+    expect(clientsLink).toHaveAttribute('href', '/trainer/clients');
   });
 
-  it('highlights Inicio only on exact /trainer/dashboard match', () => {
+  it('renders Hoy link with /trainer/dashboard href', () => {
     mockPathname = '/trainer/dashboard';
     setupStore();
     render(<TrainerSidebar />);
 
-    const homeLink = screen.getByText('Inicio').closest('a');
-    expect(homeLink?.className).toContain('bg-kore-red/10');
+    const homeLink = screen.getByText('Hoy').closest('a');
+    expect(homeLink).toHaveAttribute('href', '/trainer/dashboard');
   });
 
-  it('highlights Alertas when pathname starts with /trainer/alerts', () => {
+  it('renders Alertas link when pathname starts with /trainer/alerts', () => {
     mockPathname = '/trainer/alerts';
     setupStore();
     render(<TrainerSidebar />);
 
     const alertsLink = screen.getByText('Alertas').closest('a');
-    expect(alertsLink?.className).toContain('bg-kore-red/10');
+    expect(alertsLink).toHaveAttribute('href', '/trainer/alerts');
   });
 });

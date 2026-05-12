@@ -178,7 +178,7 @@ describe('MoodCheckIn', () => {
       expect(screen.getByText('¿Cómo te sientes hoy?')).toBeInTheDocument();
     });
 
-    const backdrop = document.querySelector('.bg-black\\/40');
+    const backdrop = document.querySelector('.bg-white\\/40');
     if (backdrop) fireEvent.click(backdrop);
 
     expect(screen.queryByText('¿Cómo te sientes hoy?')).not.toBeInTheDocument();
