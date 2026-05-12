@@ -50,17 +50,6 @@ class TestGenerateMonthlyProgram:
         assert program.days.count() == 28
         assert program.end_date == PROGRAM_START + timedelta(days=27)
 
-    def test_fitness_level_override_takes_precedence(self):
-        random.seed(0)
-        customer = _customer()
-        cp = customer.customer_profile
-        cp.fitness_level_override = 4
-        cp.save(update_fields=['fitness_level_override'])
-
-        program = generate_monthly_program(customer.pk, start_date=PROGRAM_START)
-
-        assert program.fitness_level == 4
-
     def test_derives_level_from_latest_physical_evaluation_index(self):
         random.seed(0)
         customer = _customer()
@@ -125,13 +114,15 @@ class TestGenerateMonthlyProgram:
     def test_week_four_deload_has_fewer_sets_than_week_one(self):
         random.seed(0)
         customer = _customer()
-        cp = customer.customer_profile
-        cp.fitness_level_override = 2
-        cp.save(update_fields=['fitness_level_override'])
-        _stock_full_pool(level=2, per_pattern=4)
+        # general_index 2.00 -> floor(2.5) -> level 2 (base_sets=3, so the
+        # week-4 0.8x deload visibly drops a set; at level 1 base_sets=2 rounds back to 2).
+        evaluation = PhysicalEvaluation.objects.create(customer=customer)
+        PhysicalEvaluation.objects.filter(pk=evaluation.pk).update(general_index='2.00')
+        _stock_full_pool(level=1, per_pattern=5)
 
         program = generate_monthly_program(customer.pk, start_date=PROGRAM_START)
 
+        # Day 1 and day 22 are both Mondays (training days for level 2).
         week_one_sets = list(
             ProgramExercise.objects.filter(program_day__program=program, program_day__day_number=1)
             .values_list('sets', flat=True)
