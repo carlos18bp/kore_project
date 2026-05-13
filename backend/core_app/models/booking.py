@@ -37,6 +37,8 @@ class Booking(TimestampedModel):
         AvailabilitySlot,
         on_delete=models.PROTECT,
         related_name='bookings',
+        null=True,
+        blank=True,
     )
     trainer = models.ForeignKey(
         'core_app.TrainerProfile',
@@ -52,6 +54,9 @@ class Booking(TimestampedModel):
         null=True,
         blank=True,
     )
+
+    starts_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    ends_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
 
