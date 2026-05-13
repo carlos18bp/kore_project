@@ -388,3 +388,68 @@ class TestBillSubscription:
         due_subscription.refresh_from_db()
         assert due_subscription.sessions_used == original_sessions_used
         assert Payment.objects.filter(subscription=due_subscription).count() == 0
+
+
+@pytest.mark.django_db
+class TestRecurringBillingTokenizedMethods:
+    """Recurring billing works for NEQUI and BANCOLOMBIA_TRANSFER payment sources.
+
+    These methods reuse the same ``create_transaction`` flow as CARD once a
+    ``payment_source_id`` is stored — these tests guard against regressions
+    where the task might filter them out by ``payment_method_type``.
+    """
+
+    @patch('core_app.tasks.create_transaction')
+    @patch('core_app.tasks.generate_reference')
+    def test_nequi_subscription_is_billed_via_payment_source(
+        self, mock_ref, mock_txn, customer, package,
+    ):
+        sub = Subscription.objects.create(
+            customer=customer, package=package,
+            sessions_total=10, sessions_used=4,
+            status=Subscription.Status.ACTIVE,
+            starts_at=DUE_REFERENCE - timedelta(days=30),
+            expires_at=DUE_REFERENCE,
+            payment_source_id='7777',
+            payment_method_type='NEQUI',
+            is_recurring=True,
+            next_billing_date=DUE_REFERENCE.date(),
+        )
+        mock_ref.return_value = 'kore-nequi-rec'
+        mock_txn.return_value = {'id': 'txn-nequi-rec', 'status': 'APPROVED'}
+
+        result = process_recurring_billing.call_local()
+        assert result['succeeded'] == 1
+        mock_txn.assert_called_once()
+        kwargs = mock_txn.call_args.kwargs
+        assert kwargs['payment_source_id'] == 7777
+        assert kwargs['recurrent'] is True
+        sub.refresh_from_db()
+        assert sub.sessions_used == 0
+
+    @patch('core_app.tasks.create_transaction')
+    @patch('core_app.tasks.generate_reference')
+    def test_bancolombia_subscription_is_billed_via_payment_source(
+        self, mock_ref, mock_txn, customer, package,
+    ):
+        sub = Subscription.objects.create(
+            customer=customer, package=package,
+            sessions_total=10, sessions_used=3,
+            status=Subscription.Status.ACTIVE,
+            starts_at=DUE_REFERENCE - timedelta(days=30),
+            expires_at=DUE_REFERENCE,
+            payment_source_id='8888',
+            payment_method_type='BANCOLOMBIA_TRANSFER',
+            is_recurring=True,
+            next_billing_date=DUE_REFERENCE.date(),
+        )
+        mock_ref.return_value = 'kore-bcol-rec'
+        mock_txn.return_value = {'id': 'txn-bcol-rec', 'status': 'APPROVED'}
+
+        result = process_recurring_billing.call_local()
+        assert result['succeeded'] == 1
+        kwargs = mock_txn.call_args.kwargs
+        assert kwargs['payment_source_id'] == 8888
+        assert kwargs['recurrent'] is True
+        sub.refresh_from_db()
+        assert sub.sessions_used == 0

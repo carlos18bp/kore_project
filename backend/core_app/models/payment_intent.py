@@ -63,6 +63,32 @@ class PaymentIntent(TimestampedModel):
         blank=True,
         help_text='Wompi payment source ID for recurring charges.',
     )
+    payment_method_type = models.CharField(
+        max_length=40,
+        blank=True,
+        default='',
+        help_text='Wompi payment_method_type for this intent (CARD, NEQUI, BANCOLOMBIA_TRANSFER, PSE).',
+    )
+    wompi_nequi_token_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        db_index=True,
+        help_text='Nequi token id returned by POST /tokens/nequi (recurring flow).',
+    )
+    wompi_bancolombia_token_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        db_index=True,
+        help_text='Bancolombia Transfer token id returned by POST /tokens/bancolombia_transfer.',
+    )
+    wompi_authorization_url = models.URLField(
+        max_length=2000,
+        blank=True,
+        default='',
+        help_text='Bancolombia authorization URL the customer must visit before confirm.',
+    )
     amount = models.DecimalField(
         max_digits=12,
         decimal_places=2,
