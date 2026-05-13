@@ -302,8 +302,8 @@ class MyProgramView(APIView):
             Booking.objects.filter(
                 customer=request.user,
                 status__in=[Booking.Status.CONFIRMED, Booking.Status.PENDING],
-                slot__starts_at__date__range=(program.start_date, program.end_date),
-            ).values_list('slot__starts_at__date', flat=True).distinct()
+                starts_at__date__range=(program.start_date, program.end_date),
+            ).values_list('starts_at__date', flat=True).distinct()
         )
         data['booking_dates'] = [d.isoformat() for d in booking_dates]
         return Response(data)
