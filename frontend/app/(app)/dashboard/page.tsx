@@ -1344,19 +1344,19 @@ export default function DashboardPage() {
   const longestStreak = weeklySummary?.streak.longest ?? 0;
 
   // ── Session ────────────────────────────────────────────────
-  const formattedDate = upcomingReminder?.slot
-    ? new Date(upcomingReminder.slot.starts_at).toLocaleDateString('es-CO', {
+  const formattedDate = upcomingReminder?.starts_at
+    ? new Date(upcomingReminder.starts_at).toLocaleDateString('es-CO', {
         weekday: 'short', day: 'numeric', month: 'short',
       })
     : null;
-  const formattedTime = upcomingReminder?.slot
-    ? new Date(upcomingReminder.slot.starts_at).toLocaleTimeString('es-CO', {
+  const formattedTime = upcomingReminder?.starts_at
+    ? new Date(upcomingReminder.starts_at).toLocaleTimeString('es-CO', {
         hour: '2-digit', minute: '2-digit', hour12: true,
       })
     : '';
-  const sessionInDays = upcomingReminder?.slot
+  const sessionInDays = upcomingReminder?.starts_at
     ? Math.max(0, Math.ceil(
-        (new Date(upcomingReminder.slot.starts_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+        (new Date(upcomingReminder.starts_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
       ))
     : null;
   const trainerName = upcomingReminder?.trainer
@@ -1395,8 +1395,8 @@ export default function DashboardPage() {
 
   // ── Historial (past confirmed bookings) ────────────────────
   const pastBookings = bookings
-    .filter((b) => new Date(b.slot.starts_at).getTime() < Date.now())
-    .sort((a, b) => new Date(b.slot.starts_at).getTime() - new Date(a.slot.starts_at).getTime())
+    .filter((b) => new Date(b.starts_at).getTime() < Date.now())
+    .sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime())
     .slice(0, 5);
 
   // ── Special states ─────────────────────────────────────────

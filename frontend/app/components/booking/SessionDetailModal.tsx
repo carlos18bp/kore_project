@@ -27,8 +27,8 @@ export default function SessionDetailModal({ booking, subscriptionId, onClose, o
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
 
-  const slotStart = new Date(booking.slot.starts_at);
-  const slotEnd = new Date(booking.slot.ends_at);
+  const slotStart = new Date(booking.starts_at);
+  const slotEnd = new Date(booking.ends_at);
   const now = new Date();
   const hoursUntil = (slotStart.getTime() - now.getTime()) / (1000 * 60 * 60);
   const canModify = booking.status !== 'canceled' && hoursUntil >= CANCEL_HOURS;

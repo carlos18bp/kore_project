@@ -15,11 +15,11 @@ function buildSingleFutureSlot(dateIso: string) {
 
 async function mockBookSessionCoverageRoutes(page: Page, dateIso: string) {
   const mockSlot = buildSingleFutureSlot(dateIso);
-  await page.route('**/api/availability-slots/**', async (route) => {
+  await page.route('**/api/availability/**', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockSlot] }),
+      body: JSON.stringify({ [dateIso]: [mockSlot.starts_at] }),
     });
   });
   await page.route('**/api/trainers/**', async (route) => {
@@ -347,7 +347,7 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
 
   // ─────────────────────────────────────────────────────────────────────────
   // bookingStore.ts lines 143-145 — extractErrorMessage non_field_errors branch
-  // bookingStore.ts lines 149-153 — extractErrorMessage field-key (slot_id) branch
+  // bookingStore.ts lines 149-153 — extractErrorMessage field-key (starts_at) branch
   // Both exercised via createBooking() failure on the book-session confirmation step
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -360,18 +360,8 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
     _bktomorrow.setDate(_bktomorrow.getDate() + 1);
   }
   const _bkdateStr = `${_bktomorrow.getFullYear()}-${String(_bktomorrow.getMonth() + 1).padStart(2, '0')}-${String(_bktomorrow.getDate()).padStart(2, '0')}`;
-  // Build slot times in LOCAL time so labels match virtual slot buttons
-  // (production generates virtual slots from `new Date(\`${selectedDate}T${HH}:00:00\`)`).
-  const _bkSlotStartLocal = new Date(`${_bkdateStr}T17:00:00`);
-  const _bkSlotEndLocal   = new Date(`${_bkdateStr}T18:00:00`);
-  const _bkSlot = {
-    id: 601,
-    starts_at: _bkSlotStartLocal.toISOString(),
-    ends_at: _bkSlotEndLocal.toISOString(),
-    is_blocked: false,
-    is_active: true,
-    trainer_id: 1,
-  };
+  // Build slot time using UTC 22:00 (maps to 17:00 Bogot\u00e1) so it's within schedule window
+  const _bkSlotStartsAt = `${_bkdateStr}T22:00:00Z`;
   const _bkSub = {
     id: 11,
     customer_email: 'e2e@kore.com',
@@ -384,10 +374,8 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
     expires_at: new Date(Date.now() + 50 * 86400000).toISOString(),
     next_billing_date: null,
   };
-  const _bkSlotLabel = (() => {
-    const fmt = (iso: string) => new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-    return `${fmt(_bkSlot.starts_at)} \u2014 ${fmt(_bkSlot.ends_at)}`;
-  })();
+  // Slot button label: TimeSlotPicker shows start time only with es-CO locale
+  const _bkSlotLabel = new Date(_bkSlotStartsAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
 
   async function setupBookSessionMocksForError(page: Page) {
     await page.route('**/api/trainers/**', async (route) => {
@@ -396,10 +384,10 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
         body: JSON.stringify({ count: 1, next: null, previous: null, results: [{ id: 1, user_id: 100, first_name: 'Test', last_name: 'Trainer', email: 'trainer@kore.com', specialty: 'Funcional', bio: '', location: 'Bogotá', session_duration_minutes: 60 }] }),
       });
     });
-    await page.route('**/api/availability-slots/**', async (route) => {
+    await page.route('**/api/availability/**', async (route) => {
       await route.fulfill({
         status: 200, contentType: 'application/json',
-        body: JSON.stringify({ count: 1, next: null, previous: null, results: [_bkSlot] }),
+        body: JSON.stringify({ [_bkdateStr]: [_bkSlotStartsAt] }),
       });
     });
     await page.route('**/api/subscriptions/**', async (route) => {
@@ -455,12 +443,12 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
     await expect(page.getByText('El horario ya no está disponible.')).toBeVisible({ timeout: 10_000 });
   });
 
-  test('bookingStore.createBooking slot_id field error surfaces in BookingConfirmation', async ({ page }) => {
+  test('bookingStore.createBooking starts_at field error surfaces in BookingConfirmation', async ({ page }) => {
     await mockLoginAsTestUser(page);
     await setupBookSessionMocksForError(page);
     await page.route('**/api/bookings/', async (route) => {
       if (route.request().method() === 'POST') {
-        await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ slot_id: ['Este horario ya está reservado.'] }) });
+        await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ starts_at: ['Este horario ya está reservado.'] }) });
       } else {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }) });
       }

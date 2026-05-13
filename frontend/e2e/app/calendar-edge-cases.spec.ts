@@ -127,11 +127,11 @@ test.describe('BookingCalendar Edge Cases', { tag: [...FlowTags.BOOKING_CALENDAR
   });
 
   test('past days are disabled and not clickable', async ({ page }) => {
-    await page.route('**/api/availability-slots/**', (route) =>
+    await page.route('**/api/availability/**', (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }),
+        body: JSON.stringify({}),
       }),
     );
 
@@ -157,11 +157,11 @@ test.describe('BookingCalendar Edge Cases', { tag: [...FlowTags.BOOKING_CALENDAR
   });
 
   test('Sunday days are disabled (no sessions on Sundays)', async ({ page }) => {
-    await page.route('**/api/availability-slots/**', (route) =>
+    await page.route('**/api/availability/**', (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }),
+        body: JSON.stringify({}),
       }),
     );
 
@@ -187,32 +187,32 @@ test.describe('BookingCalendar Edge Cases', { tag: [...FlowTags.BOOKING_CALENDAR
   });
 
   test('selecting a weekday shows time slot options', async ({ page }) => {
-    await page.route('**/api/availability-slots/**', (route) =>
+    // Pick a future weekday and supply the availability map so the day is enabled
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    while (tomorrow.getDay() === 0) { tomorrow.setDate(tomorrow.getDate() + 1); }
+    const tomorrowDateStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+    const slotIso = `${tomorrowDateStr}T10:00:00Z`;
+
+    await page.route('**/api/availability/**', (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }),
+        body: JSON.stringify({ [tomorrowDateStr]: [slotIso] }),
       }),
     );
 
     await page.goto('/book-session');
     await expect(page.getByText('Selecciona un día')).toBeVisible({ timeout: 10_000 });
 
-    // Find an enabled future weekday and click it
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    // Skip to next weekday if tomorrow is Sunday
-    while (tomorrow.getDay() === 0) { tomorrow.setDate(tomorrow.getDate() + 1); }
     const dayNum = tomorrow.getDate();
-
     const dayButton = page.getByRole('button', { name: String(dayNum), exact: true });
     if ((await dayButton.count()) > 0 && !(await dayButton.isDisabled())) {
       await dayButton.click();
 
-      // Virtual slot system generates time slots from WEEKDAY_WINDOWS.
-      // After selecting a day the time-slot column lists available slots.
+      // TimeSlotPicker shows start time only with es-CO locale (e.g. "10:00 a. m.")
       await expect(
-        page.getByRole('main').getByRole('button', { name: /\d{1,2}:\d{2}\s(AM|PM)/ }).first(),
+        page.getByRole('main').getByRole('button', { name: /\d{1,2}:\d{2}/ }).first(),
       ).toBeVisible({ timeout: 10_000 });
     }
   });
@@ -223,25 +223,11 @@ test.describe('BookingCalendar Edge Cases', { tag: [...FlowTags.BOOKING_CALENDAR
     const tomorrowDay = tomorrow.getDate();
     const tomorrowDate = tomorrow.toISOString().split('T')[0];
 
-    await page.route('**/api/availability-slots/**', (route) =>
+    await page.route('**/api/availability/**', (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({
-          count: 1,
-          next: null,
-          previous: null,
-          results: [
-            {
-              id: 100,
-              trainer_id: 1,
-              starts_at: `${tomorrowDate}T09:00:00Z`,
-              ends_at: `${tomorrowDate}T10:00:00Z`,
-              is_active: true,
-              is_blocked: false,
-            },
-          ],
-        }),
+        body: JSON.stringify({ [tomorrowDate]: [`${tomorrowDate}T09:00:00Z`] }),
       }),
     );
 

@@ -9,7 +9,8 @@ function buildCancelableBookingFixtures() {
     id: 800,
     customer_id: 1,
     package: { id: 6, title: 'Paquete Pro', sessions_count: 4, session_duration_minutes: 60, price: '120000', currency: 'COP', validity_days: 60 },
-    slot: { id: 9000, trainer_id: 1, starts_at: futureSlotStart.toISOString(), ends_at: futureSlotEnd.toISOString(), is_active: true, is_blocked: false },
+    starts_at: futureSlotStart.toISOString(),
+    ends_at: futureSlotEnd.toISOString(),
     trainer: { id: 1, user_id: 1, first_name: 'Germán', last_name: 'Franco', email: 'german@kore.com', specialty: 'Funcional', bio: '', location: 'Bogotá', session_duration_minutes: 60 },
     subscription_id_display: 11,
     status: 'confirmed',
@@ -167,7 +168,7 @@ test.describe('Booking Store Error Paths', { tag: [...FlowTags.BOOKING_ERROR_PAT
     await expect(page.getByText('No se puede cancelar esta sesión.')).toBeVisible({ timeout: 10_000 });
   });
 
-  test('fetchSlots error does not break book-session page', async ({ page }) => {
+  test('fetchAvailability error does not break book-session page', async ({ page }) => {
     const mockTrainer = {
       id: 1, first_name: 'Germán', last_name: 'Franco', specialty: 'Funcional',
       session_duration_minutes: 60, location: 'Bogotá', email: 'g@kore.com', bio: '', user_id: 1,
@@ -177,7 +178,7 @@ test.describe('Booking Store Error Paths', { tag: [...FlowTags.BOOKING_ERROR_PAT
     await page.route('**/api/trainers/**', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockTrainer] }) });
     });
-    await page.route('**/api/availability-slots/**', async (route) => {
+    await page.route('**/api/availability/**', async (route) => {
       await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'Server error' }) });
     });
 
@@ -251,8 +252,7 @@ test.describe('bookingStore extractErrorMessage branches', { tag: [...FlowTags.B
     email: 'g@kore.com', specialty: 'Funcional', bio: '', location: 'Bogotá',
     session_duration_minutes: 60,
   };
-  // Build slot times in LOCAL time so labels match virtual slot buttons
-  // (production generates virtual slots from `new Date(\`${selectedDate}T${HH}:00:00\`)`).
+  // Build slot times in LOCAL time so the availability map key matches the calendar date.
   const _slotStartLocal = new Date(`${dateStr}T17:00:00`);
   const _slotEndLocal   = new Date(`${dateStr}T18:00:00`);
   const mockSlot = {
@@ -270,17 +270,18 @@ test.describe('bookingStore extractErrorMessage branches', { tag: [...FlowTags.B
     next_billing_date: null,
   };
 
-  function slotLabel(slot: { starts_at: string; ends_at: string }) {
-    const fmt = (s: string) => new Date(s).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-    return `${fmt(slot.starts_at)} \u2014 ${fmt(slot.ends_at)}`;
+  function slotLabel(slot: { starts_at: string }) {
+    // TimeSlotPicker now shows only start time in es-CO locale
+    return new Date(slot.starts_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
   }
 
   async function setupBookingMocks(page: import('@playwright/test').Page) {
     await page.route('**/api/trainers/**', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockTrainer] }) });
     });
-    await page.route('**/api/availability-slots/**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockSlot] }) });
+    await page.route('**/api/availability/**', async (route) => {
+      const key = mockSlot.starts_at.slice(0, 10);
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ [key]: [mockSlot.starts_at] }) });
     });
     await page.route('**/api/subscriptions/**', async (route) => {
       const url = route.request().url();
@@ -349,11 +350,11 @@ test.describe('bookingStore extractErrorMessage branches', { tag: [...FlowTags.B
     await expect(page.getByText('No tienes sesiones disponibles en tu plan.')).toBeVisible({ timeout: 10_000 });
   });
 
-  test('createBooking error with slot_id field key shows field message', async ({ page }) => {
+  test('createBooking error with starts_at field key shows field message', async ({ page }) => {
     await goToConfirmStep(page);
-    await mockCreateBookingError(page, { slot_id: ['El slot seleccionado no existe.'] });
+    await mockCreateBookingError(page, { starts_at: ['El horario seleccionado no está disponible.'] });
     await page.getByRole('button', { name: 'Confirmar' }).click();
-    await expect(page.getByText('El slot seleccionado no existe.')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('El horario seleccionado no está disponible.')).toBeVisible({ timeout: 10_000 });
   });
 
   test('createBooking error with unknown field falls back to default message', async ({ page }) => {

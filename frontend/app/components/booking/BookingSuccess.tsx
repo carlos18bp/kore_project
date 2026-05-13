@@ -17,8 +17,8 @@ export default function BookingSuccess({ booking, onReset }: Props) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const slotStart = new Date(booking.slot.starts_at);
-  const slotEnd = new Date(booking.slot.ends_at);
+  const slotStart = new Date(booking.starts_at);
+  const slotEnd = new Date(booking.ends_at);
   const trainerName = booking.trainer
     ? `${booking.trainer.first_name} ${booking.trainer.last_name}`
     : '—';

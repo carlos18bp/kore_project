@@ -512,14 +512,14 @@ function SessionsCard({
   const now = new Date();
   const upcoming = useMemo(
     () => subBookings
-      .filter((b) => b.status !== 'canceled' && new Date(b.slot.starts_at) > now)
-      .sort((a, b) => new Date(a.slot.starts_at).getTime() - new Date(b.slot.starts_at).getTime()),
+      .filter((b) => b.status !== 'canceled' && new Date(b.starts_at) > now)
+      .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()),
     [subBookings, now],
   );
   const past = useMemo(
     () => subBookings
-      .filter((b) => b.status === 'canceled' || new Date(b.slot.starts_at) <= now)
-      .sort((a, b) => new Date(b.slot.starts_at).getTime() - new Date(a.slot.starts_at).getTime()),
+      .filter((b) => b.status === 'canceled' || new Date(b.starts_at) <= now)
+      .sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime()),
     [subBookings, now],
   );
 
@@ -595,7 +595,7 @@ function SessionsCard({
       ) : (
         <div className="flex flex-col gap-2.5">
           {list.slice(0, 6).map((booking) => {
-            const d = new Date(booking.slot.starts_at);
+            const d = new Date(booking.starts_at);
             const dateStr = d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
             const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
             const trainerName = booking.trainer ? `${booking.trainer.first_name} ${booking.trainer.last_name}` : '';

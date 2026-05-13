@@ -77,15 +77,16 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
     id: 55,
     subscription_id_display: 10,
     status: 'confirmed',
-    slot: { id: 200, starts_at: slotStart.toISOString(), ends_at: slotEnd.toISOString() },
+    starts_at: slotStart.toISOString(),
+    ends_at: slotEnd.toISOString(),
     trainer: { first_name: 'Germán', last_name: 'Franco' },
     package: { title: 'Plan Elite' },
   };
 
   const bookingList = [
-    { id: 61, status: 'confirmed', slot: { id: 201, starts_at: new Date(Date.now() - 2 * 86400000).toISOString(), ends_at: new Date(Date.now() - 2 * 86400000 + 3600000).toISOString() }, trainer: null, package: { title: 'Plan Elite' } },
-    { id: 62, status: 'canceled', slot: { id: 202, starts_at: new Date(Date.now() - 5 * 86400000).toISOString(), ends_at: new Date(Date.now() - 5 * 86400000 + 3600000).toISOString() }, trainer: null, package: { title: 'Plan Elite' } },
-    { id: 63, status: 'pending', slot: { id: 203, starts_at: new Date(Date.now() - 7 * 86400000).toISOString(), ends_at: new Date(Date.now() - 7 * 86400000 + 3600000).toISOString() }, trainer: null, package: null },
+    { id: 61, status: 'confirmed', starts_at: new Date(Date.now() - 2 * 86400000).toISOString(), ends_at: new Date(Date.now() - 2 * 86400000 + 3600000).toISOString(), trainer: null, package: { title: 'Plan Elite' } },
+    { id: 62, status: 'canceled', starts_at: new Date(Date.now() - 5 * 86400000).toISOString(), ends_at: new Date(Date.now() - 5 * 86400000 + 3600000).toISOString(), trainer: null, package: { title: 'Plan Elite' } },
+    { id: 63, status: 'pending', starts_at: new Date(Date.now() - 7 * 86400000).toISOString(), ends_at: new Date(Date.now() - 7 * 86400000 + 3600000).toISOString(), trainer: null, package: null },
   ];
 
   async function setupDashboardMocks(page: import('@playwright/test').Page) {
@@ -99,7 +100,7 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
     await page.route('**/api/subscriptions/expiry-reminder/**', (r) => r.fulfill({ status: 204 }));
     await page.route('**/api/subscriptions/pending-invitation/**', (r) => r.fulfill({ status: 204 }));
     await page.route('**/api/trainers/',(r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0, results: [] }) }));
-    await page.route('**/api/availability-slots/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0, results: [] }) }));
+    await page.route('**/api/availability/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) }));
   }
 
   test('active subscription renders the dashboard layout', async ({ page }) => {

@@ -23,7 +23,7 @@ export default function UpcomingSessionReminder() {
 
   if (!justLoggedIn || !upcomingReminder || dismissed) return null;
 
-  const slotStart = new Date(upcomingReminder.slot.starts_at);
+  const slotStart = new Date(upcomingReminder.starts_at);
   const now = new Date();
   const hoursUntil = (slotStart.getTime() - now.getTime()) / (1000 * 60 * 60);
 

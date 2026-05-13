@@ -21,14 +21,13 @@ function resetStore() {
   useBookingStore.setState({
     step: 1,
     selectedDate: null,
-    selectedSlot: null,
+    selectedStartsAt: null,
     trainer: null,
     subscription: null,
     bookingResult: null,
     trainers: [],
-    slots: [],
-    dayBookedSlots: [],
-    dayAvailabilityLoading: false,
+    availability: {},
+    availabilityLoading: false,
     subscriptions: [],
     bookings: [],
     bookingDetail: null,
@@ -51,22 +50,6 @@ const MOCK_TRAINER = {
   session_duration_minutes: 60,
 };
 
-const MOCK_SLOT = {
-  id: 5,
-  trainer_id: 1,
-  starts_at: '2025-03-01T10:00:00Z',
-  ends_at: '2025-03-01T11:00:00Z',
-  is_active: true,
-  is_blocked: false,
-};
-
-const MOCK_OCCUPIED_DAY_SLOT = {
-  slot_id: 5,
-  trainer_id: 1,
-  starts_at: '2025-03-01T10:00:00Z',
-  ends_at: '2025-03-01T11:00:00Z',
-};
-
 const MOCK_SUBSCRIPTION = {
   id: 2,
   customer_email: 'cust@kore.com',
@@ -74,21 +57,29 @@ const MOCK_SUBSCRIPTION = {
   sessions_total: 12,
   sessions_used: 3,
   sessions_remaining: 9,
+  sessions_completed: 3,
   status: 'active' as const,
   starts_at: '2025-02-01T00:00:00Z',
   expires_at: '2025-03-01T00:00:00Z',
+  next_billing_date: null,
+  is_recurring: false,
+  billing_failed_at: null,
 };
 
 const MOCK_BOOKING = {
   id: 100,
   customer_id: 22,
   package: MOCK_SUBSCRIPTION.package,
-  slot: MOCK_SLOT,
+  starts_at: '2025-03-01T10:00:00Z',
+  ends_at: '2025-03-01T11:00:00Z',
   trainer: MOCK_TRAINER,
   subscription_id_display: 2,
   status: 'confirmed' as const,
   notes: '',
   canceled_reason: '',
+  session_objective: '',
+  session_notes_for_customer: '',
+  program_day_exercises: [],
   created_at: '2025-02-15T12:00:00Z',
   updated_at: '2025-02-15T12:00:00Z',
 };
@@ -109,17 +100,17 @@ describe('bookingStore', () => {
       expect(useBookingStore.getState().step).toBe(2);
     });
 
-    it('setSelectedDate sets date and clears slot', () => {
-      useBookingStore.setState({ selectedSlot: MOCK_SLOT });
+    it('setSelectedDate sets date and clears selectedStartsAt', () => {
+      useBookingStore.setState({ selectedStartsAt: '2025-03-01T10:00:00Z' });
       useBookingStore.getState().setSelectedDate('2025-03-01');
       const state = useBookingStore.getState();
       expect(state.selectedDate).toBe('2025-03-01');
-      expect(state.selectedSlot).toBeNull();
+      expect(state.selectedStartsAt).toBeNull();
     });
 
-    it('setSelectedSlot sets slot', () => {
-      useBookingStore.getState().setSelectedSlot(MOCK_SLOT);
-      expect(useBookingStore.getState().selectedSlot).toEqual(MOCK_SLOT);
+    it('setSelectedStartsAt sets startsAt', () => {
+      useBookingStore.getState().setSelectedStartsAt('2025-03-01T10:00:00Z');
+      expect(useBookingStore.getState().selectedStartsAt).toBe('2025-03-01T10:00:00Z');
     });
 
     it('setTrainerFromAssigned maps assigned trainer to Trainer shape', () => {
@@ -143,12 +134,12 @@ describe('bookingStore', () => {
     });
 
     it('reset clears flow state', () => {
-      useBookingStore.setState({ step: 3, selectedDate: '2025-03-01', selectedSlot: MOCK_SLOT, bookingResult: MOCK_BOOKING, error: 'err' });
+      useBookingStore.setState({ step: 3, selectedDate: '2025-03-01', selectedStartsAt: '2025-03-01T10:00:00Z', bookingResult: MOCK_BOOKING, error: 'err' });
       useBookingStore.getState().reset();
       const state = useBookingStore.getState();
       expect(state.step).toBe(1);
       expect(state.selectedDate).toBeNull();
-      expect(state.selectedSlot).toBeNull();
+      expect(state.selectedStartsAt).toBeNull();
       expect(state.bookingResult).toBeNull();
       expect(state.error).toBeNull();
     });
@@ -174,7 +165,6 @@ describe('bookingStore', () => {
       await useBookingStore.getState().fetchTrainers();
       const state = useBookingStore.getState();
       expect(state.trainers).toHaveLength(1);
-      // trainer is NOT auto-selected — it comes from setTrainerFromAssigned
       expect(state.trainer).toBeNull();
     });
 
@@ -189,7 +179,6 @@ describe('bookingStore', () => {
       useBookingStore.setState({ trainer: MOCK_TRAINER });
       mockedApi.get.mockResolvedValueOnce({ data: { results: [] } });
       await useBookingStore.getState().fetchTrainers();
-      // trainer is managed by setTrainerFromAssigned, fetchTrainers does not touch it
       expect(useBookingStore.getState().trainer).toEqual(MOCK_TRAINER);
     });
 
@@ -208,72 +197,41 @@ describe('bookingStore', () => {
   });
 
   // ----------------------------------------------------------------
-  // fetchSlots
+  // fetchAvailability
   // ----------------------------------------------------------------
-  describe('fetchSlots', () => {
-    it('populates slots and passes date param', async () => {
-      mockedApi.get.mockResolvedValueOnce({ data: { results: [MOCK_SLOT], count: 1, next: null, previous: null } });
-      await useBookingStore.getState().fetchSlots('2025-03-01', 1);
-      expect(mockedApi.get).toHaveBeenCalledWith('/availability-slots/', expect.objectContaining({
-        params: { date: '2025-03-01', trainer: '1' },
+  describe('fetchAvailability', () => {
+    it('populates availability map and passes trainer param', async () => {
+      const map = { '2025-03-01': ['2025-03-01T10:00:00Z', '2025-03-01T11:00:00Z'] };
+      mockedApi.get.mockResolvedValueOnce({ data: map });
+      await useBookingStore.getState().fetchAvailability(undefined, undefined, 1);
+      expect(mockedApi.get).toHaveBeenCalledWith('/availability/', expect.objectContaining({
+        params: { trainer: '1' },
       }));
-      expect(useBookingStore.getState().slots).toHaveLength(1);
+      expect(useBookingStore.getState().availability).toEqual(map);
+      expect(useBookingStore.getState().availabilityLoading).toBe(false);
     });
 
-    it('populates slots from flat array response', async () => {
-      mockedApi.get.mockResolvedValueOnce({ data: [MOCK_SLOT] });
-      await useBookingStore.getState().fetchSlots();
-      expect(useBookingStore.getState().slots).toHaveLength(1);
-    });
-
-    it('sets slots to empty array for non-array response', async () => {
+    it('passes date_from and date_to params when provided', async () => {
       mockedApi.get.mockResolvedValueOnce({ data: {} });
-      await useBookingStore.getState().fetchSlots();
-      expect(useBookingStore.getState().slots).toEqual([]);
+      await useBookingStore.getState().fetchAvailability('2025-03-01', '2025-03-31', 1);
+      expect(mockedApi.get).toHaveBeenCalledWith('/availability/', expect.objectContaining({
+        params: { date_from: '2025-03-01', date_to: '2025-03-31', trainer: '1' },
+      }));
     });
 
-    it('sets error on failure', async () => {
-      mockedApi.get.mockRejectedValueOnce(new Error('err'));
-      await useBookingStore.getState().fetchSlots();
+    it('sets availability to empty object for non-object response', async () => {
+      mockedApi.get.mockResolvedValueOnce({ data: null });
+      await useBookingStore.getState().fetchAvailability();
+      expect(useBookingStore.getState().availability).toEqual({});
+    });
+
+    it('sets error and clears availability on failure', async () => {
+      mockedApi.get.mockRejectedValueOnce(new Error('Network'));
+      await useBookingStore.getState().fetchAvailability();
       expect(useBookingStore.getState().error).toBe('No se pudieron cargar los horarios.');
+      expect(useBookingStore.getState().availability).toEqual({});
+      expect(useBookingStore.getState().availabilityLoading).toBe(false);
     });
-  });
-
-  // ----------------------------------------------------------------
-  // fetchTrainerDayBookings
-  // ----------------------------------------------------------------
-  describe('fetchTrainerDayBookings', () => {
-    it('populates dayBookedSlots and passes date/trainer params', async () => {
-      mockedApi.get.mockResolvedValueOnce({ data: [MOCK_OCCUPIED_DAY_SLOT] });
-      await useBookingStore.getState().fetchTrainerDayBookings('2025-03-01', 1);
-      expect(mockedApi.get).toHaveBeenCalledWith('/bookings/occupied-day/', expect.objectContaining({
-        params: { date: '2025-03-01', trainer: '1' },
-      }));
-      expect(useBookingStore.getState().dayBookedSlots).toEqual([MOCK_OCCUPIED_DAY_SLOT]);
-    });
-
-    it('clears dayBookedSlots when date or trainer is missing', async () => {
-      useBookingStore.setState({ dayBookedSlots: [MOCK_OCCUPIED_DAY_SLOT] });
-      await useBookingStore.getState().fetchTrainerDayBookings(undefined, 1);
-      expect(useBookingStore.getState().dayBookedSlots).toEqual([]);
-      expect(mockedApi.get).not.toHaveBeenCalled();
-    });
-
-    it('sets dayBookedSlots to empty array for non-array response', async () => {
-      mockedApi.get.mockResolvedValueOnce({ data: {} });
-      await useBookingStore.getState().fetchTrainerDayBookings('2025-03-01', 1);
-      expect(useBookingStore.getState().dayBookedSlots).toEqual([]);
-    });
-
-    it('sets error on failure and clears dayBookedSlots', async () => {
-      useBookingStore.setState({ dayBookedSlots: [MOCK_OCCUPIED_DAY_SLOT] });
-      mockedApi.get.mockRejectedValueOnce(new Error('err'));
-      await useBookingStore.getState().fetchTrainerDayBookings('2025-03-01', 1);
-      expect(useBookingStore.getState().dayBookedSlots).toEqual([]);
-      expect(useBookingStore.getState().error).toBe('No se pudieron cargar las sesiones agendadas del día.');
-      expect(useBookingStore.getState().dayAvailabilityLoading).toBe(false);
-    });
-
   });
 
   // ----------------------------------------------------------------
@@ -405,7 +363,7 @@ describe('bookingStore', () => {
     it('returns booking and sets step to 3 on success', async () => {
       mockedApi.post.mockResolvedValueOnce({ data: MOCK_BOOKING });
       const result = await useBookingStore.getState().createBooking({
-        package_id: 1, slot_id: 5, trainer_id: 1, subscription_id: 2,
+        package_id: 1, starts_at: '2025-03-01T10:00:00Z', trainer_id: 1, subscription_id: 2,
       });
       expect(result).toEqual(MOCK_BOOKING);
       const state = useBookingStore.getState();
@@ -414,87 +372,87 @@ describe('bookingStore', () => {
     });
 
     it('sets error and returns null on failure', async () => {
-      mockedApi.post.mockRejectedValueOnce({ response: { data: { detail: 'Slot already booked.' } } });
+      mockedApi.post.mockRejectedValueOnce({ response: { data: { detail: 'El horario ya no está disponible.' } } });
       const result = await useBookingStore.getState().createBooking({
-        package_id: 1, slot_id: 5,
+        package_id: 1, starts_at: '2025-03-01T10:00:00Z',
       });
       expect(result).toBeNull();
-      expect(useBookingStore.getState().error).toBe('Slot already booked.');
+      expect(useBookingStore.getState().error).toBe('El horario ya no está disponible.');
     });
 
     it('falls back to non_field_errors when no detail', async () => {
       mockedApi.post.mockRejectedValueOnce({ response: { data: { non_field_errors: 'Time conflict.' } } });
-      const result = await useBookingStore.getState().createBooking({ package_id: 1, slot_id: 5 });
+      const result = await useBookingStore.getState().createBooking({ package_id: 1, starts_at: '2025-03-01T10:00:00Z' });
       expect(result).toBeNull();
       expect(useBookingStore.getState().error).toBe('Time conflict.');
     });
 
     it('uses generic error when no response data', async () => {
       mockedApi.post.mockRejectedValueOnce(new Error('Network'));
-      const result = await useBookingStore.getState().createBooking({ package_id: 1, slot_id: 5 });
+      const result = await useBookingStore.getState().createBooking({ package_id: 1, starts_at: '2025-03-01T10:00:00Z' });
       expect(result).toBeNull();
       expect(useBookingStore.getState().error).toBe('No se pudo crear la reserva.');
     });
 
     it('extracts first element when detail is an array', async () => {
       mockedApi.post.mockRejectedValueOnce({ response: { data: { detail: ['array error'] } } });
-      const result = await useBookingStore.getState().createBooking({ package_id: 1, slot_id: 5 });
+      const result = await useBookingStore.getState().createBooking({ package_id: 1, starts_at: '2025-03-01T10:00:00Z' });
       expect(result).toBeNull();
       expect(useBookingStore.getState().error).toBe('array error');
     });
 
     it('extracts first element when non_field_errors is an array', async () => {
       mockedApi.post.mockRejectedValueOnce({ response: { data: { non_field_errors: ['No puedes reservar este horario.'] } } });
-      const result = await useBookingStore.getState().createBooking({ package_id: 1, slot_id: 5 });
+      const result = await useBookingStore.getState().createBooking({ package_id: 1, starts_at: '2025-03-01T10:00:00Z' });
       expect(result).toBeNull();
       expect(useBookingStore.getState().error).toBe('No puedes reservar este horario.');
     });
 
-    it('extracts slot_id field error as string', async () => {
-      mockedApi.post.mockRejectedValueOnce({ response: { data: { slot_id: 'El horario está bloqueado.' } } });
-      const result = await useBookingStore.getState().createBooking({ package_id: 1, slot_id: 5 });
+    it('extracts starts_at field error as string', async () => {
+      mockedApi.post.mockRejectedValueOnce({ response: { data: { starts_at: 'El horario no está disponible.' } } });
+      const result = await useBookingStore.getState().createBooking({ package_id: 1, starts_at: '2025-03-01T10:00:00Z' });
       expect(result).toBeNull();
-      expect(useBookingStore.getState().error).toBe('El horario está bloqueado.');
+      expect(useBookingStore.getState().error).toBe('El horario no está disponible.');
     });
 
-    it('extracts slot_id field error from array', async () => {
-      mockedApi.post.mockRejectedValueOnce({ response: { data: { slot_id: ['El horario no está activo.'] } } });
-      const result = await useBookingStore.getState().createBooking({ package_id: 1, slot_id: 5 });
+    it('extracts starts_at field error from array', async () => {
+      mockedApi.post.mockRejectedValueOnce({ response: { data: { starts_at: ['El horario no está activo.'] } } });
+      const result = await useBookingStore.getState().createBooking({ package_id: 1, starts_at: '2025-03-01T10:00:00Z' });
       expect(result).toBeNull();
       expect(useBookingStore.getState().error).toBe('El horario no está activo.');
     });
 
     it('extracts subscription_id field error', async () => {
       mockedApi.post.mockRejectedValueOnce({ response: { data: { subscription_id: ['La suscripción no tiene sesiones disponibles.'] } } });
-      const result = await useBookingStore.getState().createBooking({ package_id: 1, slot_id: 5 });
+      const result = await useBookingStore.getState().createBooking({ package_id: 1, starts_at: '2025-03-01T10:00:00Z' });
       expect(result).toBeNull();
       expect(useBookingStore.getState().error).toBe('La suscripción no tiene sesiones disponibles.');
     });
 
     it('extracts package_id field error', async () => {
       mockedApi.post.mockRejectedValueOnce({ response: { data: { package_id: ['Invalid pk'] } } });
-      const result = await useBookingStore.getState().createBooking({ package_id: 999, slot_id: 5 });
+      const result = await useBookingStore.getState().createBooking({ package_id: 999, starts_at: '2025-03-01T10:00:00Z' });
       expect(result).toBeNull();
       expect(useBookingStore.getState().error).toBe('Invalid pk');
     });
 
     it('uses generic error for unknown field errors', async () => {
       mockedApi.post.mockRejectedValueOnce({ response: { data: { unknown_field: ['Some error'] } } });
-      const result = await useBookingStore.getState().createBooking({ package_id: 1, slot_id: 5 });
+      const result = await useBookingStore.getState().createBooking({ package_id: 1, starts_at: '2025-03-01T10:00:00Z' });
       expect(result).toBeNull();
       expect(useBookingStore.getState().error).toBe('No se pudo crear la reserva.');
     });
 
     it('falls through to generic error when detail is an object', async () => {
       mockedApi.post.mockRejectedValueOnce({ response: { data: { detail: { code: 500 } } } });
-      const result = await useBookingStore.getState().createBooking({ package_id: 1, slot_id: 5 });
+      const result = await useBookingStore.getState().createBooking({ package_id: 1, starts_at: '2025-03-01T10:00:00Z' });
       expect(result).toBeNull();
       expect(useBookingStore.getState().error).toBe('No se pudo crear la reserva.');
     });
 
     it('falls through to generic error when non_field_errors is an object', async () => {
       mockedApi.post.mockRejectedValueOnce({ response: { data: { non_field_errors: { reason: 'x' } } } });
-      const result = await useBookingStore.getState().createBooking({ package_id: 1, slot_id: 5 });
+      const result = await useBookingStore.getState().createBooking({ package_id: 1, starts_at: '2025-03-01T10:00:00Z' });
       expect(result).toBeNull();
       expect(useBookingStore.getState().error).toBe('No se pudo crear la reserva.');
     });
@@ -554,32 +512,32 @@ describe('bookingStore', () => {
   // ----------------------------------------------------------------
   describe('rescheduleBooking', () => {
     it('returns new booking on success', async () => {
-      const newBooking = { ...MOCK_BOOKING, id: 101, slot: { ...MOCK_SLOT, id: 10 } };
+      const newBooking = { ...MOCK_BOOKING, id: 101, starts_at: '2025-04-01T10:00:00Z' };
       mockedApi.post.mockResolvedValueOnce({ data: newBooking });
-      const result = await useBookingStore.getState().rescheduleBooking(100, 10);
+      const result = await useBookingStore.getState().rescheduleBooking(100, '2025-04-01T10:00:00Z');
       expect(result).toEqual(newBooking);
       expect(useBookingStore.getState().bookingResult).toEqual(newBooking);
       expect(useBookingStore.getState().step).toBe(3);
-      expect(mockedApi.post).toHaveBeenCalledWith('/bookings/100/reschedule/', { new_slot_id: 10 }, expect.anything());
+      expect(mockedApi.post).toHaveBeenCalledWith('/bookings/100/reschedule/', { new_starts_at: '2025-04-01T10:00:00Z' }, expect.anything());
     });
 
     it('sets error on failure', async () => {
       mockedApi.post.mockRejectedValueOnce({ response: { data: { detail: 'No se pudo reprogramar la reserva.' } } });
-      const result = await useBookingStore.getState().rescheduleBooking(100, 10);
+      const result = await useBookingStore.getState().rescheduleBooking(100, '2025-04-01T10:00:00Z');
       expect(result).toBeNull();
       expect(useBookingStore.getState().error).toBe('No se pudo reprogramar la reserva.');
     });
 
     it('uses generic error when no detail in response', async () => {
       mockedApi.post.mockRejectedValueOnce(new Error('Network'));
-      const result = await useBookingStore.getState().rescheduleBooking(100, 10);
+      const result = await useBookingStore.getState().rescheduleBooking(100, '2025-04-01T10:00:00Z');
       expect(result).toBeNull();
       expect(useBookingStore.getState().error).toBe('No se pudo reprogramar la reserva.');
     });
 
     it('uses generic error when detail is not a string', async () => {
       mockedApi.post.mockRejectedValueOnce({ response: { data: { detail: ['array error'] } } });
-      const result = await useBookingStore.getState().rescheduleBooking(100, 10);
+      const result = await useBookingStore.getState().rescheduleBooking(100, '2025-04-01T10:00:00Z');
       expect(result).toBeNull();
       expect(useBookingStore.getState().error).toBe('No se pudo reprogramar la reserva.');
     });
@@ -589,52 +547,44 @@ describe('bookingStore', () => {
   // race conditions
   // ----------------------------------------------------------------
   describe('race conditions', () => {
-    it('handles slot taken between fetchSlots and createBooking gracefully', async () => {
-      // 1. fetchSlots returns a free slot
-      mockedApi.get.mockResolvedValueOnce({ data: { results: [MOCK_SLOT] } });
-      await useBookingStore.getState().fetchSlots('2025-03-01', 1);
-      expect(useBookingStore.getState().slots).toHaveLength(1);
+    it('handles time taken between fetchAvailability and createBooking gracefully', async () => {
+      // 1. fetchAvailability returns a free slot
+      mockedApi.get.mockResolvedValueOnce({ data: { '2025-03-01': ['2025-03-01T10:00:00Z'] } });
+      await useBookingStore.getState().fetchAvailability(undefined, undefined, 1);
+      expect(useBookingStore.getState().availability['2025-03-01']).toHaveLength(1);
 
-      // 2. createBooking against that slot is rejected because the backend
-      //    confirms it was taken between the fetch and the booking attempt.
+      // 2. createBooking is rejected because the backend confirms it was taken
       mockedApi.post.mockRejectedValueOnce({
-        response: { data: { slot_id: ['El horario ya no está disponible.'] } },
+        response: { data: { starts_at: ['El horario ya no está disponible.'] } },
       });
       const result = await useBookingStore.getState().createBooking({
-        package_id: 1, slot_id: 5, trainer_id: 1, subscription_id: 2,
+        package_id: 1, starts_at: '2025-03-01T10:00:00Z', trainer_id: 1, subscription_id: 2,
       });
 
       expect(result).toBeNull();
-      // The error message surfaces the backend validation cleanly
       expect(useBookingStore.getState().error).toBe('El horario ya no está disponible.');
-      // Store stays in a non-corrupted state — bookingResult is unchanged
       expect(useBookingStore.getState().bookingResult).toBeNull();
     });
 
-    it('two overlapping fetchSlots calls leave the store in a consistent state', async () => {
-      const SLOT_A = { ...MOCK_SLOT, id: 5 };
-      const SLOT_B = { ...MOCK_SLOT, id: 6 };
-      const SLOT_C = { ...MOCK_SLOT, id: 7 };
+    it('two overlapping fetchAvailability calls leave the store in a consistent state', async () => {
+      const MAP_A = { '2025-03-01': ['2025-03-01T10:00:00Z'] };
+      const MAP_B = { '2025-03-02': ['2025-03-02T10:00:00Z', '2025-03-02T11:00:00Z'] };
 
-      // First fetch: slow (returns 1 slot)
-      // Second fetch: fast (returns 2 slots, different IDs)
       mockedApi.get
-        .mockResolvedValueOnce({ data: { results: [SLOT_A] } })
-        .mockResolvedValueOnce({ data: { results: [SLOT_B, SLOT_C] } });
+        .mockResolvedValueOnce({ data: MAP_A })
+        .mockResolvedValueOnce({ data: MAP_B });
 
-      const promiseA = useBookingStore.getState().fetchSlots('2025-03-01', 1);
-      const promiseB = useBookingStore.getState().fetchSlots('2025-03-02', 1);
+      const promiseA = useBookingStore.getState().fetchAvailability(undefined, undefined, 1);
+      const promiseB = useBookingStore.getState().fetchAvailability(undefined, undefined, 1);
 
       await Promise.all([promiseA, promiseB]);
 
-      // After both calls resolve, the store is consistent (not partial / mixed)
       const state = useBookingStore.getState();
-      expect(Array.isArray(state.slots)).toBe(true);
-      expect(state.loading).toBe(false);
-      // One of the two responses won — the slot list matches one of them, not a mix
-      const slotIds = state.slots.map((s) => s.id);
-      const matchesA = slotIds.length === 1 && slotIds[0] === 5;
-      const matchesB = slotIds.length === 2 && slotIds.includes(6) && slotIds.includes(7);
+      expect(typeof state.availability).toBe('object');
+      expect(state.availabilityLoading).toBe(false);
+      // One of the two responses won — the map matches one of them
+      const matchesA = JSON.stringify(state.availability) === JSON.stringify(MAP_A);
+      const matchesB = JSON.stringify(state.availability) === JSON.stringify(MAP_B);
       expect(matchesA || matchesB).toBe(true);
     });
   });

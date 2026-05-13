@@ -191,7 +191,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       bookingDetail: null,
       step: 1,
       selectedDate: null,
-      selectedSlot: null,
+      selectedStartsAt: null,
       bookingResult: null,
     });
     set({ user: null, accessToken: null, isAuthenticated: false });

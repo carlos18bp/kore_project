@@ -23,14 +23,14 @@ export default function UpcomingSessionsCard({ bookings, onClose, className = ''
   const now = Date.now();
   const upcoming = useMemo(
     () => bookings
-      .filter((b) => b.status !== 'canceled' && new Date(b.slot.starts_at).getTime() > now)
-      .sort((a, b) => new Date(a.slot.starts_at).getTime() - new Date(b.slot.starts_at).getTime()),
+      .filter((b) => b.status !== 'canceled' && new Date(b.starts_at).getTime() > now)
+      .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()),
     [bookings, now],
   );
   const past = useMemo(
     () => bookings
-      .filter((b) => b.status === 'canceled' || new Date(b.slot.starts_at).getTime() <= now)
-      .sort((a, b) => new Date(b.slot.starts_at).getTime() - new Date(a.slot.starts_at).getTime()),
+      .filter((b) => b.status === 'canceled' || new Date(b.starts_at).getTime() <= now)
+      .sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime()),
     [bookings, now],
   );
 
@@ -82,7 +82,7 @@ export default function UpcomingSessionsCard({ bookings, onClose, className = ''
       ) : (
         <div className="flex flex-col gap-2 max-h-[55vh] overflow-y-auto">
           {list.slice(0, 20).map((b) => {
-            const d = new Date(b.slot.starts_at);
+            const d = new Date(b.starts_at);
             const meta = STATUS_META[b.status];
             const trainerName = b.trainer ? `${b.trainer.first_name} ${b.trainer.last_name}`.trim() : '';
             const dateStr = d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });

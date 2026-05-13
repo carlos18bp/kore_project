@@ -94,11 +94,11 @@ async function setupBookSessionBaseMocks(page: import('@playwright/test').Page) 
       }),
     }),
   );
-  await page.route('**/api/availability-slots/**', (route) =>
+  await page.route('**/api/availability/**', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }),
+      body: JSON.stringify({}),
     }),
   );
   await page.context().addCookies([
