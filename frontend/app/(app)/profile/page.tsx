@@ -544,7 +544,7 @@ function SummaryCard({
  *  ────────────────────────────────────────────────────────────────────── */
 
 export default function ProfilePage() {
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const {
     profile, todayMood, loading,
     fetchProfile, updateProfile, uploadAvatar, submitMood, clearMessages,
@@ -986,25 +986,47 @@ export default function ProfilePage() {
                       <p className="text-[11px] mt-2 font-semibold" style={{ color: '#9A0526' }}>{resetCodeMessage}</p>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleResetPasswordRequest}
-                    disabled={resetCodeSending}
-                    className="inline-flex items-center justify-center gap-2 text-[12px] font-semibold active:scale-95 transition-transform disabled:opacity-60"
-                    style={{
-                      padding: '12px 22px',
-                      borderRadius: 12,
-                      background: '#2A1A1F',
-                      color: KORE.ivory,
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="3" y="11" width="18" height="11" rx="2" />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    </svg>
-                    {resetCodeSending ? 'Enviando…' : 'Cambiar contraseña'}
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      type="button"
+                      onClick={handleResetPasswordRequest}
+                      disabled={resetCodeSending}
+                      className="inline-flex items-center justify-center gap-2 text-[12px] font-semibold active:scale-95 transition-transform disabled:opacity-60"
+                      style={{
+                        padding: '12px 22px',
+                        borderRadius: 12,
+                        background: '#2A1A1F',
+                        color: KORE.ivory,
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                      {resetCodeSending ? 'Enviando…' : 'Cambiar contraseña'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={logout}
+                      className="inline-flex items-center justify-center gap-2 text-[12px] font-semibold active:scale-95 transition-transform"
+                      style={{
+                        padding: '12px 22px',
+                        borderRadius: 12,
+                        background: 'rgba(154,5,38,0.07)',
+                        color: '#9A0526',
+                        border: '1px solid rgba(154,5,38,0.18)',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" y1="12" x2="9" y2="12" />
+                      </svg>
+                      Cerrar sesión
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

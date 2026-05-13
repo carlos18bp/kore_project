@@ -201,9 +201,14 @@ function RadarChart({
         return `${cx + rr * Math.cos(angles[i])},${cy + rr * Math.sin(angles[i])}`;
       })
       .join(' ');
+  const pad = 36;
+  const vbSize = size + pad * 2;
   const ringRadii = [1, 2, 3, 4, 5];
   return (
-    <svg width={size} height={size}>
+    <svg
+      viewBox={`${-pad} ${-pad} ${vbSize} ${vbSize}`}
+      style={{ width: '100%', height: 'auto', display: 'block' }}
+    >
       <defs>
         <radialGradient id={`pf-radar-${id}`}>
           <stop offset="0%" stopColor={KORE.cream} stopOpacity="0.55" />
@@ -413,9 +418,7 @@ function Hero({
               )}
             </div>
           </div>
-          <div className="flex justify-center">
-            <RadarChart size={320} dataLatest={dataLatest} dataFirst={dataFirst} />
-          </div>
+          <RadarChart size={320} dataLatest={dataLatest} dataFirst={dataFirst} />
         </div>
       </div>
     </div>
@@ -799,7 +802,7 @@ function ClosingNote({ latest }: { latest: PhysicalEvaluation }) {
         >
           <p className="text-[10px] font-bold uppercase" style={{ letterSpacing: '0.22em', color: KORE.wineDark }}>Notas de tu trainer</p>
           <p className="font-heading text-xl xl:text-[22px] font-semibold mt-2.5 leading-[1.4]" style={{ color: KORE.wineDark, letterSpacing: '0.005em' }}>
-            “{latest.notes}”
+            "{latest.notes}"
           </p>
           {(trainerName || dateStr) && (
             <p className="text-[12px] italic mt-3.5" style={{ color: 'rgba(103,15,34,0.6)' }}>
