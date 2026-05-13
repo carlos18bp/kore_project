@@ -1,13 +1,15 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { CalendarDays, X } from 'lucide-react';
+import { CalendarDays, ChevronRight, X } from 'lucide-react';
 import type { BookingData } from '@/lib/stores/bookingStore';
 
 type Props = {
   bookings: BookingData[];
   /** When provided, renders a close button (used when the card lives inside a modal). */
   onClose?: () => void;
+  /** When provided, upcoming session rows become clickable and call this with the booking. */
+  onSelectBooking?: (booking: BookingData) => void;
   className?: string;
 };
 
@@ -17,7 +19,7 @@ const STATUS_META: Record<BookingData['status'], { label: string; cls: string }>
   canceled: { label: 'Cancelada', cls: 'bg-rose-400/20 text-rose-500 border-rose-400/40' },
 };
 
-export default function UpcomingSessionsCard({ bookings, onClose, className = '' }: Props) {
+export default function UpcomingSessionsCard({ bookings, onClose, onSelectBooking, className = '' }: Props) {
   const [tab, setTab] = useState<'upcoming' | 'past'>('upcoming');
 
   const now = Date.now();
@@ -87,11 +89,16 @@ export default function UpcomingSessionsCard({ bookings, onClose, className = ''
             const trainerName = b.trainer ? `${b.trainer.first_name} ${b.trainer.last_name}`.trim() : '';
             const dateStr = d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
             const timeStr = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
+            const isUpcoming = tab === 'upcoming';
+            const clickable = isUpcoming && !!onSelectBooking;
+            const Row = clickable ? 'button' : 'div';
             return (
-              <div
+              <Row
                 key={b.id}
+                type={clickable ? 'button' : undefined}
                 data-testid={`upcoming-session-row-${b.id}`}
-                className="flex items-center gap-3 rounded-xl bg-white border border-kore-gray-light/40 px-4 py-3"
+                onClick={clickable ? () => onSelectBooking(b) : undefined}
+                className={`flex items-center gap-3 rounded-xl bg-white border border-kore-gray-light/40 px-4 py-3 w-full text-left ${clickable ? 'hover:bg-kore-cream transition-colors cursor-pointer' : ''}`}
               >
                 <div className="w-9 h-9 rounded-lg bg-kore-red/10 grid place-items-center text-kore-red shrink-0">
                   <CalendarDays className="w-4 h-4" strokeWidth={1.8} />
@@ -104,10 +111,15 @@ export default function UpcomingSessionsCard({ bookings, onClose, className = ''
                     <p className="text-[11px] text-kore-gray-dark/50 truncate mt-0.5">{trainerName}</p>
                   )}
                 </div>
-                <span className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${meta.cls}`}>
-                  {meta.label}
-                </span>
-              </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${meta.cls}`}>
+                    {meta.label}
+                  </span>
+                  {clickable && (
+                    <ChevronRight className="w-4 h-4 text-kore-gray-dark/30" strokeWidth={2} />
+                  )}
+                </div>
+              </Row>
             );
           })}
         </div>

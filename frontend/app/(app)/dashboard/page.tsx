@@ -24,6 +24,8 @@ import { useProgramStore } from '@/lib/stores/programStore';
 import { useProgressStore } from '@/lib/stores/progressStore';
 import UpcomingSessionReminder from '@/app/components/booking/UpcomingSessionReminder';
 import UpcomingSessionsCard from '@/app/components/booking/UpcomingSessionsCard';
+import SessionDetailModal from '@/app/components/booking/SessionDetailModal';
+import type { BookingData } from '@/lib/stores/bookingStore';
 import SubscriptionExpiryReminder from '@/app/components/subscription/SubscriptionExpiryReminder';
 import SubscriptionDashboardToast from '@/app/components/subscription/SubscriptionDashboardToast';
 import ProgressTabsCard from '@/app/components/program/ProgressTabsCard';
@@ -560,7 +562,6 @@ function CondicionFisicaCard({
         <div className="relative shrink-0" style={{ width: gw, height: gh + 26 }}>
           <svg width={gw} height={gh + 26}>
             <path d={arc(startA, endA)} fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="11" strokeLinecap="round" />
-            {/* Segmented colored arc that fills up to current value (avoids stroke-gradient rendering bug) */}
             {(() => {
               const segs: { color: string; from: number; to: number }[] = [
                 { color: '#FF4040', from: 0,    to: 0.34 },
@@ -610,7 +611,7 @@ function CondicionFisicaCard({
           <p className="text-[9px] font-bold uppercase" style={{ letterSpacing: '0.10em', color: 'rgba(51,51,51,0.55)' }}>Próximo paso</p>
           <p className="text-[11px] mt-1.5 leading-snug italic" style={{ color: '#333' }}>
             {latest.notes
-              ? `“${latest.notes.length > 80 ? latest.notes.slice(0, 80) + '…' : latest.notes}”`
+              ? `"${latest.notes.length > 80 ? latest.notes.slice(0, 80) + '…' : latest.notes}"`
               : 'Tu trainer ajusta el plan según estos resultados.'}
           </p>
         </div>
@@ -733,7 +734,7 @@ function MotivacionMiniCard({ message }: { message?: string }) {
         className="absolute font-heading"
         style={{ top: 4, left: 16, fontSize: 56, color: 'rgba(154,5,38,0.12)', lineHeight: 1, fontWeight: 700 }}
       >
-        “
+        "
       </span>
       <div className="relative">
         <p className="text-[9px] font-bold uppercase" style={{ letterSpacing: '0.18em', color: 'rgba(102,15,34,0.55)' }}>
@@ -1315,6 +1316,7 @@ export default function DashboardPage() {
   const [sessionExpanded, setSessionExpanded] = useState(false);
   const [progressExpanded, setProgressExpanded] = useState(false);
   const [showUpcoming, setShowUpcoming] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<BookingData | null>(null);
 
   useEffect(() => {
     fetchSubscriptions();
@@ -1466,9 +1468,23 @@ export default function DashboardPage() {
           onClick={(e) => { if (e.target === e.currentTarget) setShowUpcoming(false); }}
         >
           <div className="w-full max-w-md">
-            <UpcomingSessionsCard bookings={bookings} onClose={() => setShowUpcoming(false)} />
+            <UpcomingSessionsCard
+              bookings={bookings}
+              onClose={() => setShowUpcoming(false)}
+              onSelectBooking={(b) => setSelectedBooking(b)}
+            />
           </div>
         </div>,
+        document.body,
+      )}
+
+      {selectedBooking && createPortal(
+        <SessionDetailModal
+          booking={selectedBooking}
+          subscriptionId={selectedBooking.subscription_id_display ?? 0}
+          onClose={() => setSelectedBooking(null)}
+          onCanceled={() => { setSelectedBooking(null); fetchBookings(); }}
+        />,
         document.body,
       )}
 
