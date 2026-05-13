@@ -23,8 +23,9 @@ Reemplazar la disponibilidad materializada por **disponibilidad calculada**: el 
 
 - **Un solo horario fijo global** para todos los entrenadores (no configurable por entrenador). Lo único propio de cada entrenador son sus reservas.
 - **Sin bloqueos ad-hoc por ahora** (vacaciones / día libre): la disponibilidad = horario fijo − reservas activas ± buffer − cortes. Si luego se necesita bloquear rangos, se agrega una tabla de excepciones sin romper nada. (YAGNI.)
-- **Enfoque C — refactor completo a disponibilidad calculada.** NO se incluye el hotfix intermedio del `UniqueConstraint`; producción queda con el bug del 2º entrenador hasta que esto aterrice. (Si se quiere, el plan de implementación puede meter ese hotfix como primer commit — pendiente de confirmar al planear.)
+- **Enfoque C — refactor completo a disponibilidad calculada, sin hotfix intermedio.** Producción queda con el bug del 2º entrenador hasta que esto aterrice (decisión confirmada: no se mete el hotfix del `UniqueConstraint` como primer commit; vamos directo al refactor).
 - **La API devuelve horas de inicio discretas**, no intervalos. Un día tiene ≤46 candidatas; no pesa, y mantiene toda la lógica (ventanas, duración, paso, buffer, 16h, 30d) en el backend.
+- **`/api/availability/` devuelve solo los días que tienen al menos una hora libre** (no se incluyen días vacíos con `[]`): si un día no aparece en `days`, no hay disponibilidad ese día.
 - **Anti-doble-reserva: cinturón Y tirantes** — un `UniqueConstraint` parcial en `Booking` + `select_for_update` con re-chequeo de disponibilidad dentro de la transacción.
 - **`/api/availability/` sin `?trainer=`** usa el entrenador asignado del customer (el front igual lo pasa explícito).
 - **No se renombra el archivo** `core_app/services/slot_schedule.py` (para no mover imports); su contenido se reescribe.
@@ -126,7 +127,7 @@ Reemplazar la disponibilidad materializada por **disponibilidad calculada**: el 
     }
   }
   ```
-  Solo se incluyen los días con al menos una hora libre (o todos los días con `[]` — el front lo maneja igual; se decide al implementar, preferencia: incluir solo días con horas).
+  **Solo se incluyen los días con al menos una hora libre** — un día sin disponibilidad simplemente no aparece como clave en `days`. (El front deriva los días seleccionables del calendario de las claves de `days`.)
 - Se **borran:** `AvailabilitySlotViewSet`, `AvailabilitySlotSerializer`, el registro del router `availability-slots` en `core_app/urls/api_urls.py`, `AvailabilitySlotAdmin`. El admin de Django pierde la gestión de slots (ya no hay nada que gestionar).
 
 ### 7.2 `POST /api/bookings/` (`BookingSerializer`, `core_app/serializers/booking_serializers.py`)
@@ -228,7 +229,7 @@ Reemplazar la disponibilidad materializada por **disponibilidad calculada**: el 
 
 - **Reservas duo:** la `UniqueConstraint` debe incluir `customer` (lo hace) para no rechazar la reserva paralela del invitado. Verificar el flujo duo en pruebas.
 - **Reservas legacy sin `slot` o con `slot` inconsistente:** detectar antes de migrar; si existen, decidir caso a caso.
-- **Sin hotfix intermedio:** producción sigue con el bug del 2º entrenador hasta que esto aterrice (decisión tomada; el plan puede meter el hotfix del `UniqueConstraint` como primer commit si se confirma).
+- **Sin hotfix intermedio:** producción sigue con el bug del 2º entrenador hasta que esto aterrice (decisión confirmada: no se mete hotfix; se va directo al refactor). Mitigación operativa mientras tanto: si urge, un admin puede reasignar manualmente a los clientes afectados al entrenador 1, que sí tiene disponibilidad completa.
 - **Consumidores ocultos de `AvailabilitySlot` o de `occupied-day`:** grep exhaustivo en el plan antes de borrar; incluir frontend (`bookingStore`, componentes) y cualquier test.
 - **Zona horaria:** la API debe devolver siempre datetimes aware en UTC; el frontend nunca debe volver a construir fechas "locales" sin `timeZone`.
 - **Orden de migraciones / despliegue:** el deploy debe correr migraciones antes de servir el nuevo código (el `Booking.slot` desaparece). Coordinar.
@@ -238,4 +239,4 @@ Reemplazar la disponibilidad materializada por **disponibilidad calculada**: el 
 - Horarios configurables por entrenador.
 - Bloqueos ad-hoc (vacaciones / día libre).
 - Cambiar la granularidad de inicio (p.ej. solo horas cerradas) para reducir fragmentación — anotado como decisión de producto futura.
-- El hotfix intermedio del `UniqueConstraint` (opcional, a confirmar al planear).
+- El hotfix intermedio del `UniqueConstraint` — descartado; se va directo al refactor.
