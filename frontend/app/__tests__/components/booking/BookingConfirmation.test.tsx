@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import BookingConfirmation from '@/app/components/booking/BookingConfirmation';
 import { useAuthStore } from '@/lib/stores/authStore';
-import type { Trainer, Slot, Subscription } from '@/lib/stores/bookingStore';
+import type { Trainer, Subscription } from '@/lib/stores/bookingStore';
 
 jest.mock('js-cookie', () => ({
   get: jest.fn(),
@@ -16,18 +16,15 @@ const MOCK_TRAINER: Trainer = {
   location: 'Studio A', session_duration_minutes: 60,
 };
 
-const MOCK_SLOT: Slot = {
-  id: 5, trainer_id: 1,
-  starts_at: '2025-03-01T10:00:00Z', ends_at: '2025-03-01T11:00:00Z',
-  is_active: true, is_blocked: false,
-};
+const MOCK_STARTS_AT = '2025-03-01T10:00:00Z';
+const MOCK_ENDS_AT = '2025-03-01T11:00:00Z';
 
 const MOCK_SUBSCRIPTION: Subscription = {
   id: 2, customer_email: 'cust@kore.com',
-  package: { id: 1, title: 'Gold', sessions_count: 12, session_duration_minutes: 60, price: '500000', currency: 'COP', validity_days: 30 },
-  sessions_total: 12, sessions_used: 3, sessions_remaining: 9,
+  package: { id: 1, title: 'Gold', category: '', sessions_count: 12, session_duration_minutes: 60, price: '500000', currency: 'COP', validity_days: 30 },
+  sessions_total: 12, sessions_used: 3, sessions_remaining: 9, sessions_completed: 3,
   status: 'active', starts_at: '2025-02-01T00:00:00Z', expires_at: '2025-03-01T00:00:00Z',
-  next_billing_date: null,
+  next_billing_date: null, is_recurring: false, billing_failed_at: null,
 };
 
 const mockUser = {
@@ -46,16 +43,16 @@ describe('BookingConfirmation', () => {
 
   it('renders "Confirmar reserva" heading', () => {
     render(
-      <BookingConfirmation trainer={MOCK_TRAINER} slot={MOCK_SLOT} subscription={MOCK_SUBSCRIPTION}
-        loading={false} error={null} onConfirm={onConfirm} onBack={onBack} />
+      <BookingConfirmation trainer={MOCK_TRAINER} startsAt={MOCK_STARTS_AT} endsAt={MOCK_ENDS_AT}
+        subscription={MOCK_SUBSCRIPTION} loading={false} error={null} onConfirm={onConfirm} onBack={onBack} />
     );
     expect(screen.getByText('Confirmar reserva')).toBeInTheDocument();
   });
 
   it('renders user name and email', () => {
     render(
-      <BookingConfirmation trainer={MOCK_TRAINER} slot={MOCK_SLOT} subscription={MOCK_SUBSCRIPTION}
-        loading={false} error={null} onConfirm={onConfirm} onBack={onBack} />
+      <BookingConfirmation trainer={MOCK_TRAINER} startsAt={MOCK_STARTS_AT} endsAt={MOCK_ENDS_AT}
+        subscription={MOCK_SUBSCRIPTION} loading={false} error={null} onConfirm={onConfirm} onBack={onBack} />
     );
     expect(screen.getByText('Customer10 Kore')).toBeInTheDocument();
     expect(screen.getByText('customer10@kore.com')).toBeInTheDocument();
@@ -63,8 +60,8 @@ describe('BookingConfirmation', () => {
 
   it('renders subscription info with sessions remaining', () => {
     render(
-      <BookingConfirmation trainer={MOCK_TRAINER} slot={MOCK_SLOT} subscription={MOCK_SUBSCRIPTION}
-        loading={false} error={null} onConfirm={onConfirm} onBack={onBack} />
+      <BookingConfirmation trainer={MOCK_TRAINER} startsAt={MOCK_STARTS_AT} endsAt={MOCK_ENDS_AT}
+        subscription={MOCK_SUBSCRIPTION} loading={false} error={null} onConfirm={onConfirm} onBack={onBack} />
     );
     expect(screen.getByText(/Gold/)).toBeInTheDocument();
     expect(screen.getByText(/Sesión 4 de 12/)).toBeInTheDocument();
@@ -72,25 +69,25 @@ describe('BookingConfirmation', () => {
 
   it('renders error message when provided', () => {
     render(
-      <BookingConfirmation trainer={MOCK_TRAINER} slot={MOCK_SLOT} subscription={null}
-        loading={false} error="Slot already booked." onConfirm={onConfirm} onBack={onBack} />
+      <BookingConfirmation trainer={MOCK_TRAINER} startsAt={MOCK_STARTS_AT} endsAt={MOCK_ENDS_AT}
+        subscription={null} loading={false} error="El horario ya no está disponible." onConfirm={onConfirm} onBack={onBack} />
     );
-    expect(screen.getByText('Slot already booked.')).toBeInTheDocument();
+    expect(screen.getByText('El horario ya no está disponible.')).toBeInTheDocument();
   });
 
   it('does not render error when null', () => {
     render(
-      <BookingConfirmation trainer={MOCK_TRAINER} slot={MOCK_SLOT} subscription={null}
-        loading={false} error={null} onConfirm={onConfirm} onBack={onBack} />
+      <BookingConfirmation trainer={MOCK_TRAINER} startsAt={MOCK_STARTS_AT} endsAt={MOCK_ENDS_AT}
+        subscription={null} loading={false} error={null} onConfirm={onConfirm} onBack={onBack} />
     );
-    expect(screen.queryByText('Slot already booked.')).not.toBeInTheDocument();
+    expect(screen.queryByText('El horario ya no está disponible.')).not.toBeInTheDocument();
   });
 
   it('calls onConfirm when Confirmar button clicked', async () => {
     const user = userEvent.setup();
     render(
-      <BookingConfirmation trainer={MOCK_TRAINER} slot={MOCK_SLOT} subscription={null}
-        loading={false} error={null} onConfirm={onConfirm} onBack={onBack} />
+      <BookingConfirmation trainer={MOCK_TRAINER} startsAt={MOCK_STARTS_AT} endsAt={MOCK_ENDS_AT}
+        subscription={null} loading={false} error={null} onConfirm={onConfirm} onBack={onBack} />
     );
     await user.click(screen.getByText('Confirmar'));
     expect(onConfirm).toHaveBeenCalledTimes(1);
@@ -99,8 +96,8 @@ describe('BookingConfirmation', () => {
   it('calls onBack when Atrás button clicked', async () => {
     const user = userEvent.setup();
     render(
-      <BookingConfirmation trainer={MOCK_TRAINER} slot={MOCK_SLOT} subscription={null}
-        loading={false} error={null} onConfirm={onConfirm} onBack={onBack} />
+      <BookingConfirmation trainer={MOCK_TRAINER} startsAt={MOCK_STARTS_AT} endsAt={MOCK_ENDS_AT}
+        subscription={null} loading={false} error={null} onConfirm={onConfirm} onBack={onBack} />
     );
     await user.click(screen.getByText('Atrás'));
     expect(onBack).toHaveBeenCalledTimes(1);
@@ -108,8 +105,8 @@ describe('BookingConfirmation', () => {
 
   it('shows "Confirmando..." text while loading', () => {
     render(
-      <BookingConfirmation trainer={MOCK_TRAINER} slot={MOCK_SLOT} subscription={null}
-        loading={true} error={null} onConfirm={onConfirm} onBack={onBack} />
+      <BookingConfirmation trainer={MOCK_TRAINER} startsAt={MOCK_STARTS_AT} endsAt={MOCK_ENDS_AT}
+        subscription={null} loading={true} error={null} onConfirm={onConfirm} onBack={onBack} />
     );
     expect(screen.getByText('Confirmando...')).toBeInTheDocument();
   });
@@ -117,8 +114,8 @@ describe('BookingConfirmation', () => {
   it('renders dash for name and email when user is null', () => {
     useAuthStore.setState({ user: null, isAuthenticated: false, accessToken: null });
     render(
-      <BookingConfirmation trainer={MOCK_TRAINER} slot={MOCK_SLOT} subscription={null}
-        loading={false} error={null} onConfirm={onConfirm} onBack={onBack} />
+      <BookingConfirmation trainer={MOCK_TRAINER} startsAt={MOCK_STARTS_AT} endsAt={MOCK_ENDS_AT}
+        subscription={null} loading={false} error={null} onConfirm={onConfirm} onBack={onBack} />
     );
     const dashes = screen.getAllByText('—');
     expect(dashes.length).toBeGreaterThanOrEqual(2);
@@ -126,16 +123,16 @@ describe('BookingConfirmation', () => {
 
   it('hides subscription info when subscription is null', () => {
     render(
-      <BookingConfirmation trainer={MOCK_TRAINER} slot={MOCK_SLOT} subscription={null}
-        loading={false} error={null} onConfirm={onConfirm} onBack={onBack} />
+      <BookingConfirmation trainer={MOCK_TRAINER} startsAt={MOCK_STARTS_AT} endsAt={MOCK_ENDS_AT}
+        subscription={null} loading={false} error={null} onConfirm={onConfirm} onBack={onBack} />
     );
     expect(screen.queryByText(/sesiones restantes/)).not.toBeInTheDocument();
   });
 
   it('disables buttons while loading', () => {
     render(
-      <BookingConfirmation trainer={MOCK_TRAINER} slot={MOCK_SLOT} subscription={null}
-        loading={true} error={null} onConfirm={onConfirm} onBack={onBack} />
+      <BookingConfirmation trainer={MOCK_TRAINER} startsAt={MOCK_STARTS_AT} endsAt={MOCK_ENDS_AT}
+        subscription={null} loading={true} error={null} onConfirm={onConfirm} onBack={onBack} />
     );
     expect(screen.getByText('Confirmando...')).toBeDisabled();
     expect(screen.getByText('Atrás')).toBeDisabled();

@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import TrainerInfoPanel from '@/app/components/booking/TrainerInfoPanel';
-import type { Trainer, Slot } from '@/lib/stores/bookingStore';
+import type { Trainer } from '@/lib/stores/bookingStore';
 
 const MOCK_TRAINER: Trainer = {
   id: 1,
@@ -12,15 +12,6 @@ const MOCK_TRAINER: Trainer = {
   bio: '',
   location: 'Studio A',
   session_duration_minutes: 45,
-};
-
-const MOCK_SLOT: Slot = {
-  id: 5,
-  trainer_id: 1,
-  starts_at: '2025-03-01T10:00:00Z',
-  ends_at: '2025-03-01T11:00:00Z',
-  is_active: true,
-  is_blocked: false,
 };
 
 describe('TrainerInfoPanel', () => {
@@ -55,16 +46,6 @@ describe('TrainerInfoPanel', () => {
   it('renders trainer initial in avatar', () => {
     render(<TrainerInfoPanel trainer={MOCK_TRAINER} />);
     expect(screen.getByText('G')).toBeInTheDocument();
-  });
-
-  it('renders without error when selectedSlot is provided', () => {
-    render(<TrainerInfoPanel trainer={MOCK_TRAINER} selectedSlot={MOCK_SLOT} />);
-    expect(screen.getByText('Germán Franco')).toBeInTheDocument();
-  });
-
-  it('renders without error when no slot is selected', () => {
-    render(<TrainerInfoPanel trainer={MOCK_TRAINER} />);
-    expect(screen.getByText('Germán Franco')).toBeInTheDocument();
   });
 
   it('renders without error when custom timezone is provided', () => {

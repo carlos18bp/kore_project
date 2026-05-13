@@ -24,9 +24,12 @@ function buildBooking(hoursFromNow: number, status = 'confirmed'): BookingData {
   return {
     id: 100, customer_id: 22,
     package: { id: 1, title: 'Gold', sessions_count: 12, session_duration_minutes: 60, price: '500000', currency: 'COP', validity_days: 30 },
-    slot: { id: 5, trainer_id: 1, starts_at: start.toISOString(), ends_at: end.toISOString(), is_active: true, is_blocked: false },
+    starts_at: start.toISOString(),
+    ends_at: end.toISOString(),
     trainer: { id: 1, user_id: 10, first_name: 'Germán', last_name: 'Franco', email: 'g@kore.com', specialty: '', bio: '', location: 'Studio A', session_duration_minutes: 60 },
-    subscription_id_display: 2, status: status as 'pending' | 'confirmed' | 'canceled', notes: '', canceled_reason: '', created_at: '', updated_at: '',
+    subscription_id_display: 2, status: status as 'pending' | 'confirmed' | 'canceled', notes: '', canceled_reason: '',
+    session_objective: '', session_notes_for_customer: '', program_day_exercises: [],
+    created_at: '', updated_at: '',
   };
 }
 

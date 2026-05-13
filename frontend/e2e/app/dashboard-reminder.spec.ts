@@ -10,14 +10,8 @@ function buildReminderBooking(hoursAhead: number) {
     id: 999,
     subscription_id_display: 11,
     status: 'confirmed',
-    slot: {
-      id: 9999,
-      starts_at: futureSlotStart.toISOString(),
-      ends_at: futureSlotEnd.toISOString(),
-      trainer_id: 1,
-      is_active: true,
-      is_blocked: false,
-    },
+    starts_at: futureSlotStart.toISOString(),
+    ends_at: futureSlotEnd.toISOString(),
     trainer: {
       id: 1,
       user_id: 1,
@@ -89,11 +83,8 @@ test.describe('Dashboard - Upcoming Session Reminder', { tag: [...FlowTags.DASHB
           id: 999,
           subscription_id_display: 11,
           status: 'confirmed',
-          slot: {
-            id: 9999,
-            starts_at: futureSlotStart.toISOString(),
-            ends_at: futureSlotEnd.toISOString(),
-          },
+          starts_at: futureSlotStart.toISOString(),
+          ends_at: futureSlotEnd.toISOString(),
           trainer: {
             first_name: 'Germ\u00e1n',
             last_name: 'Franco',
@@ -137,11 +128,8 @@ test.describe('Dashboard - Upcoming Session Reminder', { tag: [...FlowTags.DASHB
           id: 999,
           subscription_id_display: 11,
           status: 'confirmed',
-          slot: {
-            id: 9999,
-            starts_at: futureSlotStart.toISOString(),
-            ends_at: futureSlotEnd.toISOString(),
-          },
+          starts_at: futureSlotStart.toISOString(),
+          ends_at: futureSlotEnd.toISOString(),
           trainer: { first_name: 'Germ\u00e1n', last_name: 'Franco' },
         }),
       });
@@ -164,11 +152,8 @@ test.describe('Dashboard - Upcoming Session Reminder', { tag: [...FlowTags.DASHB
           id: 999,
           subscription_id_display: null,
           status: 'confirmed',
-          slot: {
-            id: 9999,
-            starts_at: futureSlotStart.toISOString(),
-            ends_at: futureSlotEnd.toISOString(),
-          },
+          starts_at: futureSlotStart.toISOString(),
+          ends_at: futureSlotEnd.toISOString(),
           trainer: { first_name: 'Germ\u00e1n', last_name: 'Franco' },
         }),
       });
@@ -194,11 +179,8 @@ test.describe('Dashboard - Upcoming Session Reminder', { tag: [...FlowTags.DASHB
           id: 999,
           subscription_id_display: 11,
           status: 'confirmed',
-          slot: {
-            id: 9999,
-            starts_at: futureSlotStart.toISOString(),
-            ends_at: futureSlotEnd.toISOString(),
-          },
+          starts_at: futureSlotStart.toISOString(),
+          ends_at: futureSlotEnd.toISOString(),
           trainer: { first_name: 'Germ\u00e1n', last_name: 'Franco' },
         }),
       });

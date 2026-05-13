@@ -5,7 +5,7 @@ import type { DayAdherence } from '@/lib/stores/progressStore';
 
 interface BookingLike {
   status: string;
-  slot: { starts_at: string };
+  starts_at: string;
 }
 
 interface Props {
@@ -42,7 +42,7 @@ export default function MiniMonthCalendar({ weekDays, bookings, referenceDate, c
   const bookingSet = new Set(
     bookings
       .filter((b) => b.status === 'confirmed' || b.status === 'pending')
-      .map((b) => toDateKey(new Date(b.slot.starts_at))),
+      .map((b) => toDateKey(new Date(b.starts_at))),
   );
   const todayKey = toDateKey(new Date());
   const monthLabel = firstDay.toLocaleDateString('es-CO', { month: 'long' });

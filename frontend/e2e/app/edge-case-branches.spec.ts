@@ -25,8 +25,14 @@ async function mockBookingCreationFlowRoutes(
   await page.route('**/api/trainers/**', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 1, next: null, previous: null, results: [trainer] }) });
   });
-  await page.route('**/api/availability-slots/**', async (route) => {
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 1, next: null, previous: null, results: slots }) });
+  await page.route('**/api/availability/**', async (route) => {
+    const availabilityMap: Record<string, string[]> = {};
+    for (const slot of slots) {
+      const key = slot.starts_at.slice(0, 10);
+      if (!availabilityMap[key]) availabilityMap[key] = [];
+      availabilityMap[key].push(slot.starts_at);
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(availabilityMap) });
   });
   await page.route('**/api/subscriptions/**', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 1, next: null, previous: null, results: [sub] }) });
@@ -43,7 +49,8 @@ async function mockBookingCreationFlowRoutes(
           id: 999,
           subscription_id_display: null,
           status: 'confirmed',
-          slot: slots[0],
+          starts_at: slots[0].starts_at,
+          ends_at: new Date(new Date(slots[0].starts_at).getTime() + 60 * 60000).toISOString(),
           trainer: null,
           package: { id: 6, title: 'Paquete Pro', sessions_count: 4, session_duration_minutes: 60, price: '120000', currency: 'COP', validity_days: 60 },
           customer_id: 1,
@@ -87,19 +94,15 @@ test.describe('Edge-case branch coverage', { tag: [...FlowTags.APP_EDGE_CASE_BRA
     id: 1, first_name: 'Germán', last_name: 'Franco', specialty: 'Funcional',
     session_duration_minutes: 60, location: 'Bogotá', email: 'g@kore.com', bio: '', user_id: 1,
   };
-  // Build slot times in LOCAL time so labels match the virtual slot buttons
-  // (production generates virtual slots using `new Date(\`${selectedDate}T${HH}:00:00\`)`).
+  // Build slot times in LOCAL time so the availability map key matches the calendar date.
   const slotStartLocal = new Date(`${dateStr}T17:00:00`);
   const slotEndLocal   = new Date(`${dateStr}T18:00:00`);
   const mockSlots = [
     { id: 501, starts_at: slotStartLocal.toISOString(), ends_at: slotEndLocal.toISOString(), is_blocked: false, is_active: true, trainer_id: 1 },
   ];
 
-  function slotLabelFor(slot: { starts_at: string; ends_at: string }) {
-    const formatTime = (isoString: string) => (
-      new Date(isoString).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
-    );
-    return `${formatTime(slot.starts_at)} \u2014 ${formatTime(slot.ends_at)}`;
+  function slotLabelFor(slot: { starts_at: string }) {
+    return new Date(slot.starts_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
   }
 
   const primarySlotLabel = slotLabelFor(mockSlots[0]);

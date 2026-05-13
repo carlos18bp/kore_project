@@ -28,12 +28,16 @@ test.describe('Session Detail Modal (mocked)', { tag: [...FlowTags.BOOKING_SESSI
     id: 800,
     customer_id: 1,
     package: { id: 6, title: 'Paquete Pro', sessions_count: 4, session_duration_minutes: 60, price: '120000', currency: 'COP', validity_days: 60 },
-    slot: { id: 9000, trainer_id: 1, starts_at: futureSlotStart.toISOString(), ends_at: futureSlotEnd.toISOString(), is_active: true, is_blocked: false },
+    starts_at: futureSlotStart.toISOString(),
+    ends_at: futureSlotEnd.toISOString(),
     trainer: { id: 1, user_id: 1, first_name: 'Germán', last_name: 'Franco', email: 'german@kore.com', specialty: 'Funcional', bio: '', location: 'Bogotá, Colombia', session_duration_minutes: 60 },
     subscription_id_display: 11,
     status: 'confirmed',
     notes: '',
     canceled_reason: '',
+    session_objective: '',
+    session_notes_for_customer: '',
+    program_day_exercises: [],
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -216,7 +220,8 @@ test.describe('Session Detail Modal (mocked)', { tag: [...FlowTags.BOOKING_SESSI
     const soonSlotEnd = new Date(soonSlotStart.getTime() + 60 * 60 * 1000);
     const soonBooking = {
       ...mockBookingConfirmed,
-      slot: { ...mockBookingConfirmed.slot, starts_at: soonSlotStart.toISOString(), ends_at: soonSlotEnd.toISOString() },
+      starts_at: soonSlotStart.toISOString(),
+      ends_at: soonSlotEnd.toISOString(),
     };
     await mockLoginAsTestUser(page);
     await setupMocks(page, soonBooking);

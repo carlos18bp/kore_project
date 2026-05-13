@@ -42,12 +42,16 @@ test.describe('Booking Reschedule Flow (mocked)', { tag: [...FlowTags.BOOKING_RE
     id: 800,
     customer_id: 1,
     package: { id: 6, title: 'Paquete Pro', sessions_count: 4, session_duration_minutes: 60, price: '120000', currency: 'COP', validity_days: 60 },
-    slot: { id: 9000, trainer_id: 1, starts_at: futureSlotStart.toISOString(), ends_at: futureSlotEnd.toISOString(), is_active: true, is_blocked: false },
+    starts_at: futureSlotStart.toISOString(),
+    ends_at: futureSlotEnd.toISOString(),
     trainer: mockTrainer,
     subscription_id_display: 11,
     status: 'confirmed',
     notes: '',
     canceled_reason: '',
+    session_objective: '',
+    session_notes_for_customer: '',
+    program_day_exercises: [],
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -138,7 +142,8 @@ test.describe('Booking Reschedule Flow (mocked)', { tag: [...FlowTags.BOOKING_RE
     const soonEnd = new Date(soonStart.getTime() + 60 * 60 * 1000);
     const soonBooking = {
       ...mockBooking,
-      slot: { ...mockBooking.slot, starts_at: soonStart.toISOString(), ends_at: soonEnd.toISOString() },
+      starts_at: soonStart.toISOString(),
+      ends_at: soonEnd.toISOString(),
     };
 
     await mockLoginAsTestUser(page);

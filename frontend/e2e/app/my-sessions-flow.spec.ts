@@ -52,7 +52,8 @@ test.describe('My Programs Flow — Subscription detail & sessions (mocked)', { 
       id: 310,
       subscription_id_display: navSubId,
       status: 'confirmed',
-      slot: { id: 410, starts_at: pastSlotStart, ends_at: pastSlotEnd },
+      starts_at: pastSlotStart,
+      ends_at: pastSlotEnd,
       trainer: null,
       package: { title: 'Paquete Navegación' },
     };
@@ -119,7 +120,8 @@ test.describe('Subscription detail — mocked data branches', { tag: [...FlowTag
     id: 301,
     subscription_id_display: subId,
     status: 'confirmed',
-    slot: { id: 401, starts_at: futureSlotStart, ends_at: futureSlotEnd },
+    starts_at: futureSlotStart,
+    ends_at: futureSlotEnd,
     trainer: { first_name: 'Germán', last_name: 'Franco' },
     package: { title: 'Paquete Elite' },
   };
@@ -128,7 +130,8 @@ test.describe('Subscription detail — mocked data branches', { tag: [...FlowTag
     id: 302,
     subscription_id_display: subId,
     status: 'confirmed',
-    slot: { id: 402, starts_at: pastSlotStart, ends_at: pastSlotEnd },
+    starts_at: pastSlotStart,
+    ends_at: pastSlotEnd,
     trainer: null,
     package: { title: 'Paquete Elite' },
   };
@@ -137,7 +140,8 @@ test.describe('Subscription detail — mocked data branches', { tag: [...FlowTag
     id: 303,
     subscription_id_display: subId,
     status: 'canceled',
-    slot: { id: 403, starts_at: futureSlotStart, ends_at: futureSlotEnd },
+    starts_at: futureSlotStart,
+    ends_at: futureSlotEnd,
     trainer: { first_name: 'Germán', last_name: 'Franco' },
     package: { title: 'Paquete Elite' },
   };
@@ -202,11 +206,8 @@ test.describe('Subscription detail — mocked data branches', { tag: [...FlowTag
       id: 400 + i,
       subscription_id_display: subId,
       status: 'confirmed' as const,
-      slot: {
-        id: 500 + i,
-        starts_at: new Date(Date.now() + (2 + i) * 86400000).toISOString(),
-        ends_at: new Date(Date.now() + (2 + i) * 86400000 + 3600000).toISOString(),
-      },
+      starts_at: new Date(Date.now() + (2 + i) * 86400000).toISOString(),
+      ends_at: new Date(Date.now() + (2 + i) * 86400000 + 3600000).toISOString(),
       trainer: { first_name: 'G', last_name: 'F' },
       package: { title: 'Paquete Elite' },
     }));
