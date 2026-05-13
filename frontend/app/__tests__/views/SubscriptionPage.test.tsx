@@ -135,7 +135,7 @@ describe('SubscriptionPage', () => {
   it('renders empty state when no subscriptions', () => {
     render(<SubscriptionPage />);
     expect(screen.getByText('Sin suscripción activa')).toBeInTheDocument();
-    expect(screen.getByText('Ver programas')).toBeInTheDocument();
+    expect(screen.getByText(/Ver programas/)).toBeInTheDocument();
   });
 
   it('renders loading spinner when subscriptions loading', () => {
@@ -167,7 +167,7 @@ describe('SubscriptionPage', () => {
       }),
     );
     render(<SubscriptionPage />);
-    expect(screen.getAllByText('Activa').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Activa/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders sessions used count and progress percentage', () => {
@@ -180,7 +180,7 @@ describe('SubscriptionPage', () => {
     );
     render(<SubscriptionPage />);
     expect(screen.getAllByText(/3 de 12/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/Avance: 25%/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText((_, el) => el?.textContent === '25%').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders Expirada badge for expired subscription', () => {
@@ -199,7 +199,7 @@ describe('SubscriptionPage', () => {
       }),
     );
     render(<SubscriptionPage />);
-    expect(screen.getAllByText('Expirada').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Expirada/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders Agendar link to book-session when detail is visible', () => {
@@ -211,7 +211,7 @@ describe('SubscriptionPage', () => {
       }),
     );
     render(<SubscriptionPage />);
-    const link = screen.getByRole('link', { name: 'Agendar' });
+    const link = screen.getByRole('link', { name: /Agendar/ });
     expect(link).toHaveAttribute('href', '/book-session');
   });
 });

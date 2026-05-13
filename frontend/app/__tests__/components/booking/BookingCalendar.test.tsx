@@ -161,6 +161,28 @@ describe('BookingCalendar', () => {
     jest.useRealTimers();
   });
 
+  it('shows a marker dot only on booked days, not on plain available days', () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(2026, 2, 1, 12));
+
+    render(
+      <BookingCalendar
+        availableDates={new Set(['2026-03-06', '2026-03-07'])}
+        bookedDates={new Set(['2026-03-06'])}
+        selectedDate={null}
+        onSelectDate={onSelectDate}
+      />
+    );
+
+    const bookedDayBtn = screen.getByRole('button', { name: '6' });
+    const plainAvailableBtn = screen.getByRole('button', { name: '7' });
+
+    expect(bookedDayBtn.querySelector('span.rounded-full')).not.toBeNull();
+    expect(plainAvailableBtn.querySelector('span.rounded-full')).toBeNull();
+
+    jest.useRealTimers();
+  });
+
   it('disables days without available slots', () => {
     render(
       <BookingCalendar availableDates={new Set()} selectedDate={null} onSelectDate={onSelectDate} />

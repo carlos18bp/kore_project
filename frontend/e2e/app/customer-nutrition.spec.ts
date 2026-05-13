@@ -2,13 +2,58 @@ import { test, expect, injectAuthCookies, setupDefaultApiMocks } from '../fixtur
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
- * E2E tests for the Customer Nutrition page (/my-nutrition).
- * Covers score card display, form interaction, history, and empty state.
+ * E2E tests for the redesigned Customer Nutrition page (/my-nutrition).
+ * The page is now a daily nutrition tracker: a "today" hero (calorie ring + macros),
+ * a meal timeline, a hydration tracker, plus a weekly-habits score block (only shown
+ * once the trainer has approved the latest habits entry).
  */
 test.describe('Customer Nutrition Page', { tag: [...FlowTags.CUSTOMER_NUTRITION, RoleTags.USER] }, () => {
 
-  const fakeEntry = {
+  const todayLog = {
     id: 1,
+    date: new Date().toISOString().slice(0, 10),
+    is_closed: false,
+    closed_at: null,
+    notes: '',
+    program_goal: 'general_health',
+    trainer_nutrition_note: null as string | null,
+    meal_entries: [
+      {
+        id: 11,
+        meal_block: 'desayuno',
+        status: 'not_done',
+        notes: '',
+        photo_url: null,
+        suggestion: {
+          id: 101,
+          title: 'Avena con frutas',
+          description: 'Avena cocida con banano y arándanos',
+          calories_estimate: 420,
+          meal_block: 'desayuno',
+          foods: [],
+        },
+      },
+      {
+        id: 12,
+        meal_block: 'almuerzo',
+        status: 'completed',
+        notes: '',
+        photo_url: null,
+        suggestion: {
+          id: 102,
+          title: 'Pollo con arroz integral',
+          description: 'Pechuga de pollo a la plancha con arroz integral y ensalada',
+          calories_estimate: 580,
+          meal_block: 'almuerzo',
+          foods: [],
+        },
+      },
+    ],
+  };
+
+  const approvedHabitsEntry = {
+    id: 1,
+    customer_id: 999,
     created_at: '2026-01-10T10:00:00Z',
     meals_per_day: 4,
     water_liters: '2.5',
@@ -22,9 +67,14 @@ test.describe('Customer Nutrition Page', { tag: [...FlowTags.CUSTOMER_NUTRITION,
     habit_score: '7.8',
     habit_category: 'Buenos hábitos',
     habit_color: 'green',
+    trainer_notes: '',
+    trainer_approved_at: '2026-01-12T09:00:00Z',
   };
 
-  async function goToNutritionWithData(page: import('@playwright/test').Page, entries = [fakeEntry]) {
+  async function mockNutrition(
+    page: import('@playwright/test').Page,
+    opts: { daily?: typeof todayLog | null; habits?: typeof approvedHabitsEntry[] } = {},
+  ) {
     await injectAuthCookies(page);
     await setupDefaultApiMocks(page, ['my-nutrition']);
     await page.route('**/api/my-nutrition/', async (route) => {
@@ -32,58 +82,88 @@ test.describe('Customer Nutrition Page', { tag: [...FlowTags.CUSTOMER_NUTRITION,
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify(entries),
+          body: JSON.stringify(opts.habits ?? []),
         });
       } else {
         await route.fulfill({
           status: 201,
           contentType: 'application/json',
-          body: JSON.stringify(fakeEntry),
+          body: JSON.stringify(approvedHabitsEntry),
         });
       }
     });
-    await page.goto('/my-nutrition');
-    await expect(page.getByRole('heading', { level: 1, name: 'Mi Nutrición' })).toBeVisible({ timeout: 15_000 });
+    await page.route('**/api/my-nutrition-daily/today/', async (route) => {
+      if (opts.daily === undefined || opts.daily === null) {
+        await route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ detail: 'No active program' }) });
+      } else {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(opts.daily) });
+      }
+    });
   }
 
-  test('renders page heading and description', async ({ page }) => {
-    await goToNutritionWithData(page);
+  async function goToNutrition(page: import('@playwright/test').Page) {
+    await page.goto('/my-nutrition');
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 15_000 });
+  }
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Mi Nutrición' })).toBeVisible();
-    await expect(page.getByText(/Registra tus hábitos alimentarios/)).toBeVisible();
+  test('renders the current date as the page heading', async ({ page }) => {
+    await mockNutrition(page, { daily: todayLog });
+    await goToNutrition(page);
+
+    const heading = page.getByRole('heading', { level: 1 });
+    await expect(heading).toBeVisible();
+    await expect(heading).not.toBeEmpty();
   });
 
-  test('renders score card with habit score and category', async ({ page }) => {
-    await goToNutritionWithData(page);
+  test('shows "Sin plan activo" hero when there is no active program', async ({ page }) => {
+    await mockNutrition(page, { daily: null });
+    await goToNutrition(page);
 
-    await expect(page.getByText('Buenos hábitos').first()).toBeVisible();
-    await expect(page.getByText('Índice de hábitos alimentarios')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Sin plan activo' })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Ver mi programa/ })).toBeVisible();
   });
 
-  test('renders new entry button', async ({ page }) => {
-    await goToNutritionWithData(page);
+  test('renders the daily nutrition hero with the calorie ring', async ({ page }) => {
+    await mockNutrition(page, { daily: todayLog });
+    await goToNutrition(page);
 
-    await expect(page.getByRole('button', { name: 'Nuevo registro semanal' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Tu día, en equilibrio.' })).toBeVisible();
+    await expect(page.getByText('Consumidas')).toBeVisible();
+    await expect(page.getByText(/de \d+ kcal/)).toBeVisible();
   });
 
-  test('clicking new entry button shows form', async ({ page }) => {
-    await goToNutritionWithData(page);
+  test('renders the meal timeline with suggested meals', async ({ page }) => {
+    await mockNutrition(page, { daily: todayLog });
+    await goToNutrition(page);
 
-    await page.getByRole('button', { name: 'Nuevo registro semanal' }).click();
-    await expect(page.getByRole('heading', { name: 'Registro de hábitos' })).toBeVisible();
-    await expect(page.getByText(/¿Cuántas comidas haces al día?/)).toBeVisible();
+    await expect(page.getByText('Tu día · timeline')).toBeVisible();
+    await expect(page.getByText(/Avena cocida con banano/)).toBeVisible();
+    await expect(page.getByText(/Pechuga de pollo a la plancha/)).toBeVisible();
   });
 
-  test('empty state shows new entry button without score card', async ({ page }) => {
-    await goToNutritionWithData(page, []);
+  test('renders the trainer note strip when the program has a nutrition note', async ({ page }) => {
+    await mockNutrition(page, { daily: { ...todayLog, trainer_nutrition_note: 'Sube la proteína en el almuerzo.' } });
+    await goToNutrition(page);
 
-    await expect(page.getByRole('button', { name: 'Nuevo registro semanal' })).toBeVisible();
+    await expect(page.getByText('Tu coach te recomienda')).toBeVisible();
+    await expect(page.getByText(/Sube la proteína en el almuerzo/)).toBeVisible();
   });
 
-  test('renders history section with entries', async ({ page }) => {
-    await goToNutritionWithData(page);
+  test('renders the weekly habits score block once the trainer approved it', async ({ page }) => {
+    await mockNutrition(page, { daily: todayLog, habits: [approvedHabitsEntry] });
+    await goToNutrition(page);
 
-    await expect(page.getByRole('heading', { name: 'Historial' })).toBeVisible();
-    await expect(page.getByText('Buenos hábitos').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /Actualizar hábitos de la semana/ })).toBeVisible();
+    await expect(page.getByText(/Score semanal/)).toBeVisible();
+  });
+
+  test('opening the habits form modal shows the update-habits sheet', async ({ page }) => {
+    await mockNutrition(page, { daily: todayLog, habits: [approvedHabitsEntry] });
+    await goToNutrition(page);
+
+    await page.getByRole('button', { name: /Actualizar hábitos de la semana/ }).click();
+
+    await expect(page.getByRole('heading', { name: 'Actualizar hábitos' })).toBeVisible();
+    await expect(page.getByText('Proteína de calidad')).toBeVisible();
   });
 });

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import Cookies from 'js-cookie';
 import { api } from '@/lib/services/http';
-import { useAuthStore } from '@/lib/stores/authStore';
+import { useAuthStore, type AssignedTrainer } from '@/lib/stores/authStore';
 
 export type CustomerProfile = {
   avatar_url: string | null;
@@ -31,8 +31,10 @@ export type ProfileData = {
   last_name: string;
   phone: string;
   role: string;
+  must_change_password?: boolean;
   customer_profile: CustomerProfile | null;
   today_mood: TodayMood | null;
+  assigned_trainer?: AssignedTrainer | null;
 };
 
 type UpdateProfilePayload = {
@@ -63,6 +65,10 @@ type ProfileState = {
   saving: boolean;
   error: string;
   successMessage: string;
+  // Whether the global MoodCheckIn modal is force-opened (e.g. from a dashboard CTA).
+  // The modal also auto-opens once per session when there is no todayMood; this flag
+  // is the manual override path that bypasses the kore_mood_dismissed sessionStorage flag.
+  moodModalOpen: boolean;
 
   fetchProfile: () => Promise<void>;
   updateProfile: (data: UpdateProfilePayload) => Promise<{ success: boolean; error?: string }>;
@@ -70,6 +76,8 @@ type ProfileState = {
   changePassword: (data: ChangePasswordPayload) => Promise<{ success: boolean; error?: string }>;
   submitMood: (score: number, notes?: string) => Promise<{ success: boolean; error?: string }>;
   submitWeight: (weightKg: number) => Promise<{ success: boolean; error?: string }>;
+  openMoodModal: () => void;
+  closeMoodModal: () => void;
   clearMessages: () => void;
 };
 
@@ -92,6 +100,8 @@ function syncAuthStoreUser(profile: ProfileData) {
     name: [first, last].filter(Boolean).join(' ') || profile.email,
     profile_completed: cp?.profile_completed ?? false,
     avatar_url: cp?.avatar_url ?? null,
+    must_change_password: profile.must_change_password ?? false,
+    assigned_trainer: profile.assigned_trainer ?? null,
   };
 
   // Only update authStore if data actually changed to prevent infinite re-render loops
@@ -114,6 +124,10 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   saving: false,
   error: '',
   successMessage: '',
+  moodModalOpen: false,
+
+  openMoodModal: () => set({ moodModalOpen: true }),
+  closeMoodModal: () => set({ moodModalOpen: false }),
 
   fetchProfile: async () => {
     set({ loading: true, error: '' });

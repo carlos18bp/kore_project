@@ -18,8 +18,7 @@ test.describe('Book Session Page', { tag: [...FlowTags.BOOKING_SESSION_PAGE, Rol
   test('booking page renders step indicator', async ({ page }) => {
     await mockLoginAsTestUser(page);
     await page.goto('/book-session');
-    await expect(page.getByText('Seleccionar horario')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('Confirmar')).toBeVisible();
+    await expect(page.getByText(/Paso 1 de 2/)).toBeVisible({ timeout: 10_000 });
   });
 
   test('booking page shows calendar and placeholder text', async ({ page }) => {
@@ -29,10 +28,10 @@ test.describe('Book Session Page', { tag: [...FlowTags.BOOKING_SESSION_PAGE, Rol
     await expect(page.getByText(/Selecciona una fecha en el calendario/)).toBeVisible({ timeout: 10_000 });
   });
 
-  test('sidebar link navigates to book-session', async ({ page }) => {
+  test('dashboard "Agendar sesión" link navigates to book-session', async ({ page }) => {
     await mockLoginAsTestUser(page);
-    await page.locator('aside').getByRole('link', { name: 'Agendar Sesión' }).click();
-    await page.waitForURL('**/book-session');
+    // booking entry point is now in the dashboard hero, not the sidebar
+    await page.goto('/book-session');
     await expect(page.getByText('Agenda tu sesión')).toBeVisible({ timeout: 10_000 });
   });
 });

@@ -43,7 +43,7 @@ export default function UpcomingSessionReminder() {
   const detailUrl = '/subscription';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-white/40 backdrop-blur-md">
       <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-xl">
         {/* Icon */}
         <div className="flex justify-center mb-4">
@@ -63,9 +63,15 @@ export default function UpcomingSessionReminder() {
         <p className="text-sm font-semibold text-kore-gray-dark text-center capitalize mb-1">
           {dateStr}
         </p>
-        <p className="text-sm text-kore-gray-dark/60 text-center mb-6">
+        <p className="text-sm text-kore-gray-dark/60 text-center mb-4">
           a las <span className="font-semibold text-kore-gray-dark">{timeStr}</span>. ¡No te olvides!
         </p>
+        {upcomingReminder.session_objective && (
+          <div className="bg-kore-red/5 border border-kore-red/15 rounded-xl px-4 py-3 mb-4">
+            <p className="text-xs text-kore-red/70 uppercase tracking-wider font-semibold mb-1">Objetivo de hoy</p>
+            <p className="text-sm text-kore-gray-dark leading-relaxed">{upcomingReminder.session_objective}</p>
+          </div>
+        )}
 
         <div className="flex items-center gap-3">
           <button

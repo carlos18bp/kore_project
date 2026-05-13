@@ -87,10 +87,13 @@ test.describe('Profile Mood Entry', { tag: [...FlowTags.PROFILE_MOOD_ENTRY, Role
     await setupProfileMocks(page);
 
     await page.goto('/profile');
-    await expect(page.getByRole('button', { name: 'Registrar' })).toBeVisible({ timeout: 15_000 });
+    const registrar = page.getByRole('button', { name: 'Registrar' });
+    await expect(registrar).toBeVisible({ timeout: 15_000 });
+    // Scope to the modal panel — the profile page also renders a static mood card with 1–10 buttons.
+    const modal = registrar.locator('xpath=../..');
 
     for (let n = 1; n <= 10; n += 1) {
-      await expect(page.getByRole('button', { name: String(n), exact: true })).toBeVisible();
+      await expect(modal.getByRole('button', { name: String(n), exact: true })).toBeVisible();
     }
     await expect(page.getByRole('button', { name: 'Ahora no' })).toBeVisible();
   });
@@ -99,17 +102,19 @@ test.describe('Profile Mood Entry', { tag: [...FlowTags.PROFILE_MOOD_ENTRY, Role
     await setupProfileMocks(page);
 
     await page.goto('/profile');
-    await expect(page.getByRole('button', { name: 'Registrar' })).toBeVisible({ timeout: 15_000 });
+    const registrar = page.getByRole('button', { name: 'Registrar' });
+    await expect(registrar).toBeVisible({ timeout: 15_000 });
+    const modal = registrar.locator('xpath=../..');
 
     // Select score 9 and add notes
-    await page.getByRole('button', { name: '9', exact: true }).click();
+    await modal.getByRole('button', { name: '9', exact: true }).click();
     await page.getByPlaceholder('Notas adicionales (opcional)').fill('Excelente día de entrenamiento');
 
     // Wait for the POST and click submit
     const moodPost = page.waitForResponse(
       (response) => response.url().includes('/api/auth/mood/') && response.request().method() === 'POST',
     );
-    await page.getByRole('button', { name: 'Registrar' }).click();
+    await registrar.click();
     const response = await moodPost;
     expect(response.ok()).toBe(true);
 

@@ -21,6 +21,15 @@ from .nutrition_habit import NutritionHabit
 from .parq_assessment import ParqAssessment
 from .registration_verification_code import RegistrationVerificationCode
 from .subscription_guest import SubscriptionGuest
+from .exercise import Exercise
+from .monthly_program import MonthlyProgram, ProgramDay, ProgramExercise, DailyLog, ExerciseLog
+from .food import Food
+from .meal_suggestion import MealSuggestion
+from .nutrition_daily_log import NutritionDailyLog, MealEntry
+from .trainer_alert import ClientRiskScore
+from .trainer_alert_resolution import TrainerAlertResolution
+from .trainer_message import TrainerMessage
+from .weekly_nutrition_plan import WeeklyNutritionPlan, WeeklyPlanDay, WeeklyPlanMeal
 
 __all__ = [
     'User',
@@ -49,4 +58,20 @@ __all__ = [
     'ParqAssessment',
     'RegistrationVerificationCode',
     'SubscriptionGuest',
+    'Exercise',
+    'MonthlyProgram',
+    'ProgramDay',
+    'ProgramExercise',
+    'DailyLog',
+    'ExerciseLog',
+    'Food',
+    'MealSuggestion',
+    'NutritionDailyLog',
+    'MealEntry',
+    'ClientRiskScore',
+    'TrainerAlertResolution',
+    'TrainerMessage',
+    'WeeklyNutritionPlan',
+    'WeeklyPlanDay',
+    'WeeklyPlanMeal',
 ]
