@@ -2,8 +2,6 @@
 
 from datetime import timedelta
 
-from django.db.models import Q
-
 from core_app.models import Booking
 from core_app.services.slot_schedule import TRAVEL_BUFFER_MINUTES
 
@@ -25,25 +23,3 @@ def has_trainer_travel_buffer_conflict(trainer, starts_at, ends_at, *, exclude_b
     if exclude_booking_id is not None:
         qs = qs.exclude(pk=exclude_booking_id)
     return qs.exists()
-
-
-def build_trainer_buffer_slot_conflict_q(bookings):
-    """Build a Q object to exclude AvailabilitySlots blocked by trainer travel buffer.
-
-    Used by AvailabilitySlotViewSet until that viewset is removed.
-    """
-    buffer_delta = timedelta(minutes=TRAVEL_BUFFER_MINUTES)
-    conflict_q = Q()
-
-    for booking in bookings:
-        trainer_id = booking.slot.trainer_id or booking.trainer_id
-        if not trainer_id:
-            continue
-
-        conflict_q |= Q(
-            trainer_id=trainer_id,
-            starts_at__lt=booking.slot.ends_at + buffer_delta,
-            ends_at__gt=booking.slot.starts_at - buffer_delta,
-        )
-
-    return conflict_q

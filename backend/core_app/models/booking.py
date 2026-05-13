@@ -1,26 +1,23 @@
 from django.conf import settings
 from django.db import models
 
-from core_app.models.availability import AvailabilitySlot
 from core_app.models.base import TimestampedModel
 from core_app.models.package import Package
 
 
 class Booking(TimestampedModel):
-    """A scheduled training session linking a customer, slot, package, trainer, and subscription.
+    """A scheduled training session linking a customer, package, trainer, and subscription.
 
-    The ``slot`` field is a ForeignKey to allow re-booking canceled slots while
-    still preventing overlapping active bookings in business logic. ``trainer``
-    and ``subscription`` are nullable
-    for backward compatibility with bookings created before these fields
-    existed.
+    ``starts_at`` and ``ends_at`` own the session time window; there is no
+    separate availability-slot object.
 
     Attributes:
         customer: The user who booked the session.
         package: The package associated with this booking.
-        slot: The reserved availability slot.
-        trainer: The trainer assigned to this session (nullable).
+        trainer: The trainer assigned to this session (nullable for legacy rows).
         subscription: The customer subscription being consumed (nullable).
+        starts_at: Session start time (UTC).
+        ends_at: Session end time (UTC).
         status: Current booking state (pending / confirmed / canceled).
         notes: Free-text notes about the booking.
         canceled_reason: Reason provided when the booking is canceled.
@@ -33,13 +30,6 @@ class Booking(TimestampedModel):
 
     customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='bookings')
     package = models.ForeignKey(Package, on_delete=models.PROTECT, related_name='bookings')
-    slot = models.ForeignKey(
-        AvailabilitySlot,
-        on_delete=models.PROTECT,
-        related_name='bookings',
-        null=True,
-        blank=True,
-    )
     trainer = models.ForeignKey(
         'core_app.TrainerProfile',
         on_delete=models.SET_NULL,
@@ -55,8 +45,8 @@ class Booking(TimestampedModel):
         blank=True,
     )
 
-    starts_at = models.DateTimeField(null=True, blank=True, db_index=True)
-    ends_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    starts_at = models.DateTimeField(db_index=True)
+    ends_at = models.DateTimeField(db_index=True)
 
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
 

@@ -2,7 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from core_app.views.analytics_views import AnalyticsEventViewSet
-from core_app.views.availability_views import AvailabilitySlotViewSet, AvailabilityView
+from core_app.views.availability_views import AvailabilityView
 from core_app.views.booking_views import BookingViewSet
 from core_app.views.content_views import (
     ContactMessageViewSet,
@@ -110,7 +110,6 @@ router = DefaultRouter()
 router.register('packages', PackageViewSet, basename='package')
 router.register('trainers', TrainerProfileViewSet, basename='trainer')
 router.register('subscriptions', SubscriptionViewSet, basename='subscription')
-router.register('availability-slots', AvailabilitySlotViewSet, basename='availability-slot')
 router.register('bookings', BookingViewSet, basename='booking')
 router.register('payments', PaymentViewSet, basename='payment')
 router.register('notifications', NotificationViewSet, basename='notification')

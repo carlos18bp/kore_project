@@ -12,7 +12,6 @@ Idempotent — deletes existing test data before re-creating.
 import random
 from datetime import date, timedelta
 from decimal import Decimal
-from zoneinfo import ZoneInfo
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
@@ -30,7 +29,6 @@ from core_app.models import (
     TrainerProfile,
     User,
 )
-from core_app.models.availability import AvailabilitySlot
 from core_app.models.customer_profile import CustomerProfile
 from core_app.models.monthly_program import (
     DailyLog,
@@ -41,7 +39,6 @@ from core_app.models.monthly_program import (
 from core_app.models.mood_entry import MoodEntry
 from core_app.models.weight_entry import WeightEntry
 from core_app.services.program_generator import generate_monthly_program
-from core_app.services.slot_schedule import generate_slots_for_trainer
 
 TRAINER_EMAIL = 'trainer@kore.com'
 CUSTOMER_EMAIL = 'test@kore.com'
@@ -67,7 +64,6 @@ class Command(BaseCommand):
         customer = self._create_customer(password)
         self._create_evaluations(customer, trainer_profile)
         packages = self._create_packages()
-        self._create_slots(trainer_profile)
         subscription = self._create_subscription(customer, packages[1])
         self._create_bookings(customer, trainer_profile, packages[1], subscription)
         self._create_program(customer)
@@ -81,15 +77,9 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('=' * 60))
 
     def _purge_existing_test_data(self):
-        """Delete any prior test data in FK-dependency order so re-runs are idempotent.
-
-        Several FKs onto the test users are ``PROTECT`` (``Subscription.customer``,
-        ``Payment.customer``) and ``Booking.slot`` PROTECTs the trainer's slots,
-        which cascade from ``TrainerProfile`` — so the rows must be removed before
-        the users themselves can be deleted.
-        """
+        """Delete any prior test data in FK-dependency order so re-runs are idempotent."""
         Booking.objects.filter(customer__email=CUSTOMER_EMAIL).delete()
-        Booking.objects.filter(slot__trainer__user__email=TRAINER_EMAIL).delete()
+        Booking.objects.filter(trainer__user__email=TRAINER_EMAIL).delete()
         Payment.objects.filter(customer__email=CUSTOMER_EMAIL).delete()
         Subscription.objects.filter(customer__email=CUSTOMER_EMAIL).delete()
         User.objects.filter(email__in=[TRAINER_EMAIL, CUSTOMER_EMAIL]).delete()
@@ -379,12 +369,6 @@ class Command(BaseCommand):
         self.stdout.write('  Packages: 3 upserted (Básico, Estándar, Premium)')
         return [pkg_basic, pkg_standard, pkg_premium]
 
-    def _create_slots(self, trainer_profile):
-        AvailabilitySlot.objects.filter(trainer=trainer_profile).delete()
-        bogota_tz = ZoneInfo('America/Bogota')
-        count = generate_slots_for_trainer(trainer_profile, days=35, tz=bogota_tz)
-        self.stdout.write(f'  Availability slots: {count} created (35 days)')
-
     def _create_subscription(self, customer, package):
         Subscription.objects.filter(customer=customer).delete()
 
@@ -422,54 +406,42 @@ class Command(BaseCommand):
         Booking.objects.filter(customer=customer).delete()
 
         now = timezone.now()
-        bogota_tz = ZoneInfo('America/Bogota')
-
-        past_slots = AvailabilitySlot.objects.filter(
-            trainer=trainer_profile,
-            is_active=True,
-            is_blocked=False,
-            starts_at__lt=now,
-        ).order_by('-starts_at')[:3]
-
+        duration = timedelta(minutes=package.session_duration_minutes or 60)
         bookings_created = 0
-        for slot in past_slots:
-            slot.is_blocked = True
-            slot.save(update_fields=['is_blocked'])
+
+        # 3 past confirmed bookings (1, 2, 3 weeks ago at 10:00 local)
+        for weeks_ago in (1, 2, 3):
+            starts_at = (now - timedelta(weeks=weeks_ago)).replace(
+                hour=15, minute=0, second=0, microsecond=0
+            )
             Booking.objects.create(
                 customer=customer,
                 package=package,
-                slot=slot,
+                starts_at=starts_at,
+                ends_at=starts_at + duration,
                 trainer=trainer_profile,
                 subscription=subscription,
                 status='confirmed',
             )
             bookings_created += 1
 
-        future_slots = AvailabilitySlot.objects.filter(
-            trainer=trainer_profile,
-            is_active=True,
-            is_blocked=False,
-            starts_at__gt=now + timedelta(hours=16),
-            starts_at__lt=now + timedelta(days=14),
-        ).order_by('starts_at')[:2]
-
-        for slot in future_slots:
-            slot.is_blocked = True
-            slot.save(update_fields=['is_blocked'])
+        # 2 upcoming confirmed bookings (1 and 2 weeks ahead at 10:00 local)
+        for weeks_ahead in (1, 2):
+            starts_at = (now + timedelta(weeks=weeks_ahead)).replace(
+                hour=15, minute=0, second=0, microsecond=0
+            )
             Booking.objects.create(
                 customer=customer,
                 package=package,
-                slot=slot,
+                starts_at=starts_at,
+                ends_at=starts_at + duration,
                 trainer=trainer_profile,
                 subscription=subscription,
                 status='confirmed',
             )
             bookings_created += 1
 
-        self.stdout.write(
-            f'  Bookings: {bookings_created} created '
-            f'({len(past_slots)} past, {len(future_slots)} upcoming)'
-        )
+        self.stdout.write(f'  Bookings: {bookings_created} created (3 past, 2 upcoming)')
 
     def _create_program(self, customer):
         MonthlyProgram.objects.filter(customer=customer).delete()

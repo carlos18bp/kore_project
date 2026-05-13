@@ -5,7 +5,6 @@ from django.db import transaction
 
 from core_app.models import (
     AnalyticsEvent,
-    AvailabilitySlot,
     Booking,
     ContactMessage,
     FAQCategory,
@@ -65,7 +64,6 @@ class Command(BaseCommand):
             deleted_summary.append(f"subscription_guests: {SubscriptionGuest.objects.all().delete()[0]}")
             deleted_summary.append(f"subscriptions: {Subscription.objects.all().delete()[0]}")
 
-            deleted_summary.append(f"availability_slots: {AvailabilitySlot.objects.all().delete()[0]}")
             deleted_summary.append(f"trainer_profiles: {TrainerProfile.objects.all().delete()[0]}")
 
             deleted_summary.append(f"analytics_events: {AnalyticsEvent.objects.all().delete()[0]}")

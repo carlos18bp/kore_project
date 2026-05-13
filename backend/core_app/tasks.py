@@ -340,20 +340,6 @@ def send_parq_reminders():
     return summary
 
 
-@db_periodic_task(crontab(minute=30, hour=2))
-def maintain_availability_slots():
-    """Daily slot maintenance: prune free past slots, fill future window.
-
-    Delegates to the ``maintain_slots`` management command so the logic
-    is shared with the ad-hoc CLI invocation.
-
-    Returns:
-        None
-    """
-    from django.core.management import call_command
-    call_command('maintain_slots', timezone='America/Bogota')
-    logger.info('maintain_availability_slots task completed')
-
 
 @db_periodic_task(crontab(minute=55, hour=23))
 def close_daily_logs():

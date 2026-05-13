@@ -51,7 +51,7 @@ class TrainerClientListView(APIView):
                     ),
                 ),
                 last_session_date=Max(
-                    'bookings__slot__starts_at',
+                    'bookings__starts_at',
                     filter=Q(
                         bookings__trainer=trainer_profile,
                         bookings__status__in=[
@@ -166,11 +166,11 @@ class TrainerClientDetailView(APIView):
             Booking.objects.filter(
                 trainer=trainer_profile,
                 customer=customer,
-                slot__starts_at__gte=tz.now(),
+                starts_at__gte=tz.now(),
                 status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
             )
-            .select_related('slot', 'package')
-            .order_by('slot__starts_at')
+            .select_related('package')
+            .order_by('starts_at')
             .first()
         )
 
@@ -222,8 +222,8 @@ class TrainerClientDetailView(APIView):
             } if active_sub else None,
             'next_session': {
                 'id': next_session.id,
-                'starts_at': next_session.slot.starts_at.isoformat(),
-                'ends_at': next_session.slot.ends_at.isoformat(),
+                'starts_at': next_session.starts_at.isoformat() if next_session.starts_at else None,
+                'ends_at': next_session.ends_at.isoformat() if next_session.ends_at else None,
                 'package_title': next_session.package.title if next_session.package else '',
                 'status': next_session.status,
             } if next_session else None,
@@ -258,8 +258,8 @@ class TrainerClientSessionsView(APIView):
             Booking.objects.filter(
                 trainer=trainer_profile, customer_id=customer_id
             )
-            .select_related('package', 'slot', 'subscription')
-            .order_by('-slot__starts_at')
+            .select_related('package', 'subscription')
+            .order_by('-starts_at')
         )
 
         results = []
@@ -268,8 +268,8 @@ class TrainerClientSessionsView(APIView):
                 'id': b.id,
                 'status': b.status,
                 'package_title': b.package.title if b.package else '',
-                'starts_at': b.slot.starts_at.isoformat() if b.slot else None,
-                'ends_at': b.slot.ends_at.isoformat() if b.slot else None,
+                'starts_at': b.starts_at.isoformat() if b.starts_at else None,
+                'ends_at': b.ends_at.isoformat() if b.ends_at else None,
                 'notes': b.notes,
                 'canceled_reason': b.canceled_reason,
                 'created_at': b.created_at.isoformat(),
@@ -313,19 +313,19 @@ class TrainerDashboardStatsView(APIView):
 
         today_sessions = Booking.objects.filter(
             trainer=trainer_profile,
-            slot__starts_at__gte=day_start,
-            slot__starts_at__lt=day_end,
+            starts_at__gte=day_start,
+            starts_at__lt=day_end,
             status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
         ).count()
 
         upcoming_sessions = (
             Booking.objects.filter(
                 trainer=trainer_profile,
-                slot__starts_at__gte=now,
+                starts_at__gte=now,
                 status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
             )
-            .select_related('customer', 'slot', 'package')
-            .order_by('slot__starts_at')[:5]
+            .select_related('customer', 'package')
+            .order_by('starts_at')[:5]
         )
 
         upcoming_list = []
@@ -335,8 +335,8 @@ class TrainerDashboardStatsView(APIView):
                 'customer_name': f'{b.customer.first_name} {b.customer.last_name}'.strip(),
                 'customer_id': b.customer.id,
                 'package_title': b.package.title if b.package else '',
-                'starts_at': b.slot.starts_at.isoformat(),
-                'ends_at': b.slot.ends_at.isoformat(),
+                'starts_at': b.starts_at.isoformat() if b.starts_at else None,
+                'ends_at': b.ends_at.isoformat() if b.ends_at else None,
                 'status': b.status,
             })
 
