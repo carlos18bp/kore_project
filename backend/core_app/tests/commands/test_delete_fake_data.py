@@ -8,7 +8,6 @@ from django.core.management import call_command
 
 from core_app.models import (
     AnalyticsEvent,
-    AvailabilitySlot,
     Booking,
     ContactMessage,
     FAQCategory,
@@ -30,7 +29,6 @@ class TestDeleteFakeData:
         call_command(
             'create_fake_data',
             customers=2,
-            days=2,
             bookings=2,
             payments=2,
             notifications=2,
@@ -57,7 +55,6 @@ class TestDeleteFakeData:
         assert Notification.objects.count() == 0
         assert Payment.objects.count() == 0
         assert Booking.objects.count() == 0
-        assert AvailabilitySlot.objects.count() == 0
         assert AnalyticsEvent.objects.count() == 0
 
     def test_deletes_content_catalog_data_with_confirm(self):

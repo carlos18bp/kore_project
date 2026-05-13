@@ -27,6 +27,32 @@ from core_app.models import (
 
 # Realistic distributions
 # Each tuple: (weight_kg, height_cm, waist_cm, hip_cm) — covers normal to obesity I
+PERIMETER_PROFILES = [
+    # (brazo_rel_d, brazo_rel_i, brazo_flex_d, brazo_flex_i, antebrazo_d, antebrazo_i,
+    #  muneca_d, muneca_i, pecho, muslo_d, muslo_i, pantorrilla_d, pantorrilla_i, tobillo_d, tobillo_i)
+    (26.0, 25.5, 28.0, 27.5, 23.0, 22.5, 14.5, 14.5, 86.0,  52.0, 51.5, 34.0, 33.5, 20.5, 20.5),  # 0 normal
+    (30.0, 29.5, 32.0, 31.5, 26.0, 25.5, 16.5, 16.5, 96.0,  58.0, 57.5, 38.0, 37.5, 22.0, 22.0),  # 1 overweight
+    (24.0, 23.5, 26.0, 25.5, 21.0, 20.5, 14.0, 14.0, 82.0,  49.0, 48.5, 33.0, 32.5, 19.5, 19.5),  # 2 normal
+    (34.0, 33.5, 37.0, 36.5, 28.0, 27.5, 18.0, 18.0, 108.0, 64.0, 63.5, 42.0, 41.5, 24.0, 24.0),  # 3 obesity I
+    (32.0, 31.5, 34.0, 33.5, 27.0, 26.5, 17.0, 17.0, 100.0, 60.0, 59.5, 39.0, 38.5, 22.5, 22.5),  # 4 overweight
+    (23.0, 22.5, 25.0, 24.5, 20.5, 20.0, 13.5, 13.5, 80.0,  48.0, 47.5, 32.0, 31.5, 19.0, 19.0),  # 5 normal
+    (38.0, 37.5, 42.0, 41.5, 30.0, 29.5, 19.5, 19.5, 120.0, 70.0, 69.5, 46.0, 45.5, 26.0, 26.0),  # 6 obesity II
+    (28.0, 27.5, 30.5, 30.0, 24.0, 23.5, 15.5, 15.5, 92.0,  54.0, 53.5, 36.0, 35.5, 21.0, 21.0),  # 7 normal
+]
+
+SKINFOLD_PROFILES = [
+    # (triceps_d, triceps_i, biceps_d, biceps_i, subescapular_d, subescapular_i,
+    #  cresta_iliaca_d, cresta_iliaca_i, supraespinal, abdominal, muslo_d, muslo_i, pantorrilla_d, pantorrilla_i)
+    (14.0, 14.0,  8.0,  8.0, 11.0, 11.0, 14.0, 14.0, 12.0, 16.0, 20.0, 20.0, 12.0, 12.0),  # 0 normal
+    (16.0, 16.0,  9.0,  9.0, 16.0, 16.0, 18.0, 18.0, 16.0, 22.0, 22.0, 22.0, 14.0, 14.0),  # 1 overweight
+    (12.0, 12.0,  7.0,  7.0, 10.0, 10.0, 12.0, 12.0, 10.0, 14.0, 18.0, 18.0, 11.0, 11.0),  # 2 normal
+    (22.0, 22.0, 14.0, 14.0, 22.0, 22.0, 26.0, 26.0, 24.0, 32.0, 28.0, 28.0, 18.0, 18.0),  # 3 obesity I
+    (18.0, 18.0, 11.0, 11.0, 18.0, 18.0, 20.0, 20.0, 18.0, 24.0, 24.0, 24.0, 15.0, 15.0),  # 4 overweight
+    (11.0, 11.0,  6.0,  6.0,  9.0,  9.0, 11.0, 11.0,  9.0, 12.0, 17.0, 17.0, 10.0, 10.0),  # 5 normal
+    (28.0, 28.0, 18.0, 18.0, 28.0, 28.0, 32.0, 32.0, 30.0, 40.0, 34.0, 34.0, 22.0, 22.0),  # 6 obesity II
+    (13.0, 13.0,  7.5,  7.5, 14.0, 14.0, 16.0, 16.0, 14.0, 18.0, 20.0, 20.0, 12.0, 12.0),  # 7 normal
+]
+
 ANTHRO_PROFILES = [
     (Decimal('62.0'), Decimal('168.0'), Decimal('72.0'), Decimal('92.0')),   # normal
     (Decimal('75.5'), Decimal('175.0'), Decimal('85.0'), Decimal('98.0')),   # overweight
@@ -96,6 +122,10 @@ class Command(BaseCommand):
             '--seed', type=int, default=None,
             help='Random seed for reproducible distributions.',
         )
+        parser.add_argument(
+            '--reset', action='store_true', default=False,
+            help='Delete all existing diagnostics for customers before creating new ones.',
+        )
 
     def handle(self, *args, **options):
         seed = options.get('seed')
@@ -108,11 +138,21 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING('No customers found. Run create_fake_users first.'))
             return
 
-        trainer = TrainerProfile.objects.first()
-        if trainer is None:
+        trainers = list(TrainerProfile.objects.all())
+        if not trainers:
             self.stdout.write(self.style.WARNING(
                 'No trainer profile found — diagnostics will be created without trainer.'
             ))
+        trainer = trainers[0] if trainers else None
+
+        if options['reset']:
+            customer_ids = [c.pk for c in customers]
+            AnthropometryEvaluation.objects.filter(customer_id__in=customer_ids).delete()
+            PosturometryEvaluation.objects.filter(customer_id__in=customer_ids).delete()
+            PhysicalEvaluation.objects.filter(customer_id__in=customer_ids).delete()
+            NutritionHabit.objects.filter(customer_id__in=customer_ids).delete()
+            ParqAssessment.objects.filter(customer_id__in=customer_ids).delete()
+            self.stdout.write(self.style.WARNING('Existing diagnostics deleted.'))
 
         counts = {'anthro': 0, 'posturo': 0, 'physical': 0, 'nutrition': 0, 'parq': 0}
         today = timezone.localdate()
@@ -121,9 +161,14 @@ class Command(BaseCommand):
             for i in range(per_customer):
                 # Stagger dates so multiple evaluations don't share the same day
                 offset_days = i * 30  # 30-day spacing between evaluations of same customer
+                # Distribute across all trainers so every trainer has data to view
+                trainer = trainers[(customer.pk + i) % len(trainers)] if trainers else None
 
                 if not options['skip_anthro']:
                     profile = ANTHRO_PROFILES[(customer.pk + i) % len(ANTHRO_PROFILES)]
+                    p_idx = (customer.pk + i) % len(PERIMETER_PROFILES)
+                    pp = PERIMETER_PROFILES[p_idx]
+                    sp = SKINFOLD_PROFILES[p_idx]
                     AnthropometryEvaluation.objects.create(
                         customer=customer,
                         trainer=trainer,
@@ -132,6 +177,26 @@ class Command(BaseCommand):
                         height_cm=profile[1],
                         waist_cm=profile[2],
                         hip_cm=profile[3],
+                        perimeters={
+                            'brazo_relajado_d': pp[0],  'brazo_relajado_i': pp[1],
+                            'brazo_flexionado_d': pp[2], 'brazo_flexionado_i': pp[3],
+                            'antebrazo_d': pp[4],        'antebrazo_i': pp[5],
+                            'muneca_d': pp[6],           'muneca_i': pp[7],
+                            'pecho': pp[8],
+                            'muslo_d': pp[9],            'muslo_i': pp[10],
+                            'pantorrilla_d': pp[11],     'pantorrilla_i': pp[12],
+                            'tobillo_d': pp[13],         'tobillo_i': pp[14],
+                        },
+                        skinfolds={
+                            'triceps_d': sp[0],         'triceps_i': sp[1],
+                            'biceps_d': sp[2],          'biceps_i': sp[3],
+                            'subescapular_d': sp[4],    'subescapular_i': sp[5],
+                            'cresta_iliaca_d': sp[6],   'cresta_iliaca_i': sp[7],
+                            'supraespinal': sp[8],
+                            'abdominal': sp[9],
+                            'muslo_d': sp[10],          'muslo_i': sp[11],
+                            'pantorrilla_d': sp[12],    'pantorrilla_i': sp[13],
+                        },
                     )
                     counts['anthro'] += 1
 

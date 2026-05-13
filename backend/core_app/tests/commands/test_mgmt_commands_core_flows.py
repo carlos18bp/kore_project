@@ -3,7 +3,6 @@
 from datetime import datetime, timedelta
 from io import StringIO
 from unittest.mock import patch
-from zoneinfo import ZoneInfo
 
 import pytest
 from django.core.management import call_command
@@ -16,7 +15,6 @@ from core_app.management.commands.create_fake_bookings import (
     _pick_booking_ratio,
 )
 from core_app.models import (
-    AvailabilitySlot,
     Booking,
     FAQItem,
     Notification,
@@ -456,12 +454,6 @@ class TestCreateFakeBookings:
             starts_at=now,
             expires_at=now + timedelta(days=30),
         )
-        AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=2),
-            ends_at=now + timedelta(hours=3),
-            is_active=True,
-            is_blocked=False,
-        )
 
         out = StringIO()
         with patch(
@@ -496,12 +488,6 @@ class TestCreateFakeBookings:
             starts_at=now,
             expires_at=now + timedelta(days=30),
         )
-        AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=2),
-            ends_at=now + timedelta(hours=3),
-            is_active=True,
-            is_blocked=False,
-        )
 
         out = StringIO()
         with patch(
@@ -513,47 +499,6 @@ class TestCreateFakeBookings:
         assert Booking.objects.count() == 0
         assert '- created: 0' in out.getvalue()
 
-    def test_locked_slot_race_condition_skips_creation(self):
-        """Creation loop skips when slot appears blocked after select-for-update lock step."""
-        now = FIXED_NOW
-        customer = User.objects.create_user(
-            email='bk_lock_guard@example.com',
-            password='p',
-            role=User.Role.CUSTOMER,
-        )
-        package = Package.objects.create(
-            title='LockGuardPkg',
-            is_active=True,
-            sessions_count=3,
-            validity_days=30,
-        )
-        Subscription.objects.create(
-            customer=customer,
-            package=package,
-            sessions_total=3,
-            sessions_used=0,
-            status=Subscription.Status.ACTIVE,
-            starts_at=now,
-            expires_at=now + timedelta(days=30),
-        )
-        slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=2),
-            ends_at=now + timedelta(hours=3),
-            is_active=True,
-            is_blocked=False,
-        )
-        locked_slot = AvailabilitySlot.objects.get(pk=slot.pk)
-        locked_slot.is_blocked = True
-
-        out = StringIO()
-        with patch(
-            'core_app.management.commands.create_fake_bookings.AvailabilitySlot.objects.select_for_update'
-        ) as mock_select_for_update:
-            mock_select_for_update.return_value.get.return_value = locked_slot
-            call_command('create_fake_bookings', num=1, stdout=out)
-
-        assert Booking.objects.count() == 0
-        assert '- created: 0' in out.getvalue()
 
     def test_seeding_skips_active_subscription_with_zero_sessions_total(self):
         """Active seeding skips subscriptions whose ``sessions_total`` yields non-positive seed target."""
@@ -642,49 +587,32 @@ class TestCreateFakeBookings:
         call_command('create_fake_bookings', num=1, stdout=out)
         assert 'No customers with active subscriptions found' in out.getvalue()
 
-    def test_no_available_slots_stops(self):
-        """No available slots → loop breaks."""
-        now = FIXED_NOW
-        customer = User.objects.create_user(
-            email='bk_cust2@example.com', password='p', role=User.Role.CUSTOMER,
-        )
-        pkg = Package.objects.create(title='Pkg', is_active=True, sessions_count=5, validity_days=30)
-        Subscription.objects.create(
-            customer=customer, package=pkg,
-            sessions_total=5, sessions_used=0,
-            status=Subscription.Status.ACTIVE,
-            starts_at=now, expires_at=now + timedelta(days=30),
-        )
-        out = StringIO()
-        call_command('create_fake_bookings', num=5, stdout=out)
-        output = out.getvalue()
-        assert 'created: 0' in output
-
-    def test_slot_already_locked_continues(self):
-        """Slot locked between query and atomic block → continue."""
+    def test_overlap_prevents_double_booking(self):
+        """Existing confirmed booking prevents creating another overlapping booking."""
         now = FIXED_NOW
         customer = User.objects.create_user(
             email='bk_lock@example.com', password='p', role=User.Role.CUSTOMER,
         )
         pkg = Package.objects.create(title='Pkg', is_active=True, sessions_count=5, validity_days=30)
-        Subscription.objects.create(
+        sub = Subscription.objects.create(
             customer=customer, package=pkg,
-            sessions_total=5, sessions_used=0,
+            sessions_total=5, sessions_used=1,
             status=Subscription.Status.ACTIVE,
             starts_at=now, expires_at=now + timedelta(days=30),
         )
-        slot = AvailabilitySlot.objects.create(
+        # Create an existing booking to consume one session
+        Booking.objects.create(
+            customer=customer, package=pkg, subscription=sub,
             starts_at=now + timedelta(hours=2),
             ends_at=now + timedelta(hours=3),
-            is_active=True, is_blocked=False,
+            status=Booking.Status.CONFIRMED,
         )
-        # Create an existing booking on this slot so the check fails
-        Booking.objects.create(customer=customer, package=pkg, slot=slot)
 
         out = StringIO()
         call_command('create_fake_bookings', num=1, stdout=out)
         output = out.getvalue()
-        assert Booking.objects.filter(slot=slot).count() == 1
+        # Should have only the 1 pre-existing booking
+        assert Booking.objects.count() == 1
         assert 'created: 0' in output
 
     def test_partial_booking_limit(self):
@@ -700,20 +628,6 @@ class TestCreateFakeBookings:
             status=Subscription.Status.ACTIVE,
             starts_at=now, expires_at=now + timedelta(days=30),
         )
-        trainer_user = User.objects.create_user(
-            email='bk_trainer@example.com', password='p', role=User.Role.TRAINER,
-        )
-        trainer = TrainerProfile.objects.create(user=trainer_user, specialty='Test')
-
-        # Create 20 available slots
-        for i in range(20):
-            AvailabilitySlot.objects.create(
-                starts_at=now + timedelta(hours=2 + i),
-                ends_at=now + timedelta(hours=3 + i),
-                is_active=True, is_blocked=False,
-                trainer=trainer,
-            )
-
         out = StringIO()
         # Limit to 30% of sessions = max 6 bookings
         call_command('create_fake_bookings', num=20, min_booking_ratio=0.30, max_booking_ratio=0.30, stdout=out)
@@ -735,19 +649,6 @@ class TestCreateFakeBookings:
             status=Subscription.Status.ACTIVE,
             starts_at=now, expires_at=now + timedelta(days=30),
         )
-        trainer_user = User.objects.create_user(
-            email='bk_full_trainer@example.com', password='p', role=User.Role.TRAINER,
-        )
-        trainer = TrainerProfile.objects.create(user=trainer_user, specialty='Test')
-
-        for i in range(4):
-            AvailabilitySlot.objects.create(
-                starts_at=now + timedelta(hours=2 + i),
-                ends_at=now + timedelta(hours=3 + i),
-                is_active=True, is_blocked=False,
-                trainer=trainer,
-            )
-
         out = StringIO()
         with patch(
             'core_app.management.commands.create_fake_bookings._pick_booking_ratio',
@@ -807,9 +708,9 @@ class TestCreateFakeBookings:
             status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
         )
         assert past_bookings.count() == 3
-        # All slots should be in the past
+        # All bookings should be in the past
         for booking in past_bookings:
-            assert booking.slot.starts_at < now
+            assert booking.starts_at < now
         assert 'past_backfilled: 3' in out.getvalue()
 
     def test_past_bookings_idempotent_for_already_backfilled(self):
@@ -876,7 +777,7 @@ class TestCreateFakeBookings:
         past_bookings = Booking.objects.filter(
             subscription=active_sub,
             status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
-            slot__starts_at__lt=now,
+            starts_at__lt=now,
         )
         total_active_bookings = Booking.objects.filter(
             subscription=active_sub,
@@ -888,7 +789,7 @@ class TestCreateFakeBookings:
         assert total_active_bookings.count() == 2
         assert active_sub.sessions_used == 2
         for booking in past_bookings:
-            assert booking.slot.starts_at < now
+            assert booking.starts_at < now
 
     def test_backfill_does_not_exceed_sessions_total_when_future_bookings_exist(self):
         """Backfill skips creation when existing active bookings already hit sessions_total."""
@@ -910,16 +811,11 @@ class TestCreateFakeBookings:
             expires_at=now + timedelta(days=60),
         )
 
-        future_slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=48),
-            ends_at=now + timedelta(hours=49),
-            is_active=True,
-            is_blocked=True,
-        )
         Booking.objects.create(
             customer=customer,
             package=pkg,
-            slot=future_slot,
+            starts_at=now + timedelta(hours=48),
+            ends_at=now + timedelta(hours=49),
             subscription=active_sub,
             status=Booking.Status.CONFIRMED,
         )
@@ -932,7 +828,7 @@ class TestCreateFakeBookings:
             subscription=active_sub,
             status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
         )
-        past_bookings = total_active_bookings.filter(slot__starts_at__lt=now)
+        past_bookings = total_active_bookings.filter(starts_at__lt=now)
 
         assert total_active_bookings.count() == 1
         assert past_bookings.count() == 0
@@ -984,12 +880,6 @@ class TestCreateFakeBookings:
             status=Subscription.Status.ACTIVE,
             starts_at=now, expires_at=now + timedelta(days=30),
         )
-        AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=2),
-            ends_at=now + timedelta(hours=3),
-            is_active=True, is_blocked=False,
-        )
-
         out = StringIO()
         with patch('core_app.management.commands.create_fake_bookings.random.random', return_value=0.9):
             call_command(
@@ -1007,179 +897,6 @@ class TestCreateFakeBookings:
         ).count()
         assert booking_count == sub.sessions_used
 
-
-# ----------------------------------------------------------------
-# create_fake_slots
-# ----------------------------------------------------------------
-
-@pytest.mark.django_db
-class TestCreateFakeSlots:
-    """Behavior checks for slot generation command edge cases."""
-
-    def test_no_trainers_warning(self):
-        """Command exits early with warning when no trainer profiles exist."""
-        out = StringIO()
-        call_command('create_fake_slots', days=1, stdout=out)
-
-        assert 'No trainers found' in out.getvalue()
-        assert AvailabilitySlot.objects.count() == 0
-
-    def test_custom_timezone(self):
-        """--timezone flag uses custom tz (line 28)."""
-        # Create a trainer first
-        user = User.objects.create_user(
-            email='slot_trainer@example.com', password='p', role=User.Role.TRAINER,
-        )
-        TrainerProfile.objects.create(user=user, specialty='Test')
-
-        out = StringIO()
-        call_command('create_fake_slots', days=1, timezone='America/Bogota', stdout=out)
-        assert AvailabilitySlot.objects.count() > 0
-
-    def test_end_hour_lte_start_hour_error(self):
-        """--end-hour <= --start-hour exits with error (line 32-33)."""
-        with pytest.raises(SystemExit) as exc_info:
-            call_command('create_fake_slots', start_hour=18, end_hour=9)
-        assert exc_info.value.code != 0
-        assert AvailabilitySlot.objects.count() == 0
-
-    def test_slot_minutes_zero_error(self):
-        """--slot-minutes <= 0 exits with error (line 34-35)."""
-        with pytest.raises(SystemExit) as exc_info:
-            call_command('create_fake_slots', slot_minutes=0)
-        assert exc_info.value.code != 0
-        assert AvailabilitySlot.objects.count() == 0
-
-    def test_slot_step_minutes_zero_error(self):
-        """--slot-step-minutes <= 0 exits with error."""
-        with pytest.raises(SystemExit) as exc_info:
-            call_command('create_fake_slots', slot_step_minutes=0)
-        assert exc_info.value.code != 0
-        assert AvailabilitySlot.objects.count() == 0
-
-    def test_idempotent_slots(self):
-        """Re-running does not duplicate existing slots (line 71-72 branch)."""
-        user = User.objects.create_user(
-            email='slot_trainer2@example.com', password='p', role=User.Role.TRAINER,
-        )
-        TrainerProfile.objects.create(user=user, specialty='Test')
-
-        out1 = StringIO()
-        call_command('create_fake_slots', days=1, stdout=out1)
-        count1 = AvailabilitySlot.objects.count()
-
-        out2 = StringIO()
-        call_command('create_fake_slots', days=1, stdout=out2)
-        assert AvailabilitySlot.objects.count() == count1
-
-    def test_late_start_date_advances_day(self):
-        """If now >= end_hour, start_date advances (line 40)."""
-        user = User.objects.create_user(
-            email='slot_late@example.com', password='p', role=User.Role.TRAINER,
-        )
-        TrainerProfile.objects.create(user=user, specialty='Test')
-
-        # Mock now to be 19:00 (past default end_hour=18)
-        import zoneinfo
-        tz = zoneinfo.ZoneInfo('America/Bogota')
-        late_now = datetime(2025, 7, 10, 19, 0, 0, tzinfo=tz)
-        with patch('django.utils.timezone.now', return_value=late_now):
-            out = StringIO()
-            call_command('create_fake_slots', days=1, timezone='America/Bogota', stdout=out)
-        # Slots should be on the NEXT day (July 11), not July 10
-        for slot in AvailabilitySlot.objects.all():
-            assert slot.starts_at.astimezone(tz).date() >= late_now.date() + timedelta(days=1)
-
-    def test_slot_exceeds_end_boundary_breaks(self):
-        """Loop stops when next start would exceed end boundary."""
-        user = User.objects.create_user(
-            email='slot_break@example.com', password='p', role=User.Role.TRAINER,
-        )
-        TrainerProfile.objects.create(user=user, specialty='Test')
-
-        out = StringIO()
-        # 1 hour range with 45-min slots → only 1 slot fits, second breaks
-        call_command(
-            'create_fake_slots', days=1, start_hour=9, end_hour=10,
-            slot_minutes=45, stdout=out,
-        )
-        # With default 15-min starts, 09:00-09:45 and 09:15-10:00 both fit.
-        assert AvailabilitySlot.objects.count() == 2
-
-    def test_past_slots_skipped(self):
-        """Slots in the past are skipped (lines 58-59)."""
-        user = User.objects.create_user(
-            email='slot_past@example.com', password='p', role=User.Role.TRAINER,
-        )
-        TrainerProfile.objects.create(user=user, specialty='Test')
-
-        import zoneinfo
-        tz = zoneinfo.ZoneInfo('America/Bogota')
-        # Set now to 14:00 today, with slots from 9 to 18
-        mid_day = datetime(2025, 7, 10, 14, 0, 0, tzinfo=tz)
-        with patch('django.utils.timezone.now', return_value=mid_day):
-            out = StringIO()
-            call_command(
-                'create_fake_slots', days=1, start_hour=9, end_hour=18,
-                slot_minutes=60, timezone='America/Bogota', stdout=out,
-            )
-        # With 15-min starts and 60-min duration, first valid start is 13:15.
-        assert AvailabilitySlot.objects.count() == 16
-        for slot in AvailabilitySlot.objects.all():
-            assert slot.ends_at > mid_day
-
-
-# ----------------------------------------------------------------
-# create_trainer_weekday_slots
-# ----------------------------------------------------------------
-
-@pytest.mark.django_db
-class TestCreateTrainerWeekdaySlots:
-    """Behavior checks for trainer weekday slot generation command."""
-
-    def test_generates_60_min_slots_every_15_minutes(self):
-        """Default command behavior creates 60-min slots with 15-min starts."""
-        user = User.objects.create_user(
-            email='weekday_trainer@example.com', password='p', role=User.Role.TRAINER,
-        )
-        trainer = TrainerProfile.objects.create(user=user, specialty='Strength')
-
-        out = StringIO()
-        call_command(
-            'create_trainer_weekday_slots',
-            email=user.email,
-            days=1,
-            timezone='America/Bogota',
-            stdout=out,
-        )
-
-        slots = list(AvailabilitySlot.objects.filter(trainer=trainer).order_by('starts_at'))
-        assert len(slots) >= 1
-        assert all((slot.ends_at - slot.starts_at) == timedelta(minutes=60) for slot in slots)
-        assert all(slot.starts_at.minute in {0, 15, 30, 45} for slot in slots)
-
-        bogota_tz = ZoneInfo('America/Bogota')
-        local_starts = [slot.starts_at.astimezone(bogota_tz) for slot in slots]
-        assert any(local_start.hour == 20 and local_start.minute == 0 for local_start in local_starts)
-        assert all(
-            not (local_start.hour == 20 and local_start.minute == 15)
-            for local_start in local_starts
-        )
-
-    def test_slot_step_minutes_zero_error(self):
-        """--slot-step-minutes <= 0 raises CommandError in weekday generator."""
-        user = User.objects.create_user(
-            email='weekday_step_error@example.com', password='p', role=User.Role.TRAINER,
-        )
-        TrainerProfile.objects.create(user=user, specialty='Mobility')
-
-        with pytest.raises(Exception, match='--slot-step-minutes must be > 0') as exc_info:
-            call_command(
-                'create_trainer_weekday_slots',
-                email=user.email,
-                slot_step_minutes=0,
-            )
-        assert '--slot-step-minutes must be > 0' in str(exc_info.value)
 
 
 # ----------------------------------------------------------------
@@ -1271,16 +988,11 @@ class TestCreateFakePayments:
             validity_days=30,
             price=100000,
         )
-        slot = AvailabilitySlot.objects.create(
-            starts_at=FIXED_NOW + timedelta(hours=2),
-            ends_at=FIXED_NOW + timedelta(hours=3),
-            is_active=True,
-            is_blocked=True,
-        )
         booking = Booking.objects.create(
             customer=customer,
             package=package,
-            slot=slot,
+            starts_at=FIXED_NOW + timedelta(hours=2),
+            ends_at=FIXED_NOW + timedelta(hours=3),
             status=Booking.Status.CANCELED,
         )
 

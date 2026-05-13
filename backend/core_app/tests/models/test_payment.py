@@ -7,7 +7,7 @@ from decimal import Decimal
 import pytest
 from django.db.models import ProtectedError
 
-from core_app.models import AvailabilitySlot, Booking, Package, Payment, User
+from core_app.models import Booking, Package, Payment, User
 
 FIXED_NOW = datetime(2026, 1, 15, 10, 0, tzinfo=dt_timezone.utc)
 
@@ -22,11 +22,11 @@ def customer(db):
 def booking(db, customer):
     """Create a booking fixture that can be linked to payments."""
     pkg = Package.objects.create(title='Pkg', price=Decimal('100000.00'))
-    slot = AvailabilitySlot.objects.create(
+    return Booking.objects.create(
+        customer=customer, package=pkg,
         starts_at=FIXED_NOW + timedelta(hours=1),
         ends_at=FIXED_NOW + timedelta(hours=2),
     )
-    return Booking.objects.create(customer=customer, package=pkg, slot=slot)
 
 
 @pytest.mark.django_db
@@ -90,16 +90,16 @@ class TestPaymentModel:
     def test_ordering_by_created_at_desc(self, customer):
         """Return newest payments first when listing without explicit ordering."""
         pkg = Package.objects.create(title='Pkg2')
-        s1 = AvailabilitySlot.objects.create(
+        b1 = Booking.objects.create(
+            customer=customer, package=pkg,
             starts_at=FIXED_NOW + timedelta(hours=3),
             ends_at=FIXED_NOW + timedelta(hours=4),
         )
-        s2 = AvailabilitySlot.objects.create(
+        b2 = Booking.objects.create(
+            customer=customer, package=pkg,
             starts_at=FIXED_NOW + timedelta(hours=5),
             ends_at=FIXED_NOW + timedelta(hours=6),
         )
-        b1 = Booking.objects.create(customer=customer, package=pkg, slot=s1)
-        b2 = Booking.objects.create(customer=customer, package=pkg, slot=s2)
         p1 = Payment.objects.create(booking=b1, customer=customer)
         p2 = Payment.objects.create(booking=b2, customer=customer)
         ids = list(Payment.objects.values_list('id', flat=True))

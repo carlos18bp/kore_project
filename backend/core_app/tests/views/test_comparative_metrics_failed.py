@@ -11,7 +11,6 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from core_app.models import (
-    AvailabilitySlot,
     Booking,
     Exercise,
     Package,
@@ -72,13 +71,10 @@ def package(db):
 
 @pytest.fixture
 def linked_booking(trainer, customer, package):
-    slot = AvailabilitySlot.objects.create(
-        starts_at=FIXED_NOW, ends_at=FIXED_NOW + timedelta(hours=1),
-        is_active=True, is_blocked=True,
-    )
     return Booking.objects.create(
         customer=customer, trainer=trainer, package=package,
-        slot=slot, status=Booking.Status.CONFIRMED,
+        starts_at=FIXED_NOW, ends_at=FIXED_NOW + timedelta(hours=1),
+        status=Booking.Status.CONFIRMED,
     )
 
 

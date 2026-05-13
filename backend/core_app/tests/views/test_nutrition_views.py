@@ -8,7 +8,6 @@ import pytest
 from rest_framework.test import APIClient
 
 from core_app.models import Booking, Package, User
-from core_app.models.availability import AvailabilitySlot
 from core_app.models.nutrition_habit import NutritionHabit
 from core_app.models.trainer_profile import TrainerProfile
 
@@ -143,11 +142,11 @@ class TestTrainerNutritionViews:
         trainer_user = User.objects.create_user(email='nutri_t@test.com', password='pass', role='trainer')
         trainer = TrainerProfile.objects.create(user=trainer_user, specialty='Strength', location='Studio')
         pkg = Package.objects.create(title='Pack', sessions_count=4, validity_days=30, price=Decimal('100.00'))
-        slot = AvailabilitySlot.objects.create(
+        Booking.objects.create(
+            customer=customer, package=pkg, trainer=trainer,
             starts_at=FIXED_NOW + timedelta(days=1), ends_at=FIXED_NOW + timedelta(days=1, hours=1),
-            is_active=True, is_blocked=False,
+            status='confirmed',
         )
-        Booking.objects.create(customer=customer, package=pkg, slot=slot, trainer=trainer, status='confirmed')
 
         entry = NutritionHabit.objects.create(
             customer=customer, meals_per_day=3, water_liters=Decimal('2.0'),

@@ -9,7 +9,7 @@ import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
-from core_app.models import AvailabilitySlot, Booking, Package, User
+from core_app.models import Booking, Package, User
 
 FIXED_NOW = datetime(2026, 3, 1, 10, 0, tzinfo=dt_tz.utc)
 BEFORE_CUTOFF = (FIXED_NOW + timedelta(days=1)).strftime('%Y-%m-%d')
@@ -43,17 +43,12 @@ def _create_booking(*, customer_email, trainer_profile, status, starts_at, packa
         package = Package.objects.create(
             title='Test Package', sessions_count=4, validity_days=30, price='100000.00',
         )
-    slot = AvailabilitySlot.objects.create(
-        starts_at=starts_at,
-        ends_at=starts_at + timedelta(hours=1),
-        is_active=True,
-        is_blocked=True,
-    )
     return Booking.objects.create(
         customer=customer,
         trainer=trainer_profile,
         package=package,
-        slot=slot,
+        starts_at=starts_at,
+        ends_at=starts_at + timedelta(hours=1),
         status=status,
     )
 
@@ -278,13 +273,11 @@ def test_sends_only_to_customer_when_no_trainer(mock_ics, mock_email):
         title='Pkg', sessions_count=4, validity_days=30, price='100000.00',
     )
     future = FIXED_NOW + timedelta(days=5)
-    slot = AvailabilitySlot.objects.create(
-        starts_at=future, ends_at=future + timedelta(hours=1),
-        is_active=True, is_blocked=True,
-    )
     Booking.objects.create(
         customer=customer, trainer=None,
-        package=package, slot=slot, status=Booking.Status.CONFIRMED,
+        package=package,
+        starts_at=future, ends_at=future + timedelta(hours=1),
+        status=Booking.Status.CONFIRMED,
     )
 
     out = StringIO()

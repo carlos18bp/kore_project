@@ -9,7 +9,6 @@ import pytest
 from django.utils import timezone
 
 from core_app.models import (
-    AvailabilitySlot,
     Booking,
     Notification,
     Package,
@@ -90,16 +89,11 @@ class TestBookingEmailNotifications:
         trainer = TrainerProfile.objects.create(user=trainer_user, specialty='Strength', location='Studio 1')
         package = Package.objects.create(title='Pack', sessions_count=4, validity_days=30, price=Decimal('100.00'))
         now = _fixed_now()
-        slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(days=1),
-            ends_at=now + timedelta(days=1, hours=1),
-            is_active=True,
-            is_blocked=False,
-        )
         booking = Booking.objects.create(
             customer=customer,
             package=package,
-            slot=slot,
+            starts_at=now + timedelta(days=1),
+            ends_at=now + timedelta(days=1, hours=1),
             trainer=trainer,
             status=Booking.Status.CONFIRMED,
         )
@@ -121,16 +115,11 @@ class TestBookingEmailNotifications:
         )
         package = Package.objects.create(title='Pack', sessions_count=4, validity_days=30, price=Decimal('100.00'))
         now = _fixed_now()
-        slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(days=1),
-            ends_at=now + timedelta(days=1, hours=1),
-            is_active=True,
-            is_blocked=False,
-        )
         booking = Booking.objects.create(
             customer=customer,
             package=package,
-            slot=slot,
+            starts_at=now + timedelta(days=1),
+            ends_at=now + timedelta(days=1, hours=1),
             status=Booking.Status.CONFIRMED,
         )
 
@@ -146,16 +135,11 @@ class TestBookingEmailNotifications:
         )
         package = Package.objects.create(title='Pack', sessions_count=2, validity_days=30, price=Decimal('80.00'))
         now = _fixed_now()
-        slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(days=2),
-            ends_at=now + timedelta(days=2, hours=1),
-            is_active=True,
-            is_blocked=False,
-        )
         booking = Booking.objects.create(
             customer=customer,
             package=package,
-            slot=slot,
+            starts_at=now + timedelta(days=2),
+            ends_at=now + timedelta(days=2, hours=1),
             status=Booking.Status.CANCELED,
         )
 
@@ -177,16 +161,11 @@ class TestBookingEmailNotifications:
         trainer = TrainerProfile.objects.create(user=trainer_user, specialty='Yoga', location='Studio 2')
         package = Package.objects.create(title='Pack', sessions_count=2, validity_days=30, price=Decimal('80.00'))
         now = _fixed_now()
-        slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(days=2),
-            ends_at=now + timedelta(days=2, hours=1),
-            is_active=True,
-            is_blocked=False,
-        )
         booking = Booking.objects.create(
             customer=customer,
             package=package,
-            slot=slot,
+            starts_at=now + timedelta(days=2),
+            ends_at=now + timedelta(days=2, hours=1),
             trainer=trainer,
             status=Booking.Status.CANCELED,
         )
@@ -207,34 +186,26 @@ class TestBookingEmailNotifications:
         assert f'booking-{booking.pk}@korehealths.com'.encode() in ics_bytes
 
     def test_send_booking_reschedule_passes_old_slot_context(self):
-        """Ensure reschedule emails include the prior slot in context."""
+        """Ensure reschedule emails include the prior booking start/end in context."""
         customer = User.objects.create_user(
             email='booking_reschedule@example.com', password='pass', first_name='Mia', last_name='Torres',
         )
         package = Package.objects.create(title='Pack', sessions_count=3, validity_days=30, price=Decimal('90.00'))
         now = _fixed_now()
-        old_slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(days=1),
-            ends_at=now + timedelta(days=1, hours=1),
-            is_active=True,
-            is_blocked=False,
-        )
-        new_slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(days=3),
-            ends_at=now + timedelta(days=3, hours=1),
-            is_active=True,
-            is_blocked=False,
-        )
+        old_starts_at = now + timedelta(days=1)
+        old_ends_at = now + timedelta(days=1, hours=1)
         old_booking = Booking.objects.create(
             customer=customer,
             package=package,
-            slot=old_slot,
+            starts_at=old_starts_at,
+            ends_at=old_ends_at,
             status=Booking.Status.CANCELED,
         )
         new_booking = Booking.objects.create(
             customer=customer,
             package=package,
-            slot=new_slot,
+            starts_at=now + timedelta(days=3),
+            ends_at=now + timedelta(days=3, hours=1),
             status=Booking.Status.CONFIRMED,
         )
 
@@ -242,8 +213,8 @@ class TestBookingEmailNotifications:
             notification = send_booking_reschedule(old_booking, new_booking)
 
         context = mock_send.call_args.kwargs['context']
-        assert context['old_slot_start'] == old_slot.starts_at
-        assert context['old_slot_end'] == old_slot.ends_at
+        assert context['old_slot_start'] == old_starts_at
+        assert context['old_slot_end'] == old_ends_at
         assert notification.notification_type == Notification.Type.BOOKING_RESCHEDULED
 
     def test_send_booking_reschedule_sends_to_customer_and_trainer_with_two_ics(self):
@@ -258,24 +229,16 @@ class TestBookingEmailNotifications:
         trainer = TrainerProfile.objects.create(user=trainer_user, specialty='Pilates', location='Studio 3')
         package = Package.objects.create(title='Pack', sessions_count=3, validity_days=30, price=Decimal('90.00'))
         now = _fixed_now()
-        old_slot = AvailabilitySlot.objects.create(
+        old_booking = Booking.objects.create(
+            customer=customer, package=package,
             starts_at=now + timedelta(days=1),
             ends_at=now + timedelta(days=1, hours=1),
-            is_active=True,
-            is_blocked=False,
-        )
-        new_slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(days=3),
-            ends_at=now + timedelta(days=3, hours=1),
-            is_active=True,
-            is_blocked=False,
-        )
-        old_booking = Booking.objects.create(
-            customer=customer, package=package, slot=old_slot,
             trainer=trainer, status=Booking.Status.CANCELED,
         )
         new_booking = Booking.objects.create(
-            customer=customer, package=package, slot=new_slot,
+            customer=customer, package=package,
+            starts_at=now + timedelta(days=3),
+            ends_at=now + timedelta(days=3, hours=1),
             trainer=trainer, status=Booking.Status.CONFIRMED,
         )
 
@@ -490,9 +453,9 @@ class TestBuildBookingConfirmationRecipientsDeduplicate:
         trainer = TrainerProfile.objects.create(user=trainer_user)
         package = Package.objects.create(title='Pkg', is_active=True)
         now = timezone.now()
-        slot = AvailabilitySlot.objects.create(
+        booking = Booking.objects.create(
+            customer=customer, package=package, trainer=trainer,
             starts_at=now + timedelta(hours=24), ends_at=now + timedelta(hours=25),
         )
-        booking = Booking.objects.create(customer=customer, package=package, slot=slot, trainer=trainer)
         recipients = _build_booking_confirmation_recipients(booking)
         assert recipients.count(shared_email) == 1

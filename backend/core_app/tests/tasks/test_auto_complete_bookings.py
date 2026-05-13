@@ -5,7 +5,7 @@ from datetime import timezone as dt_tz
 
 import pytest
 
-from core_app.models import AvailabilitySlot, Booking, Package, User
+from core_app.models import Booking, Package, User
 from core_app.tasks import auto_complete_past_bookings
 
 FIXED_NOW = datetime(2026, 3, 1, 10, 0, tzinfo=dt_tz.utc)
@@ -33,14 +33,11 @@ def package(db):
 
 
 def _create_booking(customer, package, *, status, slot_ends_at):
-    slot = AvailabilitySlot.objects.create(
-        starts_at=slot_ends_at - timedelta(hours=1),
-        ends_at=slot_ends_at,
-        is_active=True, is_blocked=True,
-    )
     return Booking.objects.create(
         customer=customer, package=package,
-        slot=slot, status=status,
+        starts_at=slot_ends_at - timedelta(hours=1),
+        ends_at=slot_ends_at,
+        status=status,
     )
 
 
