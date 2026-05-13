@@ -89,8 +89,9 @@ class TestBookingSerializerValidation:
             data={'package_id': package.id, 'starts_at': VALID_STARTS_AT},
             context={'request': _req(u)},
         )
-        with pytest.raises(NoTrainerAssignedException):
+        with pytest.raises(NoTrainerAssignedException) as exc_info:
             s.is_valid(raise_exception=True)
+        assert exc_info.type is NoTrainerAssignedException
 
     def test_unauthenticated_fails_validation(self, package, db):
         class AnonUser:
