@@ -9,21 +9,18 @@ from unittest.mock import patch
 import pytest
 from django.core.management import call_command
 
-from core_app.models import AvailabilitySlot, Booking, Package, Subscription, User
+from core_app.models import Booking, Package, Subscription, User
 
 FIXED_NOW = datetime(2026, 1, 15, 10, 0, tzinfo=dt_timezone.utc)
 
 
 def _create_booking(*, customer, package, start_offset_hours: int) -> Booking:
     slot_start = FIXED_NOW + timedelta(hours=start_offset_hours)
-    slot = AvailabilitySlot.objects.create(
-        starts_at=slot_start,
-        ends_at=slot_start + timedelta(hours=1),
-    )
     return Booking.objects.create(
         customer=customer,
         package=package,
-        slot=slot,
+        starts_at=slot_start,
+        ends_at=slot_start + timedelta(hours=1),
     )
 
 
@@ -174,8 +171,8 @@ def test_backfill_skips_when_no_subscription_match():
 
 
 @pytest.mark.django_db
-def test_backfill_skips_legacy_booking_without_slot():
-    """Legacy bookings without slots are counted as skipped."""
+def test_backfill_skips_legacy_booking_without_starts_at():
+    """Legacy bookings without starts_at are counted as skipped."""
     out = StringIO()
 
     class FakeQuerySet(list):
@@ -185,7 +182,7 @@ def test_backfill_skips_legacy_booking_without_slot():
         def order_by(self, *args, **kwargs):
             return self
 
-    fake_booking = SimpleNamespace(slot_id=None)
+    fake_booking = SimpleNamespace(starts_at=None)
     fake_qs = FakeQuerySet([fake_booking])
 
     with patch(

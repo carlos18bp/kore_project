@@ -31,14 +31,6 @@ class Command(BaseCommand):
 
         parser.add_argument('--skip-duo', action='store_true', default=False)
 
-        parser.add_argument('--days', type=int, default=30)
-        parser.add_argument('--start-hour', type=int, default=9)
-        parser.add_argument('--end-hour', type=int, default=18)
-        parser.add_argument('--slot-minutes', type=int, default=60)
-        parser.add_argument('--slot-step-minutes', type=int, default=15)
-        parser.add_argument('--timezone', type=str, default=None)
-        parser.add_argument('--skip-slots', action='store_true', default=False)
-
         parser.add_argument('--bookings', type=int, default=40)
         parser.add_argument('--skip-bookings', action='store_true', default=False)
 
@@ -113,21 +105,6 @@ class Command(BaseCommand):
             executed.append('duo_invitations')
         else:
             self.stdout.write(self.style.WARNING('Skipped duo invitations'))
-
-        if not options['skip_slots']:
-            call_command(
-                'create_fake_slots',
-                days=options['days'],
-                start_hour=options['start_hour'],
-                end_hour=options['end_hour'],
-                slot_minutes=options['slot_minutes'],
-                slot_step_minutes=options['slot_step_minutes'],
-                timezone=options['timezone'],
-                stdout=self.stdout,
-            )
-            executed.append('slots')
-        else:
-            self.stdout.write(self.style.WARNING('Skipped slots'))
 
         if not options['skip_bookings']:
             call_command('create_fake_bookings', num=options['bookings'], stdout=self.stdout)

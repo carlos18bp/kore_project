@@ -9,7 +9,6 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from core_app.models import (
-    AvailabilitySlot,
     Booking,
     Package,
     PhysicalEvaluation,
@@ -25,12 +24,10 @@ def _make_booking(customer, trainer_profile, *, slot_hours_offset=0):
     """Create a valid Booking with all required FKs."""
     pkg = Package.objects.create(title='Test', price=10000, sessions_count=4, category='personalizado')
     base = FIXED_BOOKING_NOW + timedelta(hours=slot_hours_offset)
-    slot = AvailabilitySlot.objects.create(
+    return Booking.objects.create(
+        customer=customer, package=pkg,
         starts_at=base + timedelta(hours=1),
         ends_at=base + timedelta(hours=2),
-    )
-    return Booking.objects.create(
-        customer=customer, package=pkg, slot=slot,
         trainer=trainer_profile, status='confirmed',
     )
 

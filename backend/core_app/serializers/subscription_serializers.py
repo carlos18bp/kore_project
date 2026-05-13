@@ -125,7 +125,7 @@ class SubscriptionSerializer(serializers.ModelSerializer):
         from core_app.models import Booking
         return obj.bookings.filter(
             status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
-            slot__ends_at__lte=timezone.now(),
+            ends_at__lte=timezone.now(),
         ).count()
 
     def get_status(self, obj):

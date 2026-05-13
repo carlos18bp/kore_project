@@ -8,7 +8,7 @@ import pytest
 from django.utils import timezone
 from rest_framework.test import APIRequestFactory
 
-from core_app.models import AvailabilitySlot, Booking, Package, Payment, User
+from core_app.models import Booking, Package, Payment, User
 from core_app.serializers import PaymentSerializer
 
 
@@ -32,10 +32,10 @@ def booking(db, customer):
     """Create a booking fixture tied to a payable package."""
     pkg = Package.objects.create(title='Pkg', price=Decimal('150000.00'), currency='COP')
     now = timezone.now()
-    slot = AvailabilitySlot.objects.create(
+    return Booking.objects.create(
+        customer=customer, package=pkg,
         starts_at=now + timedelta(hours=1), ends_at=now + timedelta(hours=2),
     )
-    return Booking.objects.create(customer=customer, package=pkg, slot=slot)
 
 
 def _make_request(user):

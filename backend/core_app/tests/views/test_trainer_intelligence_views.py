@@ -77,16 +77,11 @@ def package(db):
 @pytest.fixture
 def booking(trainer, customer, package):
     slot_time = FIXED_NOW
-    from core_app.models import AvailabilitySlot
-    slot = AvailabilitySlot.objects.create(
-        starts_at=slot_time,
-        ends_at=slot_time.replace(hour=9),
-        is_active=True,
-        is_blocked=True,
-    )
     return Booking.objects.create(
         customer=customer, trainer=trainer, package=package,
-        slot=slot, status=Booking.Status.CONFIRMED,
+        starts_at=slot_time,
+        ends_at=slot_time.replace(hour=9),
+        status=Booking.Status.CONFIRMED,
     )
 
 
@@ -112,17 +107,13 @@ class TestTrainerRiskDashboardView:
 
     def test_ordered_alto_before_bajo(self, api_client, trainer, customer, other_customer, package):
         _auth(api_client, trainer.user)
-        from core_app.models import AvailabilitySlot
         for i, cust in enumerate([customer, other_customer]):
             from datetime import timedelta
             t = FIXED_NOW + timedelta(hours=i * 2)
-            slot = AvailabilitySlot.objects.create(
-                starts_at=t, ends_at=t + timedelta(hours=1),
-                is_active=True, is_blocked=True,
-            )
             Booking.objects.create(
                 customer=cust, trainer=trainer, package=package,
-                slot=slot, status=Booking.Status.CONFIRMED,
+                starts_at=t, ends_at=t + timedelta(hours=1),
+                status=Booking.Status.CONFIRMED,
             )
 
         ClientRiskScore.objects.create(

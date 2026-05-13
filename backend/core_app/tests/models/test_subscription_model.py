@@ -7,7 +7,6 @@ import pytest
 from django.utils import timezone
 
 from core_app.models import (
-    AvailabilitySlot,
     Booking,
     Package,
     Payment,
@@ -130,11 +129,11 @@ class TestPaymentSubscriptionFK:
         """Payment supports booking-only linkage when no subscription is associated."""
         pkg = Package.objects.create(title='Pkg2', price=Decimal('100000.00'))
         now = FIXED_NOW
-        slot = AvailabilitySlot.objects.create(
+        booking = Booking.objects.create(
+            customer=customer, package=pkg,
             starts_at=now + timedelta(hours=1),
             ends_at=now + timedelta(hours=2),
         )
-        booking = Booking.objects.create(customer=customer, package=pkg, slot=slot)
         payment = Payment.objects.create(
             customer=customer,
             booking=booking,

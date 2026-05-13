@@ -8,7 +8,6 @@ import pytest
 from rest_framework.test import APIClient
 
 from core_app.models import Booking, Package, User
-from core_app.models.availability import AvailabilitySlot
 from core_app.models.parq_assessment import ParqAssessment
 from core_app.models.trainer_profile import TrainerProfile
 
@@ -138,11 +137,11 @@ class TestTrainerParqViews:
         trainer_user = User.objects.create_user(email='parq_t@test.com', password='pass', role='trainer')
         trainer = TrainerProfile.objects.create(user=trainer_user, specialty='S', location='L')
         pkg = Package.objects.create(title='Pack', sessions_count=4, validity_days=30, price=Decimal('100.00'))
-        slot = AvailabilitySlot.objects.create(
+        Booking.objects.create(
+            customer=customer, package=pkg, trainer=trainer,
             starts_at=FIXED_NOW + timedelta(days=1), ends_at=FIXED_NOW + timedelta(days=1, hours=1),
-            is_active=True, is_blocked=False,
+            status='confirmed',
         )
-        Booking.objects.create(customer=customer, package=pkg, slot=slot, trainer=trainer, status='confirmed')
         entry = ParqAssessment.objects.create(customer=customer, q3_dizziness=True)
         return customer, trainer_user, entry
 

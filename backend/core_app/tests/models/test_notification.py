@@ -6,7 +6,6 @@ import pytest
 from django.utils import timezone
 
 from core_app.models import (
-    AvailabilitySlot,
     Booking,
     Notification,
     Package,
@@ -26,10 +25,10 @@ def booking(db, customer):
     """Create a booking fixture to attach booking notifications."""
     pkg = Package.objects.create(title='Pkg')
     now = timezone.now()
-    slot = AvailabilitySlot.objects.create(
+    return Booking.objects.create(
+        customer=customer, package=pkg,
         starts_at=now + timedelta(hours=1), ends_at=now + timedelta(hours=2),
     )
-    return Booking.objects.create(customer=customer, package=pkg, slot=slot)
 
 
 @pytest.fixture

@@ -208,7 +208,7 @@ def auto_complete_past_bookings():
     now = timezone.now()
     past_pending_bookings = Booking.objects.filter(
         status=Booking.Status.PENDING,
-        slot__ends_at__lte=now,
+        ends_at__lte=now,
     )
     completed = past_pending_bookings.update(status=Booking.Status.CONFIRMED)
     if completed:
