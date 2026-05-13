@@ -71,6 +71,7 @@ class TestCreateNequiToken:
 
         with pytest.raises(WompiError, match='No Nequi token id'):
             create_nequi_token('3001112233')
+        mock_post.assert_called_once()
 
     @override_settings(**WOMPI_SETTINGS)
     @patch('core_app.services.wompi_service.requests.post')
@@ -79,8 +80,10 @@ class TestCreateNequiToken:
         mock_resp = MagicMock()
         mock_resp.status_code = 422
         mock_post.side_effect = req.HTTPError('unprocessable', response=mock_resp)
-        with pytest.raises(WompiError, match='Failed to create Nequi token'):
+        with pytest.raises(WompiError, match='Failed to create Nequi token') as exc_info:
             create_nequi_token('bad')
+        mock_post.assert_called_once()
+        assert exc_info.value.status_code == 422
 
 
 class TestPollNequiTokenUntilApproved:
@@ -112,6 +115,8 @@ class TestPollNequiTokenUntilApproved:
 
         with pytest.raises(WompiError, match='ended with status DECLINED'):
             poll_nequi_token_until_approved('nequi_tok_b', max_attempts=3, interval_s=0)
+        # Exits on the first DECLINED — does not exhaust max_attempts.
+        mock_get.assert_called_once()
 
     @override_settings(**WOMPI_SETTINGS)
     @patch('core_app.services.wompi_service.time.sleep', return_value=None)
@@ -208,6 +213,7 @@ class TestPollBancolombiaTokenUntilApproved:
 
         with pytest.raises(WompiError, match='not approved within polling window'):
             poll_bancolombia_token_until_approved('bcol_tok_t', max_attempts=2, interval_s=0)
+        assert mock_get.call_count == 2
 
 
 # ---------- get_personal_data_auth_token fallback ----------
