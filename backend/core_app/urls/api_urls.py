@@ -14,7 +14,6 @@ from core_app.views.notification_views import NotificationViewSet
 from core_app.views.package_views import PackageViewSet
 from core_app.views.payment_views import PaymentViewSet
 from core_app.views.subscription_views import SubscriptionViewSet
-from core_app.views.admin_user_views import AdminUserViewSet
 from core_app.views.duo_invite_views import accept_invite, pending_invitation
 from core_app.views.terms_views import TermsAcceptanceCreateView, TermsAcceptanceStatusView
 from core_app.views.anthropometry_views import (
@@ -48,63 +47,13 @@ from core_app.views.parq_views import (
     TrainerParqDetailView,
     TrainerParqListView,
 )
-from core_app.views.exercise_views import ExerciseListView
-from core_app.views.monthly_program_views import (
-    ApproveProgramView,
-    CustomerProgramListView,
-    DeleteProgramView,
-    EditProgramExerciseView,
-    GenerateProgramView,
-    MyProgramView,
-    ProgramDetailView,
-    TodayProgramView,
-    UpdateExerciseLogView,
-)
 from core_app.views.trainer_client_views import (
     TrainerClientDetailView,
-    TrainerClientFitnessLevelView,
     TrainerClientListView,
     TrainerClientSessionsView,
     TrainerDashboardStatsView,
 )
-from core_app.views.trainer_intelligence_views import (
-    TrainerRiskDashboardView,
-    TrainerClientKPIView,
-    TrainerComparativeMetricsView,
-    TrainerAlertCenterView,
-    TrainerAlertResolveView,
-    TrainerPhotoGalleryView,
-    TrainerMealCommentView,
-    TrainerMessagesView,
-    TrainerClientResumenView,
-    TrainerClientAlertsView,
-    TrainerProgramPauseView,
-    TrainerProgramResumeView,
-    TrainerClientDailyLogsView,
-    TrainerClientNutritionLogsView,
-    TrainerClientSessionsFullView,
-    TrainerMessagesForCustomerView,
-    TrainerMessageDismissView,
-)
 from core_app.views.trainer_profile_views import TrainerProfileViewSet
-from core_app.views.nutrition_daily_views import (
-    TodayNutritionView,
-    UpdateMealEntryView,
-    MealEntryPhotoView,
-    NutritionHistoryView,
-)
-from core_app.views.progress_views import WeeklySummaryView, ProjectionView, MonthlySummaryView
-from core_app.views.trainer_assignment_views import TrainerAssignmentSummaryView
-from core_app.views.nutrition_plan_views import (
-    ApproveNutritionPlanView,
-    CustomerNutritionPlanListView,
-    CustomerNutritionPlanWeekView,
-    DeleteNutritionPlanView,
-    EditPlanMealView,
-    GenerateNutritionPlanView,
-    MealSuggestionCatalogView,
-    NutritionPlanDetailView,
-)
 
 router = DefaultRouter()
 router.register('packages', PackageViewSet, basename='package')
@@ -118,7 +67,6 @@ router.register('faq-categories', FAQCategoryViewSet, basename='faq-category')
 router.register('faqs', FAQItemViewSet, basename='faq')
 router.register('contact-messages', ContactMessageViewSet, basename='contact-message')
 router.register('analytics-events', AnalyticsEventViewSet, basename='analytics-event')
-router.register('admin/users', AdminUserViewSet, basename='admin-user')
 
 urlpatterns = [
     path('subscriptions/accept-invite/', accept_invite, name='subscription-accept-invite'),
@@ -130,7 +78,6 @@ urlpatterns = [
     path('trainer/my-clients/', TrainerClientListView.as_view(), name='trainer-client-list'),
     path('trainer/my-clients/<int:customer_id>/', TrainerClientDetailView.as_view(), name='trainer-client-detail'),
     path('trainer/my-clients/<int:customer_id>/sessions/', TrainerClientSessionsView.as_view(), name='trainer-client-sessions'),
-    path('trainer/my-clients/<int:customer_id>/fitness-level/', TrainerClientFitnessLevelView.as_view(), name='trainer-client-fitness-level'),
     path('trainer/dashboard-stats/', TrainerDashboardStatsView.as_view(), name='trainer-dashboard-stats'),
     path('trainer/my-clients/<int:customer_id>/anthropometry/', TrainerAnthropometryListCreateView.as_view(), name='trainer-anthropometry-list-create'),
     path('trainer/my-clients/<int:customer_id>/anthropometry/<int:eval_id>/', TrainerAnthropometryDetailView.as_view(), name='trainer-anthropometry-detail'),
@@ -153,50 +100,4 @@ urlpatterns = [
     path('my-parq/<int:eval_id>/', ClientParqDetailView.as_view(), name='client-parq-detail'),
     path('trainer/my-clients/<int:customer_id>/parq/', TrainerParqListView.as_view(), name='trainer-parq-list'),
     path('trainer/my-clients/<int:customer_id>/parq/<int:eval_id>/', TrainerParqDetailView.as_view(), name='trainer-parq-detail'),
-    path('exercises/', ExerciseListView.as_view(), name='exercise-list'),
-    path('monthly-programs/customer/<int:customer_id>/', CustomerProgramListView.as_view(), name='customer-program-list'),
-    path('monthly-programs/generate/', GenerateProgramView.as_view(), name='monthly-program-generate'),
-    path('monthly-programs/<int:program_id>/', ProgramDetailView.as_view(), name='monthly-program-detail'),
-    path('monthly-programs/<int:program_id>/approve/', ApproveProgramView.as_view(), name='monthly-program-approve'),
-    path('monthly-programs/<int:program_id>/delete/', DeleteProgramView.as_view(), name='monthly-program-delete'),
-    path('monthly-programs/<int:program_id>/days/<int:day_id>/exercises/<int:ex_id>/', EditProgramExerciseView.as_view(), name='monthly-program-edit-exercise'),
-    path('my-program/', MyProgramView.as_view(), name='my-program'),
-    path('my-program/today/', TodayProgramView.as_view(), name='my-program-today'),
-    path('my-program/logs/<int:log_id>/exercises/<int:ex_log_id>/', UpdateExerciseLogView.as_view(), name='my-program-update-exercise-log'),
-    path('my-program/weekly-summary/', WeeklySummaryView.as_view(), name='my-program-weekly-summary'),
-    path('my-program/projection/', ProjectionView.as_view(), name='my-program-projection'),
-    path('my-program/monthly-summary/', MonthlySummaryView.as_view(), name='my-program-monthly-summary'),
-    # Trainer Intelligence Center
-    path('trainer/risk-dashboard/', TrainerRiskDashboardView.as_view(), name='trainer-risk-dashboard'),
-    path('trainer/comparative-metrics/', TrainerComparativeMetricsView.as_view(), name='trainer-comparative-metrics'),
-    path('trainer/alerts/', TrainerAlertCenterView.as_view(), name='trainer-alerts'),
-    path('trainer/alerts/<int:risk_score_id>/resolve/', TrainerAlertResolveView.as_view(), name='trainer-alert-resolve'),
-    path('trainer/photo-gallery/', TrainerPhotoGalleryView.as_view(), name='trainer-photo-gallery'),
-    path('trainer/photo-gallery/<int:meal_id>/comment/', TrainerMealCommentView.as_view(), name='trainer-meal-comment'),
-    path('trainer/messages/', TrainerMessagesView.as_view(), name='trainer-messages'),
-    path('trainer/my-clients/<int:customer_id>/kpi/', TrainerClientKPIView.as_view(), name='trainer-client-kpi'),
-    path('trainer/my-clients/<int:customer_id>/resumen/', TrainerClientResumenView.as_view(), name='trainer-client-resumen'),
-    path('trainer/my-clients/<int:customer_id>/alerts/', TrainerClientAlertsView.as_view(), name='trainer-client-alerts'),
-    path('trainer/my-clients/<int:customer_id>/daily-logs/', TrainerClientDailyLogsView.as_view(), name='trainer-client-daily-logs'),
-    path('trainer/my-clients/<int:customer_id>/nutrition-logs/', TrainerClientNutritionLogsView.as_view(), name='trainer-client-nutrition-logs'),
-    path('trainer/my-clients/<int:customer_id>/sessions-full/', TrainerClientSessionsFullView.as_view(), name='trainer-client-sessions-full'),
-    path('trainer/my-clients/<int:customer_id>/program/<int:program_id>/pause/', TrainerProgramPauseView.as_view(), name='trainer-program-pause'),
-    path('trainer/my-clients/<int:customer_id>/program/<int:program_id>/resume/', TrainerProgramResumeView.as_view(), name='trainer-program-resume'),
-    path('my-trainer-messages/', TrainerMessagesForCustomerView.as_view(), name='my-trainer-messages'),
-    path('my-trainer-messages/<int:message_id>/dismiss/', TrainerMessageDismissView.as_view(), name='my-trainer-messages-dismiss'),
-    # Nutrition daily
-    path('my-nutrition-daily/today/', TodayNutritionView.as_view(), name='my-nutrition-daily-today'),
-    path('my-nutrition-daily/<int:log_id>/meals/<int:meal_id>/', UpdateMealEntryView.as_view(), name='my-nutrition-daily-update-meal'),
-    path('my-nutrition-daily/<int:log_id>/meals/<int:meal_id>/photo/', MealEntryPhotoView.as_view(), name='my-nutrition-daily-meal-photo'),
-    path('my-nutrition-daily/history/', NutritionHistoryView.as_view(), name='my-nutrition-daily-history'),
-    path('admin/trainers/assignment-summary/', TrainerAssignmentSummaryView.as_view(), name='admin-trainer-assignment-summary'),
-    # Nutrition plans (trainer-curated weekly plans)
-    path('nutrition-plans/customer/<int:customer_id>/', CustomerNutritionPlanListView.as_view(), name='nutrition-plan-list'),
-    path('nutrition-plans/generate/', GenerateNutritionPlanView.as_view(), name='nutrition-plan-generate'),
-    path('nutrition-plans/<int:plan_id>/', NutritionPlanDetailView.as_view(), name='nutrition-plan-detail'),
-    path('nutrition-plans/<int:plan_id>/approve/', ApproveNutritionPlanView.as_view(), name='nutrition-plan-approve'),
-    path('nutrition-plans/<int:plan_id>/delete/', DeleteNutritionPlanView.as_view(), name='nutrition-plan-delete'),
-    path('nutrition-plans/<int:plan_id>/days/<int:day_id>/meals/<int:meal_id>/', EditPlanMealView.as_view(), name='nutrition-plan-edit-meal'),
-    path('meal-suggestions/', MealSuggestionCatalogView.as_view(), name='meal-suggestions'),
-    path('my-nutrition-plan/', CustomerNutritionPlanWeekView.as_view(), name='my-nutrition-plan'),
 ]

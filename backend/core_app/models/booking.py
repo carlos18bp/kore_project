@@ -57,8 +57,6 @@ class Booking(TimestampedModel):
 
     notes = models.TextField(blank=True)
     canceled_reason = models.CharField(max_length=255, blank=True)
-    session_objective = models.TextField(blank=True)
-    session_notes_for_customer = models.TextField(blank=True)
 
     class Meta:
         ordering = ('-created_at',)

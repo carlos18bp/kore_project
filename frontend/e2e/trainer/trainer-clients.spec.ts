@@ -3,11 +3,7 @@ import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
  * E2E tests for the Trainer Clients page (/trainer/clients).
- * Covers the redesigned client roster (desktop table), search filtering, filter chips,
- * empty states and risk badges.
- *
- * Note: the page renders both a mobile card list and a desktop table simultaneously
- * (toggled with CSS only), so client-row assertions are scoped to the desktop <table>.
+ * Covers client list rendering, search filtering, empty states, and quick actions.
  */
 test.describe('Trainer Clients Page', { tag: [...FlowTags.TRAINER_CLIENTS_LIST, RoleTags.TRAINER] }, () => {
 
@@ -20,10 +16,8 @@ test.describe('Trainer Clients Page', { tag: [...FlowTags.TRAINER_CLIENTS_LIST, 
       avatar_url: null,
       primary_goal: 'fat_loss',
       active_package: 'Plan Elite',
-      sessions_remaining: 3,
-      total_sessions: 8,
       completed_sessions: 5,
-      last_session_date: new Date(Date.now() - 3 * 86400000).toISOString(),
+      sessions_remaining: 3,
     },
     {
       id: 2,
@@ -33,43 +27,18 @@ test.describe('Trainer Clients Page', { tag: [...FlowTags.TRAINER_CLIENTS_LIST, 
       avatar_url: null,
       primary_goal: 'muscle_gain',
       active_package: 'Plan Pro',
-      sessions_remaining: 0,
-      total_sessions: 12,
       completed_sessions: 12,
-      last_session_date: null,
+      sessions_remaining: 0,
     },
   ];
 
-  const fakeRiskDashboard = {
-    risk_summary: { alto: 1, medio: 0, bajo: 0, sin_riesgo: 1 },
-    clients_by_risk: [
-      {
-        id: 11,
-        customer_id: 1,
-        customer_name: 'María López',
-        avatar_url: null,
-        level: 'alto',
-        computed_at: new Date().toISOString(),
-        kore_score: 58,
-        signals_count: 2,
-        behavioral_signals: [],
-        clinical_signals: [],
-        resolutions: [],
-      },
-    ],
-  };
-
-  const fakeComparativeMetrics = {
-    adherence_ranking: [{ customer_id: 1, name: 'María López', avatar_url: null, combined_7d: 0.82, delta_vs_last_week: 0.05, trend: 'up' }],
-    improved_this_week: [],
-    worsened_this_week: [],
-    global_patterns: { avg_training_adherence: 0.7, avg_nutrition_adherence: 0.6, most_missed_day_of_week: null },
-    expired_evaluations: [],
-  };
-
   async function setupTrainerClientsMocks(page: import('@playwright/test').Page, clients = fakeClients) {
     await page.route('**/api/trainer/my-clients/', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(clients) });
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(clients),
+      });
     });
     await page.route('**/api/trainer/dashboard-stats/', async (route) => {
       await route.fulfill({
@@ -77,12 +46,6 @@ test.describe('Trainer Clients Page', { tag: [...FlowTags.TRAINER_CLIENTS_LIST, 
         contentType: 'application/json',
         body: JSON.stringify({ total_clients: clients.length, today_sessions: 0, upcoming_sessions: [] }),
       });
-    });
-    await page.route('**/api/trainer/risk-dashboard/', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(fakeRiskDashboard) });
-    });
-    await page.route('**/api/trainer/comparative-metrics/', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(fakeComparativeMetrics) });
     });
   }
 
@@ -92,49 +55,48 @@ test.describe('Trainer Clients Page', { tag: [...FlowTags.TRAINER_CLIENTS_LIST, 
     await page.goto('/trainer/clients');
 
     await expect(page.getByRole('heading', { level: 1, name: 'Mis Clientes' })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByPlaceholder('Buscar por nombre o email...')).toBeVisible();
+    await expect(page.getByText('Gestión')).toBeVisible();
+    await expect(page.getByPlaceholder('Buscar cliente por nombre o email...')).toBeVisible();
   });
 
-  test('renders client rows with names and emails', async ({ page }) => {
+  test('renders client cards with names, emails, and goals', async ({ page }) => {
     await injectTrainerAuthCookies(page);
     await setupTrainerClientsMocks(page);
     await page.goto('/trainer/clients');
 
-    const table = page.getByRole('table');
-    await expect(table.getByText('María López')).toBeVisible({ timeout: 15_000 });
-    await expect(table.getByText('maria@example.com')).toBeVisible();
-    await expect(table.getByText('Carlos Gómez')).toBeVisible();
-    await expect(table.getByText('carlos@example.com')).toBeVisible();
+    await expect(page.getByText('María López')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('maria@example.com')).toBeVisible();
+    await expect(page.getByText('Perder grasa')).toBeVisible();
+
+    await expect(page.getByText('Carlos Gómez')).toBeVisible();
+    await expect(page.getByText('carlos@example.com')).toBeVisible();
+    await expect(page.getByText('Ganar masa muscular')).toBeVisible();
   });
 
-  test('renders client program names in the table', async ({ page }) => {
+  test('renders client stats (package, sessions, remaining)', async ({ page }) => {
     await injectTrainerAuthCookies(page);
     await setupTrainerClientsMocks(page);
     await page.goto('/trainer/clients');
 
-    const table = page.getByRole('table');
-    await expect(table.getByText('Plan Elite')).toBeVisible({ timeout: 15_000 });
-    await expect(table.getByText('Plan Pro')).toBeVisible();
+    await expect(page.getByText('Plan Elite')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('5 sesiones')).toBeVisible();
+    await expect(page.getByText('3 rest.')).toBeVisible();
+
+    await expect(page.getByText('Plan Pro')).toBeVisible();
+    await expect(page.getByText('12 sesiones')).toBeVisible();
   });
 
-  test('renders filter chips', async ({ page }) => {
+  test('renders quick action links (Ficha and Antropometría)', async ({ page }) => {
     await injectTrainerAuthCookies(page);
     await setupTrainerClientsMocks(page);
     await page.goto('/trainer/clients');
 
-    await expect(page.getByRole('button', { name: 'Todos' })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole('button', { name: 'Riesgo alto' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Eval pendiente' })).toBeVisible();
-  });
+    await expect(page.getByText('María López')).toBeVisible({ timeout: 15_000 });
 
-  test('renders risk badge for high-risk client', async ({ page }) => {
-    await injectTrainerAuthCookies(page);
-    await setupTrainerClientsMocks(page);
-    await page.goto('/trainer/clients');
-
-    const table = page.getByRole('table');
-    await expect(table.getByText('María López')).toBeVisible({ timeout: 15_000 });
-    await expect(table.getByText('Riesgo alto')).toBeVisible();
+    // quality: allow-fragile-selector (client cards lack data-testid; hasText scopes to correct card, first() is safety net)
+    const mariaCard = page.locator('div.grid > div', { hasText: 'María López' }).first();
+    await expect(mariaCard.getByRole('link', { name: 'Ficha' })).toBeVisible();
+    await expect(mariaCard.getByRole('link', { name: 'Antropometría' })).toBeVisible();
   });
 
   test('search filters clients by name', async ({ page }) => {
@@ -142,14 +104,13 @@ test.describe('Trainer Clients Page', { tag: [...FlowTags.TRAINER_CLIENTS_LIST, 
     await setupTrainerClientsMocks(page);
     await page.goto('/trainer/clients');
 
-    const table = page.getByRole('table');
-    await expect(table.getByText('María López')).toBeVisible({ timeout: 15_000 });
-    await expect(table.getByText('Carlos Gómez')).toBeVisible();
+    await expect(page.getByText('María López')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Carlos Gómez')).toBeVisible();
 
-    await page.getByPlaceholder('Buscar por nombre o email...').fill('María');
+    await page.getByPlaceholder('Buscar cliente por nombre o email...').fill('María');
 
-    await expect(table.getByText('María López')).toBeVisible();
-    await expect(table.getByText('Carlos Gómez')).not.toBeVisible();
+    await expect(page.getByText('María López')).toBeVisible();
+    await expect(page.getByText('Carlos Gómez')).not.toBeVisible();
   });
 
   test('search filters clients by email', async ({ page }) => {
@@ -157,25 +118,24 @@ test.describe('Trainer Clients Page', { tag: [...FlowTags.TRAINER_CLIENTS_LIST, 
     await setupTrainerClientsMocks(page);
     await page.goto('/trainer/clients');
 
-    const table = page.getByRole('table');
-    await expect(table.getByText('María López')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('María López')).toBeVisible({ timeout: 15_000 });
 
-    await page.getByPlaceholder('Buscar por nombre o email...').fill('carlos@');
+    await page.getByPlaceholder('Buscar cliente por nombre o email...').fill('carlos@');
 
-    await expect(table.getByText('Carlos Gómez')).toBeVisible();
-    await expect(table.getByText('María López')).not.toBeVisible();
+    await expect(page.getByText('Carlos Gómez')).toBeVisible();
+    await expect(page.getByText('María López')).not.toBeVisible();
   });
 
-  test('search with no results shows filter empty message', async ({ page }) => {
+  test('search with no results shows empty message', async ({ page }) => {
     await injectTrainerAuthCookies(page);
     await setupTrainerClientsMocks(page);
     await page.goto('/trainer/clients');
 
-    await expect(page.getByRole('table').getByText('María López')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('María López')).toBeVisible({ timeout: 15_000 });
 
-    await page.getByPlaceholder('Buscar por nombre o email...').fill('nonexistent');
+    await page.getByPlaceholder('Buscar cliente por nombre o email...').fill('nonexistent');
 
-    await expect(page.getByText('Sin resultados para ese filtro.')).toBeVisible();
+    await expect(page.getByText('No se encontraron clientes con esa búsqueda.')).toBeVisible();
   });
 
   test('empty client list shows placeholder', async ({ page }) => {
@@ -187,18 +147,14 @@ test.describe('Trainer Clients Page', { tag: [...FlowTags.TRAINER_CLIENTS_LIST, 
     await expect(page.getByText('Aún no tienes clientes asignados.')).toBeVisible();
   });
 
-  test('clicking a client row navigates to the client detail page', async ({ page }) => {
+  test('client avatar shows first letter when no avatar_url', async ({ page }) => {
     await injectTrainerAuthCookies(page);
     await setupTrainerClientsMocks(page);
-    await page.route('**/api/trainer/my-clients/1/', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
-    });
     await page.goto('/trainer/clients');
 
-    const table = page.getByRole('table');
-    await expect(table.getByText('María López')).toBeVisible({ timeout: 15_000 });
-    await table.getByText('María López').click();
-
-    await page.waitForURL('**/trainer/clients/client?id=1');
+    await expect(page.getByText('María López')).toBeVisible({ timeout: 15_000 });
+    // quality: allow-fragile-selector (client cards lack data-testid; hasText scopes to correct card, first() is safety net)
+    const mariaCard = page.locator('div.grid > div', { hasText: 'María López' }).first();
+    await expect(mariaCard.locator('span').filter({ hasText: /^M$/ })).toBeVisible();
   });
 });

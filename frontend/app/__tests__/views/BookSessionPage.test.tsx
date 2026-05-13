@@ -33,28 +33,20 @@ const mockReset = jest.fn();
 const mockSetStep = jest.fn();
 const mockSetSelectedDate = jest.fn();
 const mockSetSelectedSlot = jest.fn();
-const mockSetTrainerFromAssigned = jest.fn();
 
 jest.mock('@/lib/stores/bookingStore', () => ({
   useBookingStore: jest.fn(),
 }));
 
-const mockSetState = jest.fn();
-
-const mockedUseBookingStore = useBookingStore as unknown as jest.Mock & {
-  getState: () => Record<string, unknown>;
-  setState: jest.Mock;
-};
+const mockedUseBookingStore = useBookingStore as unknown as jest.Mock;
 
 const mockUser = {
   id: '22', email: 'customer10@kore.com', first_name: 'Customer10',
   last_name: 'Kore', phone: '', role: 'customer', name: 'Customer10 Kore',
-  profile_completed: true, avatar_url: null, must_change_password: false,
-  assigned_trainer: { id: 1, first_name: 'Germán', last_name: 'Franco', location: 'Studio A', session_duration_minutes: 60 },
 };
 
 function setupStore(overrides = {}) {
-  const storeState = {
+  mockedUseBookingStore.mockReturnValue({
     step: 1,
     setStep: mockSetStep,
     selectedDate: null,
@@ -77,12 +69,8 @@ function setupStore(overrides = {}) {
     createBooking: mockCreateBooking,
     reset: mockReset,
     subscriptions: [],
-    setTrainerFromAssigned: mockSetTrainerFromAssigned,
     ...overrides,
-  };
-  mockedUseBookingStore.mockReturnValue(storeState);
-  mockedUseBookingStore.getState = () => storeState;
-  mockedUseBookingStore.setState = mockSetState;
+  });
 }
 
 describe('BookSessionPage', () => {
@@ -103,39 +91,6 @@ describe('BookSessionPage', () => {
     expect(container.querySelector('.animate-spin')).toBeInTheDocument();
   });
 
-  it('shows no-trainer gate when customer has no assigned_trainer', () => {
-    useAuthStore.setState({
-      user: { ...mockUser, assigned_trainer: null },
-      isAuthenticated: true,
-      accessToken: 'token',
-    } as any);
-    render(<BookSessionPage />);
-    expect(screen.getByText('Aún no puedes agendar')).toBeInTheDocument();
-    expect(screen.getByText(/Estamos asignándote un entrenador/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Volver al inicio' })).toBeInTheDocument();
-  });
-
-  it('does NOT show no-trainer gate during reschedule flow even without assigned_trainer', () => {
-    mockSearchParams = new URLSearchParams({ reschedule: '100', subscription: '1' });
-    useAuthStore.setState({
-      user: { ...mockUser, assigned_trainer: null },
-      isAuthenticated: true,
-      accessToken: 'token',
-    } as any);
-    const subscriptions = [
-      {
-        id: 1, customer_email: 'cust@kore.com',
-        package: { id: 1, title: 'Gold', sessions_count: 4, session_duration_minutes: 60, price: '500000', currency: 'COP', validity_days: 30 },
-        sessions_total: 4, sessions_used: 1, sessions_remaining: 3,
-        status: 'active', starts_at: '2025-02-01T00:00:00Z', expires_at: '2025-03-01T00:00:00Z',
-        next_billing_date: null,
-      },
-    ];
-    setupStore({ subscriptions });
-    render(<BookSessionPage />);
-    expect(screen.queryByText('Aún no puedes agendar')).not.toBeInTheDocument();
-  });
-
   it('renders page heading "Agenda tu sesión"', () => {
     render(<BookSessionPage />);
     expect(screen.getByText('Agenda tu sesión')).toBeInTheDocument();
@@ -149,7 +104,8 @@ describe('BookSessionPage', () => {
 
   it('renders step indicator with steps 1 and 2', () => {
     render(<BookSessionPage />);
-    expect(screen.getByText(/Paso 1 de 2/)).toBeInTheDocument();
+    expect(screen.getByText('Seleccionar horario')).toBeInTheDocument();
+    expect(screen.getByText('Confirmar')).toBeInTheDocument();
   });
 
   it('preselects subscription from query param in normal flow', () => {
@@ -255,7 +211,7 @@ describe('BookSessionPage', () => {
     };
     setupStore({ step: 3, bookingResult: booking });
     render(<BookSessionPage />);
-    expect(screen.queryByText(/Paso 1 de 2/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Seleccionar horario')).not.toBeInTheDocument();
   });
 
   it('renders session progress when active subscriptions exist', () => {
@@ -286,6 +242,7 @@ describe('BookSessionPage', () => {
     setupStore({ subscriptions });
     render(<BookSessionPage />);
     expect(screen.getAllByText(/Sesión 4 de 4/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/3 completadas/).length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders NoSessionsModal when selected subscription has no remaining sessions', () => {
@@ -356,47 +313,6 @@ describe('BookSessionPage', () => {
     render(<BookSessionPage />);
     expect(screen.getByText(/Por el momento no hay disponibilidad horaria/)).toBeInTheDocument();
     expect(screen.getByText('+57 301 4645272')).toBeInTheDocument();
-  });
-
-  it('sets store trainer from booking.trainer during reschedule flow', async () => {
-    mockSearchParams = new URLSearchParams({ reschedule: '100', subscription: '1' });
-    const trainerOnBooking = {
-      id: 7, user_id: 10, first_name: 'Ana', last_name: 'Ruiz',
-      email: 'ana@kore.com', specialty: 'Strength', bio: '', location: 'Studio B',
-      session_duration_minutes: 45,
-    };
-    const subscriptions = [
-      {
-        id: 1, customer_email: 'cust@kore.com',
-        package: { id: 1, title: 'Gold', sessions_count: 4, session_duration_minutes: 60, price: '500000', currency: 'COP', validity_days: 30 },
-        sessions_total: 4, sessions_used: 1, sessions_remaining: 3,
-        status: 'active', starts_at: '2025-02-01T00:00:00Z', expires_at: '2025-03-01T00:00:00Z',
-        next_billing_date: null,
-      },
-    ];
-    const bookings = [
-      {
-        id: 100,
-        customer_id: 22,
-        package: subscriptions[0].package,
-        slot: { id: 5, trainer_id: 7, starts_at: '2025-04-01T10:00:00Z', ends_at: '2025-04-01T11:00:00Z', is_active: true, is_blocked: false },
-        trainer: trainerOnBooking,
-        subscription_id_display: 1,
-        status: 'confirmed',
-        notes: '',
-        canceled_reason: '',
-        session_objective: '',
-        session_notes_for_customer: '',
-        program_day_exercises: [],
-        created_at: '',
-        updated_at: '',
-      },
-    ];
-    setupStore({ subscriptions, bookings });
-    render(<BookSessionPage />);
-    await waitFor(() => {
-      expect(mockSetState).toHaveBeenCalledWith({ trainer: trainerOnBooking });
-    });
   });
 
   it('does not show subscription selector when no active subscriptions', () => {

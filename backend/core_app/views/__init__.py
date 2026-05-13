@@ -28,7 +28,6 @@ from .package_views import PackageViewSet
 from .payment_views import PaymentViewSet
 from .subscription_views import SubscriptionViewSet
 from .trainer_profile_views import TrainerProfileViewSet
-from .admin_user_views import AdminUserViewSet
 
 __all__ = [
     'AnalyticsEventViewSet',
@@ -57,5 +56,4 @@ __all__ = [
     'SiteSettingsView',
     'SubscriptionViewSet',
     'TrainerProfileViewSet',
-    'AdminUserViewSet',
 ]

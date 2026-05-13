@@ -67,7 +67,7 @@ test.describe('Trainer Client Anthropometry Page', { tag: [...FlowTags.TRAINER_C
     await setupAnthropometryMocks(page);
     await page.goto('/trainer/clients/client/anthropometry?id=1');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Composición corporal' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'Antropometría' })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('link', { name: /Volver al cliente/i })).toBeVisible();
   });
 
@@ -76,7 +76,7 @@ test.describe('Trainer Client Anthropometry Page', { tag: [...FlowTags.TRAINER_C
     await setupAnthropometryMocks(page);
     await page.goto('/trainer/clients/client/anthropometry?id=1');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Composición corporal' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'Antropometría' })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('button', { name: /Nueva evaluación/i })).toBeVisible();
   });
 
@@ -85,12 +85,12 @@ test.describe('Trainer Client Anthropometry Page', { tag: [...FlowTags.TRAINER_C
     await setupAnthropometryMocks(page);
     await page.goto('/trainer/clients/client/anthropometry?id=1');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Composición corporal' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'Antropometría' })).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: /Nueva evaluación/i }).click();
 
     await expect(page.getByText('Datos básicos')).toBeVisible();
-    await expect(page.getByText('Peso (kg) *')).toBeVisible();
-    await expect(page.getByText('Estatura (cm) *')).toBeVisible();
+    await expect(page.getByText('Peso (kg)')).toBeVisible();
+    await expect(page.getByText('Estatura (cm)')).toBeVisible();
   });
 
   test('renders calculated index cards when evaluation exists', async ({ page }) => {
@@ -98,18 +98,17 @@ test.describe('Trainer Client Anthropometry Page', { tag: [...FlowTags.TRAINER_C
     await setupAnthropometryMocks(page);
     await page.goto('/trainer/clients/client/anthropometry?id=1');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Composición corporal' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'Antropometría' })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('IMC', { exact: true }).first()).toBeVisible();
     await expect(page.getByText('Sobrepeso').first()).toBeVisible();
   });
 
-  test('empty state shows no-evaluations placeholder', async ({ page }) => {
+  test('empty state shows only new evaluation button', async ({ page }) => {
     await injectTrainerAuthCookies(page);
     await setupAnthropometryMocks(page, []);
     await page.goto('/trainer/clients/client/anthropometry?id=1');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Composición corporal' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'Antropometría' })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('button', { name: /Nueva evaluación/i })).toBeVisible();
-    await expect(page.getByText('No hay evaluaciones de antropometría para este cliente.')).toBeVisible();
   });
 });

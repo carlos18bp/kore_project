@@ -34,15 +34,18 @@ test.describe('My Programs Flow — Subscription detail & sessions (mocked)', { 
     });
   }
 
-  test('active subscription renders plan hero inline', async ({ page }) => {
+  test('clicking a subscription card shows details section', async ({ page }) => {
     await setupListAndDetailMocks(page, []);
     await page.goto('/subscription');
+    await expect(page.getByText('Paquete Navegación').first()).toBeVisible({ timeout: 10_000 });
+
+    await page.getByRole('button', { name: /Paquete Navegación/ }).click();
 
     const main = page.getByRole('main');
-    await expect(main.getByRole('heading', { name: 'Paquete Navegación' })).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('2 de 6 sesiones')).toBeVisible();
-    await expect(main.getByText('Vence', { exact: true })).toBeVisible();
-    await expect(main.getByText('Avance', { exact: true })).toBeVisible();
+    await expect(main.getByRole('heading', { name: 'Detalles' })).toBeVisible();
+    await expect(main.getByText('2 de 6 completadas').first()).toBeVisible();
+    await expect(main.getByText('Vence:')).toBeVisible();
+    await expect(main.getByText('Avance:')).toBeVisible();
   });
 
   test('subscription page renders upcoming past tabs', async ({ page }) => {
@@ -160,13 +163,16 @@ test.describe('Subscription detail — mocked data branches', { tag: [...FlowTag
     });
   }
 
-  test('subscription hero renders subscription data', async ({ page }) => {
+  test('subscription detail renders card with subscription data', async ({ page }) => {
     await setupProgramDetailMocks(page, [upcomingBooking]);
     await page.goto('/subscription');
     const main = page.getByRole('main');
-    await expect(main.getByRole('heading', { name: 'Paquete Elite' })).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('Avance', { exact: true })).toBeVisible();
-    await expect(main.getByText('● Activa')).toBeVisible();
+    await expect(main.getByText('Paquete Elite').filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByRole('heading', { name: 'Detalles' })).toBeVisible();
+    await expect(main.getByText('Avance:')).toBeVisible();
+    await expect(
+      main.getByRole('button').filter({ hasText: 'Paquete Elite' }).getByText('Activa', { exact: true }),
+    ).toBeVisible();
   });
 
   test('upcoming tab shows future confirmed bookings with trainer name', async ({ page }) => {
@@ -197,8 +203,8 @@ test.describe('Subscription detail — mocked data branches', { tag: [...FlowTag
     await expect(main.getByRole('button', { name: /Cancelada/ })).toBeVisible();
   });
 
-  test('shows more-sessions hint when list exceeds six', async ({ page }) => {
-    const bookings = Array.from({ length: 7 }, (_, i) => ({
+  test('shows more-sessions hint when list exceeds five', async ({ page }) => {
+    const bookings = Array.from({ length: 6 }, (_, i) => ({
       id: 400 + i,
       subscription_id_display: subId,
       status: 'confirmed' as const,

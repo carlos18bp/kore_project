@@ -7,7 +7,7 @@ from core_app.models import User
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'email', 'first_name', 'last_name', 'phone', 'role', 'must_change_password')
+        fields = ('id', 'email', 'first_name', 'last_name', 'phone', 'role')
 
 
 class RegisterUserSerializer(serializers.ModelSerializer):

@@ -18,8 +18,8 @@ function getScoreColor(score: number) {
 
 export default function MoodCheckIn() {
   const { user, hydrated } = useAuthStore();
-  const { profile, todayMood, fetchProfile, submitMood, moodModalOpen, closeMoodModal } = useProfileStore();
-  const [autoVisible, setAutoVisible] = useState(false);
+  const { todayMood, fetchProfile, submitMood } = useProfileStore();
+  const [visible, setVisible] = useState(false);
   const [profileFetched, setProfileFetched] = useState(false);
   const [score, setScore] = useState(7);
   const [notes, setNotes] = useState('');
@@ -33,48 +33,31 @@ export default function MoodCheckIn() {
     fetchProfile().then(() => setProfileFetched(true));
   }, [hydrated, user, fetchProfile]);
 
-  // Gate the auto-open behind the strict customer-profile flag so the mood modal
-  // never stacks on top of ProfileCompletionCTA. authStore's user.profile_completed
-  // is looser than profileStore's customer_profile.profile_completed; requiring both
-  // keeps priority as: change-password (redirect) → profile completion → mood.
-  const customerProfileComplete = profile?.customer_profile?.profile_completed === true;
-  const profileFullyComplete = user?.profile_completed === true && customerProfileComplete;
-
   useEffect(() => {
     if (!profileFetched) return;
     if (todayMood) return;
-    if (!profileFullyComplete) return;
+    if (user && !user.profile_completed) return;
     if (typeof window !== 'undefined' && sessionStorage.getItem('kore_mood_dismissed')) return;
-    setAutoVisible(true);
-  }, [profileFetched, todayMood, profileFullyComplete]);
-
-  // Manual opens via the dashboard CTA take precedence over the auto-show flow and
-  // ignore the kore_mood_dismissed flag (the user is explicitly asking for it).
-  const visible = autoVisible || moodModalOpen;
+    setVisible(true);
+  }, [profileFetched, todayMood, user]);
 
   if (!visible) return null;
 
   const handleDismiss = () => {
-    if (autoVisible) {
-      sessionStorage.setItem('kore_mood_dismissed', '1');
-      setAutoVisible(false);
-    }
-    if (moodModalOpen) closeMoodModal();
+    sessionStorage.setItem('kore_mood_dismissed', '1');
+    setVisible(false);
   };
 
   const handleSubmit = async () => {
     setSubmitting(true);
     await submitMood(score, notes || undefined);
     setShowConfirmation(true);
-    setTimeout(() => {
-      setAutoVisible(false);
-      if (moodModalOpen) closeMoodModal();
-    }, 2000);
+    setTimeout(() => setVisible(false), 2000);
   };
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-white/40 backdrop-blur-md" onClick={handleDismiss} />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleDismiss} />
 
       <div className="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 overflow-hidden animate-in fade-in zoom-in-95 duration-300">
         <div className="absolute -left-6 -bottom-6 w-24 h-24 opacity-[0.05]">

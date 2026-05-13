@@ -7,7 +7,7 @@ import pytest
 from django.urls import reverse
 from rest_framework import status
 
-from core_app.models import AvailabilitySlot, Booking, Package, TrainerProfile, User
+from core_app.models import AvailabilitySlot, Booking, Package
 from core_app.tests.helpers import get_results
 
 FIXED_NOW = datetime(2026, 1, 15, 12, 0, tzinfo=dt_timezone.utc)
@@ -35,14 +35,6 @@ def test_booking_create_requires_login(api_client):
 @pytest.mark.django_db
 def test_booking_create_blocks_slot_and_prevents_double_booking(api_client, existing_user):
     """Block slot after first booking and reject a second booking for the same slot."""
-    # Assign a trainer so the customer passes the booking gate
-    trainer_user = User.objects.create_user(
-        email='bk_view_trainer@example.com', password='p', role=User.Role.TRAINER,
-    )
-    trainer = TrainerProfile.objects.create(user=trainer_user, specialty='General')
-    existing_user.assigned_trainer = trainer
-    existing_user.save(update_fields=['assigned_trainer'])
-
     api_client.force_authenticate(user=existing_user)
 
     package = Package.objects.create(title='P1', is_active=True)

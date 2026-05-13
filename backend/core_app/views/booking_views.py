@@ -9,7 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from core_app.models import AvailabilitySlot, Booking, Subscription, SubscriptionGuest
-from core_app.permissions import IsAdminRole, IsTrainerRole, is_admin_user
+from core_app.permissions import IsAdminRole, is_admin_user
 from core_app.serializers.booking_serializers import BookingSerializer
 from core_app.services.booking_rules import (
     TRAVEL_BUFFER_MINUTES,
@@ -282,6 +282,32 @@ class BookingViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+            # Chronological order validation: must remain between previous and next sessions
+            if booking.subscription:
+                base_qs = Booking.objects.filter(
+                    subscription=booking.subscription,
+                    status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
+                ).exclude(pk=booking.pk).select_related('slot')
+
+                previous_booking = base_qs.filter(
+                    slot__starts_at__lt=booking.slot.starts_at,
+                ).order_by('-slot__starts_at').first()
+                next_booking = base_qs.filter(
+                    slot__starts_at__gt=booking.slot.starts_at,
+                ).order_by('slot__starts_at').first()
+
+                if previous_booking and new_slot.starts_at < previous_booking.slot.ends_at:
+                    return Response(
+                        {'detail': 'La sesión debe iniciar después del final de la sesión anterior del programa.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                if next_booking and new_slot.ends_at > next_booking.slot.starts_at:
+                    return Response(
+                        {'detail': 'La sesión debe finalizar antes del inicio de la siguiente sesión del programa.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
             if has_trainer_travel_buffer_conflict(new_slot, trainer=booking.trainer):
                 return Response(
                     {
@@ -314,41 +340,13 @@ class BookingViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(new_booking)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    @action(detail=True, methods=['patch'], url_path='session-prep', permission_classes=[IsTrainerRole])
-    def session_prep(self, request, pk=None):
-        """Allow a trainer to set session objective and notes before a session.
-
-        Body fields (both optional):
-            - ``session_objective`` (str)
-            - ``session_notes_for_customer`` (str)
-
-        Returns:
-            Response: Updated booking data or 400/403.
-        """
-        booking = self.get_object()
-        allowed = {'session_objective', 'session_notes_for_customer'}
-        data = {k: v for k, v in request.data.items() if k in allowed}
-        if not data:
-            return Response(
-                {'detail': 'Proporciona session_objective o session_notes_for_customer.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        for field, value in data.items():
-            setattr(booking, field, value)
-        booking.save(update_fields=list(data.keys()))
-        serializer = self.get_serializer(booking)
-        return Response(serializer.data)
-
     @action(detail=False, methods=['get'], url_path='upcoming-reminder')
     def upcoming_reminder(self, request):
-        """Return the user's next upcoming booking for dashboard reminders.
+        """Return the user's next confirmed booking for dashboard reminders.
 
-        Looks for the soonest active (non-canceled) booking whose slot starts
-        in the future.  Bookings are ``pending`` while upcoming and become
-        ``confirmed`` automatically once the slot has passed (see the
-        ``auto_complete_past_bookings`` task), so both states are accepted —
-        in practice only ``pending`` ones have a future slot.  The frontend
-        uses this for the "próxima sesión" card and the login reminder modal.
+        Looks for the soonest confirmed booking whose slot starts in the
+        future.  The frontend uses this to display a reminder modal when
+        the user opens the dashboard.
 
         Returns:
             Response: Booking data if found, or ``{"detail": null}`` with 204.
@@ -356,7 +354,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         next_booking = (
             Booking.objects.filter(
                 customer=request.user,
-                status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
+                status=Booking.Status.CONFIRMED,
                 slot__starts_at__gt=timezone.now(),
             )
             .select_related('customer', 'package', 'slot', 'trainer__user', 'subscription')

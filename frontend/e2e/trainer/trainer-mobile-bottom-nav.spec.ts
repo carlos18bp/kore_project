@@ -5,8 +5,8 @@ import { FlowTags, RoleTags } from '../helpers/flow-tags';
  * E2E tests for the trainer mobile bottom navigation (TrainerMobileBottomNav).
  *
  * Hidden via xl:hidden on desktop, so all tests use a mobile viewport.
- * The trainer nav has 5 entries: Inicio, Clientes, Alertas, Métricas and a
- * "Más" sheet containing Evidencia, Soporte and Cerrar sesión.
+ * Trainer nav is simpler than the customer one: 3 tabs (Inicio, Clientes, Más)
+ * with a "Más" sheet containing Soporte and Cerrar sesión.
  */
 test.describe('Mobile Bottom Navigation (Trainer)', { tag: [...FlowTags.TRAINER_MOBILE_BOTTOM_NAV, RoleTags.TRAINER] }, () => {
 
@@ -51,12 +51,7 @@ test.describe('Mobile Bottom Navigation (Trainer)', { tag: [...FlowTags.TRAINER_
     await page.goto('/trainer/clients');
     const nav = page.locator('nav.fixed.bottom-0');
     await expect(nav).toBeVisible({ timeout: 15_000 });
-    // Wait for the trainer nav to fully hydrate (Inicio points at /trainer/dashboard, not /dashboard).
-    const inicio = nav.getByRole('link', { name: /Inicio/ });
-    await expect(inicio).toHaveAttribute('href', '/trainer/dashboard');
-    // quality: allow-dispatch-event (the Next.js dev-overlay portal sits over the bottom-left tab in dev mode,
-    // intercepting normal/forced clicks; dispatching the event directly on the link still triggers navigation)
-    await inicio.dispatchEvent('click');
+    await nav.getByRole('link', { name: /Inicio/ }).click();
     await page.waitForURL('**/trainer/dashboard', { timeout: 15_000 });
   });
 

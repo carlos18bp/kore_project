@@ -63,7 +63,7 @@ def package(db):
 
 @pytest.fixture
 def booking_with_slot(trainer, customer, package):
-    """Create a confirmed booking linking trainer and customer, and assign the trainer."""
+    """Create a confirmed booking linking trainer and customer."""
     future = FIXED_NOW + timedelta(days=3)
     slot = AvailabilitySlot.objects.create(
         starts_at=future, ends_at=future + timedelta(hours=1),
@@ -73,8 +73,6 @@ def booking_with_slot(trainer, customer, package):
         customer=customer, trainer=trainer, package=package,
         slot=slot, status=Booking.Status.CONFIRMED,
     )
-    customer.assigned_trainer = trainer
-    customer.save(update_fields=['assigned_trainer'])
     return booking, slot
 
 

@@ -311,8 +311,6 @@ describe('authStore', () => {
           name: 'Customer10 Kore',
           profile_completed: false,
           avatar_url: null,
-          assigned_trainer: null,
-          must_change_password: false,
         });
       });
 

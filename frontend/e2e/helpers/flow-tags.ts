@@ -72,20 +72,6 @@ export const FlowTags = {
   TRAINER_CLIENT_PARQ: ['@flow:trainer-client-parq', '@module:trainer', '@priority:P2'],
   TRAINER_CLIENT_PHYSICAL_EVAL: ['@flow:trainer-client-physical-eval', '@module:trainer', '@priority:P2'],
   TRAINER_CLIENT_POSTUROMETRY: ['@flow:trainer-client-posturometry', '@module:trainer', '@priority:P2'],
-  TRAINER_ALERTS: ['@flow:trainer-alerts', '@module:trainer', '@priority:P1'],
-  TRAINER_CLIENT_PROGRAM: ['@flow:trainer-client-program', '@module:trainer', '@priority:P2'],
-  TRAINER_EVIDENCE: ['@flow:trainer-evidence', '@module:trainer', '@priority:P3'],
-  TRAINER_METRICS: ['@flow:trainer-metrics', '@module:trainer', '@priority:P3'],
-  TRAINER_NUTRITION_CATALOG: ['@flow:trainer-nutrition-catalog', '@module:trainer', '@priority:P2'],
-
-  CUSTOMER_MI_PROGRAMA: ['@flow:customer-mi-programa', '@module:program', '@priority:P1'],
-  CUSTOMER_MI_PROGRAMA_RUTINA: ['@flow:customer-mi-programa-rutina', '@module:program', '@priority:P1'],
-  CUSTOMER_MI_PROGRAMA_PROGRESO: ['@flow:customer-mi-programa-progreso', '@module:program', '@priority:P2'],
-  CUSTOMER_MI_PROGRAMA_RESUMEN: ['@flow:customer-mi-programa-resumen', '@module:program', '@priority:P2'],
-  CUSTOMER_MI_PROGRAMA_DIA: ['@flow:customer-mi-programa-dia', '@module:program', '@priority:P2'],
-
-  AUTH_ACCEPT_INVITE: ['@flow:auth-accept-invite', '@module:auth', '@priority:P2'],
-  AUTH_FORCED_PASSWORD_CHANGE: ['@flow:auth-forced-password-change', '@module:auth', '@priority:P2'],
 };
 
 export const RoleTags = {

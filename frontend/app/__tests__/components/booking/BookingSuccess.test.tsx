@@ -87,10 +87,10 @@ describe('BookingSuccess', () => {
     expect(link.closest('a')).toHaveAttribute('href', '/subscription');
   });
 
-  it('calls onReset when "Volver al panel" clicked', async () => {
+  it('calls onReset when "Agendar otra sesión" clicked', async () => {
     const user = userEvent.setup();
     render(<BookingSuccess booking={MOCK_BOOKING} onReset={onReset} />);
-    await user.click(screen.getByText('Volver al panel'));
+    await user.click(screen.getByText('Agendar otra sesión'));
     expect(onReset).toHaveBeenCalledTimes(1);
   });
 

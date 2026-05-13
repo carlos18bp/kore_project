@@ -64,7 +64,7 @@ export default function SessionDetailModal({ booking, subscriptionId, onClose, o
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-white/40 backdrop-blur-md"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
       onClick={handleBackdropClick}
     >
       <div
@@ -148,42 +148,6 @@ export default function SessionDetailModal({ booking, subscriptionId, onClose, o
               </div>
             )}
           </div>
-
-          {/* Session objective + trainer notes */}
-          {(booking.session_objective || booking.session_notes_for_customer) && (
-            <div className="bg-kore-red/5 border border-kore-red/15 rounded-2xl p-4 space-y-3">
-              {booking.session_objective && (
-                <div>
-                  <p className="text-xs text-kore-red/70 uppercase tracking-wider font-semibold mb-1">Objetivo de la sesión</p>
-                  <p className="text-sm text-kore-gray-dark leading-relaxed">{booking.session_objective}</p>
-                </div>
-              )}
-              {booking.session_notes_for_customer && (
-                <div>
-                  <p className="text-xs text-kore-red/70 uppercase tracking-wider font-semibold mb-1">Notas de tu entrenador</p>
-                  <p className="text-sm text-kore-gray-dark leading-relaxed">{booking.session_notes_for_customer}</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Planned exercises */}
-          {booking.program_day_exercises?.length > 0 && (
-            <div>
-              <p className="text-xs text-kore-gray-dark/50 uppercase tracking-wider font-semibold mb-2">Ejercicios planificados</p>
-              <div className="space-y-1.5">
-                {booking.program_day_exercises.map((ex, i) => (
-                  <div key={i} className="flex items-center gap-2.5 py-1.5 border-b border-kore-gray-light/20 last:border-0">
-                    <span className="text-xs text-kore-gray-dark/30 w-5 text-right shrink-0">{i + 1}</span>
-                    <span className="text-sm text-kore-gray-dark flex-1">{ex.name}</span>
-                    <span className="text-xs text-kore-gray-dark/40 shrink-0">
-                      {ex.sets}×{ex.reps !== null ? ex.reps : `${ex.duration_seconds}s`}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Error */}
           {error && (

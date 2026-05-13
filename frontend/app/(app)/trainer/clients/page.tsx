@@ -1,404 +1,160 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useTrainerStore, type ClientRiskScore, type RiskLevel } from '@/lib/stores/trainerStore';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useAuthStore } from '@/lib/stores/authStore';
+import { useTrainerStore } from '@/lib/stores/trainerStore';
+import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
 
-type FilterChip = 'all' | 'alto' | 'medio' | 'bajo' | 'eval' | 'no_session';
-
-const RISK_CFG: Record<RiskLevel, { label: string; dot: string; bg: string; text: string }> = {
-  alto:       { label: 'Riesgo alto',   dot: '#9A0526', bg: 'rgba(154,5,38,0.10)',    text: '#9A0526' },
-  medio:      { label: 'Riesgo medio',  dot: '#D97706', bg: 'rgba(217,119,6,0.10)',  text: '#D97706' },
-  bajo:       { label: 'Riesgo bajo',   dot: '#16A34A', bg: 'rgba(22,163,74,0.10)',   text: '#16A34A' },
-  sin_riesgo: { label: 'Sin riesgo',    dot: '#9CA3AF', bg: 'rgba(156,163,175,0.10)', text: '#6B7280' },
+const goalLabels: Record<string, string> = {
+  fat_loss: 'Perder grasa',
+  muscle_gain: 'Ganar masa muscular',
+  rehab: 'Rehabilitación',
+  general_health: 'Salud general',
+  sports_performance: 'Rendimiento deportivo',
 };
 
-const FILTER_CHIPS: [FilterChip, string][] = [
-  ['all', 'Todos'],
-  ['alto', 'Riesgo alto'],
-  ['medio', 'Riesgo medio'],
-  ['bajo', 'Riesgo bajo'],
-  ['eval', 'Eval pendiente'],
-  ['no_session', 'Sin sesión'],
-];
-
-function initials(name: string) {
-  return name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
-}
-
-function koreColor(score: number | null | undefined) {
-  if (!score) return 'rgba(103,15,34,0.35)';
-  if (score >= 75) return '#16A34A';
-  if (score >= 50) return '#D97706';
-  return '#9A0526';
-}
-
 export default function TrainerClientsPage() {
-  const router = useRouter();
-  const {
-    clients, clientsLoading, fetchClients,
-    riskDashboard, riskDashboardLoading, fetchRiskDashboard,
-    comparativeMetrics, fetchComparativeMetrics,
-    dashboardStats, fetchDashboardStats,
-  } = useTrainerStore();
-
+  const { user } = useAuthStore();
+  const { clients, clientsLoading, fetchClients } = useTrainerStore();
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<FilterChip>('all');
+  const sectionRef = useRef<HTMLElement>(null);
+  useHeroAnimation(sectionRef);
 
   useEffect(() => {
     fetchClients();
-    fetchRiskDashboard();
-    fetchComparativeMetrics();
-    fetchDashboardStats();
-  }, [fetchClients, fetchRiskDashboard, fetchComparativeMetrics, fetchDashboardStats]);
+  }, [fetchClients]);
 
-  const riskMap = useMemo(() => {
-    const m: Record<number, ClientRiskScore> = {};
-    riskDashboard?.clients_by_risk.forEach(r => { m[r.customer_id] = r; });
-    return m;
-  }, [riskDashboard]);
+  const filtered = clients.filter((c) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    const name = `${c.first_name} ${c.last_name}`.toLowerCase();
+    return name.includes(q) || c.email.toLowerCase().includes(q);
+  });
 
-  const adherenceMap = useMemo(() => {
-    const m: Record<number, number> = {};
-    comparativeMetrics?.adherence_ranking.forEach(a => { m[a.customer_id] = a.combined_7d; });
-    return m;
-  }, [comparativeMetrics]);
-
-  const pendingEvalSet = useMemo(() => {
-    const s = new Set<number>();
-    comparativeMetrics?.expired_evaluations.forEach(e => s.add(e.customer_id));
-    return s;
-  }, [comparativeMetrics]);
-
-  const nextSessionMap = useMemo(() => {
-    const m: Record<number, { starts_at: string; package_title: string }> = {};
-    dashboardStats?.upcoming_sessions
-      .filter(s => new Date(s.starts_at) > new Date())
-      .forEach(s => { if (!m[s.customer_id]) m[s.customer_id] = s; });
-    return m;
-  }, [dashboardStats]);
-
-  const filtered = useMemo(() => {
-    return clients.filter(c => {
-      const q = search.toLowerCase();
-      const name = `${c.first_name} ${c.last_name}`.toLowerCase();
-      if (search.trim() && !name.includes(q) && !c.email.toLowerCase().includes(q)) return false;
-      const risk = riskMap[c.id];
-      if (filter === 'alto')       return risk?.level === 'alto';
-      if (filter === 'medio')      return risk?.level === 'medio';
-      if (filter === 'bajo')       return risk?.level === 'bajo';
-      if (filter === 'eval')       return pendingEvalSet.has(c.id);
-      if (filter === 'no_session') return !nextSessionMap[c.id];
-      return true;
-    });
-  }, [clients, search, filter, riskMap, pendingEvalSet, nextSessionMap]);
-
-  const isLoading = clientsLoading || riskDashboardLoading;
+  if (!user) {
+    return (
+      <section className="min-h-screen bg-kore-cream flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-2 border-kore-red border-t-transparent rounded-full" />
+      </section>
+    );
+  }
 
   return (
-    <section className="min-h-screen bg-kore-cream">
-      <div className="px-5 xl:px-10 pt-20 xl:pt-8 pb-24 space-y-5">
-
+    <section ref={sectionRef} className="min-h-screen bg-kore-cream">
+      <div className="w-full px-6 md:px-10 lg:px-16 pt-20 xl:pt-8 pb-16">
         {/* Header */}
-        <div>
-          <p className="font-body text-[10px] font-bold tracking-[0.22em] uppercase mb-1"
-            style={{ color: 'rgba(103,15,34,0.55)' }}>Gestión</p>
-          <h1 className="font-heading text-[26px] font-semibold text-kore-wine-dark">Mis Clientes</h1>
+        <div data-hero="badge" className="mb-8 xl:mb-10">
+          <p className="text-xs text-kore-gray-dark/40 uppercase tracking-widest mb-1">Gestión</p>
+          <h1 className="font-heading text-2xl md:text-3xl font-semibold text-kore-gray-dark">
+            Mis Clientes
+          </h1>
         </div>
 
-        {/* Search + Filter chips */}
-        <div className="space-y-3">
-          <div className="relative">
-            <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4"
-              style={{ color: 'rgba(103,15,34,0.35)' }} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round"
-                d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+        {/* Search */}
+        <div data-hero="heading" className="mb-6">
+          <div className="relative max-w-md">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-kore-gray-dark/40" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
             </svg>
             <input
               type="text"
-              placeholder="Buscar por nombre o email..."
+              placeholder="Buscar cliente por nombre o email..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white/70 rounded-[14px] font-body text-[13px] text-kore-wine-dark placeholder:text-kore-wine-dark/30 focus:outline-none"
-              style={{ border: '1px solid rgba(103,15,34,0.10)' }}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-white/70 backdrop-blur-sm border border-kore-gray-light/40 rounded-xl text-sm text-kore-gray-dark placeholder:text-kore-gray-dark/40 focus:outline-none focus:ring-2 focus:ring-kore-red/20 focus:border-kore-red/30 transition-all"
             />
-          </div>
-
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
-            {FILTER_CHIPS.map(([id, label]) => (
-              <button
-                key={id}
-                onClick={() => setFilter(id)}
-                className="flex-shrink-0 px-3 py-1.5 rounded-full font-body text-[12px] font-semibold transition-all active:scale-95 duration-100"
-                style={filter === id ? {
-                  background: 'linear-gradient(135deg, #670F22, #9A0526)',
-                  color: '#FFF8EC',
-                } : {
-                  background: 'rgba(255,255,255,0.70)',
-                  color: 'rgba(103,15,34,0.60)',
-                  border: '1px solid rgba(103,15,34,0.12)',
-                }}
-              >
-                {label}
-              </button>
-            ))}
           </div>
         </div>
 
-        {/* Count */}
-        {!isLoading && (
-          <p className="font-body text-[11px]" style={{ color: 'rgba(103,15,34,0.45)' }}>
-            {filtered.length} cliente{filtered.length !== 1 ? 's' : ''}
-          </p>
-        )}
-
-        {/* Content */}
-        {isLoading ? (
-          <div className="flex justify-center py-16">
-            <div className="animate-spin h-7 w-7 border-2 rounded-full"
-              style={{ borderColor: 'rgba(103,15,34,0.15)', borderTopColor: '#670F22' }} />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="bg-white/65 rounded-[22px] p-10 text-center"
-            style={{ border: '1px solid rgba(103,15,34,0.08)' }}>
-            <p className="font-body text-[13px]" style={{ color: 'rgba(103,15,34,0.45)' }}>
-              {search || filter !== 'all' ? 'Sin resultados para ese filtro.' : 'Aún no tienes clientes asignados.'}
-            </p>
-          </div>
-        ) : (
-          <>
-            {/* ── Mobile cards ── */}
-            <div className="xl:hidden space-y-3">
-              {filtered.map(c => {
-                const risk = riskMap[c.id];
-                const adh  = adherenceMap[c.id];
-                const nextS = nextSessionMap[c.id];
-                const hasPendingEval = pendingEvalSet.has(c.id);
-                const rc = risk ? RISK_CFG[risk.level] : null;
-                const score = risk?.kore_score;
-
-                return (
-                  <button
-                    key={c.id}
-                    onClick={() => router.push(`/trainer/clients/client?id=${c.id}`)}
-                    className="w-full text-left bg-white/65 rounded-[22px] p-4 active:scale-[0.98] transition-transform duration-100"
-                    style={{ border: '1px solid rgba(103,15,34,0.08)', boxShadow: '0 2px 12px -8px rgba(45,15,26,0.10)' }}
-                  >
-                    {/* Top row */}
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden"
-                        style={{ background: 'linear-gradient(135deg, #F4C7C7, #E7C8A0)' }}>
-                        {c.avatar_url
-                          ? <img src={c.avatar_url} alt="" className="w-full h-full object-cover" />
-                          : <span className="font-heading text-sm font-bold" style={{ color: '#2D0F1A' }}>{initials(`${c.first_name} ${c.last_name}`)}</span>}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-heading text-[15px] font-semibold text-kore-wine-dark truncate">
-                          {c.first_name} {c.last_name}
-                        </p>
-                        <p className="font-body text-[11px] truncate" style={{ color: 'rgba(103,15,34,0.45)' }}>
-                          {c.active_package ?? 'Sin programa'}
-                        </p>
-                      </div>
-                      {rc && (
-                        <span className="flex-shrink-0 px-2 py-0.5 rounded-full font-body text-[10px] font-bold"
-                          style={{ background: rc.bg, color: rc.text }}>{rc.label}</span>
+        {/* Client List */}
+        <div data-hero="body">
+          {clientsLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="animate-spin h-8 w-8 border-2 border-kore-red border-t-transparent rounded-full" />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-8 border border-kore-gray-light/50 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-kore-cream flex items-center justify-center">
+                <svg className="w-8 h-8 text-kore-gray-dark/30" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                </svg>
+              </div>
+              <p className="text-sm text-kore-gray-dark/50">
+                {search ? 'No se encontraron clientes con esa búsqueda.' : 'Aún no tienes clientes asignados.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {filtered.map((client) => (
+                <div
+                  key={client.id}
+                  className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/60 shadow-sm hover:shadow-md transition-all"
+                >
+                  <Link href={`/trainer/clients/client?id=${client.id}`} className="flex items-start gap-4 group">
+                    {/* Avatar */}
+                    <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-kore-red/20 to-kore-burgundy/10 flex items-center justify-center ring-2 ring-white shadow-sm overflow-hidden">
+                      {client.avatar_url ? (
+                        <img src={client.avatar_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="font-heading text-lg font-semibold text-kore-red">
+                          {client.first_name.charAt(0)}
+                        </span>
                       )}
                     </div>
 
-                    {/* Stats row */}
-                    <div className="flex gap-3 text-center">
-                      <Stat value={score != null ? String(Math.round(score)) : '—'} label="KÓRE"
-                        color={koreColor(score)} />
-                      <Stat value={adh != null ? `${Math.round(adh * 100)}%` : '—'} label="Adher." />
-                      <Stat value={`${c.completed_sessions}/${c.total_sessions}`} label="Sesiones" />
-                      {hasPendingEval && <Stat value="!" label="Eval" color="#D97706" />}
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-kore-gray-dark truncate group-hover:text-kore-red transition-colors">
+                        {client.first_name} {client.last_name}
+                      </p>
+                      <p className="text-xs text-kore-gray-dark/40 truncate">{client.email}</p>
+                      {client.primary_goal && (
+                        <span className="inline-block mt-1.5 text-xs text-kore-red/70 bg-kore-red/5 px-2 py-0.5 rounded-full font-medium">
+                          {goalLabels[client.primary_goal] || client.primary_goal}
+                        </span>
+                      )}
                     </div>
+                  </Link>
 
-                    {/* Next session */}
-                    {nextS && (
-                      <div className="mt-2 pt-2 flex items-center gap-1.5"
-                        style={{ borderTop: '1px solid rgba(103,15,34,0.07)' }}>
-                        <svg className="w-3 h-3 flex-shrink-0" style={{ color: 'rgba(103,15,34,0.35)' }}
-                          fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round"
-                            d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5" />
-                        </svg>
-                        <p className="font-body text-[11px]" style={{ color: 'rgba(103,15,34,0.50)' }}>
-                          Próx.:{' '}
-                          {new Date(nextS.starts_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
-                          {' · '}
-                          {new Date(nextS.starts_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                        </p>
-                      </div>
+                  {/* Stats */}
+                  <div className="mt-3 pt-3 border-t border-kore-gray-light/30 flex items-center gap-3 text-xs text-kore-gray-dark/50">
+                    {client.active_package && (
+                      <span className="font-medium text-kore-gray-dark/70">{client.active_package}</span>
                     )}
-                  </button>
-                );
-              })}
+                    <span>{client.completed_sessions} sesiones</span>
+                    {client.sessions_remaining > 0 && (
+                      <span className="text-green-600 font-medium">{client.sessions_remaining} rest.</span>
+                    )}
+                  </div>
+
+                  {/* Quick actions */}
+                  <div className="mt-3 flex gap-2">
+                    <Link
+                      href={`/trainer/clients/client?id=${client.id}`}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-kore-cream/60 hover:bg-kore-cream text-kore-gray-dark/60 hover:text-kore-gray-dark text-xs font-medium transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                      </svg>
+                      Ficha
+                    </Link>
+                    <Link
+                      href={`/trainer/clients/client/anthropometry?id=${client.id}`}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-kore-red/5 hover:bg-kore-red/10 text-kore-red/70 hover:text-kore-red text-xs font-medium transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+                      </svg>
+                      Antropometría
+                    </Link>
+                  </div>
+                </div>
+              ))}
             </div>
-
-            {/* ── Desktop table ── */}
-            <div className="hidden xl:block bg-white/65 rounded-[22px] overflow-hidden"
-              style={{ border: '1px solid rgba(103,15,34,0.08)' }}>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[860px]">
-                  <thead>
-                    <tr style={{ background: 'rgba(103,15,34,0.04)', borderBottom: '1px solid rgba(103,15,34,0.08)' }}>
-                      {['Cliente', 'Programa', 'KÓRE', 'Adherencia 7d', 'Sesiones', 'Próxima sesión', 'Última sesión', 'Estado', ''].map(h => (
-                        <th key={h} className="px-4 py-3 text-left font-body text-[10px] font-bold uppercase tracking-[0.18em]"
-                          style={{ color: 'rgba(103,15,34,0.45)' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map((c, i) => {
-                      const risk = riskMap[c.id];
-                      const adh  = adherenceMap[c.id];
-                      const nextS = nextSessionMap[c.id];
-                      const hasPendingEval = pendingEvalSet.has(c.id);
-                      const rc = risk ? RISK_CFG[risk.level] : null;
-                      const score = risk?.kore_score;
-
-                      return (
-                        <tr
-                          key={c.id}
-                          className="hover:bg-kore-cream/50 transition-colors cursor-pointer"
-                          style={{ borderBottom: i < filtered.length - 1 ? '1px solid rgba(103,15,34,0.06)' : 'none' }}
-                          onClick={() => router.push(`/trainer/clients/client?id=${c.id}`)}
-                        >
-                          {/* Cliente */}
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden"
-                                style={{ background: 'linear-gradient(135deg, #F4C7C7, #E7C8A0)' }}>
-                                {c.avatar_url
-                                  ? <img src={c.avatar_url} alt="" className="w-full h-full object-cover" />
-                                  : <span className="font-heading text-[11px] font-bold" style={{ color: '#2D0F1A' }}>{initials(`${c.first_name} ${c.last_name}`)}</span>}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="font-body text-[13px] font-semibold text-kore-wine-dark truncate max-w-[150px]">
-                                  {c.first_name} {c.last_name}
-                                </p>
-                                <p className="font-body text-[11px] truncate max-w-[150px]"
-                                  style={{ color: 'rgba(103,15,34,0.40)' }}>{c.email}</p>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Programa */}
-                          <td className="px-4 py-3">
-                            <p className="font-body text-[12px] font-semibold text-kore-wine-dark truncate max-w-[130px]">
-                              {c.active_package ?? '—'}
-                            </p>
-                          </td>
-
-                          {/* KÓRE */}
-                          <td className="px-4 py-3">
-                            <p className="font-heading text-[20px] font-semibold leading-none"
-                              style={{ color: koreColor(score) }}>
-                              {score != null ? Math.round(score) : '—'}
-                            </p>
-                          </td>
-
-                          {/* Adherencia */}
-                          <td className="px-4 py-3">
-                            {adh != null ? (
-                              <div>
-                                <p className="font-body text-[13px] font-semibold text-kore-wine-dark">
-                                  {Math.round(adh * 100)}%
-                                </p>
-                                <div className="w-16 h-1 rounded-full mt-1"
-                                  style={{ background: 'rgba(103,15,34,0.10)' }}>
-                                  <div className="h-full rounded-full transition-all duration-700"
-                                    style={{
-                                      width: `${adh * 100}%`,
-                                      background: adh >= 0.7 ? '#16A34A' : adh >= 0.4 ? '#D97706' : '#9A0526',
-                                    }} />
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="font-body text-[13px]" style={{ color: 'rgba(103,15,34,0.30)' }}>—</span>
-                            )}
-                          </td>
-
-                          {/* Sesiones */}
-                          <td className="px-4 py-3">
-                            <p className="font-body text-[13px] font-semibold text-kore-wine-dark">
-                              {c.completed_sessions}
-                              <span className="font-normal" style={{ color: 'rgba(103,15,34,0.40)' }}>/{c.total_sessions}</span>
-                            </p>
-                            {hasPendingEval && (
-                              <span className="font-body text-[10px] font-semibold" style={{ color: '#D97706' }}>
-                                Eval pendiente
-                              </span>
-                            )}
-                          </td>
-
-                          {/* Próxima sesión */}
-                          <td className="px-4 py-3">
-                            {nextS ? (
-                              <div>
-                                <p className="font-body text-[12px] text-kore-wine-dark">
-                                  {new Date(nextS.starts_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
-                                </p>
-                                <p className="font-body text-[11px]" style={{ color: 'rgba(103,15,34,0.40)' }}>
-                                  {new Date(nextS.starts_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                                </p>
-                              </div>
-                            ) : (
-                              <span className="font-body text-[12px]" style={{ color: 'rgba(103,15,34,0.30)' }}>Sin agendar</span>
-                            )}
-                          </td>
-
-                          {/* Última sesión */}
-                          <td className="px-4 py-3">
-                            {c.last_session_date ? (
-                              <p className="font-body text-[12px] text-kore-wine-dark">
-                                {new Date(c.last_session_date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: '2-digit' })}
-                              </p>
-                            ) : (
-                              <span className="font-body text-[12px]" style={{ color: 'rgba(103,15,34,0.30)' }}>—</span>
-                            )}
-                          </td>
-
-                          {/* Estado */}
-                          <td className="px-4 py-3">
-                            {rc ? (
-                              <span className="px-2.5 py-1 rounded-full font-body text-[10px] font-bold"
-                                style={{ background: rc.bg, color: rc.text }}>{rc.label}</span>
-                            ) : (
-                              <span className="font-body text-[11px]" style={{ color: 'rgba(103,15,34,0.30)' }}>—</span>
-                            )}
-                          </td>
-
-                          {/* Arrow */}
-                          <td className="px-3 py-3">
-                            <svg className="w-4 h-4" style={{ color: 'rgba(103,15,34,0.25)' }}
-                              fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                            </svg>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
     </section>
-  );
-}
-
-function Stat({ value, label, color }: { value: string; label: string; color?: string }) {
-  return (
-    <div className="flex-1 text-center">
-      <p className="font-heading text-[18px] font-semibold leading-none"
-        style={{ color: color ?? '#670F22' }}>{value}</p>
-      <p className="font-body text-[9px] font-bold uppercase tracking-wide mt-0.5"
-        style={{ color: 'rgba(103,15,34,0.45)' }}>{label}</p>
-    </div>
   );
 }

@@ -146,13 +146,12 @@ test.describe('Edge-case branch coverage', { tag: [...FlowTags.APP_EDGE_CASE_BRA
     await main.getByRole('button', { name: 'Confirmar' }).click();
 
     // Success screen — trainer=null shows "—" for trainer name
-    const modal = page.locator('[data-testid="booking-success-backdrop"]');
-    await expect(modal.getByText('Tu entrenamiento está agendado')).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('Tu entrenamiento está agendado')).toBeVisible({ timeout: 10_000 });
     // The trainer row should show "—" instead of a real name
-    await expect(modal.getByText('—', { exact: true })).toBeVisible();
+    await expect(main.getByText('—', { exact: true })).toBeVisible();
 
-    // The link uses subscription_id_display ?? '' (null branch)
-    await expect(modal.getByText('tu programa')).toBeVisible();
+    // The "Reprogramar o Cancelar" link uses subscription_id_display ?? '' (null branch)
+    await expect(main.getByText('reprogramar o cancelar')).toBeVisible();
   });
 
   test('malformed kore_user cookie triggers hydrate catch branch', async ({ page }) => {

@@ -87,7 +87,7 @@ export default function PasswordResetModal({ email, onClose }: PasswordResetModa
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-white/40 backdrop-blur-md" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
       <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 md:p-8 border border-kore-gray-light/30">

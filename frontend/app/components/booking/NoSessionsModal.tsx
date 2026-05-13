@@ -8,7 +8,7 @@ type Props = {
 
 export default function NoSessionsModal({ packageTitle }: Props) {
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-white/40 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-xl">
         {/* Icon */}
         <div className="flex justify-center mb-4">

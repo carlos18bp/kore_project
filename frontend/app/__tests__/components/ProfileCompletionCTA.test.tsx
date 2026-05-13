@@ -175,7 +175,7 @@ describe('ProfileCompletionCTA', () => {
 
     expect(screen.getByText('Queremos conocerte mejor')).toBeInTheDocument();
 
-    const backdrop = document.querySelector('.bg-white\\/40');
+    const backdrop = document.querySelector('.bg-black\\/40');
     if (backdrop) fireEvent.click(backdrop);
 
     expect(screen.queryByText('Queremos conocerte mejor')).not.toBeInTheDocument();

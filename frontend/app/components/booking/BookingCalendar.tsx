@@ -2,22 +2,13 @@
 
 import { useState, useMemo } from 'react';
 
-const EMPTY_DATES: Set<string> = new Set();
-
 type Props = {
   availableDates: Set<string>;
-  /** Dates (YYYY-MM-DD) that already have a booked session — these get a marker dot. */
-  bookedDates?: Set<string>;
   selectedDate: string | null;
   onSelectDate: (date: string) => void;
 };
 
-export default function BookingCalendar({
-  availableDates,
-  bookedDates = EMPTY_DATES,
-  selectedDate,
-  onSelectDate,
-}: Props) {
+export default function BookingCalendar({ availableDates, selectedDate, onSelectDate }: Props) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -129,7 +120,7 @@ export default function BookingCalendar({
               `}
             >
               {day}
-              {bookedDates.has(ds) && !isPast && !isSelected && (
+              {hasSlots && !isPast && !isSelected && (
                 <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-kore-red" />
               )}
             </button>

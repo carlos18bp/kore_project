@@ -49,8 +49,8 @@ test.describe('Trainer Client Nutrition Page', { tag: [...FlowTags.TRAINER_CLIEN
     await setupNutritionMocks(page);
     await page.goto('/trainer/clients/client/nutrition?clientId=1');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Hábitos alimentarios' })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText('Historial de hábitos')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Nutrición del Cliente' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/Historial de hábitos alimentarios/)).toBeVisible();
   });
 
   test('renders nutrition entry with habit score and category', async ({ page }) => {
@@ -76,8 +76,7 @@ test.describe('Trainer Client Nutrition Page', { tag: [...FlowTags.TRAINER_CLIEN
     await setupNutritionMocks(page, []);
     await page.goto('/trainer/clients/client/nutrition?clientId=1');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Hábitos alimentarios' })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText('Sin evaluaciones de nutrición')).toBeVisible();
-    await expect(page.getByText(/El cliente aún no ha registrado hábitos/)).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Nutrición del Cliente' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/El cliente aún no ha registrado hábitos alimentarios/)).toBeVisible();
   });
 });

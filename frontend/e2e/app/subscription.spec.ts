@@ -106,16 +106,19 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
     await expect(page.getByRole('link', { name: 'Ver programas' })).toBeVisible();
   });
 
-  test('active subscription renders plan details inline', async ({ page }) => {
+  test('active subscription renders details card', async ({ page }) => {
     await injectAuthCookies(page);
     await setupSubscriptionMock(page, mockSubscription);
     await page.goto('/subscription');
 
     const main = page.getByRole('main');
-    await expect(main.getByRole('heading', { name: 'Mi Suscripción', level: 1 })).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByRole('heading', { name: 'Paquete Pro' })).toBeVisible();
-    await expect(main.getByText('● Activa')).toBeVisible();
-    await expect(main.getByText('3 de 8 sesiones')).toBeVisible();
+    const detailsCard = main.getByText('Detalles').locator('..').locator('..');
+    const programRow = detailsCard.getByText('Programa').locator('..');
+    await expect(main.getByText('Mi Suscripción')).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('Detalles')).toBeVisible();
+    await expect(programRow.getByText('Paquete Pro')).toBeVisible();
+    await expect(detailsCard.getByText('Activa', { exact: true })).toBeVisible();
+    await expect(detailsCard.getByText('3 de 8 completadas')).toBeVisible();
   });
 
   test('active subscription does not show paused actions', async ({ page }) => {
@@ -134,9 +137,9 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
     await page.goto('/subscription');
 
     await expect(page.getByText('Historial de pagos')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('● Confirmado')).toBeVisible();
-    await expect(page.getByText('● Pendiente')).toBeVisible();
-    await expect(page.getByText('● Fallido')).toBeVisible();
+    await expect(page.getByText('Confirmado')).toBeVisible();
+    await expect(page.getByText('Pendiente', { exact: true })).toBeVisible();
+    await expect(page.getByText('Fallido')).toBeVisible();
   });
 
   test('expired subscription appears as inactive', async ({ page }) => {
@@ -151,9 +154,10 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
     await setupSubscriptionMock(page, expiredSub);
     await page.goto('/subscription');
 
-    const main = page.getByRole('main');
-    await expect(main.getByText('● Expirada')).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByRole('link', { name: 'Renovar este programa →' })).toBeVisible();
+    const detailsCard = page.getByRole('main').getByText('Detalles').locator('..').locator('..');
+    await expect(detailsCard.getByText('Expirada', { exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('Renovar este programa')).toBeVisible();
+    await expect(page.getByText('página de programas')).toBeVisible();
   });
 
   test('active subscription renders cancel action as enabled', async ({ page }) => {
@@ -242,9 +246,9 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
     await expect(page.getByText('No se pudo cargar el historial de pagos.')).toBeVisible({ timeout: 10_000 });
   });
 
-  test('selecting a different subscription pill updates the hero', async ({ page }) => {
-    // Exercise subscription/page.tsx setSelectedSubscriptionId — clicking a pill
-    // makes the hero reflect the newly selected subscription.
+  test('selecting a different subscription in dropdown updates the detail card', async ({ page }) => {
+    // Exercise subscription/page.tsx onChange handler — setSelectedSubscriptionId(nextValue)
+    // which causes the detail card to reflect the newly selected subscription.
     const secondSub = {
       id: 30,
       customer_email: 'e2e@kore.com',
@@ -277,17 +281,18 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
     await page.goto('/subscription');
 
     const main = page.getByRole('main');
-    await expect(main.getByRole('heading', { name: 'Mi Suscripción', level: 1 })).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('Mi Suscripción')).toBeVisible({ timeout: 10_000 });
 
-    // Hero shows the first (active) subscription by default
-    await expect(main.getByRole('heading', { name: 'Paquete Pro' })).toBeVisible({ timeout: 5_000 });
+    // Wait for detail card to show the first subscription
+    const detailsCard = main.getByText('Detalles').locator('..').locator('..');
+    await expect(detailsCard.getByText('Paquete Pro')).toBeVisible({ timeout: 5_000 });
 
-    // Click the second subscription pill to select it
+    // Click the second subscription button to select it
     await main.getByRole('button', { name: /Paquete Básico/ }).click();
 
-    // Hero should now reflect the expired second subscription
-    await expect(main.getByRole('heading', { name: 'Paquete Básico' })).toBeVisible({ timeout: 5_000 });
-    await expect(main.getByText('● Expirada')).toBeVisible({ timeout: 5_000 });
+    // Detail card should now reflect the expired second subscription
+    await expect(detailsCard.getByText('Paquete Básico')).toBeVisible({ timeout: 5_000 });
+    await expect(detailsCard.getByText('Expirada', { exact: true }).or(detailsCard.getByText('Vencida', { exact: true }))).toBeVisible({ timeout: 5_000 });
   });
 
 });
@@ -331,7 +336,7 @@ test.describe('subscriptionStore non-paginated array response', { tag: [...FlowT
 
     await page.goto('/subscription');
     const main = page.getByRole('main');
-    await expect(main.getByRole('heading', { name: 'Mi Suscripci\u00f3n', level: 1 })).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('\u25cf Activa')).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('Mi Suscripci\u00f3n')).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('Activa', { exact: true }).first()).toBeVisible({ timeout: 10_000 });
   });
 });

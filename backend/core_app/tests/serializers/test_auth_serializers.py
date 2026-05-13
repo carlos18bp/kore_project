@@ -17,7 +17,7 @@ class TestUserSerializer:
             email='u@example.com', password='p', first_name='A', last_name='B', phone='123',
         )
         data = UserSerializer(user).data
-        assert set(data.keys()) == {'id', 'email', 'first_name', 'last_name', 'phone', 'role', 'must_change_password'}
+        assert set(data.keys()) == {'id', 'email', 'first_name', 'last_name', 'phone', 'role'}
         assert data['email'] == 'u@example.com'
         assert data['role'] == 'customer'
 

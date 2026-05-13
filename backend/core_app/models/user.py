@@ -42,19 +42,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.CUSTOMER)
 
-    assigned_trainer = models.ForeignKey(
-        'core_app.TrainerProfile',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='assigned_clients',
-        help_text='Trainer who owns this customer. Only meaningful for role=customer.',
-    )
-
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
-    is_deleted = models.BooleanField(default=False)
-    must_change_password = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
 
     objects = UserManager()

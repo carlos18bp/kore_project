@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from core_app.models import AvailabilitySlot, Booking, Package, Subscription, User
+from core_app.models import Package, Subscription, User
 from core_app.serializers.subscription_serializers import SubscriptionSerializer
 
 FIXED_NOW = datetime(2025, 6, 15, 12, 0, 0, tzinfo=dt_timezone.utc)
@@ -50,7 +50,7 @@ class TestSubscriptionSerializer:
         data = SubscriptionSerializer(subscription).data
         expected_fields = {
             'id', 'customer_email', 'package', 'sessions_total',
-            'sessions_used', 'sessions_remaining', 'sessions_completed', 'status',
+            'sessions_used', 'sessions_remaining', 'status',
             'starts_at', 'expires_at', 'next_billing_date',
             'is_recurring', 'billing_failed_at',
             'is_guest', 'guest_info',
@@ -94,38 +94,6 @@ class TestSubscriptionSerializer:
             partial=True,
         )
         assert serializer.is_valid(), serializer.errors
-
-    def test_sessions_completed_counts_only_past_non_cancelled_bookings(self, subscription, customer, package):
-        """sessions_completed counts only bookings whose slot ended in the past and were not cancelled."""
-        past_slot = AvailabilitySlot.objects.create(
-            starts_at=FIXED_NOW - timedelta(hours=2),
-            ends_at=FIXED_NOW - timedelta(hours=1),
-        )
-        future_slot = AvailabilitySlot.objects.create(
-            starts_at=FIXED_NOW + timedelta(hours=25),
-            ends_at=FIXED_NOW + timedelta(hours=26),
-        )
-        cancelled_past_slot = AvailabilitySlot.objects.create(
-            starts_at=FIXED_NOW - timedelta(hours=4),
-            ends_at=FIXED_NOW - timedelta(hours=3),
-        )
-        Booking.objects.create(
-            customer=customer, package=package, slot=past_slot,
-            subscription=subscription, status=Booking.Status.CONFIRMED,
-        )
-        Booking.objects.create(
-            customer=customer, package=package, slot=future_slot,
-            subscription=subscription, status=Booking.Status.CONFIRMED,
-        )
-        Booking.objects.create(
-            customer=customer, package=package, slot=cancelled_past_slot,
-            subscription=subscription, status=Booking.Status.CANCELED,
-        )
-
-        with patch('core_app.serializers.subscription_serializers.timezone.now', return_value=FIXED_NOW):
-            data = SubscriptionSerializer(subscription).data
-
-        assert data['sessions_completed'] == 1
 
     @patch('core_app.serializers.subscription_serializers.timezone.now',
            return_value=FIXED_NOW)

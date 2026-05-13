@@ -10,7 +10,6 @@ import MobileBottomNav from '@/app/components/layouts/MobileBottomNav';
 import TrainerMobileBottomNav from '@/app/components/layouts/TrainerMobileBottomNav';
 import ProfileCompletionCTA from '@/app/components/profile/ProfileCompletionCTA';
 import MoodCheckIn from '@/app/components/profile/MoodCheckIn';
-import TrainerMessageModal from '@/app/components/dashboard/TrainerMessageModal';
 
 const ALLOWED_WITHOUT_SUBSCRIPTION = ['/subscription', '/profile'];
 
@@ -34,32 +33,23 @@ export default function AppLayout({
     }
   }, [hydrated, isAuthenticated, router]);
 
-  const isAdmin = user?.role === 'admin';
   const isTrainer = user?.role === 'trainer';
   const isOnTrainerRoute = pathname.startsWith('/trainer');
 
   useEffect(() => {
     if (!hydrated || !isAuthenticated || !user) return;
-    if (user.must_change_password && pathname !== '/change-password-required') {
-      router.replace('/change-password-required');
-      return;
-    }
-    if (isAdmin) {
-      router.replace('/admin-platform/dashboard');
-      return;
-    }
     if (isTrainer && !isOnTrainerRoute) {
       router.replace('/trainer/dashboard');
     } else if (!isTrainer && isOnTrainerRoute) {
       router.replace('/dashboard');
     }
-  }, [hydrated, isAuthenticated, user, isAdmin, isTrainer, isOnTrainerRoute, pathname, router]);
+  }, [hydrated, isAuthenticated, user, isTrainer, isOnTrainerRoute, router]);
 
   useEffect(() => {
-    if (hydrated && isAuthenticated && user && !isTrainer && !isAdmin) {
+    if (hydrated && isAuthenticated && user && !isTrainer) {
       fetchSubscriptions();
     }
-  }, [hydrated, isAuthenticated, user, isTrainer, isAdmin, fetchSubscriptions]);
+  }, [hydrated, isAuthenticated, user, isTrainer, fetchSubscriptions]);
 
   useEffect(() => {
     if (!hydrated || !isAuthenticated || !user || isTrainer || subsLoading) return;
@@ -81,7 +71,6 @@ export default function AppLayout({
       </main>
       {!isTrainer && <ProfileCompletionCTA />}
       {!isTrainer && <MoodCheckIn />}
-      {!isTrainer && !isAdmin && <TrainerMessageModal />}
     </div>
   );
 }

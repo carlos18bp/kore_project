@@ -1,6 +1,6 @@
 {
-  "version": "1.0.5",
-  "lastUpdated": "2026-05-11",
+  "version": "1.0.4",
+  "lastUpdated": "2026-04-22",
   "documentation": "Step-by-step user journeys (branches, variations) are maintained in docs/USER_FLOW_MAP.md. This file defines flow IDs and metadata for Playwright @flow: tags and e2e/reporters/flow-coverage-reporter.mjs.",
   "flows": {
     "auth-login": {
@@ -436,102 +436,6 @@
       "priority": "P2",
       "roles": ["user"],
       "description": "Access control enforced by (app)/layout.tsx: customers without an active subscription are redirected to /subscription when accessing gated routes; /subscription and /profile remain accessible."
-    },
-    "customer-mi-programa": {
-      "name": "Mi Programa — Overview",
-      "module": "program",
-      "priority": "P1",
-      "roles": ["user"],
-      "description": "View the customer's monthly training program overview: calendar heatmap, fitness level card, weekly adherence strip, and navigation to sub-routes (rutina, progreso, resumen).",
-      "coverage": "missing"
-    },
-    "customer-mi-programa-rutina": {
-      "name": "Mi Programa — Rutina del Día",
-      "module": "program",
-      "priority": "P1",
-      "roles": ["user"],
-      "description": "View today's routine: exercise list, complete/skip individual exercises, log mood/notes, and see day-level adherence.",
-      "coverage": "missing"
-    },
-    "customer-mi-programa-progreso": {
-      "name": "Mi Programa — Progreso",
-      "module": "program",
-      "priority": "P2",
-      "roles": ["user"],
-      "description": "View program-wide adherence charts, streak, and training/nutrition breakdown over the program duration.",
-      "coverage": "missing"
-    },
-    "customer-mi-programa-resumen": {
-      "name": "Mi Programa — Resumen",
-      "module": "program",
-      "priority": "P2",
-      "roles": ["user"],
-      "description": "View program summary card with goal, fitness level, dates, completion %, and projected outcome.",
-      "coverage": "missing"
-    },
-    "customer-mi-programa-dia": {
-      "name": "Mi Programa — Día Específico",
-      "module": "program",
-      "priority": "P2",
-      "roles": ["user"],
-      "description": "Navigate to a past or future program day via /mi-programa/dia/[date]: view exercises, completion state, and trainer notes.",
-      "coverage": "missing"
-    },
-    "trainer-alerts": {
-      "name": "Trainer Alerts Center",
-      "module": "trainer",
-      "priority": "P1",
-      "roles": ["trainer"],
-      "description": "View and filter behavioral/clinical risk alerts per client (alto/medio/bajo); resolve an alert and mark it as addressed.",
-      "coverage": "missing"
-    },
-    "trainer-client-program": {
-      "name": "Trainer Client Program Tab",
-      "module": "trainer",
-      "priority": "P2",
-      "roles": ["trainer"],
-      "description": "View and manage a client's monthly training program from the trainer perspective: generate, publish, and review program days and exercise logs.",
-      "coverage": "missing"
-    },
-    "trainer-evidence": {
-      "name": "Trainer Evidence Gallery",
-      "module": "trainer",
-      "priority": "P3",
-      "roles": ["trainer"],
-      "description": "Browse client progress photos with date filter; open photo detail sheet and add/view trainer comments.",
-      "coverage": "missing"
-    },
-    "trainer-metrics": {
-      "name": "Trainer Metrics",
-      "module": "trainer",
-      "priority": "P3",
-      "roles": ["trainer"],
-      "description": "View trainer-wide comparative metrics: adherence trends, evaluation expiry summary, risk distribution, and global KORE score across all clients.",
-      "coverage": "missing"
-    },
-    "trainer-nutrition-catalog": {
-      "name": "Trainer Nutrition Catalog",
-      "module": "trainer",
-      "priority": "P2",
-      "roles": ["trainer"],
-      "description": "Browse and search the global meal suggestion catalog; add new meal suggestions with block, calories, NOVA, fitness level, and goal tags.",
-      "coverage": "missing"
-    },
-    "auth-accept-invite": {
-      "name": "Accept Duo Invite",
-      "module": "auth",
-      "priority": "P2",
-      "roles": ["guest", "user"],
-      "description": "Accept a duo-plan subscription invite via /accept-invite?token=: resolve token → accept (logged-in), redirect to login (wrong account), or redirect to register (new user).",
-      "coverage": "missing"
-    },
-    "auth-forced-password-change": {
-      "name": "Forced Password Change",
-      "module": "auth",
-      "priority": "P2",
-      "roles": ["user"],
-      "description": "When must_change_password=true, redirect to /change-password-required and enforce password update before accessing any other route.",
-      "coverage": "missing"
     }
   }
 }

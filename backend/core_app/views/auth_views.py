@@ -339,9 +339,6 @@ def change_password(request):
     serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
     serializer.is_valid(raise_exception=True)
     serializer.save()
-    if getattr(request.user, 'must_change_password', False):
-        request.user.must_change_password = False
-        request.user.save(update_fields=['must_change_password'])
     return Response({'detail': 'Contraseña actualizada correctamente.'}, status=status.HTTP_200_OK)
 
 
@@ -518,10 +515,6 @@ def reset_password_with_code(request):
         )
 
     user.set_password(new_password)
-    update_fields = ['password']
-    if user.must_change_password:
-        user.must_change_password = False
-        update_fields.append('must_change_password')
-    user.save(update_fields=update_fields)
+    user.save(update_fields=['password'])
 
     return Response({'detail': 'Contraseña actualizada correctamente.'}, status=status.HTTP_200_OK)

@@ -68,11 +68,6 @@ class CustomerProfile(TimestampedModel):
     primary_goal = models.CharField(
         max_length=30, choices=Goal.choices, blank=True,
     )
-    fitness_level_override = models.PositiveSmallIntegerField(
-        null=True, blank=True,
-        help_text='Nivel de condición física asignado manualmente por el entrenador (1–5). '
-                  'Si es nulo se calcula automáticamente desde la última evaluación física.',
-    )
     kore_start_date = models.DateField(
         null=True, blank=True,
         help_text='Fecha de inicio en KÓRE. Se auto-asigna desde date_joined si no se indica.',

@@ -117,42 +117,6 @@ jest.mock('@/app/components/subscription/SubscriptionDashboardToast', () => ({
   default: () => null,
 }));
 
-jest.mock('@/lib/stores/nutritionDailyStore', () => ({
-  useNutritionDailyStore: () => ({
-    todayLog: null,
-    fetchTodayLog: jest.fn(),
-  }),
-}));
-
-jest.mock('@/lib/stores/programStore', () => ({
-  useProgramStore: () => ({
-    activeProgram: null,
-    fetchActiveProgram: jest.fn(),
-  }),
-}));
-
-jest.mock('@/lib/stores/progressStore', () => ({
-  useProgressStore: () => ({
-    weeklySummary: null,
-    fetchWeeklySummary: jest.fn(),
-  }),
-}));
-
-jest.mock('@/app/components/program/ProgressTabsCard', () => ({
-  __esModule: true,
-  default: () => null,
-}));
-
-jest.mock('@/app/components/booking/UpcomingSessionsCard', () => ({
-  __esModule: true,
-  default: () => null,
-}));
-
-jest.mock('@/app/components/dashboard/TrainerMessageBanner', () => ({
-  __esModule: true,
-  default: () => null,
-}));
-
 jest.mock('@/lib/services/http', () => ({
   api: { get: jest.fn().mockRejectedValue(new Error('no subs')), post: jest.fn() },
 }));
@@ -186,22 +150,47 @@ describe('DashboardPage', () => {
     expect(screen.getAllByText(/Customer10/).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders Tu espacio section header', () => {
+  it('renders member since label in progress card', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
     render(<DashboardPage />);
-    expect(screen.getAllByText('Tu espacio').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Miembro desde').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders upcoming sessions section header', () => {
+  it('renders next session card with formatted date', () => {
+    useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
+    render(<DashboardPage />);
+    expect(screen.getByText('Tu siguiente paso')).toBeInTheDocument();
+  });
+
+  it('renders upcoming sessions section', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
     render(<DashboardPage />);
     expect(screen.getAllByText('Próximas sesiones').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders activity history', () => {
+    useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
+    render(<DashboardPage />);
+    expect(screen.getAllByText('Historial reciente').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Sin sesiones registradas').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders greeting with user first name and header', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
     render(<DashboardPage />);
     expect(screen.getAllByText(/Customer10/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Tu espacio').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Tu espacio')).toBeInTheDocument();
+  });
+
+  it('renders estado de hoy section inside progress card', () => {
+    useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
+    render(<DashboardPage />);
+    expect(screen.getAllByText('Estado de hoy').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders circular progress indicator', () => {
+    useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
+    render(<DashboardPage />);
+    expect(screen.getByRole('img', { name: /Progreso 0 por ciento/ })).toBeInTheDocument();
   });
 });

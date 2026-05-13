@@ -4,8 +4,6 @@ Provides endpoints for trainers to view their assigned clients,
 access individual client profiles, and review session history.
 """
 
-from math import floor
-
 from django.db.models import Count, Max, Q
 
 from rest_framework import status
@@ -35,8 +33,14 @@ class TrainerClientListView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        customer_ids = (
+            Booking.objects.filter(trainer=trainer_profile)
+            .values_list('customer_id', flat=True)
+            .distinct()
+        )
+
         customers = (
-            User.objects.filter(assigned_trainer=trainer_profile, role=User.Role.CUSTOMER)
+            User.objects.filter(id__in=customer_ids, role=User.Role.CUSTOMER)
             .select_related('customer_profile')
             .annotate(
                 total_sessions=Count(
@@ -113,13 +117,10 @@ class TrainerClientDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        is_assigned = User.objects.filter(
-            id=customer_id, assigned_trainer=trainer_profile, role=User.Role.CUSTOMER
-        ).exists()
         has_bookings = Booking.objects.filter(
             trainer=trainer_profile, customer_id=customer_id
         ).exists()
-        if not is_assigned and not has_bookings:
+        if not has_bookings:
             return Response(
                 {'detail': 'Cliente no encontrado.'},
                 status=status.HTTP_404_NOT_FOUND,
@@ -139,9 +140,6 @@ class TrainerClientDetailView(APIView):
         avatar_url = None
         if cp and cp.avatar and hasattr(cp.avatar, 'url'):
             avatar_url = request.build_absolute_uri(cp.avatar.url)
-
-        fitness_level_computed = _get_fitness_level_from_evals(customer)
-        fitness_level_override = cp.fitness_level_override if cp else None
 
         active_sub = (
             Subscription.objects.filter(
@@ -233,8 +231,6 @@ class TrainerClientDetailView(APIView):
                 'created_at': last_payment.created_at.isoformat(),
             } if last_payment else None,
             'stats': booking_stats,
-            'fitness_level_computed': fitness_level_computed,
-            'fitness_level_override': fitness_level_override,
         })
 
 
@@ -344,92 +340,4 @@ class TrainerDashboardStatsView(APIView):
             'total_clients': total_clients,
             'today_sessions': today_sessions,
             'upcoming_sessions': upcoming_list,
-        })
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-def _get_fitness_level_from_evals(customer) -> int:
-    """Compute fitness level strictly from evaluations, ignoring any override."""
-    eval_ = (
-        customer.physical_evaluations
-        .filter(general_index__isnull=False)
-        .order_by('-created_at')
-        .first()
-    )
-    if eval_ is None or eval_.general_index is None:
-        return 1
-    return max(1, min(5, floor(float(eval_.general_index) + 0.5)))
-
-
-# ---------------------------------------------------------------------------
-# Trainer fitness-level override
-# ---------------------------------------------------------------------------
-
-class TrainerClientFitnessLevelView(APIView):
-    """PATCH — trainer sets or clears the fitness level override for a client.
-
-    PATCH /api/trainer/my-clients/<customer_id>/fitness-level/
-    Body: { "fitness_level": 3 }   → set override (1–5)
-          { "fitness_level": null } → clear override (back to auto)
-    """
-
-    permission_classes = [IsAuthenticated, IsTrainerRole]
-
-    def get(self, request, customer_id):
-        try:
-            customer = User.objects.select_related('customer_profile').get(
-                id=customer_id, role=User.Role.CUSTOMER
-            )
-        except User.DoesNotExist:
-            return Response({'detail': 'Cliente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-
-        cp = getattr(customer, 'customer_profile', None)
-        return Response({
-            'fitness_level_override': cp.fitness_level_override if cp else None,
-            'fitness_level_computed': _get_fitness_level_from_evals(customer),
-        })
-
-    def patch(self, request, customer_id):
-        trainer_profile = getattr(request.user, 'trainer_profile', None)
-        if not trainer_profile:
-            return Response({'detail': 'No se encontró perfil de entrenador.'}, status=status.HTTP_404_NOT_FOUND)
-
-        is_assigned = User.objects.filter(
-            id=customer_id, assigned_trainer=trainer_profile, role=User.Role.CUSTOMER
-        ).exists()
-        has_bookings = Booking.objects.filter(trainer=trainer_profile, customer_id=customer_id).exists()
-        if not is_assigned and not has_bookings:
-            return Response({'detail': 'Cliente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-
-        try:
-            customer = User.objects.select_related('customer_profile').get(
-                id=customer_id, role=User.Role.CUSTOMER
-            )
-        except User.DoesNotExist:
-            return Response({'detail': 'Cliente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-
-        cp = getattr(customer, 'customer_profile', None)
-        if cp is None:
-            from core_app.models import CustomerProfile
-            cp = CustomerProfile.objects.create(user=customer)
-
-        raw = request.data.get('fitness_level')
-        if raw is None:
-            cp.fitness_level_override = None
-        else:
-            try:
-                level = int(raw)
-            except (TypeError, ValueError):
-                return Response({'detail': 'fitness_level debe ser un entero entre 1 y 5.'}, status=status.HTTP_400_BAD_REQUEST)
-            if not 1 <= level <= 5:
-                return Response({'detail': 'fitness_level debe estar entre 1 y 5.'}, status=status.HTTP_400_BAD_REQUEST)
-            cp.fitness_level_override = level
-
-        cp.save(update_fields=['fitness_level_override'])
-        return Response({
-            'fitness_level_override': cp.fitness_level_override,
-            'fitness_level_computed': _get_fitness_level_from_evals(customer),
         })

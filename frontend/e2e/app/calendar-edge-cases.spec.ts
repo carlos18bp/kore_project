@@ -34,7 +34,6 @@ async function configureCalendarDefaults(page: Page) {
           role: 'customer',
           profile_completed: true,
           avatar_url: null,
-          assigned_trainer: { id: 1, first_name: 'Germán', last_name: 'Franco', location: 'KÓRE Studio', session_duration_minutes: 60 },
           customer_profile: { profile_completed: true, sex: 'M', date_of_birth: '1990-01-15', city: 'Bogotá', primary_goal: 'health' },
           today_mood: { score: 7, notes: '', date: new Date().toISOString().slice(0, 10) },
         },
@@ -209,11 +208,9 @@ test.describe('BookingCalendar Edge Cases', { tag: [...FlowTags.BOOKING_CALENDAR
     if ((await dayButton.count()) > 0 && !(await dayButton.isDisabled())) {
       await dayButton.click();
 
-      // Virtual slot system generates time slots from WEEKDAY_WINDOWS.
-      // After selecting a day the time-slot column lists available slots.
-      await expect(
-        page.getByRole('main').getByRole('button', { name: /\d{1,2}:\d{2}\s(AM|PM)/ }).first(),
-      ).toBeVisible({ timeout: 10_000 });
+      // Virtual slot system generates time slots from WEEKDAY_WINDOWS
+      // After selecting a day, the heading changes from 'Selecciona un día'
+      await expect(page.getByText('Selecciona un día')).not.toBeVisible({ timeout: 10_000 });
     }
   });
 

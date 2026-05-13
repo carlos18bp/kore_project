@@ -368,41 +368,6 @@ def send_password_reset_code(user, code):
 
 
 # ------------------------------------------------------------------
-# Admin user invitation sender
-# ------------------------------------------------------------------
-
-def send_admin_user_invitation(user, temp_password, login_url=None):
-    """Send credentials to a user created by an admin.
-
-    Args:
-        user: Newly created User instance.
-        temp_password: Plain-text temporary password to include in the email.
-        login_url: Optional override for the login URL.
-
-    Returns:
-        bool: True if the email was sent successfully.
-    """
-    customer_name = (user.first_name or '').strip() or user.email
-    role_label = 'Entrenador' if getattr(user, 'role', '') == 'trainer' else 'Cliente'
-    if not login_url:
-        base_url = getattr(settings, 'FRONTEND_BASE_URL', 'https://korehealths.com').rstrip('/')
-        login_url = getattr(settings, 'FRONTEND_LOGIN_URL', f'{base_url}/login')
-
-    return send_template_email(
-        template_name='admin_user_invitation',
-        subject='Tu cuenta KÓRE ha sido creada',
-        to_emails=[user.email],
-        context={
-            'first_name': customer_name,
-            'email': user.email,
-            'temp_password': temp_password,
-            'login_url': login_url,
-            'role_label': role_label,
-        },
-    )
-
-
-# ------------------------------------------------------------------
 # Duo invitation sender
 # ------------------------------------------------------------------
 

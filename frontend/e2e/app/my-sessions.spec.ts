@@ -21,11 +21,11 @@ test.describe('My Programs Page', { tag: [...FlowTags.MY_PROGRAMS_LIST, RoleTags
     await expect(page.getByRole('heading', { name: 'Mi Suscripción' })).toBeVisible();
   });
 
-  test('shows the active subscription hero', async ({ page }) => {
+  test('shows empty state or subscription list', async ({ page }) => {
     await mockLoginAsTestUser(page);
     await page.goto('/subscription');
     await expect(
-      page.getByText('Sin suscripción activa').or(page.getByRole('main').getByText('Tu plan vigente'))
+      page.getByText('Sin suscripción activa').or(page.getByText('Activas', { exact: true }))
     ).toBeVisible({ timeout: 10_000 });
   });
 });
