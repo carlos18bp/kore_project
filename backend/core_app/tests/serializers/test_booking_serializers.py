@@ -1,44 +1,37 @@
-"""Tests for BookingSerializer validation and create behavior."""
+"""Tests for BookingSerializer — starts_at-based validation and create."""
 
-from datetime import datetime, timedelta
+import datetime as dt
 
 import pytest
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIRequestFactory
 
-from core_app.models import (
-    AvailabilitySlot,
-    Booking,
-    Package,
-    Subscription,
-    TrainerProfile,
-    User,
-)
+from core_app.models import Booking, Package, Subscription, TrainerProfile, User
 from core_app.serializers import BookingSerializer
+from core_app.serializers.booking_serializers import NoTrainerAssignedException
 
-FIXED_NOW = timezone.make_aware(datetime(2025, 1, 15, 10, 0, 0))
+# Wednesday 2025-01-15 10:00 Bogota = 15:00 UTC
+FIXED_NOW = timezone.make_aware(dt.datetime(2025, 1, 15, 10, 0, 0))
+# Thursday 2025-01-16 05:00 Bogota = 10:00 UTC — on 15-min grid, ~19h after FIXED_NOW
+VALID_STARTS_AT = '2025-01-16T10:00:00Z'
+VALID_STARTS_AT_DT = dt.datetime(2025, 1, 16, 10, 0, 0, tzinfo=dt.timezone.utc)
 
 
 @pytest.fixture(autouse=True)
 def freeze_now(monkeypatch):
-    """Freeze timezone.now to deterministic value for serializer tests."""
     monkeypatch.setattr('django.utils.timezone.now', lambda: FIXED_NOW)
 
 
 @pytest.fixture
 def default_trainer(db):
-    """Create a default trainer profile so customer passes the assigned-trainer gate."""
-    trainer_user = User.objects.create_user(
-        email='default_trainer@example.com', password='p', role=User.Role.TRAINER,
-    )
-    return TrainerProfile.objects.create(user=trainer_user, specialty='General')
+    user = User.objects.create_user(email='trainer@example.com', password='p', role=User.Role.TRAINER)
+    return TrainerProfile.objects.create(user=user, specialty='General')
 
 
 @pytest.fixture
 def customer(db, default_trainer):
-    """Create a customer user with an assigned trainer to pass the booking gate."""
-    u = User.objects.create_user(email='book_s_cust@example.com', password='p')
+    u = User.objects.create_user(email='cust@example.com', password='p')
     u.assigned_trainer = default_trainer
     u.save(update_fields=['assigned_trainer'])
     return u
@@ -46,473 +39,152 @@ def customer(db, default_trainer):
 
 @pytest.fixture
 def package(db):
-    """Create an active package fixture consumed by booking serializer data."""
     return Package.objects.create(title='Pkg', is_active=True)
 
 
-@pytest.fixture
-def future_slot(db, default_trainer):
-    """Create a bookable future slot belonging to default_trainer for happy-path scenarios."""
-    now = FIXED_NOW
-    return AvailabilitySlot.objects.create(
-        starts_at=now + timedelta(hours=26),
-        ends_at=now + timedelta(hours=27),
-        trainer=default_trainer,
-    )
+def _req(user):
+    r = APIRequestFactory().post('/fake/')
+    r.user = user
+    return r
 
 
-def _make_request(user):
-    factory = APIRequestFactory()
-    request = factory.post('/fake/')
-    request.user = user
-    return request
-
+# ── Validation ────────────────────────────────────────────────────────────────
 
 @pytest.mark.django_db
 class TestBookingSerializerValidation:
-    """Covers BookingSerializer validation branches for slot and subscription rules."""
+    def test_valid_starts_at_passes(self, customer, package):
+        s = BookingSerializer(
+            data={'package_id': package.id, 'starts_at': VALID_STARTS_AT},
+            context={'request': _req(customer)},
+        )
+        assert s.is_valid(), s.errors
 
-    def test_valid_data(self, customer, package, future_slot):
-        """Serializer validates minimal payload with valid package and slot ids."""
-        request = _make_request(customer)
-        data = {'package_id': package.id, 'slot_id': future_slot.id}
-        serializer = BookingSerializer(data=data, context={'request': request})
-        assert serializer.is_valid(), serializer.errors
+    def test_off_grid_starts_at_rejected(self, customer, package):
+        s = BookingSerializer(
+            data={'package_id': package.id, 'starts_at': '2025-01-16T10:07:00Z'},
+            context={'request': _req(customer)},
+        )
+        assert not s.is_valid()
+        assert 'starts_at' in s.errors
 
-    def test_inactive_slot_rejected(self, customer, package):
-        """Serializer rejects slots marked inactive."""
-        now = FIXED_NOW
-        slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=2), ends_at=now + timedelta(hours=3),
-            is_active=False,
+    def test_past_starts_at_rejected(self, customer, package):
+        s = BookingSerializer(
+            data={'package_id': package.id, 'starts_at': '2025-01-01T10:00:00Z'},
+            context={'request': _req(customer)},
         )
-        request = _make_request(customer)
-        serializer = BookingSerializer(
-            data={'package_id': package.id, 'slot_id': slot.id},
-            context={'request': request},
-        )
-        assert not serializer.is_valid()
-        assert 'slot_id' in serializer.errors
+        assert not s.is_valid()
+        assert 'starts_at' in s.errors
 
-    def test_blocked_slot_rejected(self, customer, package):
-        """Serializer rejects slots currently blocked by another reservation."""
-        now = FIXED_NOW
-        slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=2), ends_at=now + timedelta(hours=3),
-            is_blocked=True,
+    def test_beyond_horizon_starts_at_rejected(self, customer, package):
+        s = BookingSerializer(
+            data={'package_id': package.id, 'starts_at': '2025-03-20T10:00:00Z'},
+            context={'request': _req(customer)},
         )
-        request = _make_request(customer)
-        serializer = BookingSerializer(
-            data={'package_id': package.id, 'slot_id': slot.id},
-            context={'request': request},
-        )
-        assert not serializer.is_valid()
-        assert 'slot_id' in serializer.errors
+        assert not s.is_valid()
+        assert 'starts_at' in s.errors
 
-    def test_past_slot_rejected(self, customer, package):
-        """Serializer rejects slots that start in the past."""
-        past = FIXED_NOW - timedelta(hours=2)
-        slot = AvailabilitySlot.objects.create(
-            starts_at=past, ends_at=past + timedelta(hours=1),
+    def test_no_trainer_assigned_raises(self, package, db):
+        u = User.objects.create_user(email='no_trainer@example.com', password='p')
+        s = BookingSerializer(
+            data={'package_id': package.id, 'starts_at': VALID_STARTS_AT},
+            context={'request': _req(u)},
         )
-        request = _make_request(customer)
-        serializer = BookingSerializer(
-            data={'package_id': package.id, 'slot_id': slot.id},
-            context={'request': request},
-        )
-        assert not serializer.is_valid()
-        assert 'slot_id' in serializer.errors
+        with pytest.raises(NoTrainerAssignedException):
+            s.is_valid(raise_exception=True)
 
-    def test_already_booked_slot_rejected(self, customer, package, future_slot):
-        """Serializer rejects slots already tied to an existing booking."""
-        Booking.objects.create(customer=customer, package=package, slot=future_slot)
-        request = _make_request(customer)
-        serializer = BookingSerializer(
-            data={'package_id': package.id, 'slot_id': future_slot.id},
-            context={'request': request},
+    def test_unauthenticated_fails_validation(self, package, db):
+        class AnonUser:
+            is_authenticated = False
+        s = BookingSerializer(
+            data={'package_id': package.id, 'starts_at': VALID_STARTS_AT},
+            context={'request': _req(AnonUser())},
         )
-        assert not serializer.is_valid()
-        assert 'slot_id' in serializer.errors
+        assert not s.is_valid()
+        assert 'trainer_id' in s.errors
 
-    def test_subscription_no_remaining_sessions_rejected(self, customer, package, future_slot):
-        """Subscription with 0 remaining sessions is rejected (lines 114-117)."""
-        now = FIXED_NOW
+    def test_exhausted_subscription_rejected(self, customer, package):
         sub = Subscription.objects.create(
             customer=customer, package=package,
             sessions_total=5, sessions_used=5,
             status=Subscription.Status.ACTIVE,
-            starts_at=now, expires_at=now + timedelta(days=30),
+            starts_at=FIXED_NOW, expires_at=FIXED_NOW + dt.timedelta(days=30),
         )
-        request = _make_request(customer)
-        serializer = BookingSerializer(
+        s = BookingSerializer(
             data={
                 'package_id': package.id,
-                'slot_id': future_slot.id,
+                'starts_at': VALID_STARTS_AT,
                 'subscription_id': sub.id,
             },
-            context={'request': request},
+            context={'request': _req(customer)},
         )
-        assert not serializer.is_valid()
-        assert 'subscription_id' in serializer.errors
+        assert not s.is_valid()
+        assert 'subscription_id' in s.errors
 
-    def test_can_book_multiple_future_sessions_without_overlap(self, customer, package):
-        """Customer with an existing future booking can reserve another non-overlapping slot."""
-        now = FIXED_NOW
-        slot1 = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=26),
-            ends_at=now + timedelta(hours=27),
-        )
-        Booking.objects.create(
-            customer=customer, package=package, slot=slot1,
-            status=Booking.Status.CONFIRMED,
-        )
-        slot2 = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=28),
-            ends_at=now + timedelta(hours=29),
-        )
-        request = _make_request(customer)
-        serializer = BookingSerializer(
-            data={'package_id': package.id, 'slot_id': slot2.id},
-            context={'request': request},
-        )
-        assert serializer.is_valid(), serializer.errors
 
-    def test_overlapping_booking_rejected(self, customer, package):
-        """Overlapping slot with active booking is rejected (lines 171-180)."""
-        now = FIXED_NOW
-        slot1 = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=26),
-            ends_at=now + timedelta(hours=28),
-        )
-        Booking.objects.create(
-            customer=customer, package=package, slot=slot1,
-            status=Booking.Status.CONFIRMED,
-        )
-        # Overlapping slot: starts during slot1
-        slot2 = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=27),
-            ends_at=now + timedelta(hours=29),
-        )
-        request = _make_request(customer)
-        serializer = BookingSerializer(
-            data={'package_id': package.id, 'slot_id': slot2.id},
-            context={'request': request},
-        )
-        assert not serializer.is_valid()
-        assert 'slot_id' in serializer.errors
-
-    def test_trainer_buffer_rejects_slot_within_45_minutes(self, package):
-        """Reject slot when same trainer lacks the required 45-minute buffer."""
-        customer_a = User.objects.create_user(email='buffer_a@example.com', password='p')
-        trainer_user = User.objects.create_user(
-            email='buffer_trainer@example.com', password='p', role=User.Role.TRAINER,
-        )
-        trainer = TrainerProfile.objects.create(user=trainer_user, specialty='Mobility')
-        customer_b = User.objects.create_user(email='buffer_b@example.com', password='p')
-        customer_b.assigned_trainer = trainer
-        customer_b.save(update_fields=['assigned_trainer'])
-
-        now = FIXED_NOW
-        existing_slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=26),
-            ends_at=now + timedelta(hours=27),
-            trainer=trainer,
-        )
-        Booking.objects.create(
-            customer=customer_a,
-            package=package,
-            slot=existing_slot,
-            trainer=trainer,
-            status=Booking.Status.CONFIRMED,
-        )
-
-        candidate_slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=27, minutes=30),
-            ends_at=now + timedelta(hours=28, minutes=30),
-            trainer=trainer,
-        )
-        request = _make_request(customer_b)
-        serializer = BookingSerializer(
-            data={'package_id': package.id, 'slot_id': candidate_slot.id},
-            context={'request': request},
-        )
-
-        assert not serializer.is_valid()
-        assert 'slot_id' in serializer.errors
-        assert '45 minutos' in str(serializer.errors['slot_id'])
-
-    def test_trainer_buffer_allows_slot_exactly_at_45_minutes(self, package):
-        """Allow slot when start is exactly 45 minutes after prior booking end."""
-        customer_a = User.objects.create_user(email='buffer_allow_a@example.com', password='p')
-        trainer_user = User.objects.create_user(
-            email='buffer_allow_trainer@example.com', password='p', role=User.Role.TRAINER,
-        )
-        trainer = TrainerProfile.objects.create(user=trainer_user, specialty='Mobility')
-        customer_b = User.objects.create_user(email='buffer_allow_b@example.com', password='p')
-        customer_b.assigned_trainer = trainer
-        customer_b.save(update_fields=['assigned_trainer'])
-
-        now = FIXED_NOW
-        existing_slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=26),
-            ends_at=now + timedelta(hours=27),
-            trainer=trainer,
-        )
-        Booking.objects.create(
-            customer=customer_a,
-            package=package,
-            slot=existing_slot,
-            trainer=trainer,
-            status=Booking.Status.CONFIRMED,
-        )
-
-        candidate_slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=27, minutes=45),
-            ends_at=now + timedelta(hours=28, minutes=45),
-            trainer=trainer,
-        )
-        request = _make_request(customer_b)
-        serializer = BookingSerializer(
-            data={'package_id': package.id, 'slot_id': candidate_slot.id},
-            context={'request': request},
-        )
-
-        assert serializer.is_valid(), serializer.errors
-
-    def test_validate_no_overlap_direct(self, customer, package):
-        """Direct call to _validate_no_overlap covers line 178."""
-        from rest_framework.exceptions import ValidationError as DRFValidationError
-        now = FIXED_NOW
-        slot1 = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=26),
-            ends_at=now + timedelta(hours=28),
-        )
-        Booking.objects.create(
-            customer=customer, package=package, slot=slot1,
-            status=Booking.Status.CONFIRMED,
-        )
-        overlapping_slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=27),
-            ends_at=now + timedelta(hours=29),
-        )
-        with pytest.raises(DRFValidationError) as exc_info:
-            BookingSerializer._validate_no_overlap(customer, overlapping_slot)
-        assert 'slot_id' in exc_info.value.detail
-
-    def test_slot_beyond_30_day_horizon_rejected(self, customer, package):
-        """Serializer rejects slots starting more than 30 days in the future."""
-        now = FIXED_NOW
-        slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(days=31),
-            ends_at=now + timedelta(days=31, hours=1),
-        )
-        request = _make_request(customer)
-        serializer = BookingSerializer(
-            data={'package_id': package.id, 'slot_id': slot.id},
-            context={'request': request},
-        )
-        assert not serializer.is_valid()
-        assert 'slot_id' in serializer.errors
-        assert '30 días' in str(serializer.errors['slot_id'])
-
-    def test_slot_within_30_day_horizon_accepted(self, customer, package):
-        """Serializer accepts slots within the 30-day horizon."""
-        now = FIXED_NOW
-        slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(days=29),
-            ends_at=now + timedelta(days=29, hours=1),
-        )
-        request = _make_request(customer)
-        serializer = BookingSerializer(
-            data={'package_id': package.id, 'slot_id': slot.id},
-            context={'request': request},
-        )
-        assert serializer.is_valid(), serializer.errors
-
-    def test_slot_within_16_hours_rejected(self, customer, package):
-        """Serializer rejects slots starting within 16 hours of now."""
-        now = FIXED_NOW
-        slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=8),
-            ends_at=now + timedelta(hours=9),
-        )
-        request = _make_request(customer)
-        serializer = BookingSerializer(
-            data={'package_id': package.id, 'slot_id': slot.id},
-            context={'request': request},
-        )
-        assert not serializer.is_valid()
-        assert 'slot_id' in serializer.errors
-        assert '16 horas' in str(serializer.errors['slot_id'])
-
-    def test_validate_without_slot_in_attrs(self, customer, package):
-        """Validate with no slot in attrs skips slot checks (branch 106→109)."""
-        request = _make_request(customer)
-        serializer = BookingSerializer(data={}, context={'request': request})
-        # Call validate directly with empty attrs (no slot).
-        # The trainer gate runs and injects attrs['trainer'] for authenticated customers.
-        result = serializer.validate({})
-        assert result.get('trainer') == customer.assigned_trainer
-        assert result.get('slot') is None
-
+# ── Create ────────────────────────────────────────────────────────────────────
 
 @pytest.mark.django_db
 class TestBookingSerializerCreate:
-    """Covers BookingSerializer create flow side effects and edge cases."""
-
-    def test_create_blocks_slot_and_assigns_customer(self, customer, package, future_slot):
-        """Create booking with authenticated user, then persist customer and block slot."""
-        request = _make_request(customer)
-        serializer = BookingSerializer(
-            data={'package_id': package.id, 'slot_id': future_slot.id},
-            context={'request': request},
+    def test_create_sets_starts_at_ends_at_customer_trainer(self, customer, package, default_trainer):
+        s = BookingSerializer(
+            data={'package_id': package.id, 'starts_at': VALID_STARTS_AT},
+            context={'request': _req(customer)},
         )
-        assert serializer.is_valid(), serializer.errors
-        booking = serializer.save()
-
+        assert s.is_valid(), s.errors
+        booking = s.save()
+        assert booking.starts_at == VALID_STARTS_AT_DT
+        assert booking.ends_at == VALID_STARTS_AT_DT + dt.timedelta(minutes=60)
         assert booking.customer == customer
-        assert booking.package == package
-        assert booking.slot == future_slot
+        assert booking.trainer == default_trainer
         assert booking.status == Booking.Status.PENDING
 
-        future_slot.refresh_from_db()
-        assert future_slot.is_blocked is True
-
-    def test_create_without_auth_raises(self, package, future_slot):
-        """Serializer create raises ValidationError when request user is anonymous."""
-        class AnonymousUserStub:
-            is_authenticated = False
-
-        anon = AnonymousUserStub()
-        request = _make_request(anon)
-        serializer = BookingSerializer(
-            data={'package_id': package.id, 'slot_id': future_slot.id},
-            context={'request': request},
-        )
-        assert serializer.is_valid(), serializer.errors
-        with pytest.raises(ValidationError, match='Autenticación requerida'):
-            serializer.save()
-
-    def test_create_with_subscription_decrements_sessions(self, customer, package, future_slot):
-        """Create with subscription decrements sessions_used (lines 224-232)."""
-        now = FIXED_NOW
+    def test_create_decrements_subscription(self, customer, package):
         sub = Subscription.objects.create(
             customer=customer, package=package,
             sessions_total=10, sessions_used=2,
             status=Subscription.Status.ACTIVE,
-            starts_at=now, expires_at=now + timedelta(days=30),
+            starts_at=FIXED_NOW, expires_at=FIXED_NOW + dt.timedelta(days=30),
         )
-        request = _make_request(customer)
-        serializer = BookingSerializer(
+        s = BookingSerializer(
             data={
                 'package_id': package.id,
-                'slot_id': future_slot.id,
+                'starts_at': VALID_STARTS_AT,
                 'subscription_id': sub.id,
             },
-            context={'request': request},
+            context={'request': _req(customer)},
         )
-        assert serializer.is_valid(), serializer.errors
-        booking = serializer.save()
-
-        assert booking.subscription is not None
+        assert s.is_valid(), s.errors
+        s.save()
         sub.refresh_from_db()
         assert sub.sessions_used == 3
 
-    def test_create_race_condition_slot_becomes_blocked(self, customer, package):
-        """Slot blocked between validate and create raises error (lines 213-219)."""
-        now = FIXED_NOW
-        slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=26),
-            ends_at=now + timedelta(hours=27),
+    def test_read_representation_has_starts_at_ends_at(self, customer, package):
+        s = BookingSerializer(
+            data={'package_id': package.id, 'starts_at': VALID_STARTS_AT},
+            context={'request': _req(customer)},
         )
-        request = _make_request(customer)
-        serializer = BookingSerializer(
-            data={'package_id': package.id, 'slot_id': slot.id},
-            context={'request': request},
-        )
-        assert serializer.is_valid(), serializer.errors
-
-        # Simulate race: block the slot after validation
-        slot.is_blocked = True
-        slot.save(update_fields=['is_blocked'])
-
-        from rest_framework.exceptions import ValidationError
-        with pytest.raises(ValidationError):
-            serializer.save()
-
-    def test_create_subscription_no_remaining_sessions_in_create(self, customer, package):
-        """Subscription exhausted during atomic create (lines 225-229)."""
-        now = FIXED_NOW
-        slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=28),
-            ends_at=now + timedelta(hours=29),
-        )
-        sub = Subscription.objects.create(
-            customer=customer, package=package,
-            sessions_total=5, sessions_used=4,
-            status=Subscription.Status.ACTIVE,
-            starts_at=now, expires_at=now + timedelta(days=30),
-        )
-        request = _make_request(customer)
-        serializer = BookingSerializer(
-            data={
-                'package_id': package.id,
-                'slot_id': slot.id,
-                'subscription_id': sub.id,
-            },
-            context={'request': request},
-        )
-        assert serializer.is_valid(), serializer.errors
-
-        # Exhaust sessions after validation
-        sub.sessions_used = 5
-        sub.save(update_fields=['sessions_used'])
-
-        from rest_framework.exceptions import ValidationError
-        with pytest.raises(ValidationError):
-            serializer.save()
-
-    def test_read_representation_nests_package_and_slot(self, customer, package, future_slot):
-        """Serialized output nests package and slot representations after creation."""
-        request = _make_request(customer)
-        serializer = BookingSerializer(
-            data={'package_id': package.id, 'slot_id': future_slot.id},
-            context={'request': request},
-        )
-        serializer.is_valid(raise_exception=True)
-        booking = serializer.save()
-
+        s.is_valid(raise_exception=True)
+        booking = s.save()
         output = BookingSerializer(booking).data
+        assert 'starts_at' in output
+        assert 'ends_at' in output
+        assert 'slot' not in output
         assert isinstance(output['package'], dict)
-        assert output['package']['id'] == package.id
-        assert isinstance(output['slot'], dict)
-        assert output['slot']['id'] == future_slot.id
 
-    def test_create_allows_rebooking_canceled_slot(self, customer, package):
-        """Slot with canceled booking can be rebooked without deleting history."""
-        now = FIXED_NOW
-        slot = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=26),
-            ends_at=now + timedelta(hours=27),
-            is_blocked=False,
+    def test_race_condition_raises(self, customer, package, default_trainer):
+        """Second create fails when trainer+time is already booked after validate()."""
+        s = BookingSerializer(
+            data={'package_id': package.id, 'starts_at': VALID_STARTS_AT},
+            context={'request': _req(customer)},
         )
-        # Create a canceled booking on this slot
-        old_booking = Booking.objects.create(
-            customer=customer, package=package, slot=slot,
-            status=Booking.Status.CANCELED, canceled_reason='Test',
+        assert s.is_valid(), s.errors
+        # Another booking claims the same slot before s.save()
+        other = User.objects.create_user(email='racer@example.com', password='p')
+        Booking.objects.create(
+            customer=other, package=package, trainer=default_trainer,
+            status=Booking.Status.PENDING,
+            starts_at=VALID_STARTS_AT_DT,
+            ends_at=VALID_STARTS_AT_DT + dt.timedelta(minutes=60),
         )
-
-        request = _make_request(customer)
-        serializer = BookingSerializer(
-            data={'package_id': package.id, 'slot_id': slot.id},
-            context={'request': request},
-        )
-        assert serializer.is_valid(), serializer.errors
-        new_booking = serializer.save()
-
-        # Old canceled booking remains for audit/history
-        assert Booking.objects.filter(pk=old_booking.pk, status=Booking.Status.CANCELED).exists()
-        # New booking should exist and share the same slot
-        assert new_booking.status == Booking.Status.PENDING
-        assert new_booking.slot == slot
-        assert Booking.objects.filter(slot=slot).count() == 2
+        with pytest.raises(ValidationError):
+            s.save()

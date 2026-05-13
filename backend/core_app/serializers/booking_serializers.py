@@ -5,16 +5,12 @@ from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import APIException
 
-from core_app.models import AvailabilitySlot, Booking, Package, ProgramDay, Subscription, TrainerProfile
-from core_app.serializers.availability_serializers import AvailabilitySlotSerializer
+from core_app.models import Booking, Package, ProgramDay, Subscription, TrainerProfile
 from core_app.serializers.package_serializers import PackageSerializer
 from core_app.serializers.trainer_profile_serializers import TrainerProfileSerializer
-from core_app.services.booking_rules import has_trainer_travel_buffer_conflict
-from core_app.services.slot_schedule import BOOKING_HORIZON_DAYS
+from core_app.services.slot_schedule import is_start_time_available, session_window
 
 
-# Raised (instead of serializers.ValidationError) so the 400 body carries a machine-readable
-# `code` field alongside `detail`; the frontend keys off `code == 'no_trainer_assigned'`.
 class NoTrainerAssignedException(APIException):
     """Raised when a customer without an assigned trainer attempts to book."""
 
@@ -30,24 +26,21 @@ class NoTrainerAssignedException(APIException):
 class BookingSerializer(serializers.ModelSerializer):
     """Serializer for creating and reading Booking instances.
 
-    On **read**, nests full representations of package, slot, and trainer.
-    On **write**, accepts ``package_id``, ``slot_id``, ``trainer_id``, and
-    ``subscription_id`` as primary-key references.
+    On **write**, accepts ``package_id``, ``starts_at``, ``trainer_id``, and
+    ``subscription_id``.  On **read**, nests full representations of package
+    and trainer; exposes ``starts_at`` / ``ends_at`` directly.
 
     Validations enforced on create:
-    - Slot must be active, unblocked, in the future, and within the 30-day horizon.
-    - Slot must start at least 16 hours from now.
-    - Slot must not already be booked.
-    - No time-overlap with the customer's other active bookings.
-    - Slot must respect a 45-minute travel buffer for the same trainer.
+    - ``starts_at`` must be a currently-bookable start-time for the trainer
+      (on the 15-min schedule grid, ≥16 h advance, ≤30 day horizon, no
+      conflicting bookings within ±45 min).
     - If a subscription is provided, it must have remaining sessions.
-    - The customer must have an assigned trainer, and the slot must belong to them.
+    - The customer must have an assigned trainer.
     """
 
     customer_id = serializers.IntegerField(read_only=True, source='customer.id')
 
     package = PackageSerializer(read_only=True)
-    slot = AvailabilitySlotSerializer(read_only=True)
     trainer = TrainerProfileSerializer(read_only=True)
     subscription_id_display = serializers.IntegerField(
         source='subscription.id', read_only=True, allow_null=True,
@@ -59,11 +52,8 @@ class BookingSerializer(serializers.ModelSerializer):
         write_only=True,
         source='package',
     )
-    slot_id = serializers.PrimaryKeyRelatedField(
-        queryset=AvailabilitySlot.objects.all(),
-        write_only=True,
-        source='slot',
-    )
+    starts_at = serializers.DateTimeField()
+    ends_at = serializers.DateTimeField(read_only=True)
     trainer_id = serializers.PrimaryKeyRelatedField(
         queryset=TrainerProfile.objects.all(),
         write_only=True,
@@ -85,11 +75,11 @@ class BookingSerializer(serializers.ModelSerializer):
             'id',
             'customer_id',
             'package',
-            'slot',
             'trainer',
             'subscription_id_display',
             'package_id',
-            'slot_id',
+            'starts_at',
+            'ends_at',
             'trainer_id',
             'subscription_id',
             'status',
@@ -101,11 +91,11 @@ class BookingSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         )
-        read_only_fields = ('status', 'created_at', 'updated_at')
+        read_only_fields = ('status', 'ends_at', 'created_at', 'updated_at')
 
     def get_program_day_exercises(self, obj):
         """Return planned exercises for the booking's date from the customer's active program."""
-        date = obj.slot.starts_at.date() if obj.slot else None
+        date = obj.starts_at.date() if obj.starts_at else None
         if not date:
             return []
         program_day = (
@@ -134,22 +124,6 @@ class BookingSerializer(serializers.ModelSerializer):
     # ------------------------------------------------------------------
 
     def validate(self, attrs):
-        """Run all booking creation validations.
-
-        Checks performed:
-        1. Slot is active, unblocked, future, and not already booked.
-        2. Anti-overlap — requested slot does not overlap another active booking
-           of the same customer.
-        3. Travel buffer — requested slot leaves 45 minutes around bookings
-           for the same trainer.
-        4. Subscription (if provided) has remaining sessions.
-
-        Returns:
-            dict: Validated attributes.
-
-        Raises:
-            serializers.ValidationError: If any check fails.
-        """
         request = self.context.get('request')
         customer = getattr(request, 'user', None) if request else None
         if customer is not None and getattr(customer, 'is_authenticated', False):
@@ -159,20 +133,16 @@ class BookingSerializer(serializers.ModelSerializer):
                     raise NoTrainerAssignedException()
                 attrs['trainer'] = assigned
 
-        slot = attrs.get('slot')
         trainer = attrs.get('trainer')
+        starts_at = attrs.get('starts_at')
 
-        if slot is not None and slot.trainer_id is not None:
-            chosen_trainer = attrs.get('trainer')
-            if chosen_trainer is not None and slot.trainer_id != chosen_trainer.id:
-                raise serializers.ValidationError({'slot_id': 'Ese horario no es de tu entrenador.'})
+        if trainer is None:
+            raise serializers.ValidationError({'trainer_id': 'Se requiere un entrenador.'})
 
-        if slot:
-            self._validate_slot_available(slot)
-            self._validate_trainer_travel_buffer(slot, trainer)
+        if not is_start_time_available(trainer, starts_at):
+            raise serializers.ValidationError({'starts_at': 'Ese horario no está disponible.'})
 
-        if customer and customer.is_authenticated and slot:
-            self._validate_no_overlap(customer, slot)
+        attrs['ends_at'] = session_window(trainer, starts_at)[1]
 
         subscription = attrs.get('subscription')
         if subscription and subscription.sessions_remaining <= 0:
@@ -182,123 +152,26 @@ class BookingSerializer(serializers.ModelSerializer):
 
         return attrs
 
-    @staticmethod
-    def _validate_slot_available(slot):
-        """Ensure the slot is bookable (active, unblocked, future, free).
-
-        Args:
-            slot: AvailabilitySlot instance.
-
-        Raises:
-            serializers.ValidationError: If the slot cannot be booked.
-        """
-        if not slot.is_active:
-            raise serializers.ValidationError({'slot_id': 'El horario no está activo.'})
-        if slot.is_blocked:
-            raise serializers.ValidationError({'slot_id': 'El horario está bloqueado.'})
-        if slot.ends_at <= timezone.now():
-            raise serializers.ValidationError({'slot_id': 'El horario ya pasó.'})
-        min_advance = timezone.now() + timedelta(hours=16)
-        if slot.starts_at < min_advance:
-            raise serializers.ValidationError(
-                {'slot_id': 'Debes agendar con al menos 16 horas de anticipación.'}
-            )
-        horizon = timezone.now() + timedelta(days=BOOKING_HORIZON_DAYS)
-        if slot.starts_at >= horizon:
-            raise serializers.ValidationError(
-                {'slot_id': 'No se puede agendar con más de 30 días de anticipación.'}
-            )
-        if Booking.objects.filter(slot=slot).exclude(status=Booking.Status.CANCELED).exists():
-            raise serializers.ValidationError({'slot_id': 'El horario ya está reservado.'})
-
-    @staticmethod
-    def _validate_no_overlap(customer, slot):
-        """Ensure the requested slot does not overlap another active booking.
-
-        Args:
-            customer: User instance.
-            slot: AvailabilitySlot to check against.
-
-        Raises:
-            serializers.ValidationError: If an overlapping booking exists.
-        """
-        overlapping = Booking.objects.filter(
-            customer=customer,
-            status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
-            slot__starts_at__lt=slot.ends_at,
-            slot__ends_at__gt=slot.starts_at,
-        ).exists()
-        if overlapping:
-            raise serializers.ValidationError(
-                {'slot_id': 'Este horario se cruza con otra reserva activa.'}
-            )
-
-    @staticmethod
-    def _validate_trainer_travel_buffer(slot, trainer=None):
-        """Ensure 45-minute trainer travel buffer around active sessions.
-
-        Args:
-            slot: AvailabilitySlot to validate.
-            trainer: Optional TrainerProfile fallback if slot has no trainer.
-
-        Raises:
-            serializers.ValidationError: If the trainer buffer would be violated.
-        """
-        if has_trainer_travel_buffer_conflict(slot, trainer=trainer):
-            raise serializers.ValidationError(
-                {
-                    'slot_id': (
-                        'Debe existir una ventana libre de 45 minutos antes y después '
-                        'de cada sesión del mismo entrenador.'
-                    )
-                }
-            )
-
     # ------------------------------------------------------------------
     # Create
     # ------------------------------------------------------------------
 
     def create(self, validated_data):
-        """Create a booking with atomic slot locking and subscription decrement.
-
-        Locks the slot row with ``select_for_update`` to prevent race conditions,
-        marks it as blocked, creates the booking, and decrements the subscription's
-        ``sessions_used`` counter when a subscription is provided.
-
-        Args:
-            validated_data: Dict of validated fields.
-
-        Returns:
-            Booking: The newly created booking instance.
-
-        Raises:
-            serializers.ValidationError: If the slot becomes unavailable between
-                validation and creation (race condition guard).
-        """
         request = self.context.get('request')
         customer = getattr(request, 'user', None)
         if not customer or not customer.is_authenticated:
             raise serializers.ValidationError('Autenticación requerida.')
 
-        slot = validated_data['slot']
-        trainer = validated_data.get('trainer')
+        trainer = validated_data['trainer']
+        starts_at = validated_data['starts_at']
         subscription = validated_data.get('subscription')
 
         with transaction.atomic():
-            slot = AvailabilitySlot.objects.select_for_update().get(pk=slot.pk)
-            if (
-                not slot.is_active
-                or slot.is_blocked
-                or slot.ends_at <= timezone.now()
-                or Booking.objects.filter(slot=slot).exclude(status=Booking.Status.CANCELED).exists()
-            ):
-                raise serializers.ValidationError({'slot_id': 'El horario no está disponible.'})
-
-            self._validate_trainer_travel_buffer(slot, trainer)
-
-            slot.is_blocked = True
-            slot.save(update_fields=['is_blocked'])
-
+            TrainerProfile.objects.select_for_update().get(pk=trainer.pk)
+            if not is_start_time_available(trainer, starts_at, now=timezone.now()):
+                raise serializers.ValidationError(
+                    {'starts_at': 'Ese horario ya no está disponible.'}
+                )
             if subscription:
                 sub = Subscription.objects.select_for_update().get(pk=subscription.pk)
                 if sub.sessions_remaining <= 0:
