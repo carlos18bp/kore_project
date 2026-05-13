@@ -186,15 +186,15 @@ test.describe('Checkout Page — Coverage Gaps', { tag: [...FlowTags.CHECKOUT_CO
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // checkoutStore.ts purchaseWithNequi — purchase-alternative API error
+  // checkoutStore.ts purchaseWithNequi — /subscriptions/nequi/start/ API error
   // ─────────────────────────────────────────────────────────────────────────
-  test('nequi purchase-alternative API failure shows nequi error', async ({ page }) => {
+  test('nequi start API failure shows nequi error', async ({ page }) => {
     await setupDefaultApiMocks(page);
     await setupCheckoutMocks(page);
     await mockWompiWidgetScript(page);
-    await page.route('**/api/subscriptions/purchase-alternative/**', (r) => r.fulfill({
+    await page.route('**/api/subscriptions/nequi/start/**', (r) => r.fulfill({
       status: 502, contentType: 'application/json',
-      body: JSON.stringify({ detail: 'Falló el procesamiento del pago. Intenta de nuevo.' }),
+      body: JSON.stringify({ detail: 'No se pudo iniciar el pago con Nequi. Intenta de nuevo.' }),
     }));
 
     await seedAuthenticatedCookies(page);
@@ -207,40 +207,26 @@ test.describe('Checkout Page — Coverage Gaps', { tag: [...FlowTags.CHECKOUT_CO
     await expect(payBtn).toBeEnabled({ timeout: 10_000 });
     await payBtn.click();
 
-    await expect(page.getByText(/Falló el procesamiento|Error al procesar el pago con Nequi/)).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.getByText(/No se pudo iniciar el pago con Nequi|Error al procesar el pago con Nequi/),
+    ).toBeVisible({ timeout: 10_000 });
   });
 
+  // 'pse bank list fetch failure' test removed: PSE is hidden from the UI
+  // (Wompi does not support PSE as a recurring source). The user cannot
+  // reach the PSE form anymore; fetchPSEBanks is still exposed on the
+  // store and the backend endpoint stays intact for a future re-enable.
+
   // ─────────────────────────────────────────────────────────────────────────
-  // checkoutStore.ts fetchPSEBanks — bank list fetch failure
+  // checkoutStore.ts startBancolombiaPurchase — /bancolombia/start/ API error
   // ─────────────────────────────────────────────────────────────────────────
-  test('pse bank list fetch failure shows reload message', async ({ page }) => {
+  test('bancolombia start API failure shows error', async ({ page }) => {
     await setupDefaultApiMocks(page);
     await setupCheckoutMocks(page);
     await mockWompiWidgetScript(page);
-    await page.route('**/sandbox.wompi.co/v1/pse/financial_institutions', (r) => r.fulfill({
-      status: 500, contentType: 'application/json', body: JSON.stringify({}),
-    }));
-
-    await seedAuthenticatedCookies(page);
-    await page.goto('/checkout?package=6');
-    await expect(page.getByRole('heading', { name: 'Resumen del programa' })).toBeVisible({ timeout: 10_000 });
-
-    await page.getByRole('button', { name: /PSE/ }).click();
-    // fetchPSEBanks now throws on failure, so PSEPaymentForm shows error + retry button
-    await expect(page.getByText('No se pudieron cargar los bancos.')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('Reintentar')).toBeVisible();
-  });
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // checkoutStore.ts purchaseWithBancolombia — purchase-alternative API error
-  // ─────────────────────────────────────────────────────────────────────────
-  test('bancolombia purchase-alternative API failure shows error', async ({ page }) => {
-    await setupDefaultApiMocks(page);
-    await setupCheckoutMocks(page);
-    await mockWompiWidgetScript(page);
-    await page.route('**/api/subscriptions/purchase-alternative/**', (r) => r.fulfill({
+    await page.route('**/api/subscriptions/bancolombia/start/**', (r) => r.fulfill({
       status: 502, contentType: 'application/json',
-      body: JSON.stringify({ detail: 'Falló el procesamiento del pago. Intenta de nuevo.' }),
+      body: JSON.stringify({ detail: 'No se pudo iniciar el pago con Bancolombia. Intenta de nuevo.' }),
     }));
 
     await seedAuthenticatedCookies(page);
@@ -253,7 +239,9 @@ test.describe('Checkout Page — Coverage Gaps', { tag: [...FlowTags.CHECKOUT_CO
     await expect(payBtn).toBeEnabled({ timeout: 10_000 });
     await payBtn.click();
 
-    await expect(page.getByText(/Falló el procesamiento|Error al procesar el pago con Bancolombia/)).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.getByText(/No se pudo iniciar el pago con Bancolombia|Error al iniciar el pago con Bancolombia/),
+    ).toBeVisible({ timeout: 10_000 });
   });
 
   // ─────────────────────────────────────────────────────────────────────────
