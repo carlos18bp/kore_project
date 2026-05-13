@@ -71,7 +71,7 @@ class TestCreateNequiToken:
 
         with pytest.raises(WompiError, match='No Nequi token id'):
             create_nequi_token('3001112233')
-        mock_post.assert_called_once()
+        assert mock_post.call_count == 1
 
     @override_settings(**WOMPI_SETTINGS)
     @patch('core_app.services.wompi_service.requests.post')
@@ -116,7 +116,7 @@ class TestPollNequiTokenUntilApproved:
         with pytest.raises(WompiError, match='ended with status DECLINED'):
             poll_nequi_token_until_approved('nequi_tok_b', max_attempts=3, interval_s=0)
         # Exits on the first DECLINED — does not exhaust max_attempts.
-        mock_get.assert_called_once()
+        assert mock_get.call_count == 1
 
     @override_settings(**WOMPI_SETTINGS)
     @patch('core_app.services.wompi_service.time.sleep', return_value=None)
