@@ -144,14 +144,17 @@ describe('CheckoutPage', () => {
     });
   });
 
-  it('renders payment method cards for card, nequi, pse, bancolombia', async () => {
+  it('renders the three Wompi-aligned recurring payment cards', async () => {
+    // PSE is intentionally hidden — Wompi does not support PSE as a
+    // recurring payment_source. Backend endpoint is kept intact for
+    // future re-enable.
     render(<CheckoutPage />);
     await waitFor(() => {
       expect(screen.getByText('Tarjeta')).toBeInTheDocument();
     });
     expect(screen.getByText('Nequi')).toBeInTheDocument();
-    expect(screen.getByText('PSE')).toBeInTheDocument();
     expect(screen.getByText('Bancolombia')).toBeInTheDocument();
+    expect(screen.queryByText('PSE')).not.toBeInTheDocument();
   });
 
   it('shows error state when checkout store has error', async () => {
@@ -244,15 +247,15 @@ describe('CheckoutPage', () => {
     render(<CheckoutPage />);
     await waitFor(() => {
       expect(
-        screen.getByText('El cobro automático aplica solo con tarjeta. Con otros métodos, deberás renovar manualmente cada 30 días.'),
+        screen.getByText(/Renovación automática cada 30 días/),
       ).toBeInTheDocument();
     });
   });
 
-  it('shows Auto badge on recurring payment method', async () => {
+  it('shows Auto badge on every visible payment method (all three are recurring)', async () => {
     render(<CheckoutPage />);
     await waitFor(() => {
-      expect(screen.getByText('Auto')).toBeInTheDocument();
+      expect(screen.getAllByText('Auto')).toHaveLength(3);
     });
   });
 });
