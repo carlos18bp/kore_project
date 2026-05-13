@@ -5,7 +5,7 @@ and the slot-generation function used by both the management command and the
 daily maintenance task.
 """
 
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, timezone as dt_timezone
 from zoneinfo import ZoneInfo
 
 from django.utils import timezone
@@ -26,6 +26,32 @@ WEEKLY_SCHEDULE = {
 BOOKING_HORIZON_DAYS = 30
 MAX_ROLLOVER_SESSIONS = 2
 SLOT_MAINTENANCE_FILL_DAYS = 35  # 30 + 5 buffer
+
+SESSION_MINUTES = 60
+SLOT_STEP_MINUTES = 15
+MIN_ADVANCE_HOURS = 16
+TRAVEL_BUFFER_MINUTES = 45
+BUSINESS_TZ = ZoneInfo('America/Bogota')
+
+
+def _expand_schedule(date_from, date_to, *, step_minutes, session_minutes, tz):
+    """Yield candidate session start-times (aware, UTC) for [date_from, date_to).
+
+    A candidate at local time t on day d is yielded iff [t, t+session] fits
+    entirely within one of WEEKLY_SCHEDULE[d.weekday()] windows.
+    """
+    step = timedelta(minutes=step_minutes)
+    session = timedelta(minutes=session_minutes)
+    day = date_from
+    while day < date_to:
+        for start_hour, end_hour in WEEKLY_SCHEDULE.get(day.weekday(), []):
+            window_start = datetime.combine(day, time(hour=start_hour), tzinfo=tz)
+            window_end = datetime.combine(day, time(hour=end_hour), tzinfo=tz)
+            cursor = window_start
+            while cursor + session <= window_end:
+                yield cursor.astimezone(dt_timezone.utc)
+                cursor += step
+        day += timedelta(days=1)
 
 
 def generate_slots_for_trainer(

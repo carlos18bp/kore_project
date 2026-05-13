@@ -12,6 +12,8 @@ from core_app.services.slot_schedule import (
     MAX_ROLLOVER_SESSIONS,
     WEEKLY_SCHEDULE,
     generate_slots_for_trainer,
+    _expand_schedule,
+    BUSINESS_TZ,
 )
 
 BOGOTA = ZoneInfo('America/Bogota')
@@ -122,3 +124,35 @@ class TestGenerateSlotsForTrainer:
             ends_at__lte=FIXED_NOW,
         )
         assert early_slot.count() == 0
+
+
+# ── _expand_schedule ─────────────────────────────────────────────────────
+
+class TestExpandSchedule:
+    def test_weekday_yields_morning_and_evening_starts(self):
+        # 2026-05-18 is a Monday
+        from datetime import date
+        starts = list(_expand_schedule(date(2026, 5, 18), date(2026, 5, 19),
+                                       step_minutes=15, session_minutes=60, tz=BUSINESS_TZ))
+        # Mon windows 5-13 & 16-21: 60-min sessions every 15 min that fit → 29 + 17 = 46
+        assert len(starts) == 46
+        first = starts[0].astimezone(BUSINESS_TZ)
+        last_morning = [s for s in starts if s.astimezone(BUSINESS_TZ).hour < 14][-1].astimezone(BUSINESS_TZ)
+        assert (first.hour, first.minute) == (5, 0)
+        assert (last_morning.hour, last_morning.minute) == (12, 0)   # 12:00→13:00 is the last that fits
+        assert all(s.tzinfo is not None for s in starts)             # aware
+
+    def test_saturday_one_window(self):
+        # 2026-05-16 is a Saturday
+        from datetime import date
+        starts = list(_expand_schedule(date(2026, 5, 16), date(2026, 5, 17),
+                                       step_minutes=15, session_minutes=60, tz=BUSINESS_TZ))
+        # Sat 6-13: 60-min every 15 min → 25
+        assert len(starts) == 25
+
+    def test_sunday_empty(self):
+        # 2026-05-17 is a Sunday
+        from datetime import date
+        starts = list(_expand_schedule(date(2026, 5, 17), date(2026, 5, 18),
+                                       step_minutes=15, session_minutes=60, tz=BUSINESS_TZ))
+        assert starts == []
