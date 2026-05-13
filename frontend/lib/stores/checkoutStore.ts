@@ -117,7 +117,12 @@ type CheckoutState = {
   fetchPSEBanks: () => Promise<FinancialInstitution[]>;
   purchaseWithNequi: (packageId: number, phoneNumber: string, registrationToken?: string) => Promise<boolean>;
   purchaseWithPSE: (packageId: number, pseData: PSEPaymentData, registrationToken?: string) => Promise<boolean>;
-  purchaseWithBancolombia: (packageId: number, registrationToken?: string) => Promise<boolean>;
+  startBancolombiaPurchase: (
+    packageId: number,
+    redirectUrl: string,
+    registrationToken?: string,
+  ) => Promise<{ reference: string; authorization_url: string; checkout_access_token?: string } | null>;
+  confirmBancolombiaPurchase: (reference: string, checkoutAccessToken?: string) => Promise<boolean>;
   pollIntentStatus: (reference: string, checkoutAccessToken?: string, transactionId?: string) => Promise<boolean>;
   fetchTermsStatus: () => Promise<void>;
   acceptTerms: () => Promise<boolean>;
@@ -125,7 +130,14 @@ type CheckoutState = {
 };
 
 const POLL_INTERVAL_MS = 2000;
-const POLL_MAX_ATTEMPTS = 30;
+// 45 attempts × 2s = 90s. Wide enough to cover Bancolombia webhooks that
+// occasionally arrive several seconds after the customer returns from the
+// bank, while still falling back to a graceful "your payment is being
+// processed" message instead of hanging the UI indefinitely.
+const POLL_MAX_ATTEMPTS = 45;
+const SOFT_TIMEOUT_MESSAGE =
+  'Tu pago está en proceso. Te enviaremos un correo en cuanto se complete; ' +
+  'también puedes revisar el estado en tu suscripción más tarde.';
 
 function applyAutoLoginSession(autoLogin: NonNullable<PaymentIntentResult['auto_login']>) {
   const first = autoLogin.user.first_name || '';
@@ -393,7 +405,7 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
         // Ignore transient polling errors, keep trying
       }
     }
-    set({ paymentStatus: 'error', error: 'El pago está tardando más de lo esperado. Revisa tu estado en unos minutos.' });
+    set({ paymentStatus: 'error', error: SOFT_TIMEOUT_MESSAGE });
     return false;
   },
 
@@ -424,35 +436,44 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
   },
 
   purchaseWithNequi: async (packageId: number, phoneNumber: string, registrationToken?: string) => {
+    // NEQUI recurring flow (Wompi-aligned, two steps):
+    // 1. start  → POST /subscriptions/nequi/start/    (creates token, returns reference)
+    // 2. confirm → POST /subscriptions/nequi/confirm/ (polls token, creates payment_source + recurring txn)
     set({ paymentStatus: 'processing', error: '' });
     try {
       const token = Cookies.get('kore_token');
-      const payload: {
-        package_id: number;
-        payment_method: string;
-        phone_number: string;
-        registration_token?: string;
-      } = {
-        package_id: packageId,
-        payment_method: 'NEQUI',
-        phone_number: phoneNumber,
-      };
-
-      if (registrationToken) {
-        payload.registration_token = registrationToken;
-      }
-
       const requestConfig = token
         ? { headers: { Authorization: `Bearer ${token}` } }
         : undefined;
 
-      const { data } = await api.post<PaymentIntentResult & { redirect_url?: string }>(
-        '/subscriptions/purchase-alternative/',
-        payload,
+      const startPayload: { package_id: number; phone_number: string; registration_token?: string } = {
+        package_id: packageId,
+        phone_number: phoneNumber,
+      };
+      if (registrationToken) startPayload.registration_token = registrationToken;
+
+      const { data: startData } = await api.post<PaymentIntentResult & {
+        nequi_token_id: string;
+        await_user_approval: boolean;
+      }>('/subscriptions/nequi/start/', startPayload, requestConfig);
+
+      set({ intentResult: startData, paymentStatus: 'polling' });
+
+      const confirmPayload: { reference: string; access_token?: string } = {
+        reference: startData.reference,
+      };
+      if (!token && startData.checkout_access_token) {
+        confirmPayload.access_token = startData.checkout_access_token;
+      }
+
+      const { data: confirmData } = await api.post<PaymentIntentResult>(
+        '/subscriptions/nequi/confirm/',
+        confirmPayload,
         requestConfig,
       );
-      set({ intentResult: data, paymentStatus: 'polling' });
-      return await get().pollIntentStatus(data.reference, data.checkout_access_token);
+      set({ intentResult: confirmData });
+
+      return await get().pollIntentStatus(confirmData.reference, confirmData.checkout_access_token);
     } catch (err) {
       const axiosErr = err as AxiosError<{ detail?: string }>;
       const message = axiosErr.response?.data?.detail || 'Error al procesar el pago con Nequi.';
@@ -506,44 +527,68 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
     }
   },
 
-  purchaseWithBancolombia: async (packageId: number, registrationToken?: string) => {
+  startBancolombiaPurchase: async (packageId, redirectUrl, registrationToken) => {
+    // BANCOLOMBIA_TRANSFER recurring flow (Wompi-aligned, two steps):
+    // 1. start    → POST /subscriptions/bancolombia/start/    (creates token with type_auth='TOKEN',
+    //               returns authorization_url for the customer to authorize the recurring debit)
+    // 2. (redirect to authorization_url → Bancolombia → redirect back)
+    // 3. confirm  → POST /subscriptions/bancolombia/confirm/ (polls token, creates payment_source + txn)
     set({ paymentStatus: 'processing', error: '' });
     try {
       const token = Cookies.get('kore_token');
-      const payload: {
-        package_id: number;
-        payment_method: string;
-        registration_token?: string;
-      } = {
-        package_id: packageId,
-        payment_method: 'BANCOLOMBIA_TRANSFER',
-      };
-
-      if (registrationToken) {
-        payload.registration_token = registrationToken;
-      }
-
       const requestConfig = token
         ? { headers: { Authorization: `Bearer ${token}` } }
         : undefined;
+      const payload: { package_id: number; redirect_url: string; registration_token?: string } = {
+        package_id: packageId,
+        redirect_url: redirectUrl,
+      };
+      if (registrationToken) payload.registration_token = registrationToken;
 
-      const { data } = await api.post<PaymentIntentResult & { redirect_url?: string }>(
-        '/subscriptions/purchase-alternative/',
+      const { data } = await api.post<PaymentIntentResult & { authorization_url: string }>(
+        '/subscriptions/bancolombia/start/',
         payload,
         requestConfig,
       );
 
-      if (data.redirect_url) {
-        set({ redirectUrl: data.redirect_url, intentResult: data, paymentStatus: 'polling' });
-        window.location.href = data.redirect_url;
-        return true;
-      }
+      set({
+        intentResult: data,
+        redirectUrl: data.authorization_url,
+        paymentStatus: 'polling',
+      });
+      return {
+        reference: data.reference,
+        authorization_url: data.authorization_url,
+        checkout_access_token: data.checkout_access_token,
+      };
+    } catch (err) {
+      const axiosErr = err as AxiosError<{ detail?: string }>;
+      const message = axiosErr.response?.data?.detail || 'Error al iniciar el pago con Bancolombia.';
+      set({ paymentStatus: 'error', error: message });
+      return null;
+    }
+  },
 
-      set({ intentResult: data, paymentStatus: 'polling' });
+  confirmBancolombiaPurchase: async (reference, checkoutAccessToken) => {
+    set({ paymentStatus: 'polling', error: '' });
+    try {
+      const token = Cookies.get('kore_token');
+      const requestConfig = token
+        ? { headers: { Authorization: `Bearer ${token}` } }
+        : undefined;
+      const payload: { reference: string; access_token?: string } = { reference };
+      if (!token && checkoutAccessToken) payload.access_token = checkoutAccessToken;
+
+      const { data } = await api.post<PaymentIntentResult>(
+        '/subscriptions/bancolombia/confirm/',
+        payload,
+        requestConfig,
+      );
+      set({ intentResult: data });
       return await get().pollIntentStatus(data.reference, data.checkout_access_token);
     } catch (err) {
       const axiosErr = err as AxiosError<{ detail?: string }>;
-      const message = axiosErr.response?.data?.detail || 'Error al procesar el pago con Bancolombia.';
+      const message = axiosErr.response?.data?.detail || 'No se pudo confirmar el pago con Bancolombia. Intenta de nuevo.';
       set({ paymentStatus: 'error', error: message });
       return false;
     }

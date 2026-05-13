@@ -308,6 +308,42 @@ class TestWompiWebhookView:
         payment.refresh_from_db()
         assert payment.status == Payment.Status.PENDING
 
+    @override_settings(**WOMPI_SETTINGS)
+    def test_duplicate_approved_webhook_is_idempotent(
+        self, api_client, subscription_with_payment,
+    ):
+        """Re-delivered APPROVED for the same txn does not trigger side-effects twice."""
+        from core_app.models import WompiEvent
+
+        _sub, payment = subscription_with_payment
+        event = self._build_event(payment.provider_reference, 'APPROVED')
+        url = reverse('wompi-webhook')
+
+        first = api_client.post(url, event, format='json')
+        second = api_client.post(url, event, format='json')
+
+        assert first.status_code == status.HTTP_200_OK
+        assert second.status_code == status.HTTP_200_OK
+        assert WompiEvent.objects.filter(
+            transaction_id=payment.provider_reference,
+        ).count() == 1
+
+    @override_settings(**WOMPI_SETTINGS)
+    def test_late_declined_after_approved_is_ignored(
+        self, api_client, subscription_with_payment,
+    ):
+        """A DECLINED retransmission arriving after APPROVED does not expire the sub."""
+        sub, payment = subscription_with_payment
+        url = reverse('wompi-webhook')
+
+        api_client.post(url, self._build_event(payment.provider_reference, 'APPROVED'), format='json')
+        api_client.post(url, self._build_event(payment.provider_reference, 'DECLINED'), format='json')
+
+        payment.refresh_from_db()
+        sub.refresh_from_db()
+        assert payment.status == Payment.Status.CONFIRMED
+        assert sub.status == Subscription.Status.ACTIVE
+
 
 @pytest.mark.django_db
 class TestWebhookPaymentIntentResolution:

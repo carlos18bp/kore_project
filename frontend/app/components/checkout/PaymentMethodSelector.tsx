@@ -12,6 +12,13 @@ interface PaymentMethodOption {
   isRecurring: boolean;
 }
 
+const RECURRING_NOTES: Record<PaymentMethod, string> = {
+  card: '✓ Renovación automática cada mes',
+  nequi: '✓ Renovación automática (apruebas el cobro en tu app Nequi cada mes)',
+  bancolombia: '✓ Renovación automática (un solo paso de autorización inicial)',
+  pse: 'Renovación manual: deberás pagar cada mes',
+};
+
 const PAYMENT_METHODS: PaymentMethodOption[] = [
   {
     id: 'card',
@@ -25,21 +32,14 @@ const PAYMENT_METHODS: PaymentMethodOption[] = [
     name: 'Nequi',
     description: 'Pago desde tu app',
     icon: '/images/payment-methods/Nequi.jpeg',
-    isRecurring: false,
-  },
-  {
-    id: 'pse',
-    name: 'PSE',
-    description: 'Débito bancario',
-    icon: '/images/payment-methods/pse-seeklogo.png',
-    isRecurring: false,
+    isRecurring: true,
   },
   {
     id: 'bancolombia',
     name: 'Bancolombia',
     description: 'Transferencia',
     icon: '/images/payment-methods/Bancolombia.png',
-    isRecurring: false,
+    isRecurring: true,
   },
 ];
 
@@ -59,7 +59,7 @@ export default function PaymentMethodSelector({
       <h3 className="text-sm font-medium text-kore-gray-dark mb-3">
         Elige tu método de pago
       </h3>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         {PAYMENT_METHODS.map((method) => {
           const isSelected = selectedMethod === method.id;
           return (
@@ -107,9 +107,7 @@ export default function PaymentMethodSelector({
       </div>
       {selectedMethod && (
         <p className="text-xs text-kore-gray-dark/50 text-center mt-2">
-          {PAYMENT_METHODS.find((m) => m.id === selectedMethod)?.isRecurring
-            ? '✓ Renovación automática cada mes'
-            : 'Renovación manual - deberás pagar cada mes'}
+          {RECURRING_NOTES[selectedMethod]}
         </p>
       )}
     </div>

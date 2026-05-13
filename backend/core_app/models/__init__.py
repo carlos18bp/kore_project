@@ -8,6 +8,7 @@ from .notification import Notification
 from .content import ContactMessage, FAQCategory, FAQItem, SiteSettings
 from .analytics import AnalyticsEvent
 from .payment_intent import PaymentIntent
+from .wompi_event import WompiEvent
 from .customer_profile import CustomerProfile
 from .mood_entry import MoodEntry
 from .weight_entry import WeightEntry
@@ -38,6 +39,7 @@ __all__ = [
     'Booking',
     'Payment',
     'PaymentIntent',
+    'WompiEvent',
     'Notification',
     'SiteSettings',
     'FAQCategory',

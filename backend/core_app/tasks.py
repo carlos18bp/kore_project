@@ -17,6 +17,7 @@ from huey import crontab
 from huey.contrib.djhuey import db_periodic_task
 
 from core_app.models import Notification, Payment, Subscription
+from core_app.services.billing_calendar import bogota_today
 from core_app.services.email_service import (
     send_payment_receipt,
     send_subscription_expiry_reminder,
@@ -42,7 +43,9 @@ def process_recurring_billing():
     Returns:
         dict: Summary with 'processed', 'succeeded', and 'failed' counts.
     """
-    today = timezone.now().date()
+    # Use Bogota local date so subscriptions are considered "due" only when
+    # the calendar day has actually arrived for the customer (not UTC).
+    today = bogota_today()
     due_subscriptions = Subscription.objects.filter(
         status=Subscription.Status.ACTIVE,
         next_billing_date__lte=today,

@@ -1,8 +1,10 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useProfileStore } from '@/lib/stores/profileStore';
+import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
 import PasswordResetModal from '@/app/components/profile/PasswordResetModal';
 import ImageLightbox from '@/app/components/shared/ImageLightbox';
 import { GOAL_OPTIONS } from '@/app/components/profile/ProfileIcons';
@@ -540,6 +542,107 @@ function SummaryCard({
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
+ *  Subscription card (mobile-first access to /subscription)
+ *  ────────────────────────────────────────────────────────────────────── */
+
+function SubscriptionCard() {
+  const {
+    activeSubscription,
+    hasOwnActiveSubscription,
+    subscriptionsLoaded,
+    fetchSubscriptions,
+  } = useSubscriptionStore();
+
+  useEffect(() => {
+    if (!subscriptionsLoaded) {
+      fetchSubscriptions();
+    }
+  }, [subscriptionsLoaded, fetchSubscriptions]);
+
+  const sub = activeSubscription;
+  const statusPill = (() => {
+    if (!sub) {
+      return { label: 'Sin plan activo', color: 'rgba(103,15,34,0.5)', bg: 'rgba(103,15,34,0.06)' };
+    }
+    if (sub.status === 'active') {
+      return { label: 'Activa', color: '#246B3A', bg: 'rgba(36,107,58,0.10)' };
+    }
+    if (sub.status === 'expired') {
+      return { label: 'Expirada', color: '#9A0526', bg: 'rgba(154,5,38,0.08)' };
+    }
+    return { label: 'Cancelada', color: 'rgba(103,15,34,0.6)', bg: 'rgba(103,15,34,0.08)' };
+  })();
+
+  const nextChargeLabel = sub?.next_billing_date
+    ? formatDateLong(sub.next_billing_date)
+    : sub?.expires_at
+      ? formatDateLong(sub.expires_at)
+      : null;
+
+  return (
+    <LightCard padding={24}>
+      <div className="flex items-baseline justify-between gap-3 mb-1">
+        <Eyebrow>Mi suscripción</Eyebrow>
+        <span
+          className="text-[10px] font-semibold uppercase tracking-wide rounded-full px-2 py-0.5"
+          style={{ color: statusPill.color, background: statusPill.bg }}
+        >
+          {statusPill.label}
+        </span>
+      </div>
+      <CardTitle>{sub?.package?.title || 'Sin plan activo'}</CardTitle>
+
+      {sub ? (
+        <div className="flex flex-col mt-4">
+          <div
+            className="flex items-center justify-between gap-3 py-3"
+          >
+            <span className="text-[12px]" style={{ color: 'rgba(103,15,34,0.65)' }}>Sesiones</span>
+            <span
+              className="font-heading text-right text-[13px] font-semibold tabular-nums"
+              style={{ color: KORE.wineDark }}
+            >
+              {sub.sessions_used}/{sub.sessions_total}
+            </span>
+          </div>
+          {nextChargeLabel && (
+            <div
+              className="flex items-center justify-between gap-3 py-3"
+              style={{ borderTop: '1px solid rgba(103,15,34,0.08)' }}
+            >
+              <span className="text-[12px]" style={{ color: 'rgba(103,15,34,0.65)' }}>
+                {sub.is_recurring ? 'Próxima renovación' : 'Vence'}
+              </span>
+              <span
+                className="font-heading text-right text-[13px] font-semibold tabular-nums"
+                style={{ color: KORE.wineDark }}
+              >
+                {nextChargeLabel}
+              </span>
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="text-[12px] mt-2" style={{ color: 'rgba(103,15,34,0.55)' }}>
+          Aún no tienes una suscripción activa. Elige un plan y empieza tu programa.
+        </p>
+      )}
+
+      <Link
+        href={sub ? '/subscription' : '/programs'}
+        className="mt-4 inline-flex items-center justify-center w-full rounded-xl py-2.5 text-[13px] font-semibold transition-colors"
+        style={{
+          background: hasOwnActiveSubscription ? 'rgba(103,15,34,0.06)' : '#670F22',
+          color: hasOwnActiveSubscription ? KORE.wineDark : KORE.ivory,
+        }}
+      >
+        {sub ? 'Ver detalle de mi suscripción →' : 'Ver planes disponibles →'}
+      </Link>
+    </LightCard>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
  *  Main page
  *  ────────────────────────────────────────────────────────────────────── */
 
@@ -748,6 +851,7 @@ export default function ProfilePage() {
                 idNumber={formData.id_number}
                 goalLabel={goalLabel}
               />
+              <SubscriptionCard />
             </div>
 
             {/* RIGHT — main */}
