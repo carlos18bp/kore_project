@@ -7,10 +7,12 @@ import pytest
 from django.urls import reverse
 from rest_framework import status
 
-from core_app.models import AvailabilitySlot, Booking, Package, TrainerProfile, User
+from core_app.models import Booking, Package, TrainerProfile, User
 from core_app.tests.helpers import get_results
 
 FIXED_NOW = datetime(2026, 1, 15, 12, 0, tzinfo=dt_timezone.utc)
+# Saturday Jan 17 09:00 Bogota = 14:00 UTC — 50h ahead, valid schedule slot
+BOOKING_STARTS_AT = '2026-01-17T14:00:00Z'
 
 
 @pytest.fixture(autouse=True)
@@ -23,19 +25,16 @@ def freeze_now(monkeypatch):
 def test_booking_create_requires_login(api_client):
     """Reject booking creation requests from anonymous users."""
     package = Package.objects.create(title='P1', is_active=True)
-    now = FIXED_NOW
-    slot = AvailabilitySlot.objects.create(starts_at=now + timedelta(hours=1), ends_at=now + timedelta(hours=2))
 
     url = reverse('booking-list')
-    response = api_client.post(url, {'package_id': package.id, 'slot_id': slot.id}, format='json')
+    response = api_client.post(url, {'package_id': package.id, 'starts_at': BOOKING_STARTS_AT}, format='json')
 
     assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
 
 
 @pytest.mark.django_db
-def test_booking_create_blocks_slot_and_prevents_double_booking(api_client, existing_user):
-    """Block slot after first booking and reject a second booking for the same slot."""
-    # Assign a trainer so the customer passes the booking gate
+def test_booking_create_and_prevents_double_booking(api_client, existing_user):
+    """Create a booking then reject a second booking at the same time for the same trainer."""
     trainer_user = User.objects.create_user(
         email='bk_view_trainer@example.com', password='p', role=User.Role.TRAINER,
     )
@@ -46,19 +45,14 @@ def test_booking_create_blocks_slot_and_prevents_double_booking(api_client, exis
     api_client.force_authenticate(user=existing_user)
 
     package = Package.objects.create(title='P1', is_active=True)
-    now = FIXED_NOW
-    slot = AvailabilitySlot.objects.create(starts_at=now + timedelta(hours=26), ends_at=now + timedelta(hours=27))
 
     url = reverse('booking-list')
-    response = api_client.post(url, {'package_id': package.id, 'slot_id': slot.id}, format='json')
+    response = api_client.post(url, {'package_id': package.id, 'starts_at': BOOKING_STARTS_AT}, format='json')
 
     assert response.status_code == status.HTTP_201_CREATED
     assert Booking.objects.count() == 1
 
-    slot.refresh_from_db()
-    assert slot.is_blocked is True
-
-    response2 = api_client.post(url, {'package_id': package.id, 'slot_id': slot.id}, format='json')
+    response2 = api_client.post(url, {'package_id': package.id, 'starts_at': BOOKING_STARTS_AT}, format='json')
     assert response2.status_code == status.HTTP_400_BAD_REQUEST
 
 
@@ -68,11 +62,14 @@ def test_booking_list_returns_only_own_bookings_for_customer(api_client, existin
     package = Package.objects.create(title='P1', is_active=True)
     now = FIXED_NOW
 
-    slot_1 = AvailabilitySlot.objects.create(starts_at=now + timedelta(hours=1), ends_at=now + timedelta(hours=2), is_blocked=True)
-    slot_2 = AvailabilitySlot.objects.create(starts_at=now + timedelta(hours=3), ends_at=now + timedelta(hours=4), is_blocked=True)
-
-    Booking.objects.create(customer=existing_user, package=package, slot=slot_1)
-    Booking.objects.create(customer=admin_user, package=package, slot=slot_2)
+    Booking.objects.create(
+        customer=existing_user, package=package,
+        starts_at=now + timedelta(hours=1), ends_at=now + timedelta(hours=2),
+    )
+    Booking.objects.create(
+        customer=admin_user, package=package,
+        starts_at=now + timedelta(hours=3), ends_at=now + timedelta(hours=4),
+    )
 
     api_client.force_authenticate(user=existing_user)
     url = reverse('booking-list')
@@ -88,11 +85,14 @@ def test_booking_list_returns_all_for_admin(api_client, existing_user, admin_use
     package = Package.objects.create(title='P1', is_active=True)
     now = FIXED_NOW
 
-    slot_1 = AvailabilitySlot.objects.create(starts_at=now + timedelta(hours=1), ends_at=now + timedelta(hours=2), is_blocked=True)
-    slot_2 = AvailabilitySlot.objects.create(starts_at=now + timedelta(hours=3), ends_at=now + timedelta(hours=4), is_blocked=True)
-
-    Booking.objects.create(customer=existing_user, package=package, slot=slot_1)
-    Booking.objects.create(customer=admin_user, package=package, slot=slot_2)
+    Booking.objects.create(
+        customer=existing_user, package=package,
+        starts_at=now + timedelta(hours=1), ends_at=now + timedelta(hours=2),
+    )
+    Booking.objects.create(
+        customer=admin_user, package=package,
+        starts_at=now + timedelta(hours=3), ends_at=now + timedelta(hours=4),
+    )
 
     api_client.force_authenticate(user=admin_user)
     url = reverse('booking-list')

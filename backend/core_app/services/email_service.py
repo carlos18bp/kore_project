@@ -159,8 +159,8 @@ def send_booking_reschedule(old_booking, new_booking):
     cancel_ics_bytes = generate_cancellation_ics(old_booking)
     new_ics_bytes = generate_ics(new_booking)
     context = _build_booking_context(new_booking)
-    context['old_slot_start'] = old_booking.slot.starts_at
-    context['old_slot_end'] = old_booking.slot.ends_at
+    context['old_slot_start'] = old_booking.starts_at
+    context['old_slot_end'] = old_booking.ends_at
     recipient_emails = _build_booking_confirmation_recipients(new_booking)
 
     success = send_template_email(
@@ -470,8 +470,8 @@ def _build_booking_context(booking):
         'trainer_name': trainer_name,
         'location': location,
         'package_title': booking.package.title if booking.package else '',
-        'slot_start': booking.slot.starts_at,
-        'slot_end': booking.slot.ends_at,
+        'slot_start': booking.starts_at,
+        'slot_end': booking.ends_at,
         'booking_id': booking.pk,
     }
 
