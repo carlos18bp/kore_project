@@ -1,239 +1,178 @@
-"""Tests for availability slot API views."""
+"""Tests for the computed AvailabilityView (GET /api/availability/)."""
 
 from datetime import datetime, timedelta
 from datetime import timezone as dt_timezone
 
 import pytest
 from django.urls import reverse
-from django.utils import timezone
 from rest_framework import status
 
-from core_app.models import AvailabilitySlot, Booking, Package, TrainerProfile, User
-from core_app.tests.helpers import get_results
+from core_app.models import Booking, Package, TrainerProfile, User
 
-FIXED_NOW = timezone.make_aware(datetime(2100, 2, 3, 10, 0, 0), timezone.get_current_timezone())
+FIXED_NOW = datetime(2026, 1, 15, 12, 0, tzinfo=dt_timezone.utc)
+# Friday Jan 16 05:00 Bogota = 10:00 UTC — first free slot after FIXED_NOW + 16h advance
+FIRST_AVAILABLE = '2026-01-16T10:00:00+00:00'
 
 
 @pytest.fixture(autouse=True)
 def freeze_now(monkeypatch):
-    """Freeze timezone.now so horizon filtering uses a deterministic reference."""
     monkeypatch.setattr('django.utils.timezone.now', lambda: FIXED_NOW)
 
 
-def _fixed_now() -> datetime:
-    return FIXED_NOW
+@pytest.fixture
+def trainer_user(db):
+    return User.objects.create_user(
+        email='avail_trainer@example.com', password='p', role=User.Role.TRAINER,
+    )
+
+
+@pytest.fixture
+def trainer(trainer_user):
+    return TrainerProfile.objects.create(user=trainer_user, specialty='General')
+
+
+@pytest.fixture
+def customer(db, trainer):
+    u = User.objects.create_user(
+        email='avail_cust@example.com', password='p', role=User.Role.CUSTOMER,
+    )
+    u.assigned_trainer = trainer
+    u.save(update_fields=['assigned_trainer'])
+    return u
+
+
+@pytest.fixture
+def package(db):
+    return Package.objects.create(title='Pkg', is_active=True)
 
 
 @pytest.mark.django_db
-def test_availability_slot_list_filters_for_anonymous(api_client):
-    """List only publicly available slots for anonymous users."""
-    now = _fixed_now()
-    AvailabilitySlot.objects.create(starts_at=now, ends_at=now + timedelta(hours=1), is_active=True, is_blocked=False)
-    AvailabilitySlot.objects.create(starts_at=now + timedelta(hours=2), ends_at=now + timedelta(hours=3), is_active=True, is_blocked=True)
+def test_unauthenticated_returns_401(api_client):
+    response = api_client.get(reverse('availability'))
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    url = reverse('availability-slot-list')
-    response = api_client.get(url)
+
+@pytest.mark.django_db
+def test_customer_no_assigned_trainer_returns_empty_dict(api_client, db):
+    u = User.objects.create_user(
+        email='no_trainer_cust@example.com', password='p', role=User.Role.CUSTOMER,
+    )
+    api_client.force_authenticate(user=u)
+    response = api_client.get(reverse('availability'))
 
     assert response.status_code == status.HTTP_200_OK
-    assert len(get_results(response.data)) == 1
+    assert response.data == {}
 
 
 @pytest.mark.django_db
-def test_availability_slot_list_returns_all_for_admin(api_client, admin_user):
-    """Allow admins to list both blocked and unblocked slots."""
-    now = _fixed_now()
-    AvailabilitySlot.objects.create(starts_at=now, ends_at=now + timedelta(hours=1), is_active=True, is_blocked=False)
-    AvailabilitySlot.objects.create(starts_at=now + timedelta(hours=2), ends_at=now + timedelta(hours=3), is_active=True, is_blocked=True)
-
-    api_client.force_authenticate(user=admin_user)
-
-    url = reverse('availability-slot-list')
-    response = api_client.get(url)
+def test_customer_returns_assigned_trainer_availability(api_client, customer):
+    api_client.force_authenticate(user=customer)
+    response = api_client.get(reverse('availability'))
 
     assert response.status_code == status.HTTP_200_OK
-    assert len(get_results(response.data)) == 2
+    assert isinstance(response.data, dict)
+    # Friday Jan 16 is within the default 7-day window and should have free slots
+    assert '2026-01-16' in response.data
+    assert FIRST_AVAILABLE in response.data['2026-01-16']
 
 
 @pytest.mark.django_db
-def test_availability_slot_create_requires_admin(api_client):
-    """Reject slot creation requests from non-admin users."""
-    now = _fixed_now()
-
-    url = reverse('availability-slot-list')
-    response = api_client.post(
-        url,
-        {'starts_at': now.isoformat(), 'ends_at': (now + timedelta(hours=1)).isoformat()},
-        format='json',
+def test_trainer_param_overrides_assigned_trainer(api_client, customer, db):
+    other_user = User.objects.create_user(
+        email='other_trainer@example.com', password='p', role=User.Role.TRAINER,
     )
+    other_trainer = TrainerProfile.objects.create(user=other_user, specialty='Yoga')
 
-    assert response.status_code in (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
-
-
-@pytest.mark.django_db
-def test_availability_slot_list_with_malformed_date_param(api_client):
-    """Malformed date param is silently ignored (lines 59-63)."""
-    now = _fixed_now()
-    AvailabilitySlot.objects.create(
-        starts_at=now + timedelta(hours=1),
-        ends_at=now + timedelta(hours=2),
-        is_active=True,
-        is_blocked=False,
-    )
-
-    url = reverse('availability-slot-list')
-    response = api_client.get(url, {'date': 'not-a-date'})
+    api_client.force_authenticate(user=customer)
+    response = api_client.get(reverse('availability'), {'trainer': other_trainer.pk})
 
     assert response.status_code == status.HTTP_200_OK
-    assert len(get_results(response.data)) == 1
+    # other_trainer also has no bookings, so same availability shape
+    assert '2026-01-16' in response.data
 
 
 @pytest.mark.django_db
-def test_availability_slot_list_filters_by_valid_date(api_client, admin_user):
-    """Valid date param filters slots by date (line 60-61)."""
-    now = _fixed_now()
-    target_date = (now + timedelta(days=1)).date()
-    # Use midday UTC to avoid crossing local-day boundaries in America/Bogota.
-    target_start = datetime(
-        target_date.year,
-        target_date.month,
-        target_date.day,
-        12,
-        0,
-        tzinfo=dt_timezone.utc,
-    )
-    AvailabilitySlot.objects.create(
-        starts_at=target_start,
-        ends_at=target_start + timedelta(hours=1),
-        is_active=True, is_blocked=False,
-    )
-    AvailabilitySlot.objects.create(
-        starts_at=target_start + timedelta(days=2),
-        ends_at=target_start + timedelta(days=2, hours=1),
-        is_active=True, is_blocked=False,
-    )
+def test_non_customer_without_trainer_param_returns_400(api_client, trainer_user):
+    api_client.force_authenticate(user=trainer_user)
+    response = api_client.get(reverse('availability'))
 
-    api_client.force_authenticate(user=admin_user)
-    url = reverse('availability-slot-list')
-    response = api_client.get(url, {'date': target_date.strftime('%Y-%m-%d')})
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert 'trainer' in response.data['detail']
+
+
+@pytest.mark.django_db
+def test_unknown_trainer_returns_404(api_client, customer):
+    api_client.force_authenticate(user=customer)
+    response = api_client.get(reverse('availability'), {'trainer': 999999})
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+def test_date_range_params_filter_results(api_client, customer):
+    api_client.force_authenticate(user=customer)
+    response = api_client.get(reverse('availability'), {
+        'date_from': '2026-01-16',
+        'date_to': '2026-01-16',
+    })
 
     assert response.status_code == status.HTTP_200_OK
-    results = get_results(response.data)
-    assert len(results) == 1
+    assert '2026-01-16' in response.data
+    # Only Jan 16 should be present (single-day request)
+    assert all(k == '2026-01-16' for k in response.data)
 
 
 @pytest.mark.django_db
-def test_availability_slot_list_filters_by_bogota_local_day(api_client, admin_user):
-    """Date filter uses America/Bogota local day boundaries instead of UTC date."""
-    # 2026-01-17 00:30 UTC == 2026-01-16 19:30 America/Bogota
-    slot_prev_local_day = AvailabilitySlot.objects.create(
-        starts_at=datetime(2026, 1, 17, 0, 30, tzinfo=dt_timezone.utc),
-        ends_at=datetime(2026, 1, 17, 1, 30, tzinfo=dt_timezone.utc),
-        is_active=True,
-        is_blocked=False,
-    )
-    # 2026-01-17 05:30 UTC == 2026-01-17 00:30 America/Bogota
-    slot_same_local_day = AvailabilitySlot.objects.create(
-        starts_at=datetime(2026, 1, 17, 5, 30, tzinfo=dt_timezone.utc),
-        ends_at=datetime(2026, 1, 17, 6, 30, tzinfo=dt_timezone.utc),
-        is_active=True,
-        is_blocked=False,
-    )
+def test_invalid_date_from_returns_400(api_client, customer):
+    api_client.force_authenticate(user=customer)
+    response = api_client.get(reverse('availability'), {'date_from': 'not-a-date'})
 
-    api_client.force_authenticate(user=admin_user)
-    url = reverse('availability-slot-list')
-
-    response_prev_day = api_client.get(url, {'date': '2026-01-16'})
-    assert response_prev_day.status_code == status.HTTP_200_OK
-    prev_day_ids = {item['id'] for item in get_results(response_prev_day.data)}
-    assert slot_prev_local_day.id in prev_day_ids
-    assert slot_same_local_day.id not in prev_day_ids
-
-    response_same_day = api_client.get(url, {'date': '2026-01-17'})
-    assert response_same_day.status_code == status.HTTP_200_OK
-    same_day_ids = {item['id'] for item in get_results(response_same_day.data)}
-    assert slot_prev_local_day.id not in same_day_ids
-    assert slot_same_local_day.id in same_day_ids
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert 'date_from' in response.data['detail']
 
 
 @pytest.mark.django_db
-def test_availability_slot_list_filters_by_trainer(api_client):
-    """Trainer query param filters slots by trainer_id (line 68)."""
-    trainer_user = User.objects.create_user(
-        email='trainer_avail@example.com', password='p',
-        first_name='T', last_name='One', role=User.Role.TRAINER,
-    )
-    trainer = TrainerProfile.objects.create(
-        user=trainer_user, specialty='Yoga', location='Studio',
-    )
-    now = _fixed_now()
-    AvailabilitySlot.objects.create(
-        starts_at=now + timedelta(hours=1),
-        ends_at=now + timedelta(hours=2),
-        is_active=True,
-        is_blocked=False,
-        trainer=trainer,
-    )
-    AvailabilitySlot.objects.create(
-        starts_at=now + timedelta(hours=3),
-        ends_at=now + timedelta(hours=4),
-        is_active=True,
-        is_blocked=False,
-        trainer=None,
-    )
+def test_invalid_date_to_returns_400(api_client, customer):
+    api_client.force_authenticate(user=customer)
+    response = api_client.get(reverse('availability'), {
+        'date_from': '2026-01-16',
+        'date_to': 'bad',
+    })
 
-    url = reverse('availability-slot-list')
-    response = api_client.get(url, {'trainer': trainer.pk})
-
-    assert response.status_code == status.HTTP_200_OK
-    assert len(get_results(response.data)) == 1
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert 'date_to' in response.data['detail']
 
 
 @pytest.mark.django_db
-def test_availability_excludes_slots_inside_trainer_travel_buffer(api_client):
-    """Hide slots that violate 45-minute buffer around active trainer bookings."""
-    trainer_user = User.objects.create_user(
-        email='trainer_buffer@example.com', password='p', role=User.Role.TRAINER,
-    )
-    trainer = TrainerProfile.objects.create(user=trainer_user, specialty='Strength', location='Studio')
+def test_date_to_before_date_from_returns_400(api_client, customer):
+    api_client.force_authenticate(user=customer)
+    response = api_client.get(reverse('availability'), {
+        'date_from': '2026-01-20',
+        'date_to': '2026-01-16',
+    })
 
-    customer_a = User.objects.create_user(email='buffer_customer_a@example.com', password='p')
-    package = Package.objects.create(title='Buffer Pack', sessions_count=4, validity_days=30)
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    now = _fixed_now()
-    booked_slot = AvailabilitySlot.objects.create(
-        starts_at=now + timedelta(hours=2),
-        ends_at=now + timedelta(hours=3),
-        trainer=trainer,
-        is_active=True,
-        is_blocked=True,
+
+@pytest.mark.django_db
+def test_existing_booking_blocks_start_time(api_client, customer, trainer, package, db):
+    """Booking at Jan 16 10:30 UTC blocks the 10:00 slot via 45-min buffer."""
+    other_customer = User.objects.create_user(
+        email='other_cust@example.com', password='p', role=User.Role.CUSTOMER,
     )
     Booking.objects.create(
-        customer=customer_a,
-        package=package,
-        slot=booked_slot,
-        trainer=trainer,
+        customer=other_customer, package=package, trainer=trainer,
         status=Booking.Status.CONFIRMED,
+        starts_at=datetime(2026, 1, 16, 10, 30, tzinfo=dt_timezone.utc),
+        ends_at=datetime(2026, 1, 16, 11, 30, tzinfo=dt_timezone.utc),
     )
 
-    within_buffer_slot = AvailabilitySlot.objects.create(
-        starts_at=now + timedelta(hours=3, minutes=30),
-        ends_at=now + timedelta(hours=4, minutes=30),
-        trainer=trainer,
-        is_active=True,
-        is_blocked=False,
-    )
-    boundary_slot = AvailabilitySlot.objects.create(
-        starts_at=now + timedelta(hours=3, minutes=45),
-        ends_at=now + timedelta(hours=4, minutes=45),
-        trainer=trainer,
-        is_active=True,
-        is_blocked=False,
-    )
-
-    url = reverse('availability-slot-list')
-    response = api_client.get(url, {'trainer': trainer.pk})
+    api_client.force_authenticate(user=customer)
+    response = api_client.get(reverse('availability'), {
+        'date_from': '2026-01-16',
+        'date_to': '2026-01-16',
+    })
 
     assert response.status_code == status.HTTP_200_OK
-    slot_ids = {item['id'] for item in get_results(response.data)}
-    assert within_buffer_slot.id not in slot_ids
-    assert boundary_slot.id in slot_ids
+    jan16_slots = response.data.get('2026-01-16', [])
+    assert FIRST_AVAILABLE not in jan16_slots
