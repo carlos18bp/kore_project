@@ -3,16 +3,23 @@ from zoneinfo import ZoneInfo
 
 from django.db.models import Q
 from django.utils import timezone
-from rest_framework import viewsets
+from rest_framework import status, viewsets
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from core_app.models import AvailabilitySlot, Booking
+from core_app.models import AvailabilitySlot, Booking, TrainerProfile
 from core_app.permissions import IsAdminOrReadOnly, is_admin_user
 from core_app.serializers.availability_serializers import AvailabilitySlotSerializer
 from core_app.services.booking_rules import (
     ACTIVE_BOOKING_STATUSES,
     build_trainer_buffer_slot_conflict_q,
 )
-from core_app.services.slot_schedule import BOOKING_HORIZON_DAYS
+from core_app.services.slot_schedule import (
+    BOOKING_HORIZON_DAYS,
+    BUSINESS_TZ,
+    compute_available_start_times,
+)
 
 BUSINESS_TIMEZONE = ZoneInfo('America/Bogota')
 
@@ -23,8 +30,87 @@ def _local_day_bounds(day):
     return day_start, day_end
 
 
+class AvailabilityView(APIView):
+    """Return computed free start-times grouped by local date.
+
+    GET /api/availability/
+    Query params:
+        trainer   — TrainerProfile PK; defaults to request.user.assigned_trainer for customers
+        date_from — YYYY-MM-DD (default: today in America/Bogota)
+        date_to   — YYYY-MM-DD, inclusive (default: date_from + 6 days)
+
+    Response: {"YYYY-MM-DD": ["ISO-UTC start-time", ...], ...}
+    Only days with at least one free slot appear in the response.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Resolve trainer
+        trainer_param = request.query_params.get('trainer')
+        if trainer_param:
+            try:
+                trainer = TrainerProfile.objects.get(pk=int(trainer_param))
+            except (ValueError, TrainerProfile.DoesNotExist):
+                return Response(
+                    {'detail': 'Entrenador no encontrado.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+        elif getattr(request.user, 'role', None) == 'customer':
+            trainer = getattr(request.user, 'assigned_trainer', None)
+            if trainer is None:
+                return Response({})
+        else:
+            return Response(
+                {'detail': 'Se requiere el parámetro trainer.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Resolve date range
+        today = timezone.now().astimezone(BUSINESS_TZ).date()
+
+        date_from_param = request.query_params.get('date_from')
+        if date_from_param:
+            try:
+                date_from = datetime.strptime(date_from_param, '%Y-%m-%d').date()
+            except ValueError:
+                return Response(
+                    {'detail': 'Formato inválido para date_from (usa YYYY-MM-DD).'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            date_from = today
+
+        date_to_param = request.query_params.get('date_to')
+        if date_to_param:
+            try:
+                date_to = datetime.strptime(date_to_param, '%Y-%m-%d').date()
+            except ValueError:
+                return Response(
+                    {'detail': 'Formato inválido para date_to (usa YYYY-MM-DD).'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            date_to = date_from + timedelta(days=6)
+
+        if date_to < date_from:
+            return Response(
+                {'detail': 'date_to debe ser mayor o igual que date_from.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        available = compute_available_start_times(
+            trainer, date_from, date_to + timedelta(days=1), now=timezone.now(),
+        )
+        result = {
+            str(day): [dt.isoformat() for dt in starts]
+            for day, starts in sorted(available.items())
+        }
+        return Response(result)
+
+
 class AvailabilitySlotViewSet(viewsets.ModelViewSet):
-    """ViewSet for availability slots.
+    """ViewSet for availability slots (deprecated — will be removed with AvailabilitySlot model).
 
     Admin users can perform full CRUD.  Customers see only future,
     active, unblocked, and un-booked slots.
@@ -32,14 +118,6 @@ class AvailabilitySlotViewSet(viewsets.ModelViewSet):
     Supported query parameters (customer view):
         - ``date`` (YYYY-MM-DD): filter slots for a specific day.
         - ``trainer`` (int): filter slots by trainer profile ID.
-
-    Endpoints:
-        GET    /api/availability-slots/
-        POST   /api/availability-slots/          (admin only)
-        GET    /api/availability-slots/{id}/
-        PUT    /api/availability-slots/{id}/      (admin only)
-        PATCH  /api/availability-slots/{id}/      (admin only)
-        DELETE /api/availability-slots/{id}/      (admin only)
     """
 
     serializer_class = AvailabilitySlotSerializer
@@ -52,15 +130,6 @@ class AvailabilitySlotViewSet(viewsets.ModelViewSet):
         return super().paginator
 
     def get_queryset(self):
-        """Return availability slots with optional filtering.
-
-        Admin users get the full set.  Customers get only bookable slots
-        (active, unblocked, future, not already taken by a non-canceled
-        booking).  Both can filter by ``date`` and ``trainer``.
-
-        Returns:
-            QuerySet: Filtered AvailabilitySlot instances.
-        """
         qs = AvailabilitySlot.objects.select_related('trainer').all()
         is_admin = is_admin_user(self.request.user)
 
@@ -78,7 +147,6 @@ class AvailabilitySlotViewSet(viewsets.ModelViewSet):
                 starts_at__lt=horizon,
             ).exclude(id__in=booked_slot_ids)
 
-        # Filter by specific date (YYYY-MM-DD)
         date_param = self.request.query_params.get('date')
         if date_param:
             try:
@@ -86,9 +154,8 @@ class AvailabilitySlotViewSet(viewsets.ModelViewSet):
                 day_start, day_end = _local_day_bounds(day)
                 qs = qs.filter(starts_at__gte=day_start, starts_at__lt=day_end)
             except ValueError:
-                pass  # Ignore malformed date param
+                pass
 
-        # Filter by trainer profile ID
         trainer_param = self.request.query_params.get('trainer')
         if trainer_param:
             qs = qs.filter(trainer_id=trainer_param)

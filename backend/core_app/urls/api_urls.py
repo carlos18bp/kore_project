@@ -2,7 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from core_app.views.analytics_views import AnalyticsEventViewSet
-from core_app.views.availability_views import AvailabilitySlotViewSet
+from core_app.views.availability_views import AvailabilitySlotViewSet, AvailabilityView
 from core_app.views.booking_views import BookingViewSet
 from core_app.views.content_views import (
     ContactMessageViewSet,
@@ -124,6 +124,7 @@ urlpatterns = [
     path('subscriptions/accept-invite/', accept_invite, name='subscription-accept-invite'),
     path('subscriptions/pending-invitation/', pending_invitation, name='subscription-pending-invitation'),
     path('', include(router.urls)),
+    path('availability/', AvailabilityView.as_view(), name='availability'),
     path('site-settings/', SiteSettingsView.as_view(), name='site-settings'),
     path('terms-acceptance/status/', TermsAcceptanceStatusView.as_view(), name='terms-acceptance-status'),
     path('terms-acceptance/accept/', TermsAcceptanceCreateView.as_view(), name='terms-acceptance-accept'),
