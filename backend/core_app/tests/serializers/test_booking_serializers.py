@@ -27,9 +27,21 @@ def freeze_now(monkeypatch):
 
 
 @pytest.fixture
-def customer(db):
-    """Create a customer user used as serializer request actor."""
-    return User.objects.create_user(email='book_s_cust@example.com', password='p')
+def default_trainer(db):
+    """Create a default trainer profile so customer passes the assigned-trainer gate."""
+    trainer_user = User.objects.create_user(
+        email='default_trainer@example.com', password='p', role=User.Role.TRAINER,
+    )
+    return TrainerProfile.objects.create(user=trainer_user, specialty='General')
+
+
+@pytest.fixture
+def customer(db, default_trainer):
+    """Create a customer user with an assigned trainer to pass the booking gate."""
+    u = User.objects.create_user(email='book_s_cust@example.com', password='p')
+    u.assigned_trainer = default_trainer
+    u.save(update_fields=['assigned_trainer'])
+    return u
 
 
 @pytest.fixture
@@ -39,12 +51,13 @@ def package(db):
 
 
 @pytest.fixture
-def future_slot(db):
-    """Create a bookable future slot for happy-path serializer scenarios."""
+def future_slot(db, default_trainer):
+    """Create a bookable future slot belonging to default_trainer for happy-path scenarios."""
     now = FIXED_NOW
     return AvailabilitySlot.objects.create(
         starts_at=now + timedelta(hours=26),
         ends_at=now + timedelta(hours=27),
+        trainer=default_trainer,
     )
 
 
@@ -191,11 +204,13 @@ class TestBookingSerializerValidation:
     def test_trainer_buffer_rejects_slot_within_45_minutes(self, package):
         """Reject slot when same trainer lacks the required 45-minute buffer."""
         customer_a = User.objects.create_user(email='buffer_a@example.com', password='p')
-        customer_b = User.objects.create_user(email='buffer_b@example.com', password='p')
         trainer_user = User.objects.create_user(
             email='buffer_trainer@example.com', password='p', role=User.Role.TRAINER,
         )
         trainer = TrainerProfile.objects.create(user=trainer_user, specialty='Mobility')
+        customer_b = User.objects.create_user(email='buffer_b@example.com', password='p')
+        customer_b.assigned_trainer = trainer
+        customer_b.save(update_fields=['assigned_trainer'])
 
         now = FIXED_NOW
         existing_slot = AvailabilitySlot.objects.create(
@@ -229,11 +244,13 @@ class TestBookingSerializerValidation:
     def test_trainer_buffer_allows_slot_exactly_at_45_minutes(self, package):
         """Allow slot when start is exactly 45 minutes after prior booking end."""
         customer_a = User.objects.create_user(email='buffer_allow_a@example.com', password='p')
-        customer_b = User.objects.create_user(email='buffer_allow_b@example.com', password='p')
         trainer_user = User.objects.create_user(
             email='buffer_allow_trainer@example.com', password='p', role=User.Role.TRAINER,
         )
         trainer = TrainerProfile.objects.create(user=trainer_user, specialty='Mobility')
+        customer_b = User.objects.create_user(email='buffer_allow_b@example.com', password='p')
+        customer_b.assigned_trainer = trainer
+        customer_b.save(update_fields=['assigned_trainer'])
 
         now = FIXED_NOW
         existing_slot = AvailabilitySlot.objects.create(
@@ -281,102 +298,6 @@ class TestBookingSerializerValidation:
         with pytest.raises(DRFValidationError) as exc_info:
             BookingSerializer._validate_no_overlap(customer, overlapping_slot)
         assert 'slot_id' in exc_info.value.detail
-
-    def test_chronological_order_slot_before_last_session_rejected(self, customer, package):
-        """New slot starting before last session ends is rejected."""
-        now = FIXED_NOW
-        sub = Subscription.objects.create(
-            customer=customer, package=package,
-            sessions_total=10, sessions_used=1,
-            status=Subscription.Status.ACTIVE,
-            starts_at=now, expires_at=now + timedelta(days=30),
-        )
-        # Existing booking: +34h - +35h
-        slot1 = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=34),
-            ends_at=now + timedelta(hours=35),
-        )
-        slot1.is_blocked = True
-        slot1.save()
-        Booking.objects.create(
-            customer=customer, package=package, slot=slot1,
-            subscription=sub, status=Booking.Status.CONFIRMED,
-        )
-        # New slot: +32h - +33h (starts before slot1 ends, but doesn't overlap)
-        slot2 = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=32),
-            ends_at=now + timedelta(hours=33),
-        )
-        request = _make_request(customer)
-        serializer = BookingSerializer(
-            data={'package_id': package.id, 'slot_id': slot2.id, 'subscription_id': sub.id},
-            context={'request': request},
-        )
-        assert not serializer.is_valid()
-        assert 'slot_id' in serializer.errors
-        assert 'última sesión' in str(serializer.errors['slot_id'])
-
-    def test_chronological_order_slot_after_last_session_allowed(self, customer, package):
-        """New slot starting after last session ends is allowed."""
-        now = FIXED_NOW
-        sub = Subscription.objects.create(
-            customer=customer, package=package,
-            sessions_total=10, sessions_used=1,
-            status=Subscription.Status.ACTIVE,
-            starts_at=now, expires_at=now + timedelta(days=30),
-        )
-        # Existing booking: +34h - +35h
-        slot1 = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=34),
-            ends_at=now + timedelta(hours=35),
-        )
-        slot1.is_blocked = True
-        slot1.save()
-        Booking.objects.create(
-            customer=customer, package=package, slot=slot1,
-            subscription=sub, status=Booking.Status.CONFIRMED,
-        )
-        # New slot: +35h - +36h (starts exactly when slot1 ends - allowed)
-        slot2 = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=35),
-            ends_at=now + timedelta(hours=36),
-        )
-        request = _make_request(customer)
-        serializer = BookingSerializer(
-            data={'package_id': package.id, 'slot_id': slot2.id, 'subscription_id': sub.id},
-            context={'request': request},
-        )
-        assert serializer.is_valid(), serializer.errors
-
-    def test_chronological_order_ignores_canceled_bookings(self, customer, package):
-        """Canceled bookings are not considered for chronological order."""
-        now = FIXED_NOW
-        sub = Subscription.objects.create(
-            customer=customer, package=package,
-            sessions_total=10, sessions_used=0,
-            status=Subscription.Status.ACTIVE,
-            starts_at=now, expires_at=now + timedelta(days=30),
-        )
-        # Canceled booking: +34h - +35h
-        slot1 = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=34),
-            ends_at=now + timedelta(hours=35),
-        )
-        Booking.objects.create(
-            customer=customer, package=package, slot=slot1,
-            subscription=sub, status=Booking.Status.CANCELED,
-        )
-        # New slot: +33h - +34h (before canceled booking - allowed)
-        slot2 = AvailabilitySlot.objects.create(
-            starts_at=now + timedelta(hours=33),
-            ends_at=now + timedelta(hours=34),
-        )
-        request = _make_request(customer)
-        serializer = BookingSerializer(
-            data={'package_id': package.id, 'slot_id': slot2.id, 'subscription_id': sub.id},
-            context={'request': request},
-        )
-        assert serializer.is_valid(), serializer.errors
 
     def test_slot_beyond_30_day_horizon_rejected(self, customer, package):
         """Serializer rejects slots starting more than 30 days in the future."""
@@ -428,9 +349,11 @@ class TestBookingSerializerValidation:
         """Validate with no slot in attrs skips slot checks (branch 106→109)."""
         request = _make_request(customer)
         serializer = BookingSerializer(data={}, context={'request': request})
-        # Call validate directly with empty attrs (no slot)
+        # Call validate directly with empty attrs (no slot).
+        # The trainer gate runs and injects attrs['trainer'] for authenticated customers.
         result = serializer.validate({})
-        assert result == {}
+        assert result.get('trainer') == customer.assigned_trainer
+        assert result.get('slot') is None
 
 
 @pytest.mark.django_db

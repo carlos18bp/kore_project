@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import TrainerMobileBottomNav from '@/app/components/layouts/TrainerMobileBottomNav';
 import { useAuthStore } from '@/lib/stores/authStore';
+import { useTrainerStore } from '@/lib/stores/trainerStore';
 
 const mockPush = jest.fn();
 let mockPathname = '/trainer/dashboard';
@@ -29,11 +30,18 @@ jest.mock('next/link', () => ({
   ),
 }));
 
+jest.mock('@/lib/stores/trainerStore', () => ({
+  useTrainerStore: jest.fn(),
+}));
+
+const mockedUseTrainerStore = useTrainerStore as unknown as jest.Mock;
+
 describe('TrainerMobileBottomNav', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockPathname = '/trainer/dashboard';
     useAuthStore.setState({ logout: jest.fn() });
+    mockedUseTrainerStore.mockReturnValue({ riskDashboard: null });
   });
 
   it('renders Inicio link to /trainer/dashboard', () => {
@@ -44,6 +52,16 @@ describe('TrainerMobileBottomNav', () => {
   it('renders Clientes link to /trainer/clients', () => {
     render(<TrainerMobileBottomNav />);
     expect(screen.getByText('Clientes').closest('a')).toHaveAttribute('href', '/trainer/clients');
+  });
+
+  it('renders Alertas link to /trainer/alerts', () => {
+    render(<TrainerMobileBottomNav />);
+    expect(screen.getByText('Alertas').closest('a')).toHaveAttribute('href', '/trainer/alerts');
+  });
+
+  it('renders Métricas link to /trainer/metrics', () => {
+    render(<TrainerMobileBottomNav />);
+    expect(screen.getByText('Métricas').closest('a')).toHaveAttribute('href', '/trainer/metrics');
   });
 
   it('renders Más button in the tab bar', () => {
@@ -63,6 +81,34 @@ describe('TrainerMobileBottomNav', () => {
     expect(screen.getByText('Clientes').closest('a')).toHaveClass('text-kore-red');
   });
 
+  it('highlights Alertas link when pathname is /trainer/alerts', () => {
+    mockPathname = '/trainer/alerts';
+    render(<TrainerMobileBottomNav />);
+    expect(screen.getByText('Alertas').closest('a')).toHaveClass('text-kore-red');
+  });
+
+  it('highlights Métricas link when pathname is /trainer/metrics', () => {
+    mockPathname = '/trainer/metrics';
+    render(<TrainerMobileBottomNav />);
+    expect(screen.getByText('Métricas').closest('a')).toHaveClass('text-kore-red');
+  });
+
+  it('does not show alert badge when alto count is 0', () => {
+    mockedUseTrainerStore.mockReturnValue({
+      riskDashboard: { risk_summary: { alto: 0, medio: 1, bajo: 0, sin_riesgo: 2 } },
+    });
+    render(<TrainerMobileBottomNav />);
+    expect(screen.queryByText('0')).not.toBeInTheDocument();
+  });
+
+  it('shows alert badge with count when alto alerts exist', () => {
+    mockedUseTrainerStore.mockReturnValue({
+      riskDashboard: { risk_summary: { alto: 4, medio: 1, bajo: 0, sin_riesgo: 0 } },
+    });
+    render(<TrainerMobileBottomNav />);
+    expect(screen.getByText('4')).toBeInTheDocument();
+  });
+
   it('does not show the bottom sheet on initial render', () => {
     render(<TrainerMobileBottomNav />);
     expect(screen.queryByText('Más opciones')).not.toBeInTheDocument();
@@ -73,6 +119,13 @@ describe('TrainerMobileBottomNav', () => {
     render(<TrainerMobileBottomNav />);
     await user.click(screen.getByRole('button', { name: /Más/i }));
     expect(screen.getByText('Más opciones')).toBeInTheDocument();
+  });
+
+  it('shows Evidencia link in sheet', async () => {
+    const user = userEvent.setup();
+    render(<TrainerMobileBottomNav />);
+    await user.click(screen.getByRole('button', { name: /Más/i }));
+    expect(screen.getByText('Evidencia')).toBeInTheDocument();
   });
 
   it('shows Soporte link when sheet is open', async () => {

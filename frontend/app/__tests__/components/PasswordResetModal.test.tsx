@@ -57,7 +57,7 @@ describe('PasswordResetModal', () => {
   it('calls onClose when backdrop is clicked', () => {
     render(<PasswordResetModal {...defaultProps} />);
 
-    const backdrop = document.querySelector('.bg-black\\/40');
+    const backdrop = document.querySelector('.bg-white\\/40');
     if (backdrop) fireEvent.click(backdrop);
 
     expect(defaultProps.onClose).toHaveBeenCalled();

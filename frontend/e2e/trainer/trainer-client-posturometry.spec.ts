@@ -70,7 +70,7 @@ test.describe('Trainer Client Posturometry Page', { tag: [...FlowTags.TRAINER_CL
     await setupPosturometryMocks(page);
     await page.goto('/trainer/clients/client/posturometry?id=1');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Posturometría' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'Análisis postural' })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('link', { name: /Volver al cliente/i })).toBeVisible();
   });
 
@@ -79,7 +79,7 @@ test.describe('Trainer Client Posturometry Page', { tag: [...FlowTags.TRAINER_CL
     await setupPosturometryMocks(page);
     await page.goto('/trainer/clients/client/posturometry?id=1');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Posturometría' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'Análisis postural' })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('button', { name: /Nueva evaluación/i })).toBeVisible();
   });
 
@@ -88,7 +88,7 @@ test.describe('Trainer Client Posturometry Page', { tag: [...FlowTags.TRAINER_CL
     await setupPosturometryMocks(page);
     await page.goto('/trainer/clients/client/posturometry?id=1');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Posturometría' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'Análisis postural' })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Índice Global')).toBeVisible();
     await expect(page.getByText('Desbalance leve').first()).toBeVisible();
   });
@@ -98,10 +98,10 @@ test.describe('Trainer Client Posturometry Page', { tag: [...FlowTags.TRAINER_CL
     await setupPosturometryMocks(page);
     await page.goto('/trainer/clients/client/posturometry?id=1');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Posturometría' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'Análisis postural' })).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: /Nueva evaluación/i }).click();
 
-    await expect(page.getByText('Anterior')).toBeVisible();
+    await expect(page.getByText('Vista Anterior')).toBeVisible();
   });
 
   test('empty state shows only new evaluation button', async ({ page }) => {
@@ -109,7 +109,7 @@ test.describe('Trainer Client Posturometry Page', { tag: [...FlowTags.TRAINER_CL
     await setupPosturometryMocks(page, []);
     await page.goto('/trainer/clients/client/posturometry?id=1');
 
-    await expect(page.getByRole('heading', { level: 1, name: 'Posturometría' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { level: 1, name: 'Análisis postural' })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('button', { name: /Nueva evaluación/i })).toBeVisible();
   });
 });

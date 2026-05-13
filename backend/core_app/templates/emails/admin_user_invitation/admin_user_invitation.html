@@ -1,0 +1,25 @@
+<h2 style="color:#9a0526; margin-top:0; font-family: 'Cinzel', serif;">Tu cuenta KÓRE ha sido creada</h2>
+
+<p>Hola <strong>{{ first_name }}</strong>,</p>
+
+<p>Un administrador acaba de crear tu cuenta en KÓRE como <strong>{{ role_label }}</strong>. A continuación encontrarás tus credenciales temporales para ingresar.</p>
+
+<div style="background-color:#f5efe3; border:1px solid rgba(103,15,34,0.10); border-radius:12px; padding:20px; margin:24px 0;">
+  <p style="margin:0 0 12px 0; font-size:11px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:rgba(103,15,34,0.55);">Credenciales</p>
+  <p style="margin:6px 0;"><strong>Correo:</strong> <span style="font-family: 'Courier New', monospace;">{{ email }}</span></p>
+  <p style="margin:6px 0;"><strong>Contraseña temporal:</strong> <span style="font-family: 'Courier New', monospace; background:#fff; padding:4px 10px; border-radius:6px; border:1px solid rgba(103,15,34,0.15);">{{ temp_password }}</span></p>
+</div>
+
+<div style="background-color:#fff8ec; border-left:3px solid #e7c8a0; padding:14px 18px; margin:20px 0; border-radius:6px;">
+  <p style="margin:0; font-size:14px; color:#a88a2e;"><strong>🔒 Importante:</strong> al ingresar por primera vez, el sistema te pedirá establecer una nueva contraseña. Esta es solo temporal.</p>
+</div>
+
+<p style="text-align:center; margin:28px 0;">
+  <a href="{{ login_url }}" style="display:inline-block; background:linear-gradient(135deg, #9a0526, #ab0d2f); color:#ffffff; padding:12px 32px; border-radius:10px; text-decoration:none; font-weight:600; letter-spacing:0.02em;">Ingresar a KÓRE</a>
+</p>
+
+<p style="color:#888888; font-size:14px;">
+  Si no esperabas este correo, puedes ignorarlo o contactar a soporte.
+</p>
+
+<p style="margin-top:28px;">Tu equipo KÓRE</p>

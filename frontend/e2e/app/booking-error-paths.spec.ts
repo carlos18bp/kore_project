@@ -213,9 +213,9 @@ test.describe('Booking Store Error Paths', { tag: [...FlowTags.BOOKING_ERROR_PAT
 
     await page.goto('/book-session');
 
-    // Page should still render with the trainer from the bare array
+    // Page should still render with the subscription parsed from the bare (non-paginated) array
     await expect(page.getByText('Agenda tu sesión')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('Germán Franco')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('main').getByText(/Plan Kore/)).toBeVisible({ timeout: 10_000 });
   });
 
   test('authHeaders without token sends request without Authorization', async ({ page }) => {
@@ -306,6 +306,9 @@ test.describe('bookingStore extractErrorMessage branches', { tag: [...FlowTags.B
       await page.getByLabel('Mes siguiente').click();
     }
     // Click calendar day — virtual slot system enables Mon-Sat automatically
+    if (tomorrow.getMonth() !== new Date().getMonth()) {
+      await page.getByLabel('Mes siguiente').click();
+    }
     const dayBtn = page.getByRole('button', { name: dayNum, exact: true });
     await dayBtn.click({ timeout: 10_000 });
     // Select the time slot matching the mock (TimeSlotPicker defaults to 12h)

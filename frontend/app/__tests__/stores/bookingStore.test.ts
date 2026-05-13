@@ -122,6 +122,26 @@ describe('bookingStore', () => {
       expect(useBookingStore.getState().selectedSlot).toEqual(MOCK_SLOT);
     });
 
+    it('setTrainerFromAssigned maps assigned trainer to Trainer shape', () => {
+      const assigned = { id: 5, first_name: 'Ana', last_name: 'López', location: 'Studio B', session_duration_minutes: 45 };
+      useBookingStore.getState().setTrainerFromAssigned(assigned);
+      const t = useBookingStore.getState().trainer;
+      expect(t).not.toBeNull();
+      expect(t!.id).toBe(5);
+      expect(t!.first_name).toBe('Ana');
+      expect(t!.last_name).toBe('López');
+      expect(t!.location).toBe('Studio B');
+      expect(t!.session_duration_minutes).toBe(45);
+      expect(t!.user_id).toBe(0);
+      expect(t!.email).toBe('');
+    });
+
+    it('setTrainerFromAssigned sets trainer to null when called with null', () => {
+      useBookingStore.setState({ trainer: MOCK_TRAINER });
+      useBookingStore.getState().setTrainerFromAssigned(null);
+      expect(useBookingStore.getState().trainer).toBeNull();
+    });
+
     it('reset clears flow state', () => {
       useBookingStore.setState({ step: 3, selectedDate: '2025-03-01', selectedSlot: MOCK_SLOT, bookingResult: MOCK_BOOKING, error: 'err' });
       useBookingStore.getState().reset();
@@ -144,7 +164,8 @@ describe('bookingStore', () => {
       const state = useBookingStore.getState();
       expect(state.trainers).toHaveLength(1);
       expect(state.trainers[0].first_name).toBe('Germán');
-      expect(state.trainer).toEqual(MOCK_TRAINER);
+      // trainer is NOT auto-selected from fetchTrainers — it is set via setTrainerFromAssigned
+      expect(state.trainer).toBeNull();
       expect(state.loading).toBe(false);
     });
 
@@ -153,21 +174,23 @@ describe('bookingStore', () => {
       await useBookingStore.getState().fetchTrainers();
       const state = useBookingStore.getState();
       expect(state.trainers).toHaveLength(1);
-      expect(state.trainer).toEqual(MOCK_TRAINER);
+      // trainer is NOT auto-selected — it comes from setTrainerFromAssigned
+      expect(state.trainer).toBeNull();
     });
 
-    it('sets trainers to empty array and trainer to null for non-array response', async () => {
+    it('sets trainers to empty array for non-array response', async () => {
       mockedApi.get.mockResolvedValueOnce({ data: {} });
       await useBookingStore.getState().fetchTrainers();
       const state = useBookingStore.getState();
       expect(state.trainers).toEqual([]);
-      expect(state.trainer).toBeNull();
     });
 
-    it('sets trainer to null when trainers array is empty', async () => {
+    it('does not change trainer state when trainers array is empty', async () => {
+      useBookingStore.setState({ trainer: MOCK_TRAINER });
       mockedApi.get.mockResolvedValueOnce({ data: { results: [] } });
       await useBookingStore.getState().fetchTrainers();
-      expect(useBookingStore.getState().trainer).toBeNull();
+      // trainer is managed by setTrainerFromAssigned, fetchTrainers does not touch it
+      expect(useBookingStore.getState().trainer).toEqual(MOCK_TRAINER);
     });
 
     it('sends empty auth headers when no token cookie', async () => {

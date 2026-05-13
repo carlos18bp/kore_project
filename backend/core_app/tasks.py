@@ -353,3 +353,185 @@ def maintain_availability_slots():
     from django.core.management import call_command
     call_command('maintain_slots', timezone='America/Bogota')
     logger.info('maintain_availability_slots task completed')
+
+
+@db_periodic_task(crontab(minute=55, hour=23))
+def close_daily_logs():
+    """At 23:55 daily: close all open DailyLogs and mark unchecked exercises as not_done.
+
+    Also creates and immediately closes DailyLogs for customers who never opened the app
+    today, so their history is complete even if they were absent.
+
+    After close the log is immutable — the customer cannot update exercise statuses.
+    """
+    from core_app.models.monthly_program import DailyLog, ExerciseLog, MonthlyProgram, ProgramDay
+
+    today = timezone.localdate()
+    now = timezone.now()
+
+    # Phase 1: close existing open logs
+    open_logs = list(DailyLog.objects.filter(is_closed=False, date=today))
+    for log in open_logs:
+        log.is_closed = True
+        log.closed_at = now
+        log.save(update_fields=['is_closed', 'closed_at'])
+
+    # Phase 2: create + close logs for customers who never opened the app today
+    existing_customer_ids = DailyLog.objects.filter(date=today).values_list('customer_id', flat=True)
+    program_days_without_log = (
+        ProgramDay.objects.filter(
+            date=today,
+            program__status=MonthlyProgram.Status.PUBLISHED,
+            program__is_paused=False,
+        )
+        .exclude(program__customer_id__in=existing_customer_ids)
+        .select_related('program')
+        .prefetch_related('exercises')
+    )
+
+    created = 0
+    for program_day in program_days_without_log:
+        log = DailyLog.objects.create(
+            customer=program_day.program.customer,
+            program=program_day.program,
+            date=today,
+            is_closed=True,
+            closed_at=now,
+        )
+        # Only create logs for exercises with a youtube_url — exercises without a
+        # reference video are skipped from the daily flow so they don't penalize
+        # adherence (matches TodayProgramView behaviour).
+        ExerciseLog.objects.bulk_create([
+            ExerciseLog(
+                daily_log=log,
+                program_exercise=pe,
+                status=ExerciseLog.Status.NOT_DONE,
+            )
+            for pe in program_day.exercises.exclude(exercise__youtube_url='')
+        ])
+        created += 1
+
+    total_closed = len(open_logs) + created
+    logger.info('close_daily_logs: closed %d existing + created %d absent logs', len(open_logs), created)
+
+    # Phase 3: close open NutritionDailyLogs
+    from core_app.models.nutrition_daily_log import NutritionDailyLog, MealEntry
+    from core_app.services.meal_suggestion_service import get_daily_suggestions
+
+    open_nutrition = list(NutritionDailyLog.objects.filter(is_closed=False, date=today))
+    for nlog in open_nutrition:
+        nlog.is_closed = True
+        nlog.closed_at = now
+        nlog.save(update_fields=['is_closed', 'closed_at'])
+
+    # Phase 4: create + close NutritionDailyLogs for absent customers with active programs
+    existing_nutrition_ids = NutritionDailyLog.objects.filter(date=today).values_list('customer_id', flat=True)
+    customers_without_nutrition = (
+        MonthlyProgram.objects
+        .filter(
+            status=MonthlyProgram.Status.PUBLISHED,
+            start_date__lte=today,
+            end_date__gte=today,
+            is_paused=False,
+        )
+        .exclude(customer_id__in=existing_nutrition_ids)
+        .select_related('customer')
+        .values_list('customer', flat=True)
+        .distinct()
+    )
+
+    nutrition_created = 0
+    meal_blocks = [b for b, _ in MealEntry.MealBlock.choices]
+    from core_app.models import User
+    for customer_id in customers_without_nutrition:
+        try:
+            customer = User.objects.get(pk=customer_id)
+        except User.DoesNotExist:
+            continue
+        suggestions = get_daily_suggestions(customer, today)
+        nlog = NutritionDailyLog.objects.create(
+            customer=customer,
+            date=today,
+            is_closed=True,
+            closed_at=now,
+        )
+        MealEntry.objects.bulk_create([
+            MealEntry(
+                daily_log=nlog,
+                meal_block=block,
+                suggestion=suggestions.get(block),
+                status=MealEntry.Status.NOT_DONE,
+            )
+            for block in meal_blocks
+        ])
+        nutrition_created += 1
+
+    logger.info(
+        'close_daily_logs: nutrition — closed %d existing + created %d absent',
+        len(open_nutrition), nutrition_created,
+    )
+    return {
+        'exercise_closed': len(open_logs),
+        'exercise_created_absent': created,
+        'nutrition_closed': len(open_nutrition),
+        'nutrition_created_absent': nutrition_created,
+    }
+
+
+@db_periodic_task(crontab(minute=0, hour=0))
+def complete_finished_programs():
+    """Mark published MonthlyPrograms whose end_date has passed as completed.
+
+    Runs daily at midnight (TIME_ZONE). Programs with end_date < today and
+    status=published are transitioned to status=completed.
+    """
+    from django.utils.timezone import localdate
+    from core_app.models.monthly_program import MonthlyProgram
+
+    today = localdate()
+    finished = MonthlyProgram.objects.filter(
+        status=MonthlyProgram.Status.PUBLISHED,
+        end_date__lt=today,
+    )
+    count = finished.update(status=MonthlyProgram.Status.COMPLETED)
+    logger.info('complete_finished_programs: marked %d programs as completed', count)
+    return {'completed': count}
+
+
+@db_periodic_task(crontab(minute=0, hour=6))
+def compute_daily_alerts():
+    """At 06:00 daily: compute behavioral and clinical risk scores for all active clients.
+
+    Runs after close_daily_logs (23:55) so all DailyLog records for the previous
+    day are complete and reliable.
+    """
+    from django.utils.timezone import localdate
+    from core_app.models.monthly_program import MonthlyProgram
+    from core_app.services.risk_score_service import recompute_risk_score
+
+    today = localdate()
+    processed = 0
+    errors = 0
+
+    active_programs = (
+        MonthlyProgram.objects
+        .filter(status=MonthlyProgram.Status.PUBLISHED)
+        .select_related('customer', 'trainer')
+        .distinct()
+    )
+
+    for program in active_programs:
+        if program.trainer is None:
+            continue
+        try:
+            recompute_risk_score(program.customer, today=today)
+            processed += 1
+        except Exception as exc:
+            logger.exception(
+                'compute_daily_alerts: error processing customer %s: %s',
+                program.customer.pk, exc,
+            )
+            errors += 1
+
+    logger.info('compute_daily_alerts: processed=%d errors=%d', processed, errors)
+    return {'processed': processed, 'errors': errors}

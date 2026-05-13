@@ -3,13 +3,28 @@ from datetime import timedelta
 from django.db import models as db_models, transaction
 from django.utils import timezone
 from rest_framework import serializers
+from rest_framework.exceptions import APIException
 
-from core_app.models import AvailabilitySlot, Booking, Package, Subscription, TrainerProfile
+from core_app.models import AvailabilitySlot, Booking, Package, ProgramDay, Subscription, TrainerProfile
 from core_app.serializers.availability_serializers import AvailabilitySlotSerializer
 from core_app.serializers.package_serializers import PackageSerializer
 from core_app.serializers.trainer_profile_serializers import TrainerProfileSerializer
 from core_app.services.booking_rules import has_trainer_travel_buffer_conflict
 from core_app.services.slot_schedule import BOOKING_HORIZON_DAYS
+
+
+# Raised (instead of serializers.ValidationError) so the 400 body carries a machine-readable
+# `code` field alongside `detail`; the frontend keys off `code == 'no_trainer_assigned'`.
+class NoTrainerAssignedException(APIException):
+    """Raised when a customer without an assigned trainer attempts to book."""
+
+    status_code = 400
+
+    def __init__(self):
+        self.detail = {
+            'detail': 'Aún no puedes agendar. Espera a que te asignen un entrenador.',
+            'code': 'no_trainer_assigned',
+        }
 
 
 class BookingSerializer(serializers.ModelSerializer):
@@ -20,12 +35,13 @@ class BookingSerializer(serializers.ModelSerializer):
     ``subscription_id`` as primary-key references.
 
     Validations enforced on create:
-    - Slot must be active, unblocked, and in the future.
+    - Slot must be active, unblocked, in the future, and within the 30-day horizon.
+    - Slot must start at least 16 hours from now.
     - Slot must not already be booked.
     - No time-overlap with the customer's other active bookings.
     - Slot must respect a 45-minute travel buffer for the same trainer.
     - If a subscription is provided, it must have remaining sessions.
-    - New session must start after the end of the last session in the same subscription.
+    - The customer must have an assigned trainer, and the slot must belong to them.
     """
 
     customer_id = serializers.IntegerField(read_only=True, source='customer.id')
@@ -36,6 +52,7 @@ class BookingSerializer(serializers.ModelSerializer):
     subscription_id_display = serializers.IntegerField(
         source='subscription.id', read_only=True, allow_null=True,
     )
+    program_day_exercises = serializers.SerializerMethodField()
 
     package_id = serializers.PrimaryKeyRelatedField(
         queryset=Package.objects.all(),
@@ -78,10 +95,39 @@ class BookingSerializer(serializers.ModelSerializer):
             'status',
             'notes',
             'canceled_reason',
+            'session_objective',
+            'session_notes_for_customer',
+            'program_day_exercises',
             'created_at',
             'updated_at',
         )
         read_only_fields = ('status', 'created_at', 'updated_at')
+
+    def get_program_day_exercises(self, obj):
+        """Return planned exercises for the booking's date from the customer's active program."""
+        date = obj.slot.starts_at.date() if obj.slot else None
+        if not date:
+            return []
+        program_day = (
+            ProgramDay.objects.filter(
+                program__customer=obj.customer,
+                program__status='published',
+                date=date,
+            )
+            .prefetch_related('exercises__exercise')
+            .first()
+        )
+        if not program_day:
+            return []
+        return [
+            {
+                'name': pe.exercise.name,
+                'sets': pe.sets,
+                'reps': pe.reps,
+                'duration_seconds': pe.duration_seconds,
+            }
+            for pe in program_day.exercises.all()
+        ]
 
     # ------------------------------------------------------------------
     # Validation
@@ -104,10 +150,22 @@ class BookingSerializer(serializers.ModelSerializer):
         Raises:
             serializers.ValidationError: If any check fails.
         """
-        slot = attrs.get('slot')
-        trainer = attrs.get('trainer')
         request = self.context.get('request')
         customer = getattr(request, 'user', None) if request else None
+        if customer is not None and getattr(customer, 'is_authenticated', False):
+            if getattr(customer, 'role', None) == 'customer':
+                assigned = getattr(customer, 'assigned_trainer', None)
+                if assigned is None:
+                    raise NoTrainerAssignedException()
+                attrs['trainer'] = assigned
+
+        slot = attrs.get('slot')
+        trainer = attrs.get('trainer')
+
+        if slot is not None and slot.trainer_id is not None:
+            chosen_trainer = attrs.get('trainer')
+            if chosen_trainer is not None and slot.trainer_id != chosen_trainer.id:
+                raise serializers.ValidationError({'slot_id': 'Ese horario no es de tu entrenador.'})
 
         if slot:
             self._validate_slot_available(slot)
@@ -121,9 +179,6 @@ class BookingSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {'subscription_id': 'La suscripción no tiene sesiones disponibles.'}
             )
-
-        if subscription and slot:
-            self._validate_chronological_order(subscription, slot)
 
         return attrs
 
@@ -197,27 +252,6 @@ class BookingSerializer(serializers.ModelSerializer):
                         'de cada sesión del mismo entrenador.'
                     )
                 }
-            )
-
-    @staticmethod
-    def _validate_chronological_order(subscription, slot):
-        """Ensure the new session starts after the end of the last session in the same subscription.
-
-        Args:
-            subscription: Subscription instance.
-            slot: AvailabilitySlot to check against.
-
-        Raises:
-            serializers.ValidationError: If the slot starts before the last session ends.
-        """
-        last_booking = Booking.objects.filter(
-            subscription=subscription,
-            status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
-        ).select_related('slot').order_by('-slot__ends_at').first()
-
-        if last_booking and slot.starts_at < last_booking.slot.ends_at:
-            raise serializers.ValidationError(
-                {'slot_id': 'La sesión debe iniciar después del final de la última sesión del programa.'}
             )
 
     # ------------------------------------------------------------------

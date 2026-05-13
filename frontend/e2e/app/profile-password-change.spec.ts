@@ -107,6 +107,6 @@ test.describe('Profile Password Change', { tag: [...FlowTags.PROFILE_PASSWORD_CH
     await expect(btn).toBeEnabled({ timeout: 10_000 });
     await btn.click();
 
-    await expect(page.getByRole('button', { name: /Enviando código/i })).toBeDisabled({ timeout: 5_000 });
+    await expect(page.getByRole('button', { name: /Enviando/i })).toBeDisabled({ timeout: 5_000 });
   });
 });

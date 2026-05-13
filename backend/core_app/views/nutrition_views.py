@@ -9,6 +9,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 from rest_framework import serializers, status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -39,6 +40,8 @@ class NutritionHabitSerializer(serializers.ModelSerializer):
             'habit_score',
             'habit_category',
             'habit_color',
+            'trainer_notes',
+            'trainer_approved_at',
             'created_at',
         )
         read_only_fields = (
@@ -47,6 +50,8 @@ class NutritionHabitSerializer(serializers.ModelSerializer):
             'habit_score',
             'habit_category',
             'habit_color',
+            'trainer_notes',
+            'trainer_approved_at',
             'created_at',
         )
 
@@ -141,29 +146,47 @@ class TrainerNutritionListView(APIView):
 
 
 class TrainerNutritionDetailView(APIView):
-    """Get a specific nutrition entry for a trainer's client.
+    """GET / PATCH a specific nutrition entry for a trainer's client.
 
-    GET /api/trainer/my-clients/<id>/nutrition/<eval_id>/
+    GET   /api/trainer/my-clients/<id>/nutrition/<eval_id>/
+    PATCH /api/trainer/my-clients/<id>/nutrition/<eval_id>/
+          Body: { trainer_notes?: str, approve?: bool }
     """
 
     permission_classes = [IsAuthenticated, IsTrainerRole]
 
-    def get(self, request, customer_id, eval_id):
+    def _get_entry(self, request, customer_id, eval_id):
         trainer_profile = getattr(request.user, 'trainer_profile', None)
         if not trainer_profile:
-            return Response({'detail': 'No trainer profile.'}, status=status.HTTP_404_NOT_FOUND)
-
+            return None, Response({'detail': 'No trainer profile.'}, status=status.HTTP_404_NOT_FOUND)
         has_bookings = Booking.objects.filter(
             trainer=trainer_profile, customer_id=customer_id,
         ).exists()
         if not has_bookings:
-            return Response({'detail': 'Cliente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-
+            return None, Response({'detail': 'Cliente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         try:
-            entry = NutritionHabit.objects.get(
-                id=eval_id, customer_id=customer_id,
-            )
+            entry = NutritionHabit.objects.get(id=eval_id, customer_id=customer_id)
         except NutritionHabit.DoesNotExist:
-            return Response({'detail': 'Registro no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+            return None, Response({'detail': 'Registro no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        return entry, None
 
+    def get(self, request, customer_id, eval_id):
+        entry, err = self._get_entry(request, customer_id, eval_id)
+        if err:
+            return err
+        return Response(NutritionHabitSerializer(entry).data)
+
+    def patch(self, request, customer_id, eval_id):
+        entry, err = self._get_entry(request, customer_id, eval_id)
+        if err:
+            return err
+        update_fields = ['updated_at']
+        trainer_notes = request.data.get('trainer_notes')
+        if trainer_notes is not None:
+            entry.trainer_notes = trainer_notes
+            update_fields.append('trainer_notes')
+        if request.data.get('approve'):
+            entry.trainer_approved_at = timezone.now()
+            update_fields.append('trainer_approved_at')
+        entry.save(update_fields=update_fields)
         return Response(NutritionHabitSerializer(entry).data)

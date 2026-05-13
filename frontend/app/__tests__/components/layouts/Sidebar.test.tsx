@@ -64,15 +64,19 @@ describe('Sidebar', () => {
   it('renders navigation items', () => {
     render(<Sidebar />);
     expect(screen.getByText('Inicio')).toBeInTheDocument();
-    expect(screen.getByText('Agendar Sesión')).toBeInTheDocument();
     expect(screen.getByText('Mi Suscripción')).toBeInTheDocument();
   });
 
-  it('highlights active nav item based on pathname', () => {
-    mockPathname = '/book-session';
+  it('does not include "Agendar Sesión" — booking is reached from the dashboard CTA', () => {
     render(<Sidebar />);
-    const bookSessionLink = screen.getByText('Agendar Sesión').closest('a');
-    expect(bookSessionLink).toHaveClass('bg-kore-red/10');
+    expect(screen.queryByText('Agendar Sesión')).not.toBeInTheDocument();
+  });
+
+  it('highlights active nav item based on pathname', () => {
+    mockPathname = '/dashboard';
+    render(<Sidebar />);
+    const dashboardLink = screen.getByText('Inicio').closest('a');
+    expect(dashboardLink).toHaveClass('bg-kore-red/10');
   });
 
   it('highlights Mi Suscripción for nested routes', () => {
@@ -148,7 +152,7 @@ describe('Sidebar', () => {
     expect(screen.queryByText('customer10@kore.com')).not.toBeInTheDocument();
   });
 
-  it('calls markSeen for anthropometry when Mi Diagnóstico is clicked', async () => {
+  it('calls markSeen for anthropometry when Antropometría is clicked', async () => {
     const markSeenSpy = jest.fn();
     usePendingAssessmentsStore.setState({
       anthropometryUnseen: true,
@@ -157,7 +161,7 @@ describe('Sidebar', () => {
     });
     const user = userEvent.setup();
     render(<Sidebar />);
-    await user.click(screen.getByText('Mi Diagnóstico'));
+    await user.click(screen.getByText('Antropometría'));
     expect(markSeenSpy).toHaveBeenCalledWith('anthropometry');
   });
 

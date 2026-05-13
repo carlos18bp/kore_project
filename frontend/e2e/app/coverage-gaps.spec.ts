@@ -112,6 +112,9 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
       await page.getByLabel('Mes siguiente').click();
     }
     const targetDay = String(tomorrow.getDate());
+    if (tomorrow.getMonth() !== new Date().getMonth()) {
+      await page.getByLabel('Mes siguiente').click();
+    }
     const enabledDay = page.getByRole('button', { name: new RegExp(`^${targetDay}$`) });
     const dayExists = await enabledDay.isVisible().catch(() => false);
     const dayDisabled = dayExists ? await enabledDay.isDisabled().catch(() => true) : true;
@@ -161,12 +164,10 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
     await page.goto('/subscription');
 
     const subMain = page.getByRole('main');
-    await expect(subMain.getByText('Paquete Pro').filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
-    await expect(
-      subMain.getByRole('button').filter({ hasText: 'Paquete Pro' }).getByText('Activa', { exact: true }),
-    ).toBeVisible();
-    await expect(subMain.getByText('3 de 8 completadas').filter({ visible: true }).first()).toBeVisible();
-    await expect(subMain.getByText('Avance: 38%').filter({ visible: true }).first()).toBeVisible();
+    await expect(subMain.getByRole('heading', { name: 'Paquete Pro' })).toBeVisible({ timeout: 10_000 });
+    await expect(subMain.getByText('● Activa')).toBeVisible();
+    await expect(subMain.getByText('3 de 8 sesiones')).toBeVisible();
+    await expect(subMain.getByText('38%')).toBeVisible();
   });
 
   test('subscription page shows expired subscription in inactivas', async ({ page }) => {
@@ -203,10 +204,8 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
     await page.goto('/subscription');
 
     const subMainExpired = page.getByRole('main');
-    await expect(subMainExpired.getByText('Paquete Básico').filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
-    await expect(
-      subMainExpired.getByRole('button').filter({ hasText: 'Paquete Básico' }).getByText('Expirada', { exact: true }),
-    ).toBeVisible();
+    await expect(subMainExpired.getByRole('heading', { name: 'Paquete Básico' })).toBeVisible({ timeout: 10_000 });
+    await expect(subMainExpired.getByText('● Expirada')).toBeVisible();
   });
 
   test('subscription page shows canceled subscription in inactivas', async ({ page }) => {
@@ -243,10 +242,8 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
     await page.goto('/subscription');
 
     const subMainCanceled = page.getByRole('main');
-    await expect(subMainCanceled.getByText('Paquete Premium').filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
-    await expect(
-      subMainCanceled.getByRole('button').filter({ hasText: 'Paquete Premium' }).getByText('Cancelada', { exact: true }),
-    ).toBeVisible();
+    await expect(subMainCanceled.getByRole('heading', { name: 'Paquete Premium' })).toBeVisible({ timeout: 10_000 });
+    await expect(subMainCanceled.getByText('● Cancelada')).toBeVisible();
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -286,10 +283,8 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
     await page.goto('/subscription');
 
     const subMainUnknown = page.getByRole('main');
-    await expect(subMainUnknown.getByText('Paquete Especial').filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
-    await expect(
-      subMainUnknown.getByRole('button').filter({ hasText: 'Paquete Especial' }).getByText('archived', { exact: true }),
-    ).toBeVisible();
+    await expect(subMainUnknown.getByRole('heading', { name: 'Paquete Especial' })).toBeVisible({ timeout: 10_000 });
+    await expect(subMainUnknown.getByText('● archived')).toBeVisible();
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -432,6 +427,9 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
       await page.getByLabel('Mes siguiente').click();
     }
     const dayNum = _bktomorrow.getDate().toString();
+    if (_bktomorrow.getMonth() !== new Date().getMonth()) {
+      await page.getByLabel('Mes siguiente').click();
+    }
     const dayBtn = page.getByRole('button', { name: dayNum, exact: true });
     await dayBtn.click({ timeout: 10_000 });
     const slotBtn = page.getByRole('button', { name: _bkSlotLabel, exact: true });
@@ -474,49 +472,4 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
     await expect(page.getByText('Este horario ya está reservado.')).toBeVisible({ timeout: 10_000 });
   });
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // TimeSlotPicker.tsx lines 10-15 — use24h=false branch of formatTime
-  // Exercised by clicking the '12h' toggle button when slots are rendered.
-  // ─────────────────────────────────────────────────────────────────────────
-  test('TimeSlotPicker 24h toggle changes slot time format to 24h', async ({ page }) => {
-    await mockLoginAsTestUser(page);
-    await setupBookSessionMocksForError(page);
-    await page.route('**/api/bookings/', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }) });
-      } else {
-        await route.fallback();
-      }
-    });
-
-    await page.goto('/book-session');
-    // If targetDay falls in a future month (end-of-month case), navigate forward.
-    {
-      const today = new Date();
-      if (
-        _bktomorrow.getMonth() !== today.getMonth() ||
-        _bktomorrow.getFullYear() !== today.getFullYear()
-      ) {
-        await page.getByLabel('Mes siguiente').click();
-      }
-    }
-    const dayNum = _bktomorrow.getDate().toString();
-    const dayBtn = page.getByRole('button', { name: dayNum, exact: true });
-    await dayBtn.click({ timeout: 10_000 });
-
-    // Slot should appear in 12h (AM/PM) format initially (TimeSlotPicker default)
-    await page.getByRole('button', { name: _bkSlotLabel, exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
-
-    // Click 24h toggle — exercises TimeSlotPicker.tsx use24h=true branch
-    await page.getByRole('button', { name: '24h' }).click();
-
-    // Slot button should now show 24h format (no AM/PM)
-    const fmt24 = (iso: string) => new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-    const label24h = `${fmt24(_bkSlot.starts_at)} \u2014 ${fmt24(_bkSlot.ends_at)}`;
-    await expect(page.getByRole('button', { name: label24h, exact: true })).toBeVisible({ timeout: 5_000 });
-
-    // Toggle back to 12h
-    await page.getByRole('button', { name: '12h' }).click();
-    await expect(page.getByRole('button', { name: _bkSlotLabel, exact: true })).toBeVisible({ timeout: 5_000 });
-  });
 });

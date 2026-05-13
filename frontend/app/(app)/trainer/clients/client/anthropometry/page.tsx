@@ -6,6 +6,10 @@ import { useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useAnthropometryStore, type AnthropometryFormData, type AnthropometryEvaluation } from '@/lib/stores/anthropometryStore';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
+import HeroOrbsCard from '@/app/components/shared/HeroOrbsCard';
+import SectionLabel from '@/app/components/shared/SectionLabel';
+import ExplainerCard from '@/app/components/shared/ExplainerCard';
+import { EVAL_EXPLAINERS } from '@/lib/content/eval-explainers';
 
 const COLOR_MAP: Record<string, string> = {
   green: 'bg-green-100 text-green-700 border-green-200',
@@ -188,14 +192,34 @@ function TrainerAnthropometryPage() {
   return (
     <section ref={sectionRef} className="min-h-screen bg-kore-cream">
       <div className="w-full px-6 md:px-10 lg:px-16 pt-20 xl:pt-8 pb-16">
-        <div data-hero="badge" className="mb-8">
+        <div data-hero="badge" className="mb-5">
           <Link href={`/trainer/clients/client?id=${clientId}`} className="inline-flex items-center gap-1 text-xs text-kore-gray-dark/40 hover:text-kore-red transition-colors mb-3">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
             </svg>
             Volver al cliente
           </Link>
-          <h1 className="font-heading text-2xl md:text-3xl font-semibold text-kore-gray-dark">Antropometría</h1>
+          <SectionLabel className="mb-0.5">{EVAL_EXPLAINERS.anthropometry.badge}</SectionLabel>
+          <h1 className="font-heading text-2xl md:text-3xl font-semibold text-kore-gray-dark">{EVAL_EXPLAINERS.anthropometry.heading}</h1>
+        </div>
+
+        <div data-hero="heading" className="mb-5">
+          <HeroOrbsCard radius="2xl">
+            <div className="p-6">
+              <SectionLabel tone="dark" className="mb-2">{EVAL_EXPLAINERS.anthropometry.badge}</SectionLabel>
+              <p className="text-white text-base font-semibold leading-snug mb-2">{EVAL_EXPLAINERS.anthropometry.heading}</p>
+              <p className="text-white/70 text-sm leading-relaxed">{EVAL_EXPLAINERS.anthropometry.bodyTrainer}</p>
+            </div>
+          </HeroOrbsCard>
+        </div>
+
+        <div data-hero="body" className="mb-6">
+          <ExplainerCard
+            tone="neutral"
+            whatIs={EVAL_EXPLAINERS.anthropometry.whatIs}
+            importance={EVAL_EXPLAINERS.anthropometry.importance}
+            nextStep={EVAL_EXPLAINERS.anthropometry.nextStep}
+          />
         </div>
 
         {error && (

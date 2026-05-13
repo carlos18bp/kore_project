@@ -39,6 +39,7 @@ type ParqState = {
   fetchMyAssessments: () => Promise<void>;
   createAssessment: (data: ParqFormData) => Promise<ParqAssessment | null>;
   fetchClientAssessments: (clientId: number) => Promise<void>;
+  updateNotes: (clientId: number, evalId: number, notes: string) => Promise<void>;
 };
 
 function authHeaders() {
@@ -93,5 +94,16 @@ export const useParqStore = create<ParqState>((set) => ({
     } catch {
       set({ error: 'No se pudieron cargar las evaluaciones PAR-Q.', loading: false });
     }
+  },
+
+  updateNotes: async (clientId: number, evalId: number, notes: string) => {
+    try {
+      const { data } = await api.patch(
+        `/trainer/my-clients/${clientId}/parq/${evalId}/`,
+        { additional_notes: notes },
+        { headers: authHeaders() },
+      );
+      set((s) => ({ assessments: s.assessments.map(a => a.id === evalId ? data : a) }));
+    } catch { /* noop */ }
   },
 }));

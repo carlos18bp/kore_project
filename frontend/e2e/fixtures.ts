@@ -14,6 +14,14 @@ export const E2E_USER = {
 
 const FAKE_TOKEN = 'fake-e2e-jwt-token-for-testing';
 
+const FAKE_ASSIGNED_TRAINER = {
+  id: 1,
+  first_name: 'Germán Eduardo',
+  last_name: 'Franco Moreno',
+  location: 'KÓRE Studio — Calle 93 #11-26, Bogotá',
+  session_duration_minutes: 60,
+};
+
 const FAKE_USER_COOKIE = JSON.stringify({
   id: 999,
   email: E2E_USER.email,
@@ -24,6 +32,8 @@ const FAKE_USER_COOKIE = JSON.stringify({
   name: E2E_USER.fullName,
   profile_completed: true,
   avatar_url: null,
+  must_change_password: false,
+  assigned_trainer: FAKE_ASSIGNED_TRAINER,
 });
 
 /**
@@ -73,7 +83,7 @@ export async function injectAuthCookies(page: Page) {
 export async function mockLoginAsTestUser(page: Page) {
   await injectAuthCookies(page);
   await setupDefaultApiMocks(page);
-  await page.goto('http://localhost:3000/dashboard');
+  await page.goto('/dashboard');
 }
 
 /**
@@ -118,6 +128,7 @@ export async function mockAuthProfile(page: Page) {
           role: 'customer',
           profile_completed: true,
           avatar_url: null,
+          assigned_trainer: FAKE_ASSIGNED_TRAINER,
           customer_profile: {
             profile_completed: true,
             sex: 'M',

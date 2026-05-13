@@ -2,12 +2,13 @@ import { test, expect, injectAuthCookies, setupDefaultApiMocks } from '../fixtur
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
- * E2E tests for the Customer PAR-Q page (/my-parq).
- * Covers risk assessment display, questionnaire form, history, and empty state.
+ * E2E tests for the redesigned Customer PAR-Q+ page (/my-parq).
+ * Covers the result hero/stamp, the read-only questions list, the questionnaire
+ * form, history, and the empty state.
  */
 test.describe('Customer PAR-Q Page', { tag: [...FlowTags.CUSTOMER_PARQ, RoleTags.USER] }, () => {
 
-  const fakeAssessment = {
+  const lowRiskAssessment = {
     id: 1,
     created_at: '2026-01-10T10:00:00Z',
     q1_heart_condition: false,
@@ -23,7 +24,7 @@ test.describe('Customer PAR-Q Page', { tag: [...FlowTags.CUSTOMER_PARQ, RoleTags
     risk_color: 'green',
   };
 
-  async function goToParqWithData(page: import('@playwright/test').Page, assessments = [fakeAssessment]) {
+  async function goToParqWithData(page: import('@playwright/test').Page, assessments = [lowRiskAssessment]) {
     await injectAuthCookies(page);
     await setupDefaultApiMocks(page, ['my-parq']);
     await page.route('**/api/my-parq/', async (route) => {
@@ -37,7 +38,7 @@ test.describe('Customer PAR-Q Page', { tag: [...FlowTags.CUSTOMER_PARQ, RoleTags
         await route.fulfill({
           status: 201,
           contentType: 'application/json',
-          body: JSON.stringify(fakeAssessment),
+          body: JSON.stringify(lowRiskAssessment),
         });
       }
     });
@@ -46,42 +47,44 @@ test.describe('Customer PAR-Q Page', { tag: [...FlowTags.CUSTOMER_PARQ, RoleTags
   }
 
   test('renders page heading and description', async ({ page }) => {
-    await goToParqWithData(page);
+    await goToParqWithData(page, []);
 
     await expect(page.getByRole('heading', { level: 1, name: 'PAR-Q+' })).toBeVisible();
     await expect(page.getByText(/Cuestionario de Preparación para la Actividad Física/)).toBeVisible();
   });
 
-  test('renders latest risk assessment badge', async ({ page }) => {
+  test('renders the result hero with the affirmative-answers count', async ({ page }) => {
     await goToParqWithData(page);
 
-    await expect(page.getByText('Riesgo bajo').first()).toBeVisible();
-    await expect(page.getByText('0 de 7 respuestas afirmativas').first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Tu cuerpo está listo' })).toBeVisible();
+    await expect(page.getByText('Apto sin restricciones').first()).toBeVisible();
+    await expect(page.getByText(/0 síes de 7/)).toBeVisible();
   });
 
-  test('renders update button when assessment exists', async ({ page }) => {
+  test('renders the "new PAR-Q+" button when an assessment exists', async ({ page }) => {
     await goToParqWithData(page);
 
-    await expect(page.getByRole('button', { name: /Actualizar PAR-Q/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Hacer nuevo PAR-Q\+/ })).toBeVisible();
   });
 
-  test('clicking update button shows questionnaire form', async ({ page }) => {
+  test('clicking the new-PAR-Q+ button shows the questionnaire form', async ({ page }) => {
     await goToParqWithData(page);
 
-    await page.getByRole('button', { name: /Actualizar PAR-Q/i }).click();
-    await expect(page.getByRole('heading', { name: 'Preguntas generales de salud' })).toBeVisible();
+    await page.getByRole('button', { name: /Hacer nuevo PAR-Q\+/ }).click();
+
+    await expect(page.getByRole('heading', { name: 'Hacer nuevo PAR-Q+' })).toBeVisible();
     await expect(page.getByText(/¿Algún médico le ha dicho que tiene una condición cardíaca/)).toBeVisible();
   });
 
-  test('empty state shows complete button', async ({ page }) => {
+  test('empty state shows the complete-PAR-Q+ button', async ({ page }) => {
     await goToParqWithData(page, []);
 
-    await expect(page.getByRole('button', { name: 'Completar PAR-Q' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Completar PAR-Q+' })).toBeVisible();
   });
 
-  test('high risk assessment shows red badge', async ({ page }) => {
+  test('high-risk assessment shows the medical-review classification', async ({ page }) => {
     const highRisk = {
-      ...fakeAssessment,
+      ...lowRiskAssessment,
       q1_heart_condition: true,
       q2_chest_pain: true,
       q4_chronic_condition: true,
@@ -91,7 +94,8 @@ test.describe('Customer PAR-Q Page', { tag: [...FlowTags.CUSTOMER_PARQ, RoleTags
     };
     await goToParqWithData(page, [highRisk]);
 
-    await expect(page.getByText('Riesgo alto').first()).toBeVisible();
-    await expect(page.getByText('3 de 7 respuestas afirmativas').first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Confirmación médica antes de avanzar' })).toBeVisible();
+    await expect(page.getByText('Requiere valoración médica').first()).toBeVisible();
+    await expect(page.getByText(/3 síes de 7/)).toBeVisible();
   });
 });

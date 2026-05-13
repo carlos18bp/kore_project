@@ -107,7 +107,7 @@ test.describe('Subscription Cancel Flow', { tag: [...FlowTags.SUBSCRIPTION_CANCE
 
     await page.getByRole('button', { name: 'Sí, cancelar' }).click();
 
-    await expect(page.getByText('Cancelada', { exact: true }).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('● Cancelada')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole('button', { name: 'Cancelar suscripción' })).not.toBeVisible();
   });
 
@@ -123,8 +123,8 @@ test.describe('Subscription Cancel Flow', { tag: [...FlowTags.SUBSCRIPTION_CANCE
     await setupMocks(page, expiredSub);
     await page.goto('/subscription');
 
-    await expect(page.getByText('Expirada', { exact: true }).first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole('link', { name: 'Renovar este programa' })).toBeVisible();
+    await expect(page.getByText('● Expirada')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('link', { name: 'Renovar este programa →' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Cancelar suscripción' })).not.toBeVisible();
   });
 
@@ -134,7 +134,7 @@ test.describe('Subscription Cancel Flow', { tag: [...FlowTags.SUBSCRIPTION_CANCE
     await setupMocks(page, canceledSub);
     await page.goto('/subscription');
 
-    await expect(page.getByText('Cancelada', { exact: true }).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('● Cancelada')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole('button', { name: 'Cancelar suscripción' })).not.toBeVisible();
   });
 });

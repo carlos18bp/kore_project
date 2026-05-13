@@ -55,6 +55,7 @@ async function setupBookSessionBaseMocks(page: import('@playwright/test').Page) 
           last_name: 'Prueba',
           phone: '',
           role: 'customer',
+          assigned_trainer: { id: 1, first_name: 'Germán', last_name: 'Franco', location: 'KÓRE Studio', session_duration_minutes: 60 },
         },
       }),
     }),

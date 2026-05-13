@@ -59,6 +59,7 @@ export type Subscription = {
   sessions_total: number;
   sessions_used: number;
   sessions_remaining: number;
+  sessions_completed: number;
   status: 'active' | 'expired' | 'canceled';
   starts_at: string;
   expires_at: string;
@@ -67,6 +68,13 @@ export type Subscription = {
   billing_failed_at: string | null;
   is_guest?: boolean;
   guest_info?: GuestInfo | null;
+};
+
+export type ProgramDayExercise = {
+  name: string;
+  sets: number;
+  reps: number | null;
+  duration_seconds: number | null;
 };
 
 export type BookingData = {
@@ -79,6 +87,9 @@ export type BookingData = {
   status: 'pending' | 'confirmed' | 'canceled';
   notes: string;
   canceled_reason: string;
+  session_objective: string;
+  session_notes_for_customer: string;
+  program_day_exercises: ProgramDayExercise[];
   created_at: string;
   updated_at: string;
 };
@@ -124,6 +135,7 @@ type BookingState = {
   setStep: (step: BookingStep) => void;
   setSelectedDate: (date: string | null) => void;
   setSelectedSlot: (slot: Slot | null) => void;
+  setTrainerFromAssigned: (t: { id: number; first_name: string; last_name: string; location: string; session_duration_minutes: number } | null) => void;
   reset: () => void;
 
   // Actions — API
@@ -200,6 +212,16 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   setStep: (step) => set({ step }),
   setSelectedDate: (date) => set({ selectedDate: date, selectedSlot: null }),
   setSelectedSlot: (slot) => set({ selectedSlot: slot }),
+  setTrainerFromAssigned: (t) => {
+    if (!t) { set({ trainer: null }); return; }
+    set({
+      trainer: {
+        id: t.id, user_id: 0, first_name: t.first_name, last_name: t.last_name,
+        email: '', specialty: '', bio: '', location: t.location,
+        session_duration_minutes: t.session_duration_minutes,
+      },
+    });
+  },
   reset: () =>
     set({
       step: 1,
@@ -217,7 +239,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
         headers: authHeaders(),
       });
       const trainers = data.results ?? data;
-      set({ trainers: Array.isArray(trainers) ? trainers : [], trainer: (Array.isArray(trainers) ? trainers[0] : null) ?? null });
+      set({ trainers: Array.isArray(trainers) ? trainers : [] });
     } catch {
       set({ error: 'No se pudieron cargar los entrenadores.' });
     } finally {

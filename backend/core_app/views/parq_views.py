@@ -141,29 +141,41 @@ class TrainerParqListView(APIView):
 
 
 class TrainerParqDetailView(APIView):
-    """Get a specific PAR-Q assessment for a trainer's client.
+    """GET / PATCH a specific PAR-Q assessment for a trainer's client.
 
-    GET /api/trainer/my-clients/<id>/parq/<eval_id>/
+    GET   /api/trainer/my-clients/<id>/parq/<eval_id>/
+    PATCH /api/trainer/my-clients/<id>/parq/<eval_id>/
     """
 
     permission_classes = [IsAuthenticated, IsTrainerRole]
 
-    def get(self, request, customer_id, eval_id):
+    def _get_entry(self, request, customer_id, eval_id):
         trainer_profile = getattr(request.user, 'trainer_profile', None)
         if not trainer_profile:
-            return Response({'detail': 'No trainer profile.'}, status=status.HTTP_404_NOT_FOUND)
-
+            return None, Response({'detail': 'No trainer profile.'}, status=status.HTTP_404_NOT_FOUND)
         has_bookings = Booking.objects.filter(
             trainer=trainer_profile, customer_id=customer_id,
         ).exists()
         if not has_bookings:
-            return Response({'detail': 'Cliente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-
+            return None, Response({'detail': 'Cliente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         try:
-            entry = ParqAssessment.objects.get(
-                id=eval_id, customer_id=customer_id,
-            )
+            entry = ParqAssessment.objects.get(id=eval_id, customer_id=customer_id)
         except ParqAssessment.DoesNotExist:
-            return Response({'detail': 'Evaluación no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+            return None, Response({'detail': 'Evaluación no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+        return entry, None
 
+    def get(self, request, customer_id, eval_id):
+        entry, err = self._get_entry(request, customer_id, eval_id)
+        if err:
+            return err
+        return Response(ParqAssessmentSerializer(entry).data)
+
+    def patch(self, request, customer_id, eval_id):
+        entry, err = self._get_entry(request, customer_id, eval_id)
+        if err:
+            return err
+        additional_notes = request.data.get('additional_notes')
+        if additional_notes is not None:
+            entry.additional_notes = additional_notes
+            entry.save(update_fields=['additional_notes', 'updated_at'])
         return Response(ParqAssessmentSerializer(entry).data)

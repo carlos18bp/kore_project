@@ -13,46 +13,41 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
     await expect(page.getByRole('heading', { level: 1, name: new RegExp(E2E_USER.firstName) })).toBeVisible();
   });
 
-  test('renders progress card', async ({ page }) => {
+  test('renders progress section', async ({ page }) => {
     const main = page.getByRole('main');
-    await expect(main.getByText('Tu progreso', { exact: true }).filter({ visible: true })).toBeVisible();
-    await expect(main.getByText(/completadas de \d+/).filter({ visible: true })).toBeVisible();
+    await expect(main.getByText('Mi Progreso').filter({ visible: true })).toBeVisible({ timeout: 10_000 });
   });
 
-  test('renders sessions remaining', async ({ page }) => {
+  test('renders session card', async ({ page }) => {
+    const main = page.getByRole('main');
     await expect(
-      page.getByRole('main').getByText(/completadas de \d+/).filter({ visible: true }),
-    ).toBeVisible();
+      main.getByText(/Próxima sesión/i).filter({ visible: true }).first(),
+    ).toBeVisible({ timeout: 10_000 });
   });
 
   test('renders next session card', async ({ page }) => {
     await expect(
-      page.getByRole('main').getByText('Tu siguiente paso').filter({ visible: true }),
-    ).toBeVisible();
+      page.getByRole('main').getByText(/Próxima sesión/i).filter({ visible: true }).first(),
+    ).toBeVisible({ timeout: 10_000 });
   });
 
-  test('renders sidebar quick action links', async ({ page }) => {
+  test('renders sidebar navigation links', async ({ page }) => {
     const sidebar = page.getByRole('complementary');
-    await expect(sidebar.getByRole('link', { name: 'Agendar Sesión' })).toBeVisible();
-    await expect(sidebar.getByRole('link', { name: 'Mi Diagnóstico' })).toBeVisible();
+    await expect(sidebar.getByRole('link', { name: 'Antropometría' })).toBeVisible();
     await expect(sidebar.getByRole('link', { name: 'Mi Suscripción' })).toBeVisible();
   });
 
-  test('renders recent activity section', async ({ page }) => {
-    await expect(
-      page.getByRole('main').getByRole('heading', { name: 'Historial reciente' }).filter({ visible: true }),
-    ).toBeVisible();
+  test('renders progress tabs', async ({ page }) => {
+    const main = page.getByRole('main');
+    await expect(main.getByText('Mi Progreso').filter({ visible: true })).toBeVisible({ timeout: 10_000 });
   });
 
-  test('renders member since label', async ({ page }) => {
-    await expect(
-      page.getByRole('main').getByText('Miembro desde').filter({ visible: true }),
-    ).toBeVisible();
+  test('renders sidebar subscription link', async ({ page }) => {
+    await expect(page.getByRole('complementary').getByRole('link', { name: 'Mi Suscripción' })).toBeVisible({ timeout: 10_000 });
   });
 
   test('sidebar is visible with navigation', async ({ page }) => {
     const sidebar = page.getByRole('complementary');
-    await expect(sidebar.getByRole('link', { name: 'Agendar Sesión' })).toBeVisible();
     await expect(sidebar.getByRole('link', { name: 'Mi Suscripción' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
   });
@@ -68,6 +63,7 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
     sessions_total: 10,
     sessions_used: 3,
     sessions_remaining: 7,
+    sessions_completed: 3,
     status: 'active',
     starts_at: new Date(Date.now() - 5 * 86400000).toISOString(),
     expires_at: new Date(Date.now() + 85 * 86400000).toISOString(),
@@ -87,9 +83,9 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
   };
 
   const bookingList = [
-    { id: 61, status: 'confirmed', slot: { id: 201, starts_at: new Date(Date.now() - 2 * 86400000).toISOString(), ends_at: new Date(Date.now() - 2 * 86400000 + 3600000).toISOString() }, package: { title: 'Plan Elite' } },
-    { id: 62, status: 'canceled', slot: { id: 202, starts_at: new Date(Date.now() - 5 * 86400000).toISOString(), ends_at: new Date(Date.now() - 5 * 86400000 + 3600000).toISOString() }, package: { title: 'Plan Elite' } },
-    { id: 63, status: 'pending', slot: { id: 203, starts_at: new Date(Date.now() - 7 * 86400000).toISOString(), ends_at: new Date(Date.now() - 7 * 86400000 + 3600000).toISOString() }, package: null },
+    { id: 61, status: 'confirmed', slot: { id: 201, starts_at: new Date(Date.now() - 2 * 86400000).toISOString(), ends_at: new Date(Date.now() - 2 * 86400000 + 3600000).toISOString() }, trainer: null, package: { title: 'Plan Elite' } },
+    { id: 62, status: 'canceled', slot: { id: 202, starts_at: new Date(Date.now() - 5 * 86400000).toISOString(), ends_at: new Date(Date.now() - 5 * 86400000 + 3600000).toISOString() }, trainer: null, package: { title: 'Plan Elite' } },
+    { id: 63, status: 'pending', slot: { id: 203, starts_at: new Date(Date.now() - 7 * 86400000).toISOString(), ends_at: new Date(Date.now() - 7 * 86400000 + 3600000).toISOString() }, trainer: null, package: null },
   ];
 
   async function setupDashboardMocks(page: import('@playwright/test').Page) {
@@ -106,7 +102,7 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
     await page.route('**/api/availability-slots/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0, results: [] }) }));
   }
 
-  test('active subscription shows program name and sessions count', async ({ page }) => {
+  test('active subscription renders the dashboard layout', async ({ page }) => {
     await setupDashboardMocks(page);
     await page.route('**/api/subscriptions/**', async (route) => {
       const url = route.request().url();
@@ -121,8 +117,8 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
 
     await page.goto('/dashboard');
     const main = page.getByRole('main');
-    await expect(main.getByText('3 sesiones')).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('completadas de 10')).toBeVisible();
+    await expect(main.getByRole('heading', { level: 1, name: /Usuario/ })).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('Sin sesión agendada').filter({ visible: true }).first()).toBeVisible();
   });
 
   test('upcoming session shows formatted date in Proxima sesion card', async ({ page }) => {
@@ -147,7 +143,7 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
     await expect(main.getByText('Próxima sesión').filter({ visible: true })).toBeVisible({ timeout: 10_000 });
   });
 
-  test('recent activity shows confirmed, canceled and pending booking statuses', async ({ page }) => {
+  test('upcoming sessions modal lists past booking statuses', async ({ page }) => {
     await setupDashboardMocks(page);
     await page.route('**/api/subscriptions/**', async (route) => {
       const url = route.request().url();
@@ -165,9 +161,12 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
     });
 
     await page.goto('/dashboard');
-    const main = page.getByRole('main');
-    await expect(main.getByText('Historial reciente').filter({ visible: true })).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('Completada', { exact: true }).filter({ visible: true }).first()).toBeVisible();
-    await expect(main.getByText('Cancelada', { exact: true }).filter({ visible: true }).first()).toBeVisible();
+    await page.getByRole('button', { name: /Próximas sesiones/ }).first().click();
+
+    await expect(page.getByRole('heading', { name: 'Mis sesiones' })).toBeVisible({ timeout: 5_000 });
+    await page.getByRole('button', { name: /Pasadas\s*\(/ }).click();
+    await expect(page.getByText('Realizada', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Cancelada', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Agendada', { exact: true }).first()).toBeVisible();
   });
 });

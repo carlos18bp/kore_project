@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import type { BookingData } from '@/lib/stores/bookingStore';
 
@@ -10,6 +11,12 @@ type Props = {
 };
 
 export default function BookingSuccess({ booking, onReset }: Props) {
+  // Render through a portal to <body> so the overlay covers the full viewport
+  // instead of being clipped/positioned by the animated booking-shell container
+  // (an ancestor with a `transform` becomes the containing block for `fixed`).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const slotStart = new Date(booking.slot.starts_at);
   const slotEnd = new Date(booking.slot.ends_at);
   const trainerName = booking.trainer
@@ -23,9 +30,11 @@ export default function BookingSuccess({ booking, onReset }: Props) {
     [onReset],
   );
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-white/40 backdrop-blur-md"
       data-testid="booking-success-backdrop"
       onClick={handleBackdropClick}
     >
@@ -87,9 +96,15 @@ export default function BookingSuccess({ booking, onReset }: Props) {
             </div>
           </div>
 
-          {/* Links */}
+          {/* Actions */}
           <div className="space-y-3">
-            <p className="text-sm text-kore-gray-dark/50">
+            <button
+              onClick={onReset}
+              className="w-full bg-kore-red hover:bg-kore-red-dark text-white text-sm font-semibold py-3 rounded-xl transition-colors active:scale-[0.98]"
+            >
+              Volver al panel
+            </button>
+            <p className="text-xs text-kore-gray-dark/50 leading-relaxed">
               ¿Necesitas hacer un cambio? Visita{' '}
               <Link
                 href="/subscription"
@@ -99,15 +114,10 @@ export default function BookingSuccess({ booking, onReset }: Props) {
               </Link>
               {' '}para reprogramar o cancelar.
             </p>
-            <button
-              onClick={onReset}
-              className="text-sm text-kore-gray-dark/40 hover:text-kore-gray-dark transition-colors cursor-pointer"
-            >
-              Agendar otra sesión
-            </button>
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
