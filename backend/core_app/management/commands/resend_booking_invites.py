@@ -51,15 +51,15 @@ class Command(BaseCommand):
         # Build queryset
         queryset = Booking.objects.filter(
             status__in=[Booking.Status.CONFIRMED, Booking.Status.PENDING],
-            slot__starts_at__gte=timezone.now(),  # Only future sessions
-        ).select_related('customer', 'trainer__user', 'slot', 'package')
+            starts_at__gte=timezone.now(),
+        ).select_related('customer', 'trainer__user', 'package')
 
         if booking_id:
             queryset = queryset.filter(pk=booking_id)
         else:
             queryset = queryset.filter(created_at__lt=before_date)
 
-        bookings = list(queryset.order_by('slot__starts_at'))
+        bookings = list(queryset.order_by('starts_at'))
 
         if not bookings:
             self.stdout.write(self.style.WARNING('No bookings found matching criteria.'))
@@ -72,7 +72,6 @@ class Command(BaseCommand):
 
         for booking in bookings:
             customer = booking.customer
-            slot = booking.slot
             trainer = booking.trainer
 
             customer_name = f'{customer.first_name} {customer.last_name}'.strip() or customer.email
@@ -80,8 +79,7 @@ class Command(BaseCommand):
             if trainer:
                 trainer_name = f'{trainer.user.first_name} {trainer.user.last_name}'.strip()
 
-            # Format slot time for display
-            slot_display = slot.starts_at.strftime('%Y-%m-%d %H:%M')
+            slot_display = booking.starts_at.strftime('%Y-%m-%d %H:%M') if booking.starts_at else '(sin hora)'
 
             self.stdout.write(f'  Booking #{booking.pk}: {customer_name} - {slot_display}')
 
@@ -108,8 +106,8 @@ class Command(BaseCommand):
                     'trainer_name': trainer_name or 'Por asignar',
                     'location': trainer.location if trainer else 'Por confirmar',
                     'package_title': booking.package.title if booking.package else '',
-                    'slot_start': slot.starts_at,
-                    'slot_end': slot.ends_at,
+                    'slot_start': booking.starts_at,
+                    'slot_end': booking.ends_at,
                     'booking_id': booking.pk,
                 }
 

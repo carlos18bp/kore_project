@@ -783,9 +783,9 @@ class TrainerClientResumenView(APIView):
         recent_sessions = list(
             Booking.objects
             .filter(trainer=trainer, customer=customer)
-            .select_related('slot', 'package')
+            .select_related('package')
             .order_by('-created_at')[:5]
-            .values('id', 'status', 'canceled_reason', 'slot__start_time', 'package__title')
+            .values('id', 'status', 'canceled_reason', 'starts_at', 'package__title')
         )
 
         result = {
@@ -801,7 +801,7 @@ class TrainerClientResumenView(APIView):
                 'expires_at': sub.expires_at.isoformat() if sub else None,
             },
             'upcoming_session': {
-                'starts_at': upcoming.slot.start_time.isoformat() if upcoming else None,
+                'starts_at': upcoming.starts_at.isoformat() if upcoming and upcoming.starts_at else None,
                 'package_title': upcoming.package.title if upcoming else None,
             } if upcoming else None,
             'recent_sessions': [
@@ -809,7 +809,7 @@ class TrainerClientResumenView(APIView):
                     'id': s['id'],
                     'status': s['status'],
                     'canceled_reason': s['canceled_reason'],
-                    'starts_at': s['slot__start_time'].isoformat() if s['slot__start_time'] else None,
+                    'starts_at': s['starts_at'].isoformat() if s['starts_at'] else None,
                     'package_title': s['package__title'],
                 }
                 for s in recent_sessions
@@ -1093,8 +1093,8 @@ class TrainerClientSessionsFullView(APIView):
                 'id': b.pk,
                 'status': b.status,
                 'package_title': b.package.title if b.package else None,
-                'starts_at': b.slot.start_time.isoformat() if b.slot else None,
-                'ends_at': b.slot.end_time.isoformat() if b.slot else None,
+                'starts_at': b.starts_at.isoformat() if b.starts_at else None,
+                'ends_at': b.ends_at.isoformat() if b.ends_at else None,
                 'notes': b.notes,
                 'canceled_reason': b.canceled_reason,
                 'session_objective': b.session_objective or '',

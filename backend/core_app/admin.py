@@ -15,7 +15,6 @@ from core_app.models.parq_assessment import ParqAssessment
 from core_app.models import (
     AnalyticsEvent,
     AnthropometryEvaluation,
-    AvailabilitySlot,
     Booking,
     ContactMessage,
     CustomerProfile,
@@ -113,21 +112,13 @@ class PackageAdmin(admin.ModelAdmin):
     ordering = ('order', 'id')
 
 
-@admin.register(AvailabilitySlot)
-class AvailabilitySlotAdmin(admin.ModelAdmin):
-    list_display = ('starts_at', 'ends_at', 'trainer', 'is_active', 'is_blocked')
-    list_filter = ('is_active', 'is_blocked', 'trainer')
-    ordering = ('starts_at',)
-    search_fields = ('starts_at', 'ends_at')
-    autocomplete_fields = ('trainer',)
-
 
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
-    list_display = ('id', 'customer', 'package', 'slot', 'trainer', 'subscription', 'status', 'created_at')
+    list_display = ('id', 'customer', 'package', 'starts_at', 'trainer', 'subscription', 'status', 'created_at')
     list_filter = ('status', 'trainer')
     search_fields = ('customer__email',)
-    autocomplete_fields = ('customer', 'package', 'slot', 'trainer', 'subscription')
+    autocomplete_fields = ('customer', 'package', 'trainer', 'subscription')
 
 
 @admin.register(Payment)
