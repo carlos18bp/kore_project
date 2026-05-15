@@ -234,4 +234,167 @@ describe('ClientProgramTab', () => {
       expect.anything(),
     );
   });
+
+  it('generates the first program via POST when "Generar programa" is clicked', async () => {
+    setupApi({ programs: [] });
+    mockedApi.post.mockResolvedValueOnce({ data: {} });
+    // After POST, fetchPrograms re-runs — return empty so empty state persists
+    mockedApi.get.mockImplementation((url: string) => {
+      if (url.includes('/monthly-programs/customer/')) return Promise.resolve({ data: [] });
+      if (url.includes('/fitness-level/')) return Promise.resolve({ data: { fitness_level_computed: 3, fitness_level_override: null } });
+      return Promise.resolve({ data: {} });
+    });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Sin programa mensual');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Generar programa' }));
+    });
+
+    expect(mockedApi.post).toHaveBeenCalledWith(
+      '/monthly-programs/generate/',
+      { customer_id: CLIENT_ID },
+      expect.anything(),
+    );
+  });
+
+  it('shows program selector pill when there are multiple programs', async () => {
+    setupApi({ programs: [draftProgram(), publishedProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    // Both programs should appear as selector buttons
+    expect(screen.getByRole('button', { name: /Borrador/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Activo/ })).toBeInTheDocument();
+  });
+
+  it('switches to second program when selector is clicked', async () => {
+    setupApi({ programs: [draftProgram(), publishedProgram()] });
+    setupStore();
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Activo/ }));
+    });
+
+    expect(screen.getByText('Publicado')).toBeInTheDocument();
+  });
+
+  it('PATCHes fitness level when a level button is selected', async () => {
+    setupApi({ programs: [draftProgram()], levelComputed: 3 });
+    mockedApi.patch.mockResolvedValueOnce({ data: {} });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Editar nivel/ }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Avanzado/ }));
+    });
+
+    expect(mockedApi.patch).toHaveBeenCalledWith(
+      `/trainer/my-clients/${CLIENT_ID}/fitness-level/`,
+      { fitness_level: 4 },
+      expect.anything(),
+    );
+  });
+
+  it('deletes the draft when delete button is confirmed', async () => {
+    jest.spyOn(window, 'confirm').mockReturnValueOnce(true);
+    mockedApi.delete.mockResolvedValueOnce({});
+
+    let programCallCount = 0;
+    mockedApi.get.mockImplementation((url: string) => {
+      if (url.includes('/monthly-programs/customer/')) {
+        programCallCount++;
+        return Promise.resolve({ data: programCallCount === 1 ? [draftProgram()] : [] });
+      }
+      if (url.includes('/fitness-level/')) {
+        return Promise.resolve({ data: { fitness_level_computed: 3, fitness_level_override: null } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+    setupStore();
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByTitle('Eliminar borrador'));
+    });
+
+    expect(mockedApi.delete).toHaveBeenCalledWith(
+      '/monthly-programs/70/delete/',
+      expect.anything(),
+    );
+  });
+
+  it('expands Week 2 to show its days', async () => {
+    setupApi({ programs: [draftProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Semana 2'));
+    });
+
+    // Week 2 is now open, should show days 8–14
+    expect(screen.getAllByText('2 ejercicios').length).toBeGreaterThan(1);
+  });
+
+  it('fetches similar exercises (similar_to) when the catalog picker opens without search query', async () => {
+    setupApi({ programs: [draftProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getAllByText('2 ejercicios')[0]);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getAllByRole('button', { name: 'Editar ejercicio' })[0]);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Cambiar ejercicio del catálogo' }));
+    });
+
+    expect(mockedApi.get).toHaveBeenCalledWith(
+      expect.stringMatching(/\/exercises\/\?.*similar_to=/),
+      expect.anything(),
+    );
+  });
+
+  it('fetches exercises by search query when user types in the catalog search input', async () => {
+    setupApi({ programs: [draftProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getAllByText('2 ejercicios')[0]);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getAllByRole('button', { name: 'Editar ejercicio' })[0]);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Cambiar ejercicio del catálogo' }));
+    });
+
+    const searchInput = screen.getByPlaceholderText(/Buscar por nombre/);
+    await act(async () => {
+      fireEvent.change(searchInput, { target: { value: 'press' } });
+    });
+
+    expect(mockedApi.get).toHaveBeenCalledWith(
+      expect.stringMatching(/\/exercises\/\?.*search=press/),
+      expect.anything(),
+    );
+  });
 });
