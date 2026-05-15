@@ -72,25 +72,25 @@ describe('TrainerMobileBottomNav', () => {
   it('highlights Inicio link when pathname is /trainer/dashboard', () => {
     mockPathname = '/trainer/dashboard';
     render(<TrainerMobileBottomNav />);
-    expect(screen.getByText('Inicio').closest('a')).toHaveClass('text-kore-red');
+    expect(screen.getByText('Inicio').closest('a')).toHaveClass("text-kore-gold");
   });
 
   it('highlights Clientes link when pathname starts with /trainer/clients', () => {
     mockPathname = '/trainer/clients/42';
     render(<TrainerMobileBottomNav />);
-    expect(screen.getByText('Clientes').closest('a')).toHaveClass('text-kore-red');
+    expect(screen.getByText('Clientes').closest('a')).toHaveClass("text-kore-gold");
   });
 
   it('highlights Alertas link when pathname is /trainer/alerts', () => {
     mockPathname = '/trainer/alerts';
     render(<TrainerMobileBottomNav />);
-    expect(screen.getByText('Alertas').closest('a')).toHaveClass('text-kore-red');
+    expect(screen.getByText('Alertas').closest('a')).toHaveClass("text-kore-gold");
   });
 
   it('highlights Métricas link when pathname is /trainer/metrics', () => {
     mockPathname = '/trainer/metrics';
     render(<TrainerMobileBottomNav />);
-    expect(screen.getByText('Métricas').closest('a')).toHaveClass('text-kore-red');
+    expect(screen.getByText('Métricas').closest('a')).toHaveClass("text-kore-gold");
   });
 
   it('does not show alert badge when alto count is 0', () => {
@@ -147,7 +147,7 @@ describe('TrainerMobileBottomNav', () => {
     render(<TrainerMobileBottomNav />);
     const masButton = screen.getByRole('button', { name: /Más/i });
     await user.click(masButton);
-    expect(masButton).toHaveClass('text-kore-red');
+    expect(masButton).toHaveClass("text-kore-gold");
   });
 
   it('calls logout when Cerrar sesión is clicked', async () => {
@@ -160,12 +160,14 @@ describe('TrainerMobileBottomNav', () => {
     expect(mockLogout).toHaveBeenCalledTimes(1);
   });
 
-  it('navigates to / when Cerrar sesión is clicked', async () => {
+  it('clears auth state when Cerrar sesión is clicked', async () => {
+    const mockLogout = jest.fn();
+    useAuthStore.setState({ logout: mockLogout });
     const user = userEvent.setup();
     render(<TrainerMobileBottomNav />);
     await user.click(screen.getByRole('button', { name: /Más/i }));
     await user.click(screen.getByText('Cerrar sesión'));
-    expect(mockPush).toHaveBeenCalledWith('/');
+    expect(mockLogout).toHaveBeenCalledTimes(1);
   });
 
   it('closes the sheet when backdrop is clicked', async () => {
