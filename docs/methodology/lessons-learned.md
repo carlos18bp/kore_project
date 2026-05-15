@@ -111,7 +111,7 @@ This file captures important patterns, preferences, and project intelligence tha
 
 ### Test Execution Rules
 - **Maximum 20 tests per block, 3 commands per execution** - avoid running full test suites
-- **Run only specific test files created or modified** - never execute `pytest gym_app/tests/` or similar full suite commands
+- **Run only specific test files created or modified** - never execute `pytest core_app/tests/` or similar full suite commands
 - **Targeted regression tests only** - execute tests in small, focused blocks
 
 ### Frontend Design System & Responsiveness
