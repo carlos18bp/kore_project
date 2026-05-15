@@ -741,12 +741,6 @@ export default function EvalAntropTab({ clientId }: { clientId: number }) {
             )}
           </FormSection>
 
-          <NotesField
-            placeholder="Observaciones sobre composición corporal, asimetrías, evolución…"
-            value={form.notes}
-            onChange={v => setForm(f => ({ ...f, notes: v }))}
-          />
-
           <StickyFooter
             lastSaved={editMode === 'edit' && latest ? new Date(latest.created_at).toLocaleDateString('es-CO') : undefined}
             onSave={handleSave}

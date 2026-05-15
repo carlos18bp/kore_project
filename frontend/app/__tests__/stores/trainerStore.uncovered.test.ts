@@ -15,7 +15,6 @@ function resetStore() {
     clientKPIs: {}, kpiLoading: false,
     alerts: [], alertsLoading: false,
     clientAlerts: {}, clientAlertsLoading: false,
-    photoGallery: [], galleryLoading: false,
     trainerMessages: {}, messagesLoading: false,
     comparativeMetrics: null, comparativeLoading: false,
     clientDailyLogs: {}, dailyLogsLoading: false,

@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { usePhysicalEvaluationStore, type PhysicalEvaluation } from '@/lib/stores/physicalEvaluationStore';
+import TrainerNoteHero from '@/app/components/shared/TrainerNoteHero';
 
 /* ──────────────────────────────────────────────────────────────────────────
  *  Constants — palette, copy, helpers
@@ -787,30 +788,9 @@ function Timeline({ evaluations }: { evaluations: PhysicalEvaluation[] }) {
  *  ────────────────────────────────────────────────────────────────────── */
 
 function ClosingNote({ latest }: { latest: PhysicalEvaluation }) {
-  const trainerName = latest.trainer_name?.trim();
-  const dateStr = formatDate(latest.evaluation_date || latest.created_at, true);
-
+  void latest;
   return (
-    <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
-      {latest.notes && (
-        <div
-          style={{
-            padding: 'clamp(20px, 3vw, 32px)', borderRadius: 24,
-            background: 'linear-gradient(135deg, rgba(103,15,34,0.04), rgba(231,200,160,0.10))',
-            border: '1px solid rgba(103,15,34,0.08)',
-          }}
-        >
-          <p className="text-[10px] font-bold uppercase" style={{ letterSpacing: '0.22em', color: KORE.wineDark }}>Notas de tu trainer</p>
-          <p className="font-heading text-xl xl:text-[22px] font-semibold mt-2.5 leading-[1.4]" style={{ color: KORE.wineDark, letterSpacing: '0.005em' }}>
-            "{latest.notes}"
-          </p>
-          {(trainerName || dateStr) && (
-            <p className="text-[12px] italic mt-3.5" style={{ color: 'rgba(103,15,34,0.6)' }}>
-              — {trainerName || 'Tu trainer'} · {dateStr}
-            </p>
-          )}
-        </div>
-      )}
+    <div className="grid gap-5 lg:grid-cols-1">
       <div
         style={{
           padding: 24, borderRadius: 20,
@@ -921,6 +901,14 @@ export default function MyPhysicalEvaluationPage() {
             Ver plan de acción
           </Link>
         </div>
+
+        {/* Trainer note */}
+        <TrainerNoteHero
+          className="mb-6"
+          note={latest.notes ?? ''}
+          trainerName={latest.trainer_name}
+          date={latest.evaluation_date || latest.created_at}
+        />
 
         {/* HERO */}
         <Hero latest={latest} first={first} />

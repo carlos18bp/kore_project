@@ -22,6 +22,17 @@ export type NutritionHabit = {
   created_at: string;
 };
 
+export type ClientWeeklyPlanNote = {
+  id: number;
+  status: string;
+  week_start: string;
+  week_end: string;
+  trainer_notes: string;
+  approved_at: string | null;
+  created_at: string;
+  goal: string;
+};
+
 export type NutritionFormData = {
   meals_per_day: number;
   water_liters: number;
@@ -39,10 +50,13 @@ type NutritionState = {
   loading: boolean;
   submitting: boolean;
   error: string;
+  weeklyPlans: ClientWeeklyPlanNote[];
+  weeklyPlansLoading: boolean;
   fetchMyEntries: () => Promise<void>;
   createEntry: (data: NutritionFormData) => Promise<NutritionHabit | null>;
   fetchClientEntries: (clientId: number) => Promise<void>;
   approveEntry: (clientId: number, evalId: number, trainerNotes: string) => Promise<void>;
+  fetchMyWeeklyPlans: () => Promise<void>;
 };
 
 function authHeaders() {
@@ -55,6 +69,8 @@ export const useNutritionStore = create<NutritionState>((set) => ({
   loading: false,
   submitting: false,
   error: '',
+  weeklyPlans: [],
+  weeklyPlansLoading: false,
 
   fetchMyEntries: async () => {
     set({ loading: true, error: '' });
@@ -108,5 +124,17 @@ export const useNutritionStore = create<NutritionState>((set) => ({
       );
       set((s) => ({ entries: s.entries.map((e) => (e.id === evalId ? data : e)) }));
     } catch { /* noop */ }
+  },
+
+  fetchMyWeeklyPlans: async () => {
+    set({ weeklyPlansLoading: true });
+    try {
+      const { data } = await api.get<ClientWeeklyPlanNote[]>('/my-nutrition-plans/', {
+        headers: authHeaders(),
+      });
+      set({ weeklyPlans: Array.isArray(data) ? data : [], weeklyPlansLoading: false });
+    } catch {
+      set({ weeklyPlansLoading: false });
+    }
   },
 }));

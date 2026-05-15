@@ -243,7 +243,18 @@ class BookingViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['patch'], url_path='session-prep', permission_classes=[IsTrainerRole])
     def session_prep(self, request, pk=None):
         """Allow a trainer to set session objective and notes before a session."""
-        booking = self.get_object()
+        # Bypass the customer-only get_queryset filter: a trainer must be able
+        # to edit a booking that belongs to their client, not to themselves.
+        try:
+            booking = Booking.objects.select_related('trainer').get(pk=pk)
+        except Booking.DoesNotExist:
+            return Response({'detail': 'Sesión no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+
+        trainer_profile = getattr(request.user, 'trainer_profile', None)
+        if not is_admin_user(request.user):
+            if not trainer_profile or (booking.trainer_id and booking.trainer_id != trainer_profile.pk):
+                return Response({'detail': 'No autorizado.'}, status=status.HTTP_403_FORBIDDEN)
+
         allowed = {'session_objective', 'session_notes_for_customer'}
         data = {k: v for k, v in request.data.items() if k in allowed}
         if not data:
@@ -254,6 +265,8 @@ class BookingViewSet(viewsets.ModelViewSet):
         for field, value in data.items():
             setattr(booking, field, value)
         booking.save(update_fields=list(data.keys()))
+        import logging
+        logging.getLogger(__name__).warning('[session_prep] booking=%s payload=%s saved_obj=%r', pk, dict(data), booking.session_objective)
         serializer = self.get_serializer(booking)
         return Response(serializer.data)
 

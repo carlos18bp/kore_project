@@ -142,11 +142,9 @@ function habitColor(color: string) {
 // ─── Approval Card ────────────────────────────────────────────
 function ApprovalCard({ clientId, habit }: { clientId: number; habit: NutritionHabit }) {
   const { approveEntry, entries } = useNutritionStore();
-  const [notes, setNotes] = useState(habit.trainer_notes ?? '');
   const [approving, setApproving] = useState(false);
   const [done, setDone] = useState(false);
 
-  // Sync when entry updates (e.g. after approval)
   const current = entries.find(e => e.id === habit.id) ?? habit;
   const isApproved = !!current.trainer_approved_at;
 
@@ -157,7 +155,7 @@ function ApprovalCard({ clientId, habit }: { clientId: number; habit: NutritionH
   async function handleApprove() {
     if (approving || isApproved) return;
     setApproving(true);
-    await approveEntry(clientId, habit.id, notes);
+    await approveEntry(clientId, habit.id, current.trainer_notes ?? '');
     setApproving(false);
     setDone(true);
     setTimeout(() => setDone(false), 2500);
@@ -186,33 +184,23 @@ function ApprovalCard({ clientId, habit }: { clientId: number; habit: NutritionH
         </div>
       </div>
 
-      {isApproved ? (
-        current.trainer_notes ? (
-          <div>
-            <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 10, fontWeight: 600, color: 'rgba(231,200,160,0.55)', marginBottom: 6 }}>
-              Notas enviadas al cliente
-            </div>
-            <p style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 13, color: T.ivory, lineHeight: 1.55, margin: 0 }}>
-              {current.trainer_notes}
-            </p>
+      {current.trainer_notes && (
+        <div style={{ marginBottom: isApproved ? 0 : 14 }}>
+          <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 10, fontWeight: 600, color: 'rgba(231,200,160,0.55)', marginBottom: 6 }}>
+            {isApproved ? 'Notas enviadas al cliente' : 'Nota actual del entrenador'}
           </div>
-        ) : null
-      ) : (
+          <p style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 13, color: T.ivory, lineHeight: 1.55, margin: 0 }}>
+            {current.trainer_notes}
+          </p>
+        </div>
+      )}
+
+      {!isApproved && (
         <>
-          <textarea
-            rows={3}
-            value={notes}
-            onChange={e => setNotes(e.target.value)}
-            placeholder="Notas para el cliente sobre su evaluación nutricional (opcional)…"
-            style={{
-              width: '100%', boxSizing: 'border-box',
-              background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(231,200,160,0.22)',
-              borderRadius: 12, padding: '11px 14px',
-              fontFamily: 'Montserrat, sans-serif', fontSize: 13, color: T.ivory,
-              resize: 'vertical', outline: 'none', lineHeight: 1.5,
-            }}
-          />
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+          <p style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 11, color: 'rgba(255,248,236,0.55)', margin: '0 0 12px', lineHeight: 1.5 }}>
+            Para editar las notas del entrenador, ve a la tab <strong style={{ color: T.champagne }}>Notas → Diario → Hábitos nutricionales</strong>.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button
               onClick={handleApprove}
               disabled={approving}

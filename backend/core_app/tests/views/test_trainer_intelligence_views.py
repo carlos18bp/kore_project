@@ -226,55 +226,6 @@ class TestTrainerAlertResolveView:
         assert resp.status_code == status.HTTP_403_FORBIDDEN
 
 
-# ── TrainerMealCommentView ────────────────────────────────────────────────────
-
-@pytest.mark.django_db
-class TestTrainerMealCommentView:
-    @pytest.fixture
-    def meal_entry(self, customer):
-        log = NutritionDailyLog.objects.create(
-            customer=customer, date=FIXED_NOW.date(), is_closed=False,
-        )
-        return MealEntry.objects.create(
-            daily_log=log,
-            meal_block='desayuno',
-            status='logged',
-        )
-
-    def test_saves_comment_and_flag(self, api_client, trainer, customer, booking, meal_entry):
-        _auth(api_client, trainer.user)
-        url = reverse('trainer-meal-comment', args=[meal_entry.pk])
-        resp = api_client.patch(url, {
-            'trainer_comment': 'Buena porción de proteína.',
-            'flagged_for_session': True,
-        }, format='json')
-        assert resp.status_code == status.HTTP_200_OK
-        meal_entry.refresh_from_db()
-        assert meal_entry.trainer_comment == 'Buena porción de proteína.'
-        assert meal_entry.flagged_for_session is True
-
-    def test_saves_flag_without_comment(self, api_client, trainer, customer, booking, meal_entry):
-        _auth(api_client, trainer.user)
-        url = reverse('trainer-meal-comment', args=[meal_entry.pk])
-        resp = api_client.patch(url, {'flagged_for_session': True}, format='json')
-        assert resp.status_code == status.HTTP_200_OK
-        meal_entry.refresh_from_db()
-        assert meal_entry.flagged_for_session is True
-
-    def test_returns_404_for_unrelated_client(self, api_client, trainer, other_customer, meal_entry):
-        # meal_entry belongs to customer who has no booking with trainer
-        _auth(api_client, trainer.user)
-        url = reverse('trainer-meal-comment', args=[meal_entry.pk])
-        resp = api_client.patch(url, {'trainer_comment': 'x'}, format='json')
-        assert resp.status_code == status.HTTP_404_NOT_FOUND
-
-    def test_requires_trainer_role(self, api_client, customer, booking, meal_entry):
-        _auth(api_client, customer)
-        url = reverse('trainer-meal-comment', args=[meal_entry.pk])
-        resp = api_client.patch(url, {'trainer_comment': 'x'}, format='json')
-        assert resp.status_code == status.HTTP_403_FORBIDDEN
-
-
 # ── TrainerProgramPauseView / TrainerProgramResumeView ────────────────────────
 
 @pytest.mark.django_db

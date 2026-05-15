@@ -59,6 +59,7 @@ from core_app.views.monthly_program_views import (
     ProgramDetailView,
     TodayProgramView,
     UpdateExerciseLogView,
+    UpdateProgramNoteView,
 )
 from core_app.views.trainer_client_views import (
     TrainerClientDetailView,
@@ -73,9 +74,8 @@ from core_app.views.trainer_intelligence_views import (
     TrainerComparativeMetricsView,
     TrainerAlertCenterView,
     TrainerAlertResolveView,
-    TrainerPhotoGalleryView,
-    TrainerMealCommentView,
     TrainerMessagesView,
+    TrainerMessageDetailView,
     TrainerClientResumenView,
     TrainerClientAlertsView,
     TrainerProgramPauseView,
@@ -92,11 +92,13 @@ from core_app.views.nutrition_daily_views import (
     UpdateMealEntryView,
     MealEntryPhotoView,
     NutritionHistoryView,
+    WaterGlassLogCreateView,
 )
 from core_app.views.progress_views import WeeklySummaryView, ProjectionView, MonthlySummaryView
 from core_app.views.trainer_assignment_views import TrainerAssignmentSummaryView
 from core_app.views.nutrition_plan_views import (
     ApproveNutritionPlanView,
+    CustomerNutritionPlanHistoryView,
     CustomerNutritionPlanListView,
     CustomerNutritionPlanWeekView,
     DeleteNutritionPlanView,
@@ -104,6 +106,7 @@ from core_app.views.nutrition_plan_views import (
     GenerateNutritionPlanView,
     MealSuggestionCatalogView,
     NutritionPlanDetailView,
+    UpdateNutritionPlanNoteView,
 )
 
 router = DefaultRouter()
@@ -158,6 +161,7 @@ urlpatterns = [
     path('monthly-programs/generate/', GenerateProgramView.as_view(), name='monthly-program-generate'),
     path('monthly-programs/<int:program_id>/', ProgramDetailView.as_view(), name='monthly-program-detail'),
     path('monthly-programs/<int:program_id>/approve/', ApproveProgramView.as_view(), name='monthly-program-approve'),
+    path('monthly-programs/<int:program_id>/note/', UpdateProgramNoteView.as_view(), name='monthly-program-note'),
     path('monthly-programs/<int:program_id>/delete/', DeleteProgramView.as_view(), name='monthly-program-delete'),
     path('monthly-programs/<int:program_id>/days/<int:day_id>/exercises/<int:ex_id>/', EditProgramExerciseView.as_view(), name='monthly-program-edit-exercise'),
     path('my-program/', MyProgramView.as_view(), name='my-program'),
@@ -171,9 +175,8 @@ urlpatterns = [
     path('trainer/comparative-metrics/', TrainerComparativeMetricsView.as_view(), name='trainer-comparative-metrics'),
     path('trainer/alerts/', TrainerAlertCenterView.as_view(), name='trainer-alerts'),
     path('trainer/alerts/<int:risk_score_id>/resolve/', TrainerAlertResolveView.as_view(), name='trainer-alert-resolve'),
-    path('trainer/photo-gallery/', TrainerPhotoGalleryView.as_view(), name='trainer-photo-gallery'),
-    path('trainer/photo-gallery/<int:meal_id>/comment/', TrainerMealCommentView.as_view(), name='trainer-meal-comment'),
     path('trainer/messages/', TrainerMessagesView.as_view(), name='trainer-messages'),
+    path('trainer/messages/<int:message_id>/', TrainerMessageDetailView.as_view(), name='trainer-message-detail'),
     path('trainer/my-clients/<int:customer_id>/kpi/', TrainerClientKPIView.as_view(), name='trainer-client-kpi'),
     path('trainer/my-clients/<int:customer_id>/resumen/', TrainerClientResumenView.as_view(), name='trainer-client-resumen'),
     path('trainer/my-clients/<int:customer_id>/alerts/', TrainerClientAlertsView.as_view(), name='trainer-client-alerts'),
@@ -188,6 +191,7 @@ urlpatterns = [
     path('my-nutrition-daily/today/', TodayNutritionView.as_view(), name='my-nutrition-daily-today'),
     path('my-nutrition-daily/<int:log_id>/meals/<int:meal_id>/', UpdateMealEntryView.as_view(), name='my-nutrition-daily-update-meal'),
     path('my-nutrition-daily/<int:log_id>/meals/<int:meal_id>/photo/', MealEntryPhotoView.as_view(), name='my-nutrition-daily-meal-photo'),
+    path('my-nutrition-daily/<int:log_id>/water-glasses/', WaterGlassLogCreateView.as_view(), name='my-nutrition-daily-water-glass-create'),
     path('my-nutrition-daily/history/', NutritionHistoryView.as_view(), name='my-nutrition-daily-history'),
     path('admin/trainers/assignment-summary/', TrainerAssignmentSummaryView.as_view(), name='admin-trainer-assignment-summary'),
     # Nutrition plans (trainer-curated weekly plans)
@@ -195,8 +199,10 @@ urlpatterns = [
     path('nutrition-plans/generate/', GenerateNutritionPlanView.as_view(), name='nutrition-plan-generate'),
     path('nutrition-plans/<int:plan_id>/', NutritionPlanDetailView.as_view(), name='nutrition-plan-detail'),
     path('nutrition-plans/<int:plan_id>/approve/', ApproveNutritionPlanView.as_view(), name='nutrition-plan-approve'),
+    path('nutrition-plans/<int:plan_id>/note/', UpdateNutritionPlanNoteView.as_view(), name='nutrition-plan-note'),
     path('nutrition-plans/<int:plan_id>/delete/', DeleteNutritionPlanView.as_view(), name='nutrition-plan-delete'),
     path('nutrition-plans/<int:plan_id>/days/<int:day_id>/meals/<int:meal_id>/', EditPlanMealView.as_view(), name='nutrition-plan-edit-meal'),
     path('meal-suggestions/', MealSuggestionCatalogView.as_view(), name='meal-suggestions'),
     path('my-nutrition-plan/', CustomerNutritionPlanWeekView.as_view(), name='my-nutrition-plan'),
+    path('my-nutrition-plans/', CustomerNutritionPlanHistoryView.as_view(), name='my-nutrition-plans'),
 ]

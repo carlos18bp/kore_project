@@ -184,6 +184,25 @@ class ProgramDetailView(APIView):
         return Response(MonthlyProgramSerializer(program).data)
 
 
+class UpdateProgramNoteView(APIView):
+    """PATCH — trainer updates `trainer_notes` of any MonthlyProgram (draft or published)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, program_id):
+        if not (is_admin_user(request.user) or request.user.role == 'trainer'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            program = MonthlyProgram.objects.get(pk=program_id)
+        except MonthlyProgram.DoesNotExist:
+            return Response({'detail': 'Program not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        program.trainer_notes = request.data.get('trainer_notes', '') or ''
+        program.save(update_fields=['trainer_notes'])
+        return Response({'id': program.pk, 'trainer_notes': program.trainer_notes})
+
+
 class ApproveProgramView(APIView):
     """PATCH — trainer publishes a draft program."""
 
@@ -198,11 +217,13 @@ class ApproveProgramView(APIView):
         except MonthlyProgram.DoesNotExist:
             return Response({'detail': 'Draft program not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        notes = request.data.get('trainer_notes', '')
-        program.trainer_notes = notes
+        update_fields = ['status', 'approved_at']
+        if 'trainer_notes' in request.data:
+            program.trainer_notes = request.data['trainer_notes'] or ''
+            update_fields.append('trainer_notes')
         program.status = MonthlyProgram.Status.PUBLISHED
         program.approved_at = timezone.now()
-        program.save(update_fields=['status', 'approved_at', 'trainer_notes'])
+        program.save(update_fields=update_fields)
         return Response({'id': program.pk, 'status': program.status})
 
 

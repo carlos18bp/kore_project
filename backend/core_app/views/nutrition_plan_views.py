@@ -166,6 +166,22 @@ class NutritionPlanDetailView(APIView):
         return Response(_serialize_plan(plan))
 
 
+class UpdateNutritionPlanNoteView(APIView):
+    """PATCH — trainer updates `trainer_notes` of any WeeklyNutritionPlan (draft or published)."""
+
+    permission_classes = [IsAuthenticated, IsTrainerRole]
+
+    def patch(self, request, plan_id):
+        try:
+            plan = WeeklyNutritionPlan.objects.get(pk=plan_id)
+        except WeeklyNutritionPlan.DoesNotExist:
+            return Response({'detail': 'Plan no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        plan.trainer_notes = request.data.get('trainer_notes', '') or ''
+        plan.save(update_fields=['trainer_notes'])
+        return Response({'id': plan.pk, 'trainer_notes': plan.trainer_notes})
+
+
 class ApproveNutritionPlanView(APIView):
     """POST — publish a draft plan so the customer can see it.
 
@@ -397,3 +413,25 @@ class CustomerNutritionPlanWeekView(APIView):
         if not plan:
             return Response(None)
         return Response(_serialize_plan(plan))
+
+
+class CustomerNutritionPlanHistoryView(APIView):
+    """GET list of all published nutrition plans for the authenticated customer.
+
+    GET /api/my-nutrition-plans/
+    Returns plans ordered by week_start desc, with trainer_notes exposed so the
+    customer can see the coach's note per cycle plus the historical trail.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        plans = (
+            WeeklyNutritionPlan.objects
+            .filter(
+                customer=request.user,
+                status=WeeklyNutritionPlan.Status.PUBLISHED,
+            )
+            .order_by('-week_start')
+        )
+        return Response([_serialize_plan(p, include_days=False) for p in plans])

@@ -596,91 +596,6 @@ class TrainerAlertResolveView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
-# ── Photo Gallery ─────────────────────────────────────────────────────────────
-
-class TrainerPhotoGalleryView(APIView):
-    """GET /api/trainer/photo-gallery/?customer_id=X"""
-    permission_classes = [IsAuthenticated, IsTrainerRole]
-
-    def get(self, request):
-        trainer = _get_trainer_profile(request)
-        if not trainer:
-            return Response({'detail': 'No trainer profile.'}, status=status.HTTP_404_NOT_FOUND)
-
-        from core_app.models.nutrition_daily_log import MealEntry, NutritionDailyLog
-
-        customer_ids = _trainer_customer_ids(trainer)
-        customer_id_param = request.query_params.get('customer_id')
-        if customer_id_param:
-            customer_ids = [int(customer_id_param)] if int(customer_id_param) in customer_ids else []
-
-        entries = (
-            MealEntry.objects
-            .filter(
-                daily_log__customer_id__in=customer_ids,
-                photo__isnull=False,
-            )
-            .exclude(photo='')
-            .select_related('daily_log__customer')
-            .order_by('trainer_comment', '-daily_log__date')  # empty comment = unreviewed first
-        )
-
-        photos = [
-            {
-                'meal_entry_id': e.pk,
-                'log_id': e.daily_log_id,
-                'customer_id': e.daily_log.customer_id,
-                'customer_name': f'{e.daily_log.customer.first_name} {e.daily_log.customer.last_name}',
-                'photo_url': e.photo.url if e.photo else None,
-                'meal_block': e.meal_block,
-                'date': e.daily_log.date.isoformat(),
-                'trainer_comment': e.trainer_comment,
-                'trainer_comment_at': e.trainer_comment_at.isoformat() if e.trainer_comment_at else None,
-                'flagged_for_session': e.flagged_for_session,
-                'status': e.status,
-            }
-            for e in entries
-        ]
-        return Response({'photos': photos})
-
-
-class TrainerMealCommentView(APIView):
-    """PATCH /api/trainer/photo-gallery/<meal_id>/comment/"""
-    permission_classes = [IsAuthenticated, IsTrainerRole]
-
-    def patch(self, request, meal_id):
-        trainer = _get_trainer_profile(request)
-        if not trainer:
-            return Response({'detail': 'No trainer profile.'}, status=status.HTTP_404_NOT_FOUND)
-
-        from core_app.models.nutrition_daily_log import MealEntry
-        customer_ids = _trainer_customer_ids(trainer)
-
-        try:
-            entry = MealEntry.objects.get(pk=meal_id, daily_log__customer_id__in=customer_ids)
-        except MealEntry.DoesNotExist:
-            return Response({'detail': 'Foto no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
-
-        comment = request.data.get('trainer_comment', entry.trainer_comment)
-        flagged = request.data.get('flagged_for_session', entry.flagged_for_session)
-
-        entry.trainer_comment = comment
-        entry.flagged_for_session = bool(flagged)
-        if comment and comment != entry.trainer_comment:
-            entry.trainer_comment_at = timezone.now()
-        elif comment and not entry.trainer_comment_at:
-            entry.trainer_comment_at = timezone.now()
-
-        entry.save(update_fields=['trainer_comment', 'trainer_comment_at', 'flagged_for_session'])
-
-        return Response({
-            'meal_entry_id': entry.pk,
-            'trainer_comment': entry.trainer_comment,
-            'trainer_comment_at': entry.trainer_comment_at.isoformat() if entry.trainer_comment_at else None,
-            'flagged_for_session': entry.flagged_for_session,
-        })
-
-
 # ── Trainer Messages ──────────────────────────────────────────────────────────
 
 class TrainerMessagesView(APIView):
@@ -744,6 +659,63 @@ class TrainerMessagesView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
+class TrainerMessageDetailView(APIView):
+    """PATCH/DELETE /api/trainer/messages/<message_id>/
+
+    PATCH body: { message?: str, trigger_type?: str }
+    DELETE: soft-delete (is_visible=False) so the customer no longer sees it.
+    """
+    permission_classes = [IsAuthenticated, IsTrainerRole]
+
+    def _get_owned_message(self, request, message_id):
+        trainer = _get_trainer_profile(request)
+        if not trainer:
+            return None, Response({'detail': 'No trainer profile.'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            msg = TrainerMessage.objects.get(pk=message_id, trainer=trainer)
+        except TrainerMessage.DoesNotExist:
+            return None, Response({'detail': 'Mensaje no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        return msg, None
+
+    def patch(self, request, message_id):
+        msg, err = self._get_owned_message(request, message_id)
+        if err:
+            return err
+
+        update_fields = []
+        if 'message' in request.data:
+            new_text = (request.data.get('message') or '').strip()
+            if not new_text:
+                return Response({'detail': 'El mensaje no puede estar vacío.'}, status=status.HTTP_400_BAD_REQUEST)
+            msg.message = new_text
+            update_fields.append('message')
+        if 'trigger_type' in request.data:
+            msg.trigger_type = request.data['trigger_type']
+            update_fields.append('trigger_type')
+
+        if not update_fields:
+            return Response({'detail': 'Nada que actualizar.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        msg.save(update_fields=update_fields)
+        return Response({
+            'id': msg.pk,
+            'customer_id': msg.customer_id,
+            'trigger_type': msg.trigger_type,
+            'message': msg.message,
+            'is_visible': msg.is_visible,
+            'seen_by_customer': msg.seen_by_customer,
+            'created_at': msg.created_at.isoformat(),
+        })
+
+    def delete(self, request, message_id):
+        msg, err = self._get_owned_message(request, message_id)
+        if err:
+            return err
+        msg.is_visible = False
+        msg.save(update_fields=['is_visible'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 # ── Client Resumen (Tab 1) ────────────────────────────────────────────────────
 
 class TrainerClientResumenView(APIView):
@@ -771,9 +743,9 @@ class TrainerClientResumenView(APIView):
         upcoming = (
             Booking.objects
             .filter(trainer=trainer, customer=customer, status='pending')
-            .filter(slot__start_time__gte=timezone.now())
-            .select_related('slot', 'package')
-            .order_by('slot__start_time').first()
+            .filter(starts_at__gte=timezone.now())
+            .select_related('package')
+            .order_by('starts_at').first()
         )
 
         # Active subscription
@@ -1054,8 +1026,6 @@ class TrainerClientNutritionLogsView(APIView):
                         'suggestion': me.suggestion.description if me.suggestion else None,
                         'notes': me.notes,
                         'photo_url': me.photo.url if me.photo else None,
-                        'trainer_comment': me.trainer_comment,
-                        'flagged_for_session': me.flagged_for_session,
                     }
                     for me in entries
                 ],
@@ -1084,7 +1054,7 @@ class TrainerClientSessionsFullView(APIView):
         bookings = (
             Booking.objects
             .filter(trainer=trainer, customer=customer)
-            .select_related('slot', 'package')
+            .select_related('package')
             .order_by('-created_at')
         )
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParqStore, type ParqAssessment, type ParqFormData } from '@/lib/stores/parqStore';
+import TrainerNoteHero from '@/app/components/shared/TrainerNoteHero';
 
 /* ──────────────────────────────────────────────────────────────────────────
  *  Constants
@@ -823,6 +824,12 @@ export default function MyParqPage() {
         {/* Hero + content when latest exists and form is hidden */}
         {!showForm && latest && (
           <>
+            <TrainerNoteHero
+              className="mb-6"
+              note={latest.additional_notes ?? ''}
+              date={latest.created_at}
+            />
+
             <Hero assessment={latest} />
 
             <div className="mt-8">

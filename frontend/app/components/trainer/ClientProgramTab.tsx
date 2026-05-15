@@ -601,26 +601,27 @@ function ProgramHeader({
 }
 
 // ─── Trainer notes block ───────────────────────────────────────
-function TrainerNotesBlock({ isDraft, value, onChange }: { isDraft: boolean; value: string; onChange: (v: string) => void }) {
+function TrainerNotesBlock({ value }: { value: string }) {
   return (
     <div style={{ borderRadius: 22, background: 'rgba(255,255,255,0.65)', border: `1px solid ${T.borderSoft}`, boxShadow: '0 2px 12px -8px rgba(45,15,26,0.10)', padding: 26, marginBottom: 18 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
         <div>
           <div style={{ fontFamily: 'Cinzel', fontSize: 18, fontWeight: 600, color: T.wine }}>Nota para el cliente</div>
           <div style={{ fontFamily: 'Montserrat', fontSize: 12, color: T.textMed, marginTop: 4 }}>
-            {isDraft ? 'Visible junto al programa cuando se publique.' : 'Enviada al cliente con el programa.'}
+            Edita esta nota en <strong>Notas → Programa</strong>.
           </div>
         </div>
-        {!isDraft && <span style={{ fontFamily: 'Montserrat', fontSize: 9, fontWeight: 700, letterSpacing: '0.20em', textTransform: 'uppercase', color: T.sageDeep }}>Solo lectura</span>}
+        <span style={{ fontFamily: 'Montserrat', fontSize: 9, fontWeight: 700, letterSpacing: '0.20em', textTransform: 'uppercase', color: T.sageDeep }}>Solo lectura</span>
       </div>
-      <textarea
-        readOnly={!isDraft}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder="Explícale al cliente qué prioridades trabajará este mes, ajustes y por qué…"
-        rows={4}
-        style={{ width: '100%', boxSizing: 'border-box', padding: '14px 16px', borderRadius: 12, background: isDraft ? 'rgba(255,255,255,0.85)' : 'rgba(168,194,156,0.08)', border: `1px solid ${isDraft ? T.border : 'rgba(168,194,156,0.30)'}`, fontFamily: 'Montserrat', fontSize: 13, color: T.textDark, outline: 'none', resize: isDraft ? 'vertical' : 'none', lineHeight: 1.6 }}
-      />
+      {value ? (
+        <p style={{ fontFamily: 'Montserrat', fontSize: 13, color: T.textDark, lineHeight: 1.6, whiteSpace: 'pre-wrap', margin: 0, padding: '14px 16px', borderRadius: 12, background: 'rgba(168,194,156,0.08)', border: '1px solid rgba(168,194,156,0.30)' }}>
+          {value}
+        </p>
+      ) : (
+        <p style={{ fontFamily: 'Montserrat', fontSize: 12, color: T.textSoft, fontStyle: 'italic', margin: 0, padding: '14px 16px', borderRadius: 12, background: 'rgba(103,15,34,0.04)', border: `1px dashed ${T.borderSoft}` }}>
+          Sin nota aún. Agrega una desde la tab Notas → Programa.
+        </p>
+      )}
     </div>
   );
 }
@@ -734,7 +735,6 @@ export default function ClientProgramTab({ clientId }: { clientId: number }) {
   const [loading, setLoading]               = useState(true);
   const [generating, setGenerating]         = useState(false);
   const [approving, setApproving]           = useState(false);
-  const [trainerNotes, setNotes]            = useState('');
   const [error, setError]                   = useState('');
   const [levelComputed, setLevelComputed]   = useState(1);
   const [levelOverride, setLevelOverride]   = useState<number | null>(null);
@@ -742,6 +742,7 @@ export default function ClientProgramTab({ clientId }: { clientId: number }) {
   const activeProgram = programs[selectedIdx] ?? null;
   const dailyLogs     = clientDailyLogs[clientId] ?? [];
   const isPublished   = activeProgram?.status === 'published' || activeProgram?.status === 'completed';
+  const trainerNotes  = activeProgram?.trainer_notes ?? '';
 
   useEffect(() => {
     if (!clientId) return;
@@ -754,10 +755,6 @@ export default function ClientProgramTab({ clientId }: { clientId: number }) {
       setLevelOverride(data.fitness_level_override);
     }).catch(() => {});
   }, [clientId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (activeProgram) setNotes(activeProgram.trainer_notes ?? '');
-  }, [activeProgram?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (isPublished && clientId && !clientDailyLogs[clientId]) {
@@ -831,7 +828,7 @@ export default function ClientProgramTab({ clientId }: { clientId: number }) {
     setApproving(true);
     setError('');
     try {
-      await api.patch(`/monthly-programs/${activeProgram.id}/approve/`, { trainer_notes: trainerNotes }, { headers: authHeaders() });
+      await api.patch(`/monthly-programs/${activeProgram.id}/approve/`, {}, { headers: authHeaders() });
       await fetchPrograms();
     } catch {
       setError('No se pudo publicar el programa.');
@@ -954,7 +951,7 @@ export default function ClientProgramTab({ clientId }: { clientId: number }) {
         </div>
       )}
 
-      <TrainerNotesBlock isDraft={activeProgram.status === 'draft'} value={trainerNotes} onChange={setNotes} />
+      <TrainerNotesBlock value={trainerNotes} />
 
       {/* Adherence (published only) */}
       {isPublished && (
