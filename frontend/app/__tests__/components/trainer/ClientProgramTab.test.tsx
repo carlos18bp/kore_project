@@ -438,4 +438,99 @@ describe('ClientProgramTab', () => {
 
     expect(screen.getByText('Solo lectura')).toBeInTheDocument();
   });
+
+  it('renders the Descanso chip for a rest-type day row', async () => {
+    setupApi({ programs: [draftProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    expect(screen.getAllByText('Descanso').length).toBeGreaterThan(0);
+  });
+
+  it('renders the rest-day row with the recovery text instead of exercise count', async () => {
+    setupApi({ programs: [draftProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    expect(screen.getAllByText('Recuperación · sin ejercicios').length).toBeGreaterThan(0);
+  });
+
+  it('shows an error banner after a failed regenerate attempt on a draft program', async () => {
+    setupApi({ programs: [draftProgram()] });
+    jest.spyOn(window, 'confirm').mockReturnValueOnce(true);
+    // Regenerate POST fails
+    mockedApi.post.mockRejectedValueOnce(new Error('Server error'));
+    // fetchPrograms after error still returns the original draft
+    mockedApi.get.mockImplementation((url: string) => {
+      if (url.includes('/monthly-programs/customer/')) return Promise.resolve({ data: [draftProgram()] });
+      if (url.includes('/fitness-level/')) return Promise.resolve({ data: { fitness_level_computed: 3, fitness_level_override: null } });
+      return Promise.resolve({ data: {} });
+    });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Regenerar borrador/ }));
+    });
+
+    expect(await screen.findByText('No se pudo regenerar el borrador.')).toBeInTheDocument();
+  });
+
+  it('renders the time-based exercise display value with seconds suffix', async () => {
+    const timeExercise = {
+      id: 99,
+      exercise: { id: 990, name: 'Plancha isométrica', pattern: 'core', youtube_url: '', explanation: '', is_corrective: false, primary_muscles: 'core', secondary_muscles: '' },
+      sets: 3, reps: null, duration_seconds: 45, rest_seconds: 30, order: 1, notes: '',
+    };
+    const programWithTimeEx = {
+      ...draftProgram(),
+      days: [
+        {
+          id: 1, day_number: 1, date: '2026-02-01', day_type: 'training',
+          exercises: [timeExercise],
+        },
+        // pad out days 2-28 as rest
+        ...[...Array(27)].map((_, i) => ({
+          id: i + 2, day_number: i + 2, date: `2026-02-${String(i + 2).padStart(2, '0')}`, day_type: 'rest', exercises: [],
+        })),
+      ],
+    };
+    setupApi({ programs: [programWithTimeEx] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('1 ejercicios'));
+    });
+
+    expect(screen.getByText('45s')).toBeInTheDocument();
+  });
+
+  it('shows the adherence ring percentage label for a published program with logs', async () => {
+    setupStore({ logs: DAILY_LOGS });
+    setupApi({ programs: [publishedProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Publicado');
+
+    expect(screen.getByText('Adherencia')).toBeInTheDocument();
+    // The ring renders a percentage — it should be a number followed by %
+    const pctEl = document.querySelector('[style*="Cinzel"]');
+    expect(screen.getByText(/\d+%/)).toBeInTheDocument();
+  });
+
+  it('trainer notes textarea is read-only when program is published', async () => {
+    setupStore({ logs: DAILY_LOGS });
+    setupApi({ programs: [publishedProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Publicado');
+
+    const textarea = screen.getByPlaceholderText(/Explícale al cliente/);
+    expect(textarea).toHaveAttribute('readonly');
+  });
 });

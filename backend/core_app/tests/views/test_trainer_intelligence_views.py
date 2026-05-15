@@ -339,3 +339,387 @@ class TestTrainerProgramPauseResume:
         url = reverse('trainer-program-pause', args=[customer.pk, program.pk])
         resp = api_client.post(url, {}, format='json')
         assert resp.status_code == status.HTTP_403_FORBIDDEN
+
+
+# ── Helper function unit tests ────────────────────────────────────────────────
+
+@pytest.mark.django_db
+class TestHelperFunctions:
+    """Direct unit tests for module-level helpers in trainer_intelligence_views."""
+
+    def test_get_trainer_profile_returns_none_when_no_profile(self, customer):
+        """User with CUSTOMER role has no trainer_profile → returns None."""
+        from core_app.views.trainer_intelligence_views import _get_trainer_profile
+
+        class FakeRequest:
+            user = customer
+
+        result = _get_trainer_profile(FakeRequest())
+        assert result is None
+
+    def test_get_trainer_profile_returns_profile_when_exists(self, trainer):
+        """User with TrainerProfile attached → returns the profile."""
+        from core_app.views.trainer_intelligence_views import _get_trainer_profile
+
+        class FakeRequest:
+            user = trainer.user
+
+        result = _get_trainer_profile(FakeRequest())
+        assert result == trainer
+
+    def test_get_trainer_customer_returns_none_when_no_booking(self, trainer, customer):
+        """Customer has no booking with this trainer → returns None."""
+        from core_app.views.trainer_intelligence_views import _get_trainer_customer
+
+        # No Booking created, so no association
+        result = _get_trainer_customer(trainer, customer.pk)
+        assert result is None
+
+    def test_get_trainer_customer_returns_none_when_user_is_trainer_role(self, trainer, package):
+        """If the looked-up user has TRAINER role, User.DoesNotExist branch → None."""
+        from core_app.views.trainer_intelligence_views import _get_trainer_customer
+
+        # Create a booking where 'customer' is actually a TRAINER user
+        trainer_as_customer = User.objects.create_user(
+            email='trainer-as-cust@test.com', password='pass',
+            role=User.Role.TRAINER,
+        )
+        Booking.objects.create(
+            customer=trainer_as_customer, trainer=trainer, package=package,
+            starts_at=FIXED_NOW, ends_at=FIXED_NOW.replace(hour=9),
+            status=Booking.Status.CONFIRMED,
+        )
+        # _get_trainer_customer filters role=CUSTOMER, so this returns None
+        result = _get_trainer_customer(trainer, trainer_as_customer.pk)
+        assert result is None
+
+    def test_get_trainer_customer_returns_user_when_valid(self, trainer, customer, package):
+        """Customer with a booking for this trainer → returns the customer User."""
+        from core_app.views.trainer_intelligence_views import _get_trainer_customer
+
+        Booking.objects.create(
+            customer=customer, trainer=trainer, package=package,
+            starts_at=FIXED_NOW, ends_at=FIXED_NOW.replace(hour=9),
+            status=Booking.Status.CONFIRMED,
+        )
+        result = _get_trainer_customer(trainer, customer.pk)
+        assert result == customer
+
+
+# ── TrainerRiskDashboardView — extended ───────────────────────────────────────
+
+@pytest.mark.django_db
+class TestTrainerRiskDashboardExtended:
+    """Additional scenarios beyond the basic tests already in TestTrainerRiskDashboardView."""
+
+    def test_trainer_with_no_customers_returns_empty_list(self, api_client, trainer):
+        _auth(api_client, trainer.user)
+        resp = api_client.get(reverse('trainer-risk-dashboard'))
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data['clients_by_risk'] == []
+        assert resp.data['risk_summary']['alto'] == 0
+
+    def test_only_non_stale_score_appears_when_both_exist(self, api_client, trainer, customer, package):
+        """Customer with a stale and a non-stale score: only the non-stale one appears."""
+        _auth(api_client, trainer.user)
+        from datetime import timedelta
+        Booking.objects.create(
+            customer=customer, trainer=trainer, package=package,
+            starts_at=FIXED_NOW, ends_at=FIXED_NOW + timedelta(hours=1),
+            status=Booking.Status.CONFIRMED,
+        )
+        # Create stale score
+        ClientRiskScore.objects.create(
+            customer=customer, trainer=trainer,
+            level=ClientRiskScore.Level.ALTO,
+            behavioral_signals=[], clinical_signals=[], is_stale=True,
+            computed_at=FIXED_NOW,
+        )
+        # Create non-stale score with lower risk
+        ClientRiskScore.objects.create(
+            customer=customer, trainer=trainer,
+            level=ClientRiskScore.Level.BAJO,
+            behavioral_signals=[], clinical_signals=[], is_stale=False,
+            computed_at=FIXED_NOW,
+        )
+        resp = api_client.get(reverse('trainer-risk-dashboard'))
+        assert resp.status_code == status.HTTP_200_OK
+        clients = resp.data['clients_by_risk']
+        assert len(clients) == 1
+        assert clients[0]['level'] == ClientRiskScore.Level.BAJO
+
+    def test_full_ordering_alto_medio_bajo_sin_riesgo(self, api_client, trainer, package):
+        """All four risk levels present — order must be alto→medio→bajo→sin_riesgo."""
+        _auth(api_client, trainer.user)
+        from datetime import timedelta
+        levels_to_create = [
+            ('sin_riesgo-cu@test.com', ClientRiskScore.Level.SIN_RIESGO),
+            ('bajo-cu@test.com', ClientRiskScore.Level.BAJO),
+            ('medio-cu@test.com', ClientRiskScore.Level.MEDIO),
+            ('alto-cu@test.com', ClientRiskScore.Level.ALTO),
+        ]
+        for i, (email, level) in enumerate(levels_to_create):
+            cu = User.objects.create_user(email=email, password='p', role=User.Role.CUSTOMER)
+            t = FIXED_NOW + timedelta(hours=i)
+            Booking.objects.create(
+                customer=cu, trainer=trainer, package=package,
+                starts_at=t, ends_at=t + timedelta(hours=1),
+                status=Booking.Status.CONFIRMED,
+            )
+            ClientRiskScore.objects.create(
+                customer=cu, trainer=trainer, level=level,
+                behavioral_signals=[], clinical_signals=[], is_stale=False,
+                computed_at=t,
+            )
+        resp = api_client.get(reverse('trainer-risk-dashboard'))
+        assert resp.status_code == status.HTTP_200_OK
+        levels_returned = [c['level'] for c in resp.data['clients_by_risk']]
+        assert levels_returned == [
+            ClientRiskScore.Level.ALTO,
+            ClientRiskScore.Level.MEDIO,
+            ClientRiskScore.Level.BAJO,
+            ClientRiskScore.Level.SIN_RIESGO,
+        ]
+
+
+# ── TrainerAlertCenterView ────────────────────────────────────────────────────
+
+@pytest.mark.django_db
+class TestTrainerAlertCenterView:
+
+    @pytest.fixture
+    def risk_score(self, trainer, customer, booking):
+        return ClientRiskScore.objects.create(
+            customer=customer, trainer=trainer,
+            level=ClientRiskScore.Level.ALTO,
+            behavioral_signals=[{'type': 'inactivity_7d'}],
+            clinical_signals=[], is_stale=False,
+            computed_at=FIXED_NOW,
+        )
+
+    def test_returns_200_for_trainer(self, api_client, trainer, risk_score):
+        _auth(api_client, trainer.user)
+        resp = api_client.get(reverse('trainer-alerts'))
+        assert resp.status_code == status.HTTP_200_OK
+        assert 'alerts' in resp.data
+
+    def test_requires_trainer_role(self, api_client, customer, booking):
+        _auth(api_client, customer)
+        resp = api_client.get(reverse('trainer-alerts'))
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_sin_riesgo_excluded_from_alerts(self, api_client, trainer, customer, booking):
+        _auth(api_client, trainer.user)
+        ClientRiskScore.objects.create(
+            customer=customer, trainer=trainer,
+            level=ClientRiskScore.Level.SIN_RIESGO,
+            behavioral_signals=[], clinical_signals=[], is_stale=False,
+            computed_at=FIXED_NOW,
+        )
+        resp = api_client.get(reverse('trainer-alerts'))
+        assert resp.status_code == status.HTTP_200_OK
+        assert len(resp.data['alerts']) == 0
+
+    def test_level_filter_param(self, api_client, trainer, customer, other_customer, package):
+        _auth(api_client, trainer.user)
+        from datetime import timedelta
+        Booking.objects.create(
+            customer=other_customer, trainer=trainer, package=package,
+            starts_at=FIXED_NOW, ends_at=FIXED_NOW + timedelta(hours=1),
+            status=Booking.Status.CONFIRMED,
+        )
+        ClientRiskScore.objects.create(
+            customer=customer, trainer=trainer,
+            level=ClientRiskScore.Level.ALTO,
+            behavioral_signals=[], clinical_signals=[], is_stale=False,
+            computed_at=FIXED_NOW,
+        )
+        ClientRiskScore.objects.create(
+            customer=other_customer, trainer=trainer,
+            level=ClientRiskScore.Level.MEDIO,
+            behavioral_signals=[], clinical_signals=[], is_stale=False,
+            computed_at=FIXED_NOW,
+        )
+        resp = api_client.get(reverse('trainer-alerts') + '?level=alto')
+        assert resp.status_code == status.HTTP_200_OK
+        assert all(a['level'] == ClientRiskScore.Level.ALTO for a in resp.data['alerts'])
+
+
+# ── TrainerMessagesView ───────────────────────────────────────────────────────
+
+@pytest.mark.django_db
+class TestTrainerMessagesView:
+    """Tests for GET/POST /api/trainer/messages/"""
+
+    def test_get_messages_returns_200(self, api_client, trainer, customer, booking):
+        _auth(api_client, trainer.user)
+        resp = api_client.get(reverse('trainer-messages'))
+        assert resp.status_code == status.HTTP_200_OK
+        assert 'messages' in resp.data
+
+    def test_post_creates_message(self, api_client, trainer, customer, booking):
+        _auth(api_client, trainer.user)
+        resp = api_client.post(reverse('trainer-messages'), {
+            'customer_id': customer.pk,
+            'message': 'Hola, ¿cómo te sientes hoy?',
+        }, format='json')
+        assert resp.status_code == status.HTTP_201_CREATED
+        assert resp.data['message'] == 'Hola, ¿cómo te sientes hoy?'
+
+    def test_post_missing_fields_returns_400(self, api_client, trainer):
+        _auth(api_client, trainer.user)
+        resp = api_client.post(reverse('trainer-messages'), {
+            'customer_id': '',
+            'message': '',
+        }, format='json')
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_post_unrelated_customer_returns_404(self, api_client, trainer, other_customer):
+        _auth(api_client, trainer.user)
+        resp = api_client.post(reverse('trainer-messages'), {
+            'customer_id': other_customer.pk,
+            'message': 'Hola',
+        }, format='json')
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+
+# ── TrainerClientResumenView ──────────────────────────────────────────────────
+
+@pytest.mark.django_db
+class TestTrainerClientResumenView:
+
+    def test_returns_200_for_valid_customer(self, api_client, trainer, customer, booking):
+        _auth(api_client, trainer.user)
+        resp = api_client.get(reverse('trainer-client-resumen', args=[customer.pk]))
+        assert resp.status_code == status.HTTP_200_OK
+        assert 'risk' in resp.data
+        assert 'subscription' in resp.data
+
+    def test_returns_404_for_unrelated_customer(self, api_client, trainer, other_customer):
+        _auth(api_client, trainer.user)
+        resp = api_client.get(reverse('trainer-client-resumen', args=[other_customer.pk]))
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_requires_trainer_role(self, api_client, customer, booking):
+        _auth(api_client, customer)
+        resp = api_client.get(reverse('trainer-client-resumen', args=[customer.pk]))
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
+
+
+# ── TrainerClientAlertsView ───────────────────────────────────────────────────
+
+@pytest.mark.django_db
+class TestTrainerClientAlertsView:
+
+    def test_returns_200_for_valid_customer(self, api_client, trainer, customer, booking):
+        _auth(api_client, trainer.user)
+        resp = api_client.get(reverse('trainer-client-alerts', args=[customer.pk]))
+        assert resp.status_code == status.HTTP_200_OK
+        assert 'alerts' in resp.data
+
+    def test_returns_404_for_unrelated_customer(self, api_client, trainer, other_customer):
+        _auth(api_client, trainer.user)
+        resp = api_client.get(reverse('trainer-client-alerts', args=[other_customer.pk]))
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+
+# ── TrainerClientDailyLogsView ────────────────────────────────────────────────
+
+@pytest.mark.django_db
+class TestTrainerClientDailyLogsView:
+
+    def test_returns_200_with_empty_days_when_no_program(self, api_client, trainer, customer, booking):
+        _auth(api_client, trainer.user)
+        resp = api_client.get(reverse('trainer-client-daily-logs', args=[customer.pk]))
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data == {'days': [], 'program': None}
+
+    def test_returns_404_for_unrelated_customer(self, api_client, trainer, other_customer):
+        _auth(api_client, trainer.user)
+        resp = api_client.get(reverse('trainer-client-daily-logs', args=[other_customer.pk]))
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+
+# ── TrainerClientNutritionLogsView ────────────────────────────────────────────
+
+@pytest.mark.django_db
+class TestTrainerClientNutritionLogsView:
+
+    def test_returns_200_with_empty_days_when_no_logs(self, api_client, trainer, customer, booking):
+        _auth(api_client, trainer.user)
+        resp = api_client.get(reverse('trainer-client-nutrition-logs', args=[customer.pk]))
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data == {'days': []}
+
+    def test_returns_404_for_unrelated_customer(self, api_client, trainer, other_customer):
+        _auth(api_client, trainer.user)
+        resp = api_client.get(reverse('trainer-client-nutrition-logs', args=[other_customer.pk]))
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+
+# ── TrainerClientSessionsFullView ─────────────────────────────────────────────
+
+@pytest.mark.django_db
+class TestTrainerClientSessionsFullView:
+
+    def test_returns_200_with_sessions_for_valid_customer(self, api_client, trainer, customer, booking):
+        _auth(api_client, trainer.user)
+        resp = api_client.get(reverse('trainer-client-sessions-full', args=[customer.pk]))
+        assert resp.status_code == status.HTTP_200_OK
+        assert 'sessions' in resp.data
+        assert 'stats' in resp.data
+        assert resp.data['stats']['total'] == 1
+
+    def test_returns_404_for_unrelated_customer(self, api_client, trainer, other_customer):
+        _auth(api_client, trainer.user)
+        resp = api_client.get(reverse('trainer-client-sessions-full', args=[other_customer.pk]))
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+
+# ── TrainerMessagesForCustomerView ────────────────────────────────────────────
+
+@pytest.mark.django_db
+class TestTrainerMessagesForCustomerView:
+
+    def test_customer_can_get_messages(self, api_client, customer):
+        _auth(api_client, customer)
+        resp = api_client.get(reverse('my-trainer-messages'))
+        assert resp.status_code == status.HTTP_200_OK
+        assert 'messages' in resp.data
+
+    def test_trainer_cannot_access_customer_messages_endpoint(self, api_client, trainer):
+        _auth(api_client, trainer.user)
+        resp = api_client.get(reverse('my-trainer-messages'))
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
+
+
+# ── TrainerMessageDismissView ─────────────────────────────────────────────────
+
+@pytest.mark.django_db
+class TestTrainerMessageDismissView:
+
+    @pytest.fixture
+    def message(self, trainer, customer, booking):
+        from core_app.models import TrainerMessage
+        return TrainerMessage.objects.create(
+            customer=customer,
+            trainer=trainer,
+            trigger_type='manual',
+            message='Test message for dismissal',
+        )
+
+    def test_customer_can_dismiss_own_message(self, api_client, customer, message):
+        _auth(api_client, customer)
+        resp = api_client.post(reverse('my-trainer-messages-dismiss', args=[message.pk]))
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data['dismissed_at'] is not None
+
+    def test_non_customer_cannot_dismiss(self, api_client, trainer, message):
+        _auth(api_client, trainer.user)
+        resp = api_client.post(reverse('my-trainer-messages-dismiss', args=[message.pk]))
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_nonexistent_message_returns_404(self, api_client, customer):
+        _auth(api_client, customer)
+        resp = api_client.post(reverse('my-trainer-messages-dismiss', args=[999999]))
+        assert resp.status_code == status.HTTP_404_NOT_FOUND

@@ -156,4 +156,74 @@ describe('NotesTab', () => {
 
     expect(onSendMessage).toHaveBeenCalledWith('Buen trabajo', 'manual');
   });
+
+  it('shows the loading indicator in the session-objective section when sessions are loading', () => {
+    mAnthrop.mockReturnValue({ evaluations: [], fetchEvaluations: jest.fn(), updateEvaluation: jest.fn() });
+    mPostur.mockReturnValue({ evaluations: [], fetchEvaluations: jest.fn(), updateEvaluation: jest.fn() });
+    mFisica.mockReturnValue({ evaluations: [], fetchEvaluations: jest.fn(), updateEvaluation: jest.fn() });
+    mParq.mockReturnValue({ assessments: [], fetchClientAssessments: jest.fn(), updateNotes: jest.fn() });
+    mTrainer.mockReturnValue({
+      clientSessionsFull: {},
+      sessionsFullLoading: true,
+      fetchClientSessionsFull: jest.fn(),
+      updateSessionObjective: jest.fn(),
+    });
+    renderTab();
+
+    expect(screen.getByText('Cargando…')).toBeInTheDocument();
+  });
+
+  it('shows a loading spinner in the messages section when messages are loading', () => {
+    setup();
+    renderTab({ messages: [], messagesLoading: true });
+
+    const spinner = document.querySelector('.animate-spin');
+    expect(spinner).toBeInTheDocument();
+  });
+
+  it('renders a post_milestone trigger-type message with its label', () => {
+    setup();
+    renderTab({
+      messages: [
+        { id: 2, message: 'Hito alcanzado', trigger_type: 'post_milestone', seen_by_customer: false, created_at: '2026-04-02T10:00:00Z' },
+      ],
+    });
+
+    expect(screen.getByText('Post hito')).toBeInTheDocument();
+  });
+
+  it('renders a manual trigger-type message with the fallback Manual label', () => {
+    setup();
+    renderTab({
+      messages: [
+        { id: 3, message: 'Mensaje directo', trigger_type: 'manual', seen_by_customer: false, created_at: '2026-04-03T10:00:00Z' },
+      ],
+    });
+
+    expect(screen.getByText('Manual')).toBeInTheDocument();
+  });
+
+  it('renders one message row per item in the messages array', () => {
+    setup();
+    renderTab({
+      messages: [
+        { id: 10, message: 'Primer mensaje', trigger_type: 'manual', seen_by_customer: false, created_at: '2026-04-04T10:00:00Z' },
+        { id: 11, message: 'Segundo mensaje', trigger_type: 'post_session', seen_by_customer: true, created_at: '2026-04-05T10:00:00Z' },
+        { id: 12, message: 'Tercer mensaje', trigger_type: 'post_milestone', seen_by_customer: false, created_at: '2026-04-06T10:00:00Z' },
+      ],
+    });
+
+    expect(screen.getByText('Primer mensaje')).toBeInTheDocument();
+    expect(screen.getByText('Segundo mensaje')).toBeInTheDocument();
+    expect(screen.getByText('Tercer mensaje')).toBeInTheDocument();
+  });
+
+  it('shows a textarea for a module that has evaluation data', () => {
+    setup({
+      posturEvals: [{ id: 5, evaluation_date: '2026-02-20', notes: 'Postura correcta' }],
+    });
+    renderTab();
+
+    expect(screen.getByDisplayValue('Postura correcta')).toBeInTheDocument();
+  });
 });
