@@ -25,7 +25,7 @@ from .exercise import Exercise
 from .monthly_program import MonthlyProgram, ProgramDay, ProgramExercise, DailyLog, ExerciseLog
 from .food import Food
 from .meal_suggestion import MealSuggestion
-from .nutrition_daily_log import NutritionDailyLog, MealEntry
+from .nutrition_daily_log import NutritionDailyLog, MealEntry, WaterGlassLog
 from .trainer_alert import ClientRiskScore
 from .trainer_alert_resolution import TrainerAlertResolution
 from .trainer_message import TrainerMessage
@@ -68,6 +68,7 @@ __all__ = [
     'MealSuggestion',
     'NutritionDailyLog',
     'MealEntry',
+    'WaterGlassLog',
     'ClientRiskScore',
     'TrainerAlertResolution',
     'TrainerMessage',

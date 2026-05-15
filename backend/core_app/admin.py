@@ -41,6 +41,7 @@ from core_app.models import (
     MealSuggestion,
     NutritionDailyLog,
     MealEntry,
+    WaterGlassLog,
 )
 
 
@@ -456,3 +457,10 @@ class NutritionDailyLogAdmin(admin.ModelAdmin):
 class MealEntryAdmin(admin.ModelAdmin):
     list_display = ('daily_log', 'meal_block', 'suggestion', 'status')
     list_filter = ('meal_block', 'status')
+
+
+@admin.register(WaterGlassLog)
+class WaterGlassLogAdmin(admin.ModelAdmin):
+    list_display = ('daily_log', 'created_at')
+    list_filter = ('created_at',)
+    search_fields = ('daily_log__customer__email',)

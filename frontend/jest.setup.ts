@@ -40,10 +40,16 @@ const gsapMock = {
   set: jest.fn(),
   to: jest.fn(),
   from: jest.fn(),
-  timeline: jest.fn(() => ({
-    from: jest.fn().mockReturnThis(),
-    to: jest.fn().mockReturnThis(),
-  })),
+  timeline: jest.fn(() => {
+    const tl: Record<string, jest.Mock> = {};
+    tl.from = jest.fn(() => tl);
+    tl.to = jest.fn(() => tl);
+    tl.call = jest.fn((cb: unknown) => {
+      if (typeof cb === 'function') (cb as () => void)();
+      return tl;
+    });
+    return tl;
+  }),
 };
 
 jest.mock('gsap', () => ({

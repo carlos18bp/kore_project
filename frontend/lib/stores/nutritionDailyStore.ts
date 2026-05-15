@@ -29,6 +29,12 @@ export type MealEntry = {
   photo_url: string | null;
 };
 
+export type WaterGlassLog = {
+  id: number;
+  photo_url: string | null;
+  created_at: string;
+};
+
 export type NutritionDailyLog = {
   id: number;
   date: string;
@@ -36,6 +42,7 @@ export type NutritionDailyLog = {
   closed_at: string | null;
   notes: string;
   meal_entries: MealEntry[];
+  water_glasses: WaterGlassLog[];
   program_goal: string | null;
   trainer_nutrition_note: string | null;
 };
@@ -47,6 +54,7 @@ type NutritionDailyState = {
   fetchTodayLog: () => Promise<void>;
   updateMealEntry: (logId: number, mealId: number, status: MealEntry['status'], notes?: string) => Promise<void>;
   uploadMealPhoto: (logId: number, mealId: number, file: File) => Promise<void>;
+  logWaterGlass: (logId: number, file: File) => Promise<void>;
 };
 
 function authHeaders() {
@@ -116,6 +124,29 @@ export const useNutritionDailyStore = create<NutritionDailyState>((set, get) => 
       });
     } catch {
       set({ error: 'No se pudo subir la foto.' });
+    }
+  },
+
+  logWaterGlass: async (logId, file) => {
+    const form = new FormData();
+    form.append('photo', file);
+    try {
+      const { data } = await api.post<WaterGlassLog>(
+        `/my-nutrition-daily/${logId}/water-glasses/`,
+        form,
+        { headers: { ...authHeaders(), 'Content-Type': 'multipart/form-data' } },
+      );
+      set((state) => {
+        if (!state.todayLog) return state;
+        return {
+          todayLog: {
+            ...state.todayLog,
+            water_glasses: [...state.todayLog.water_glasses, data],
+          },
+        };
+      });
+    } catch {
+      set({ error: 'No se pudo registrar el vaso de agua.' });
     }
   },
 }));
