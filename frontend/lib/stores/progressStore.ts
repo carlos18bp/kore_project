@@ -86,24 +86,27 @@ export const useProgressStore = create<ProgressState>((set) => ({
     set({ weeklyLoading: true });
     try {
       const params = week ? `?week=${week}` : '';
-      const { data } = await api.get<WeeklySummary>(`/my-program/weekly-summary/${params}`, {
-        headers: authHeaders(),
-      });
-      set({ weeklySummary: data, weeklyLoading: false });
+      const { data } = await api.get<WeeklySummary | null>(
+        `/my-program/weekly-summary/${params}`,
+        { headers: authHeaders() },
+      );
+      // Backend returns `null` when the customer has no active program; we
+      // store that directly so the UI renders an empty state without errors.
+      set({ weeklySummary: data ?? null, weeklyLoading: false });
     } catch {
-      set({ weeklyLoading: false });
+      set({ weeklySummary: null, weeklyLoading: false });
     }
   },
 
   fetchProjection: async () => {
     set({ projectionLoading: true });
     try {
-      const { data } = await api.get<Projection>('/my-program/projection/', {
+      const { data } = await api.get<Projection | null>('/my-program/projection/', {
         headers: authHeaders(),
       });
-      set({ projection: data, projectionLoading: false });
+      set({ projection: data ?? null, projectionLoading: false });
     } catch {
-      set({ projectionLoading: false });
+      set({ projection: null, projectionLoading: false });
     }
   },
 
@@ -111,12 +114,13 @@ export const useProgressStore = create<ProgressState>((set) => ({
     set({ monthlyLoading: true });
     try {
       const params = programId ? `?program=${programId}` : '';
-      const { data } = await api.get<MonthlySummary>(`/my-program/monthly-summary/${params}`, {
-        headers: authHeaders(),
-      });
-      set({ monthlySummary: data, monthlyLoading: false });
+      const { data } = await api.get<MonthlySummary | null>(
+        `/my-program/monthly-summary/${params}`,
+        { headers: authHeaders() },
+      );
+      set({ monthlySummary: data ?? null, monthlyLoading: false });
     } catch {
-      set({ monthlyLoading: false });
+      set({ monthlySummary: null, monthlyLoading: false });
     }
   },
 }));

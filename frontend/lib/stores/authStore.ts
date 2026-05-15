@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import Cookies from 'js-cookie';
 import { api } from '@/lib/services/http';
-import { AxiosError } from 'axios';
+import axios, { AxiosError } from 'axios';
 import { useSubscriptionStore } from './subscriptionStore';
 import { useBookingStore } from './bookingStore';
 
@@ -216,15 +216,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return;
     }
 
+    let cachedUser: User;
     try {
-      JSON.parse(userStr) as User;
+      cachedUser = JSON.parse(userStr) as User;
     } catch {
       clearAuthCookies();
       set({ user: null, accessToken: null, isAuthenticated: false, hydrated: true });
       return;
     }
 
-    set({ hydrated: false });
+    // Optimistic hydration: trust the cookie-cached user immediately so the
+    // (app) layout doesn't bounce to /login while we revalidate.
+    set({ user: cachedUser, accessToken: token, isAuthenticated: true, hydrated: true });
 
     void api.get<ProfileResponse>('/auth/profile/', {
       headers: { Authorization: `Bearer ${token}` },
@@ -237,11 +240,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           assigned_trainer: data.user.assigned_trainer ?? null,
         });
         Cookies.set('kore_user', JSON.stringify(user), { expires: 7 });
-        set({ user, accessToken: token, isAuthenticated: true, hydrated: true });
+        set({ user, accessToken: token, isAuthenticated: true });
       })
-      .catch(() => {
-        clearAuthCookies();
-        set({ user: null, accessToken: null, isAuthenticated: false, hydrated: true });
+      .catch((err: unknown) => {
+        // Only log out when the server *explicitly* rejects auth.
+        // Transient 5xx / network / 404 must NOT wipe the session — that was
+        // turning every flaky /auth/profile/ call into a forced logout.
+        const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+        if (status === 401 || status === 403) {
+          clearAuthCookies();
+          set({ user: null, accessToken: null, isAuthenticated: false });
+        }
+        // else: keep the optimistic session; next authenticated call will retry.
       });
   },
 

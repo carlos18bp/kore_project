@@ -361,7 +361,7 @@ describe('authStore', () => {
       expect(mockedApi.get).not.toHaveBeenCalled();
     });
 
-    it('clears stale auth when backend profile validation fails', async () => {
+    it('clears stale auth when backend profile validation returns 401', async () => {
       mockedCookies.get.mockImplementation((key: string) => {
         if (key === 'kore_token') return 'stale-token';
         if (key === 'kore_user') {
@@ -377,7 +377,14 @@ describe('authStore', () => {
         }
         return undefined;
       });
-      mockedApi.get.mockRejectedValueOnce(new Error('Unauthorized'));
+      const unauthorized = new AxiosError('Unauthorized', '401', undefined, undefined, {
+        data: { detail: 'Token inválido.' },
+        status: 401,
+        statusText: 'Unauthorized',
+        headers: {},
+        config: { headers: new AxiosHeaders() },
+      });
+      mockedApi.get.mockRejectedValueOnce(unauthorized);
 
       useAuthStore.getState().hydrate();
 
@@ -392,6 +399,81 @@ describe('authStore', () => {
       expect(mockedCookies.remove).toHaveBeenCalledWith('kore_token');
       expect(mockedCookies.remove).toHaveBeenCalledWith('kore_refresh');
       expect(mockedCookies.remove).toHaveBeenCalledWith('kore_user');
+    });
+
+    it('keeps cached session when /auth/profile/ fails with a 5xx (transient)', async () => {
+      mockedCookies.get.mockImplementation((key: string) => {
+        if (key === 'kore_token') return 'good-token';
+        if (key === 'kore_user') {
+          return JSON.stringify({
+            id: '22',
+            email: 'customer10@kore.com',
+            first_name: 'Customer10',
+            last_name: 'Kore',
+            phone: '',
+            role: 'customer',
+            name: 'Customer10 Kore',
+          });
+        }
+        return undefined;
+      });
+      const serverError = new AxiosError('Server Error', '500', undefined, undefined, {
+        data: { detail: 'boom' },
+        status: 500,
+        statusText: 'Internal Server Error',
+        headers: {},
+        config: { headers: new AxiosHeaders() },
+      });
+      mockedApi.get.mockRejectedValueOnce(serverError);
+
+      useAuthStore.getState().hydrate();
+
+      // Immediately after hydrate(), the optimistic session is set.
+      const optimistic = useAuthStore.getState();
+      expect(optimistic.isAuthenticated).toBe(true);
+      expect(optimistic.accessToken).toBe('good-token');
+      expect(optimistic.user?.email).toBe('customer10@kore.com');
+      expect(optimistic.hydrated).toBe(true);
+
+      // After the rejection, the optimistic session must survive — a flaky
+      // /auth/profile/ must NOT force a logout.
+      await waitFor(() => {
+        expect(mockedApi.get).toHaveBeenCalled();
+      });
+      const after = useAuthStore.getState();
+      expect(after.isAuthenticated).toBe(true);
+      expect(after.user?.email).toBe('customer10@kore.com');
+      expect(mockedCookies.remove).not.toHaveBeenCalled();
+    });
+
+    it('keeps cached session when /auth/profile/ fails with a network error (no response)', async () => {
+      mockedCookies.get.mockImplementation((key: string) => {
+        if (key === 'kore_token') return 'good-token';
+        if (key === 'kore_user') {
+          return JSON.stringify({
+            id: '22',
+            email: 'customer10@kore.com',
+            first_name: 'Customer10',
+            last_name: 'Kore',
+            phone: '',
+            role: 'customer',
+            name: 'Customer10 Kore',
+          });
+        }
+        return undefined;
+      });
+      mockedApi.get.mockRejectedValueOnce(new Error('Network Error'));
+
+      useAuthStore.getState().hydrate();
+
+      await waitFor(() => {
+        expect(mockedApi.get).toHaveBeenCalled();
+      });
+
+      const after = useAuthStore.getState();
+      expect(after.isAuthenticated).toBe(true);
+      expect(after.user?.email).toBe('customer10@kore.com');
+      expect(mockedCookies.remove).not.toHaveBeenCalled();
     });
   });
 

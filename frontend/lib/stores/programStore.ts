@@ -95,24 +95,26 @@ export const useProgramStore = create<ProgramState>((set, get) => ({
   fetchActiveProgram: async () => {
     set({ loading: true, error: '' });
     try {
-      const { data } = await api.get<MonthlyProgram>('/my-program/', {
+      const { data } = await api.get<MonthlyProgram | null>('/my-program/', {
         headers: authHeaders(),
       });
-      set({ activeProgram: data, loading: false });
+      // Backend returns `null` for the empty-state ("no published program yet"),
+      // so we can store the payload directly without distinguishing it from 404s.
+      set({ activeProgram: data ?? null, loading: false });
     } catch {
-      set({ activeProgram: null, loading: false });
+      set({ activeProgram: null, loading: false, error: 'No se pudo cargar el programa.' });
     }
   },
 
   fetchTodayData: async () => {
     set({ todayLoading: true, error: '' });
     try {
-      const { data } = await api.get<TodayData>('/my-program/today/', {
+      const { data } = await api.get<TodayData | null>('/my-program/today/', {
         headers: authHeaders(),
       });
-      set({ todayData: data, todayLoading: false });
+      set({ todayData: data ?? null, todayLoading: false });
     } catch {
-      set({ todayData: null, todayLoading: false });
+      set({ todayData: null, todayLoading: false, error: 'No se pudo cargar el día.' });
     }
   },
 

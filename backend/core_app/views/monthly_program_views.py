@@ -280,7 +280,11 @@ class CustomerProgramListView(APIView):
 # ---------------------------------------------------------------------------
 
 class MyProgramView(APIView):
-    """GET — active published program for the authenticated customer."""
+    """GET — active published program for the authenticated customer.
+
+    Returns 200 with `null` body when the customer has no published program;
+    the frontend treats this as an empty state, not an error.
+    """
 
     permission_classes = [IsAuthenticated]
 
@@ -295,7 +299,7 @@ class MyProgramView(APIView):
             .first()
         )
         if program is None:
-            return Response({'detail': 'No active program.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(None)
 
         data = MonthlyProgramSerializer(program).data
         booking_dates = list(
@@ -328,14 +332,14 @@ class TodayProgramView(APIView):
             .first()
         )
         if program is None:
-            return Response({'detail': 'No active program for today.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(None)
 
         try:
             program_day = ProgramDay.objects.prefetch_related(
                 'exercises__exercise'
             ).get(program=program, date=today)
         except ProgramDay.DoesNotExist:
-            return Response({'detail': 'No program day for today.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(None)
 
         daily_log, created = DailyLog.objects.get_or_create(
             customer=request.user,

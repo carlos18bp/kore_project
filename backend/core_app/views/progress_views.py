@@ -24,7 +24,7 @@ class WeeklySummaryView(APIView):
 
         data = get_weekly_summary(request.user, week_number)
         if data is None:
-            return Response({'detail': 'No active program.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(None)
         return Response(data)
 
 
@@ -36,7 +36,7 @@ class ProjectionView(APIView):
     def get(self, request):
         data = get_projection(request.user)
         if data is None:
-            return Response({'detail': 'No active program.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(None)
         return Response(data)
 
 
@@ -50,5 +50,5 @@ class MonthlySummaryView(APIView):
         pid = int(program_id) if program_id and program_id.isdigit() else None
         data = get_monthly_summary(request.user, pid)
         if data is None:
-            return Response({'detail': 'No program found.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(None)
         return Response(data)
