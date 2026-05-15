@@ -397,4 +397,45 @@ describe('ClientProgramTab', () => {
       expect.anything(),
     );
   });
+
+  it('PATCHes the program approval endpoint when Publicar is clicked on a draft', async () => {
+    setupApi({ programs: [draftProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Publicar' }));
+    });
+
+    expect(mockedApi.patch).toHaveBeenCalledWith(
+      '/monthly-programs/70/approve/',
+      expect.objectContaining({ trainer_notes: expect.any(String) }),
+      expect.anything(),
+    );
+  });
+
+  it('updates the trainer notes textarea when the user types in a draft program', async () => {
+    setupApi({ programs: [draftProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    const textarea = screen.getByPlaceholderText(/Explícale al cliente/);
+    await act(async () => {
+      fireEvent.change(textarea, { target: { value: 'Nueva nota de entrenamiento' } });
+    });
+
+    expect(screen.getByDisplayValue('Nueva nota de entrenamiento')).toBeInTheDocument();
+  });
+
+  it('shows the Solo lectura label in the notes block when the program is published', async () => {
+    setupStore({ logs: DAILY_LOGS });
+    setupApi({ programs: [publishedProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Publicado');
+
+    expect(screen.getByText('Solo lectura')).toBeInTheDocument();
+  });
 });

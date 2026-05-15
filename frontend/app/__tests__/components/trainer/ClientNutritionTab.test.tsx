@@ -197,4 +197,78 @@ describe('ClientNutritionTab', () => {
       expect.anything(),
     );
   });
+
+  it('calls the publish endpoint when Publicar is clicked on a draft plan', async () => {
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
+    mockedApi.post.mockResolvedValueOnce({ data: { ...publishedPlan(), id: 50 } });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Publicar' }));
+    });
+
+    expect(mockedApi.post).toHaveBeenCalledWith(
+      '/nutrition-plans/50/approve/',
+      expect.objectContaining({ trainer_notes: expect.any(String) }),
+      expect.anything(),
+    );
+  });
+
+  it('calls the delete endpoint when Eliminar borrador is confirmed', async () => {
+    jest.spyOn(window, 'confirm').mockReturnValueOnce(true);
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Eliminar borrador' }));
+    });
+
+    expect(mockedApi.delete).toHaveBeenCalledWith(
+      '/nutrition-plans/50/delete/',
+      expect.anything(),
+    );
+  });
+
+  it('calls the generate endpoint when Regenerar is confirmed on a draft plan', async () => {
+    jest.spyOn(window, 'confirm').mockReturnValueOnce(true);
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
+    mockedApi.post.mockResolvedValueOnce({ data: { ...draftPlan(), id: 99 } });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Regenerar' }));
+    });
+
+    expect(mockedApi.post).toHaveBeenCalledWith(
+      '/nutrition-plans/generate/',
+      { customer_id: CLIENT_ID },
+      expect.anything(),
+    );
+  });
+
+  it('shows the habit score label when habit data is available', async () => {
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan(), habit: [HABIT_SUMMARY] });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Borrador');
+
+    expect(await screen.findByText(/Score hábito · Saludable/)).toBeInTheDocument();
+  });
+
+  it('shows the no-habit message when the habit evaluation has not been completed', async () => {
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan(), habit: [] });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Borrador');
+
+    expect(
+      await screen.findByText(/El cliente aún no ha completado la evaluación de hábitos nutricionales/),
+    ).toBeInTheDocument();
+  });
 });

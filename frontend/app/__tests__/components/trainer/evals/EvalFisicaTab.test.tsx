@@ -113,4 +113,69 @@ describe('EvalFisicaTab', () => {
     expect(updateEvaluation).toHaveBeenCalledWith(CLIENT_ID, 1, expect.objectContaining({ evaluation_date: '2026-03-12' }));
     expect(screen.getByText('Última evaluación')).toBeInTheDocument();
   });
+
+  it('shows the loading spinner when loading is true', () => {
+    setupStore({ evaluations: [], loading: true });
+
+    render(<EvalFisicaTab clientId={CLIENT_ID} />);
+
+    // EvalSpinner shows; the empty state message must not render
+    expect(screen.queryByText('Sin evaluaciones físicas. Registra la primera.')).not.toBeInTheDocument();
+  });
+
+  it('enters create mode when Nueva is clicked from the results view', () => {
+    setupStore({ evaluations: [makeEval()] });
+
+    render(<EvalFisicaTab clientId={CLIENT_ID} />);
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: '+ Nueva' }));
+    });
+
+    expect(screen.getByRole('button', { name: 'Crear evaluación' })).toBeInTheDocument();
+  });
+
+  it('calls createEvaluation and returns to results after saving a new evaluation', async () => {
+    const { createEvaluation } = setupStore({ evaluations: [makeEval()] });
+
+    render(<EvalFisicaTab clientId={CLIENT_ID} />);
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: '+ Nueva' }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Crear evaluación' }));
+    });
+
+    expect(createEvaluation).toHaveBeenCalledWith(CLIENT_ID, expect.objectContaining({ evaluation_date: expect.any(String) }));
+    expect(screen.getByText('Última evaluación')).toBeInTheDocument();
+  });
+
+  it('returns to results view when Cancelar is clicked during edit', () => {
+    setupStore({ evaluations: [makeEval()] });
+
+    render(<EvalFisicaTab clientId={CLIENT_ID} />);
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Editar esta evaluación' }));
+    });
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    });
+
+    expect(screen.getByText('Última evaluación')).toBeInTheDocument();
+  });
+
+  it('shows Sin medicion registrada in a TestCard when squats_reps is null', () => {
+    setupStore({ evaluations: [makeEval({ squats_reps: null, squats_score: null })] });
+
+    render(<EvalFisicaTab clientId={CLIENT_ID} />);
+
+    expect(screen.getByText('Sin medición registrada')).toBeInTheDocument();
+  });
+
+  it('shows pain flag when squats_pain is true', () => {
+    setupStore({ evaluations: [makeEval({ squats_pain: true })] });
+
+    render(<EvalFisicaTab clientId={CLIENT_ID} />);
+
+    expect(screen.getByText('⚠ Dolor')).toBeInTheDocument();
+  });
 });

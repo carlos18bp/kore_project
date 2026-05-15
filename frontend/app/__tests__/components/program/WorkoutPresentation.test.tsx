@@ -31,7 +31,7 @@ jest.mock('@/app/components/program/YouTubeEmbed', () => ({
   default: ({ title }: { title: string }) => <div data-testid="youtube-embed">{title}</div>,
 }));
 
-function makeExerciseLog(id: number, name: string, opts: { reps?: number | null; sets?: number; youtube?: string } = {}) {
+function makeExerciseLog(id: number, name: string, opts: { reps?: number | null; sets?: number; youtube?: string; duration_seconds?: number | null } = {}) {
   return {
     id,
     status: 'not_done' as const,
@@ -44,7 +44,7 @@ function makeExerciseLog(id: number, name: string, opts: { reps?: number | null;
       },
       sets: opts.sets ?? 1,
       reps: opts.reps === undefined ? 12 : opts.reps,
-      duration_seconds: null,
+      duration_seconds: opts.duration_seconds ?? null,
       rest_seconds: 60,
       order: id,
       notes: '',
@@ -122,5 +122,79 @@ describe('WorkoutPresentation', () => {
     renderWorkout();
 
     expect(screen.getByTestId('youtube-embed')).toBeInTheDocument();
+  });
+
+  it('does not render the youtube-embed when the exercise has no video URL', () => {
+    renderWorkout({ logs: [makeExerciseLog(1, 'Sentadilla', { youtube: '' })] });
+
+    expect(screen.queryByTestId('youtube-embed')).not.toBeInTheDocument();
+  });
+
+  it('shows rest phase after completing the first of two sets', () => {
+    renderWorkout({ logs: [makeExerciseLog(1, 'Sentadilla', { sets: 2 })] });
+
+    act(() => { fireEvent.click(screen.getByRole('button', { name: /vamos/i })); });
+    act(() => { fireEvent.click(screen.getByRole('button', { name: /Completé el set/ })); });
+
+    expect(screen.getByText(/descansa/i)).toBeInTheDocument();
+  });
+
+  it('returns to execute phase when Listo, continuar is clicked in rest', () => {
+    renderWorkout({ logs: [makeExerciseLog(1, 'Sentadilla', { sets: 2 })] });
+
+    act(() => { fireEvent.click(screen.getByRole('button', { name: /vamos/i })); });
+    act(() => { fireEvent.click(screen.getByRole('button', { name: /Completé el set/ })); });
+    act(() => { fireEvent.click(screen.getByRole('button', { name: 'Listo, continuar' })); });
+
+    expect(screen.getByRole('button', { name: /Completé el set/ })).toBeInTheDocument();
+  });
+
+  it('calls onStatusChange with completed after finishing all sets on a multi-set exercise', () => {
+    const { onStatusChange } = renderWorkout({ logs: [makeExerciseLog(1, 'Sentadilla', { sets: 2 })] });
+
+    act(() => { fireEvent.click(screen.getByRole('button', { name: /vamos/i })); });
+    act(() => { fireEvent.click(screen.getByRole('button', { name: /Completé el set/ })); });
+    act(() => { fireEvent.click(screen.getByRole('button', { name: 'Listo, continuar' })); });
+    act(() => { fireEvent.click(screen.getByRole('button', { name: /Completé el set/ })); });
+
+    expect(onStatusChange).toHaveBeenCalledWith(1, 'completed');
+  });
+
+  it('shows the complete screen after finishing the last exercise', () => {
+    renderWorkout({ logs: [makeExerciseLog(1, 'Sentadilla')] });
+
+    act(() => { fireEvent.click(screen.getByRole('button', { name: /vamos/i })); });
+    act(() => { fireEvent.click(screen.getByRole('button', { name: /Completé el set/ })); });
+
+    expect(screen.getByRole('heading', { name: '¡Sesión completada!' })).toBeInTheDocument();
+  });
+
+  it('calls onClose when Ver resumen is clicked on the complete screen', () => {
+    const { onClose } = renderWorkout({ logs: [makeExerciseLog(1, 'Sentadilla')] });
+
+    act(() => { fireEvent.click(screen.getByRole('button', { name: /vamos/i })); });
+    act(() => { fireEvent.click(screen.getByRole('button', { name: /Completé el set/ })); });
+    act(() => { fireEvent.click(screen.getByRole('button', { name: 'Ver resumen' })); });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders timer display instead of rep count for a duration-based exercise in execute phase', () => {
+    renderWorkout({ logs: [makeExerciseLog(1, 'Plank', { reps: null, duration_seconds: 30 })] });
+
+    act(() => { fireEvent.click(screen.getByRole('button', { name: /vamos/i })); });
+
+    expect(screen.queryByText('repeticiones')).not.toBeInTheDocument();
+    // timer ring renders an SVG circle
+    expect(document.querySelector('svg circle')).not.toBeNull();
+  });
+
+  it('shows Omitidos section on complete screen when initial data contains skipped exercises', () => {
+    const skippedLog = { ...makeExerciseLog(1, 'Sentadilla'), status: 'skipped' as const };
+    renderWorkout({ logs: [skippedLog] });
+
+    act(() => { fireEvent.click(screen.getByRole('button', { name: 'Omitir ejercicio' })); });
+
+    expect(screen.getByText('Omitidos')).toBeInTheDocument();
   });
 });
