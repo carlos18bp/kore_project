@@ -488,7 +488,7 @@ function SesionesSection({
                   notes={selected.session_objective ?? ''}
                   placeholder="Ejercicios clave, intensidad, foco de esta sesión…"
                   rows={8}
-                  onSave={(notes) => updateSessionObjective(clientId, selected.id, notes)}
+                  onSave={async (notes) => { await updateSessionObjective(clientId, selected.id, notes); }}
                 />
               ) : (
                 <EmptyState size="sm" title="Selecciona una sesión" description="Toca un día con sesión en el calendario para editar su objetivo." />
@@ -776,7 +776,7 @@ function ProgramaSection({ clientId }: { clientId: number }) {
           notes={p.trainer_notes ?? ''}
           placeholder="Observaciones del entrenador para este ciclo de 28 días…"
           rows={6}
-          onSave={(notes) => updateMonthlyProgramNote(clientId, p.id, notes)}
+          onSave={async (notes) => { await updateMonthlyProgramNote(clientId, p.id, notes); }}
         />
       )}
       renderHistory={(p, onSelect) => (
@@ -787,7 +787,7 @@ function ProgramaSection({ clientId }: { clientId: number }) {
           meta={`Objetivo: ${p.goal}`}
           snippet={p.trainer_notes ?? ''}
           onClick={onSelect}
-          onDelete={() => updateMonthlyProgramNote(clientId, p.id, '')}
+          onDelete={async () => { await updateMonthlyProgramNote(clientId, p.id, ''); }}
         />
       )}
       emptyTitle="Sin programas de entrenamiento"
@@ -823,7 +823,7 @@ function NutricionSection({ clientId }: { clientId: number }) {
               notes={p.trainer_notes ?? ''}
               placeholder="Observaciones sobre esta semana nutricional…"
               rows={5}
-              onSave={(notes) => updateWeeklyPlanNote(clientId, p.id, notes)}
+              onSave={async (notes) => { await updateWeeklyPlanNote(clientId, p.id, notes); }}
             />
           )}
           renderHistory={(p, onSelect) => (
@@ -834,7 +834,7 @@ function NutricionSection({ clientId }: { clientId: number }) {
               meta={`Objetivo: ${p.goal}`}
               snippet={p.trainer_notes ?? ''}
               onClick={onSelect}
-              onDelete={() => updateWeeklyPlanNote(clientId, p.id, '')}
+              onDelete={async () => { await updateWeeklyPlanNote(clientId, p.id, ''); }}
             />
           )}
           emptyTitle="Sin planes nutricionales"
@@ -853,7 +853,7 @@ function NutricionSection({ clientId }: { clientId: number }) {
             notes={h.trainer_notes ?? ''}
             placeholder="Notas y observaciones sobre los hábitos del cliente…"
             rows={5}
-            onSave={(notes) => approveEntry(clientId, h.id, notes)}
+            onSave={async (notes) => { await approveEntry(clientId, h.id, notes); }}
           />
         )}
         renderHistory={(h, onSelect) => (
@@ -864,7 +864,7 @@ function NutricionSection({ clientId }: { clientId: number }) {
             meta={h.habit_category ? `Score · ${h.habit_category}` : undefined}
             snippet={h.trainer_notes ?? ''}
             onClick={onSelect}
-            onDelete={() => approveEntry(clientId, h.id, '')}
+            onDelete={async () => { await approveEntry(clientId, h.id, ''); }}
           />
         )}
         emptyTitle="Sin registros de hábitos"
@@ -903,7 +903,7 @@ function EvaluacionesSection({ clientId }: { clientId: number }) {
             notes={e.notes ?? ''}
             placeholder="Notas generales del entrenador sobre la antropometría…"
             rows={5}
-            onSave={(notes) => updateAnthrop(clientId, e.id, { notes })}
+            onSave={async (notes) => { await updateAnthrop(clientId, e.id, { notes }); }}
           />
         )}
         renderHistory={(e, onSelect) => (
@@ -913,7 +913,7 @@ function EvaluacionesSection({ clientId }: { clientId: number }) {
             title={formatDate(e.evaluation_date)}
             snippet={e.notes ?? ''}
             onClick={onSelect}
-            onDelete={() => updateAnthrop(clientId, e.id, { notes: '' })}
+            onDelete={async () => { await updateAnthrop(clientId, e.id, { notes: '' }); }}
           />
         )}
         emptyTitle="Sin evaluaciones antropométricas"
@@ -931,7 +931,7 @@ function EvaluacionesSection({ clientId }: { clientId: number }) {
             notes={e.notes ?? ''}
             placeholder="Nota general (las observaciones por vista viven en su módulo)…"
             rows={5}
-            onSave={(notes) => updatePostur(clientId, e.id, { notes })}
+            onSave={async (notes) => { await updatePostur(clientId, e.id, { notes }); }}
           />
         )}
         renderHistory={(e, onSelect) => (
@@ -941,7 +941,7 @@ function EvaluacionesSection({ clientId }: { clientId: number }) {
             title={formatDate(e.evaluation_date)}
             snippet={e.notes ?? ''}
             onClick={onSelect}
-            onDelete={() => updatePostur(clientId, e.id, { notes: '' })}
+            onDelete={async () => { await updatePostur(clientId, e.id, { notes: '' }); }}
           />
         )}
         emptyTitle="Sin evaluaciones posturales"
@@ -959,7 +959,7 @@ function EvaluacionesSection({ clientId }: { clientId: number }) {
             notes={e.notes ?? ''}
             placeholder="Nota general (las notas por test viven en su módulo)…"
             rows={5}
-            onSave={(notes) => updateFisica(clientId, e.id, { notes })}
+            onSave={async (notes) => { await updateFisica(clientId, e.id, { notes }); }}
           />
         )}
         renderHistory={(e, onSelect) => (
@@ -969,7 +969,7 @@ function EvaluacionesSection({ clientId }: { clientId: number }) {
             title={formatDate(e.evaluation_date)}
             snippet={e.notes ?? ''}
             onClick={onSelect}
-            onDelete={() => updateFisica(clientId, e.id, { notes: '' })}
+            onDelete={async () => { await updateFisica(clientId, e.id, { notes: '' }); }}
           />
         )}
         emptyTitle="Sin evaluaciones físicas"
@@ -987,7 +987,7 @@ function EvaluacionesSection({ clientId }: { clientId: number }) {
             notes={p.additional_notes ?? ''}
             placeholder="Notas adicionales sobre el PAR-Q+…"
             rows={5}
-            onSave={(notes) => updateParq(clientId, p.id, notes)}
+            onSave={async (notes) => { await updateParq(clientId, p.id, notes); }}
           />
         )}
         renderHistory={(p, onSelect) => (
@@ -997,7 +997,7 @@ function EvaluacionesSection({ clientId }: { clientId: number }) {
             title={formatDate(p.created_at)}
             snippet={p.additional_notes ?? ''}
             onClick={onSelect}
-            onDelete={() => updateParq(clientId, p.id, '')}
+            onDelete={async () => { await updateParq(clientId, p.id, ''); }}
           />
         )}
         emptyTitle="Sin registros PAR-Q+"
