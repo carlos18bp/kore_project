@@ -2,11 +2,11 @@ import { render, screen, waitFor } from '@testing-library/react';
 import AppLayout from '@/app/(app)/layout';
 import { useAuthStore } from '@/lib/stores/authStore';
 
-const mockPush = jest.fn();
+const mockReplace = jest.fn();
 
 jest.mock('next/navigation', () => ({
   usePathname: () => '/dashboard',
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: jest.fn(), replace: mockReplace }),
 }));
 
 jest.mock('next/link', () => ({
@@ -64,7 +64,7 @@ describe('AppLayout', () => {
     );
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/login');
+      expect(mockReplace).toHaveBeenCalledWith('/login');
     });
   });
 
@@ -76,7 +76,7 @@ describe('AppLayout', () => {
       </AppLayout>
     );
 
-    expect(mockPush).not.toHaveBeenCalledWith('/login');
+    expect(mockReplace).not.toHaveBeenCalledWith('/login');
   });
 
 });
