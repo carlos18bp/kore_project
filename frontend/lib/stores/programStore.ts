@@ -98,9 +98,10 @@ export const useProgramStore = create<ProgramState>((set, get) => ({
       const { data } = await api.get<MonthlyProgram | null>('/my-program/', {
         headers: authHeaders(),
       });
-      // Backend returns `null` for the empty-state ("no published program yet"),
-      // so we can store the payload directly without distinguishing it from 404s.
-      set({ activeProgram: data ?? null, loading: false });
+      // Backend sends an empty body (0 bytes) — not literal JSON null — for the
+      // empty-state ("no published program yet"). Axios surfaces that as "",
+      // which slips past `?? null`; normalize to a real null.
+      set({ activeProgram: (data && typeof data === 'object') ? data : null, loading: false });
     } catch {
       set({ activeProgram: null, loading: false, error: 'No se pudo cargar el programa.' });
     }
@@ -112,7 +113,7 @@ export const useProgramStore = create<ProgramState>((set, get) => ({
       const { data } = await api.get<TodayData | null>('/my-program/today/', {
         headers: authHeaders(),
       });
-      set({ todayData: data ?? null, todayLoading: false });
+      set({ todayData: (data && typeof data === 'object') ? data : null, todayLoading: false });
     } catch {
       set({ todayData: null, todayLoading: false, error: 'No se pudo cargar el día.' });
     }

@@ -1371,8 +1371,8 @@ export default function DashboardPage() {
 
   // ── Streak ─────────────────────────────────────────────────
   // Source: weekly adherence summary (matches /mi-programa).
-  const streakCount = weeklySummary?.streak.current ?? 0;
-  const longestStreak = weeklySummary?.streak.longest ?? 0;
+  const streakCount = weeklySummary?.streak?.current ?? 0;
+  const longestStreak = weeklySummary?.streak?.longest ?? 0;
 
   // ── Session ────────────────────────────────────────────────
   const formattedDate = upcomingReminder?.starts_at
@@ -1409,7 +1409,7 @@ export default function DashboardPage() {
 
   // ── Program day ────────────────────────────────────────────
   const today = new Date().toISOString().slice(0, 10);
-  const todayProgDay = activeProgram?.days.find((d) => d.date === today);
+  const todayProgDay = activeProgram?.days?.find((d) => d.date === today);
   const hasRoutine = !!(todayProgDay && todayProgDay.day_type !== 'rest' && todayProgDay.exercises.length > 0);
   const allExercises = todayProgDay?.exercises ?? [];
   const exerciseCount = allExercises.length;
@@ -1734,7 +1734,7 @@ export default function DashboardPage() {
               {getGreeting()}, {user.name.split(' ')[0]}.
             </h1>
             <p className="text-[14px] text-kore-gray-dark/55 mt-1.5">
-              {todayProgDay ? `Día ${todayProgDay.day_number} de ${activeProgram?.days.length}` : 'Sin programa activo'} · {streakCount} días consecutivos
+              {todayProgDay ? `Día ${todayProgDay.day_number} de ${activeProgram?.days?.length ?? 0}` : 'Sin programa activo'} · {streakCount} días consecutivos
             </p>
           </div>
           <div className="flex items-stretch gap-2 shrink-0">
