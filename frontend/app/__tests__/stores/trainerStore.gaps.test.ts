@@ -1,6 +1,5 @@
 import Cookies from 'js-cookie';
 import { useTrainerStore } from '@/lib/stores/trainerStore';
-import type { PhotoEntry } from '@/lib/stores/trainerStore';
 import { api } from '@/lib/services/http';
 
 jest.mock('js-cookie', () => ({ get: jest.fn(), set: jest.fn(), remove: jest.fn() }));
@@ -10,24 +9,8 @@ jest.mock('@/lib/services/http', () => ({
 
 const mockedApi = api as jest.Mocked<typeof api>;
 
-const MOCK_PHOTO: PhotoEntry = {
-  meal_entry_id: 10,
-  log_id: 5,
-  customer_id: 3,
-  customer_name: 'Ana García',
-  photo_url: 'https://cdn.kore.com/photos/10.jpg',
-  meal_block: 'desayuno',
-  date: '2026-05-10',
-  trainer_comment: '',
-  trainer_comment_at: null,
-  flagged_for_session: false,
-  status: 'pending',
-};
-
 function resetStore() {
   useTrainerStore.setState({
-    photoGallery: [],
-    galleryLoading: false,
     clientAlerts: {},
     clientAlertsLoading: false,
     clientNutritionLogs: {},
@@ -41,83 +24,6 @@ describe('trainerStore — gap actions', () => {
     jest.resetAllMocks();
     resetStore();
     (Cookies.get as jest.Mock).mockReturnValue('tok');
-  });
-
-  describe('fetchPhotoGallery', () => {
-    it('stores photo array on success (all customers)', async () => {
-      mockedApi.get.mockResolvedValueOnce({ data: { photos: [MOCK_PHOTO] } });
-
-      await useTrainerStore.getState().fetchPhotoGallery();
-
-      expect(useTrainerStore.getState().photoGallery).toHaveLength(1);
-      expect(useTrainerStore.getState().photoGallery[0].meal_entry_id).toBe(10);
-      expect(useTrainerStore.getState().galleryLoading).toBe(false);
-    });
-
-    it('appends customer_id query param when customerId is provided', async () => {
-      mockedApi.get.mockResolvedValueOnce({ data: { photos: [] } });
-
-      await useTrainerStore.getState().fetchPhotoGallery(3);
-
-      expect(mockedApi.get).toHaveBeenCalledWith(
-        '/trainer/photo-gallery/?customer_id=3',
-        expect.anything(),
-      );
-    });
-
-    it('calls endpoint without query params when no customerId', async () => {
-      mockedApi.get.mockResolvedValueOnce({ data: { photos: [] } });
-
-      await useTrainerStore.getState().fetchPhotoGallery();
-
-      expect(mockedApi.get).toHaveBeenCalledWith(
-        '/trainer/photo-gallery/',
-        expect.anything(),
-      );
-    });
-
-    it('stops loading without crashing on failure', async () => {
-      mockedApi.get.mockRejectedValueOnce(new Error('Network'));
-
-      await useTrainerStore.getState().fetchPhotoGallery();
-
-      expect(useTrainerStore.getState().galleryLoading).toBe(false);
-    });
-  });
-
-  describe('commentOnPhoto', () => {
-    it('PATCHes comment endpoint and updates the photo in photoGallery', async () => {
-      useTrainerStore.setState({ photoGallery: [MOCK_PHOTO] });
-
-      const updatedPhoto = {
-        ...MOCK_PHOTO,
-        trainer_comment: 'Buen desayuno',
-        trainer_comment_at: '2026-05-10T10:00:00Z',
-        flagged_for_session: true,
-      };
-      mockedApi.patch.mockResolvedValueOnce({ data: updatedPhoto });
-
-      await useTrainerStore.getState().commentOnPhoto(10, 'Buen desayuno', true);
-
-      expect(mockedApi.patch).toHaveBeenCalledWith(
-        '/trainer/photo-gallery/10/comment/',
-        { trainer_comment: 'Buen desayuno', flagged_for_session: true },
-        expect.anything(),
-      );
-      const updated = useTrainerStore.getState().photoGallery.find((p) => p.meal_entry_id === 10);
-      expect(updated?.trainer_comment).toBe('Buen desayuno');
-      expect(updated?.flagged_for_session).toBe(true);
-      expect(updated?.trainer_comment_at).toBe('2026-05-10T10:00:00Z');
-    });
-
-    it('leaves photos unchanged when no photo matches the mealId', async () => {
-      useTrainerStore.setState({ photoGallery: [MOCK_PHOTO] });
-      mockedApi.patch.mockResolvedValueOnce({ data: { trainer_comment: 'X', trainer_comment_at: null, flagged_for_session: false } });
-
-      await useTrainerStore.getState().commentOnPhoto(999, 'X', false);
-
-      expect(useTrainerStore.getState().photoGallery[0].trainer_comment).toBe('');
-    });
   });
 
   describe('fetchClientAlerts', () => {

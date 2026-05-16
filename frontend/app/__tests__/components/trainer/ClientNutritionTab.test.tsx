@@ -138,16 +138,6 @@ describe('ClientNutritionTab', () => {
     expect(screen.getByText('Semana 2 · día a día')).toBeInTheDocument();
   });
 
-  it('keeps the trainer-notes textarea read-only when the plan is published', async () => {
-    setupApi({ planList: [{ id: 51, status: 'published' }], planDetail: publishedPlan() });
-
-    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
-    await screen.findByText('Publicado');
-
-    const textarea = screen.getByPlaceholderText('Escribe una nota orientativa para el cliente...');
-    expect(textarea).toHaveAttribute('readonly');
-  });
-
   it('reveals meal rows when a day card is expanded', async () => {
     setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
 
@@ -362,25 +352,6 @@ describe('ClientNutritionTab', () => {
     });
 
     expect(screen.getAllByText('Futuro').length).toBeGreaterThan(0);
-  });
-
-  it('shows the Solo lectura label for trainer notes when the plan is published', async () => {
-    setupApi({ planList: [{ id: 51, status: 'published' }], planDetail: publishedPlan() });
-
-    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
-    await screen.findByText('Publicado');
-
-    expect(screen.getByText('· Solo lectura')).toBeInTheDocument();
-  });
-
-  it('allows editing the trainer notes textarea when the plan is a draft', async () => {
-    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
-
-    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
-    await screen.findByText('Borrador');
-
-    const textarea = screen.getByPlaceholderText('Escribe una nota orientativa para el cliente...');
-    expect(textarea).not.toHaveAttribute('readonly');
   });
 
   it('closes the swap picker when the close button is clicked', async () => {

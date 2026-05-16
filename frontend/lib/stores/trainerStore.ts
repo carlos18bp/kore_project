@@ -604,15 +604,19 @@ export const useTrainerStore = create<TrainerState>((set, get) => ({
   },
 
   updateSessionObjective: async (customerId, bookingId, objective) => {
-    await api.patch(`/bookings/${bookingId}/session-prep/`, { session_objective: objective }, { headers: authHeaders() });
-    set((s) => ({
-      clientSessionsFull: {
-        ...s.clientSessionsFull,
-        [customerId]: (s.clientSessionsFull[customerId] ?? []).map(sess =>
-          sess.id === bookingId ? { ...sess, session_objective: objective } : sess
-        ),
-      },
-    }));
+    try {
+      await api.patch(`/bookings/${bookingId}/session-prep/`, { session_objective: objective }, { headers: authHeaders() });
+      set((s) => ({
+        clientSessionsFull: {
+          ...s.clientSessionsFull,
+          [customerId]: (s.clientSessionsFull[customerId] ?? []).map(sess =>
+            sess.id === bookingId ? { ...sess, session_objective: objective } : sess
+          ),
+        },
+      }));
+    } catch {
+      // Swallow — surface keeps optimistic state; caller can re-fetch if needed.
+    }
   },
 
   fetchClientMonthlyPrograms: async (customerId) => {

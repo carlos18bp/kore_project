@@ -90,7 +90,7 @@ describe('TrainerSidebar', () => {
     expect(screen.getByText('Mis Clientes')).toBeInTheDocument();
     expect(screen.getByText('Alertas')).toBeInTheDocument();
     expect(screen.getByText('Métricas')).toBeInTheDocument();
-    expect(screen.getByText('Evidencia')).toBeInTheDocument();
+    expect(screen.getByText('Catálogo comidas')).toBeInTheDocument();
   });
 
   it('Hoy link points to /trainer/dashboard', () => {

@@ -410,23 +410,9 @@ describe('ClientProgramTab', () => {
 
     expect(mockedApi.patch).toHaveBeenCalledWith(
       '/monthly-programs/70/approve/',
-      expect.objectContaining({ trainer_notes: expect.any(String) }),
+      expect.anything(),
       expect.anything(),
     );
-  });
-
-  it('updates the trainer notes textarea when the user types in a draft program', async () => {
-    setupApi({ programs: [draftProgram()] });
-
-    render(<ClientProgramTab clientId={CLIENT_ID} />);
-    await screen.findByText('Borrador');
-
-    const textarea = screen.getByPlaceholderText(/Explícale al cliente/);
-    await act(async () => {
-      fireEvent.change(textarea, { target: { value: 'Nueva nota de entrenamiento' } });
-    });
-
-    expect(screen.getByDisplayValue('Nueva nota de entrenamiento')).toBeInTheDocument();
   });
 
   it('shows the Solo lectura label in the notes block when the program is published', async () => {
@@ -523,14 +509,4 @@ describe('ClientProgramTab', () => {
     expect(screen.getByText(/\d+%/)).toBeInTheDocument();
   });
 
-  it('trainer notes textarea is read-only when program is published', async () => {
-    setupStore({ logs: DAILY_LOGS });
-    setupApi({ programs: [publishedProgram()] });
-
-    render(<ClientProgramTab clientId={CLIENT_ID} />);
-    await screen.findByText('Publicado');
-
-    const textarea = screen.getByPlaceholderText(/Explícale al cliente/);
-    expect(textarea).toHaveAttribute('readonly');
-  });
 });

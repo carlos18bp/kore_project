@@ -121,13 +121,6 @@ describe('TrainerMobileBottomNav', () => {
     expect(screen.getByText('Más opciones')).toBeInTheDocument();
   });
 
-  it('shows Evidencia link in sheet', async () => {
-    const user = userEvent.setup();
-    render(<TrainerMobileBottomNav />);
-    await user.click(screen.getByRole('button', { name: /Más/i }));
-    expect(screen.getByText('Evidencia')).toBeInTheDocument();
-  });
-
   it('shows Soporte link when sheet is open', async () => {
     const user = userEvent.setup();
     render(<TrainerMobileBottomNav />);
