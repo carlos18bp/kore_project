@@ -4,7 +4,7 @@ Produces credentials that mirror the production duo flow:
     host@kore.com   — owner of an active semi_personalizado subscription
     guest@kore.com  — accepted guest linked to the host subscription
 
-Both accounts share the password set via ``--password`` (default ``ogthsv25``),
+Both accounts share the password set via ``--password`` (default ``password``),
 matching the convention used by ``create_fake_users``.
 """
 
@@ -27,7 +27,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--host-email', type=str, default='host@kore.com')
         parser.add_argument('--guest-email', type=str, default='guest@kore.com')
-        parser.add_argument('--password', type=str, default='ogthsv25')
+        parser.add_argument('--password', type=str, default='password')
 
     def handle(self, *args, **options):
         host_email = options['host_email']
@@ -59,9 +59,8 @@ class Command(BaseCommand):
                     'role': User.Role.CUSTOMER,
                 },
             )
-            if host_created:
-                host.set_password(password)
-                host.save(update_fields=['password'])
+            host.set_password(password)
+            host.save(update_fields=['password'])
 
             guest, guest_created = User.objects.get_or_create(
                 email=guest_email,
@@ -72,9 +71,8 @@ class Command(BaseCommand):
                     'role': User.Role.CUSTOMER,
                 },
             )
-            if guest_created:
-                guest.set_password(password)
-                guest.save(update_fields=['password'])
+            guest.set_password(password)
+            guest.save(update_fields=['password'])
 
             now = timezone.now()
             subscription = (
