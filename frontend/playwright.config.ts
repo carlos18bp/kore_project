@@ -28,7 +28,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : 3,
   reporter: reporters,
   webServer: {
-    command: 'NODE_OPTIONS=--no-deprecation npm run dev -- --port 3000',
+    command: 'NODE_OPTIONS=--no-deprecation npx next dev --webpack --port 3000',
     url: 'http://localhost:3000',
     // CI jobs start a fresh server; local shells with CI=1 can set E2E_REUSE_SERVER=1 to attach to an existing dev server on :3000.
     reuseExistingServer:
