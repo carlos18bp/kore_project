@@ -93,6 +93,45 @@ function clearAuthCookies() {
   Cookies.remove('kore_user');
 }
 
+const SPLASH_SHOWN_KEY = 'kore_splash_shown';
+
+function clearSplashShown() {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.removeItem(SPLASH_SHOWN_KEY);
+  } catch {
+    // sessionStorage may be unavailable (private mode, SSR edge cases) — ignore.
+  }
+}
+
+type AuthSnapshot = {
+  user: User | null;
+  accessToken: string | null;
+  isAuthenticated: boolean;
+  hydrated: boolean;
+};
+
+// Read cookies synchronously at store construction so `hydrated` is true on the
+// first render when a valid session exists. This prevents the (app) layout
+// from flashing the splash on every navigation under static export, where each
+// route is a separate HTML file and the JS bundle re-initializes the store.
+function readAuthFromCookies(): AuthSnapshot {
+  if (typeof window === 'undefined') {
+    return { user: null, accessToken: null, isAuthenticated: false, hydrated: false };
+  }
+  const token = Cookies.get('kore_token');
+  const userStr = Cookies.get('kore_user');
+  if (!token || !userStr) {
+    return { user: null, accessToken: null, isAuthenticated: false, hydrated: false };
+  }
+  try {
+    const user = JSON.parse(userStr) as User;
+    return { user, accessToken: token, isAuthenticated: true, hydrated: true };
+  } catch {
+    return { user: null, accessToken: null, isAuthenticated: false, hydrated: false };
+  }
+}
+
 export function mapUser(raw: LoginResponse['user'], extra?: { profile_completed?: boolean; avatar_url?: string | null; assigned_trainer?: AssignedTrainer | null }): User {
   const first = raw.first_name || '';
   const last = raw.last_name || '';
@@ -111,12 +150,14 @@ export function mapUser(raw: LoginResponse['user'], extra?: { profile_completed?
   };
 }
 
+const initialAuth = readAuthFromCookies();
+
 export const useAuthStore = create<AuthState>((set, get) => ({
-  user: null,
-  accessToken: null,
-  isAuthenticated: false,
+  user: initialAuth.user,
+  accessToken: initialAuth.accessToken,
+  isAuthenticated: initialAuth.isAuthenticated,
   justLoggedIn: false,
-  hydrated: false,
+  hydrated: initialAuth.hydrated,
 
   login: async (email: string, password: string, captchaToken?: string) => {
     try {
@@ -133,8 +174,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (typeof window !== 'undefined') {
         sessionStorage.removeItem('kore_reminder_dismissed');
       }
+      clearSplashShown();
 
-      set({ user, accessToken, isAuthenticated: true, justLoggedIn: true });
+      set({ user, accessToken, isAuthenticated: true, justLoggedIn: true, hydrated: true });
       return { success: true };
     } catch (err) {
       const axiosErr = err as AxiosError<Record<string, unknown>>;
@@ -158,8 +200,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       Cookies.set('kore_token', accessToken, { expires: 7 });
       Cookies.set('kore_refresh', data.tokens.refresh, { expires: 7 });
       Cookies.set('kore_user', JSON.stringify(user), { expires: 7 });
+      clearSplashShown();
 
-      set({ user, accessToken, isAuthenticated: true });
+      set({ user, accessToken, isAuthenticated: true, hydrated: true });
       return { success: true };
     } catch (err) {
       const axiosErr = err as AxiosError<Record<string, unknown>>;
@@ -183,6 +226,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('kore_reminder_dismissed');
     }
+    clearSplashShown();
     useSubscriptionStore.getState().reset();
     useBookingStore.setState({
       subscriptions: [],

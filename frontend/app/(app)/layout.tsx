@@ -24,8 +24,22 @@ export default function AppLayout({
   const pathname = usePathname();
   const { user, isAuthenticated, hydrate, hydrated } = useAuthStore();
   const { hasActiveSubscription, subscriptions, loading: subsLoading, fetchSubscriptions } = useSubscriptionStore();
-  const [splashDone, setSplashDone] = useState(false);
-  const handleSplashDone = useCallback(() => setSplashDone(true), []);
+  const [splashDone, setSplashDone] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return sessionStorage.getItem('kore_splash_shown') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const handleSplashDone = useCallback(() => {
+    setSplashDone(true);
+    try {
+      sessionStorage.setItem('kore_splash_shown', '1');
+    } catch {
+      // sessionStorage may be unavailable — skip persistence silently.
+    }
+  }, []);
 
   useEffect(() => {
     hydrate();

@@ -46,6 +46,7 @@ describe('authStore', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     resetStore();
+    sessionStorage.clear();
   });
 
   describe('login', () => {
@@ -484,6 +485,110 @@ describe('authStore', () => {
       useAuthStore.getState().clearJustLoggedIn();
 
       expect(useAuthStore.getState().justLoggedIn).toBe(false);
+    });
+  });
+
+  describe('splash session flag', () => {
+    it('login clears the splash-shown flag so the next gate replays the animation', async () => {
+      sessionStorage.setItem('kore_splash_shown', '1');
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_LOGIN_RESPONSE });
+
+      await useAuthStore.getState().login('customer10@kore.com', 'ogthsv25');
+
+      expect(sessionStorage.getItem('kore_splash_shown')).toBeNull();
+    });
+
+    it('register clears the splash-shown flag', async () => {
+      sessionStorage.setItem('kore_splash_shown', '1');
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_LOGIN_RESPONSE });
+
+      await useAuthStore.getState().register({
+        email: 'customer10@kore.com',
+        password: 'pass123',
+        password_confirm: 'pass123',
+        first_name: 'Customer10',
+        last_name: 'Kore',
+      });
+
+      expect(sessionStorage.getItem('kore_splash_shown')).toBeNull();
+    });
+
+    it('logout clears the splash-shown flag', async () => {
+      sessionStorage.setItem('kore_splash_shown', '1');
+
+      useAuthStore.getState().logout();
+
+      expect(sessionStorage.getItem('kore_splash_shown')).toBeNull();
+    });
+
+    it('login leaves hydrated=true so the layout gate does not re-block on the splash', async () => {
+      mockedApi.post.mockResolvedValueOnce({ data: MOCK_LOGIN_RESPONSE });
+
+      await useAuthStore.getState().login('customer10@kore.com', 'ogthsv25');
+
+      expect(useAuthStore.getState().hydrated).toBe(true);
+    });
+  });
+
+  describe('initial state from cookies', () => {
+    it('loads user, accessToken, and hydrated=true when cookies are present at module load', () => {
+      mockedCookies.get.mockImplementation((key: string) => {
+        if (key === 'kore_token') return 'cached-token';
+        if (key === 'kore_user') {
+          return JSON.stringify({
+            id: '22',
+            email: 'customer10@kore.com',
+            first_name: 'Customer10',
+            last_name: 'Kore',
+            phone: '',
+            role: 'customer',
+            name: 'Customer10 Kore',
+          });
+        }
+        return undefined;
+      });
+
+      jest.isolateModules(() => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { useAuthStore: freshStore } = require('@/lib/stores/authStore');
+        const state = freshStore.getState();
+        expect(state.hydrated).toBe(true);
+        expect(state.isAuthenticated).toBe(true);
+        expect(state.accessToken).toBe('cached-token');
+        expect(state.user?.email).toBe('customer10@kore.com');
+      });
+    });
+
+    it('falls back to empty unauthenticated state when cookies are absent at module load', () => {
+      mockedCookies.get.mockReturnValue(undefined);
+
+      jest.isolateModules(() => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { useAuthStore: freshStore } = require('@/lib/stores/authStore');
+        const state = freshStore.getState();
+        expect(state.hydrated).toBe(false);
+        expect(state.isAuthenticated).toBe(false);
+        expect(state.user).toBeNull();
+        expect(state.accessToken).toBeNull();
+      });
+    });
+
+    it('falls back to empty state when kore_user cookie is corrupted JSON at module load', () => {
+      mockedCookies.get.mockImplementation((key: string) => {
+        if (key === 'kore_token') return 'some-token';
+        if (key === 'kore_user') return '{not-json';
+        return undefined;
+      });
+
+      jest.isolateModules(() => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { useAuthStore: freshStore } = require('@/lib/stores/authStore');
+        const state = freshStore.getState();
+        expect(state.hydrated).toBe(false);
+        expect(state.isAuthenticated).toBe(false);
+        expect(state.user).toBeNull();
+        expect(state.accessToken).toBeNull();
+      });
     });
   });
 });
