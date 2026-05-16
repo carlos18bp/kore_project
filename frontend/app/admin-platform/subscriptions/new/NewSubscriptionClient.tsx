@@ -205,7 +205,7 @@ export default function NewSubscriptionClient() {
     const result = await createOrEvolveSubscription(payload);
     if (result.ok) {
       setConfirmOpen(false);
-      router.push(`/admin-platform/subscriptions/${result.subscription.id}`);
+      router.push(`/admin-platform/subscriptions/detail?id=${result.subscription.id}`);
       return;
     }
 

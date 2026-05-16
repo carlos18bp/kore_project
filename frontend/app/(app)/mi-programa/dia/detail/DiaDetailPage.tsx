@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 export default function DiaProgramaPage() {
-  const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const dateParam = params.date as string;
+  const dateParam = searchParams.get('date') ?? '';
   const today = new Date().toISOString().slice(0, 10);
 
   useEffect(() => {

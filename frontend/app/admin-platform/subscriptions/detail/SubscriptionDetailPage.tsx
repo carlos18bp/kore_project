@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import AdminShell from '@/app/components/admin/AdminShell';
 import Btn from '@/app/components/admin/Btn';
@@ -44,9 +44,9 @@ function toDateInput(iso: string | null): string {
 }
 
 export default function SubscriptionDetailPage() {
-  const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const id = Number(params.id);
+  const id = Number(searchParams.get('id'));
   const {
     selected, loading, actionLoading, error,
     fetchById, patchSubscription, renewSubscription, deleteSubscription,

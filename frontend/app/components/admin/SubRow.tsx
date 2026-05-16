@@ -75,7 +75,7 @@ export default function SubRow({ sub }: { sub: AdminSubRowData }) {
 
   return (
     <Link
-      href={`/admin-platform/subscriptions/${sub.id}`}
+      href={`/admin-platform/subscriptions/detail?id=${sub.id}`}
       prefetch={false}
       className="grid grid-cols-[2fr_1.6fr_1.4fr_1fr_0.9fr_28px] gap-4 items-center px-5 py-3.5 rounded-2xl bg-white/65 border border-kore-burgundy/8 hover:bg-white/95 hover:border-kore-red/20 hover:-translate-y-px hover:shadow-[0_6px_18px_-10px_rgba(45,15,26,0.18)] transition-all duration-150 group"
     >

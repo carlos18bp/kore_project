@@ -106,7 +106,7 @@ describe('UserRow', () => {
   it('renders a link to the user detail page using user.id', () => {
     render(<UserRow user={makeUser({ id: 42 })} />);
     const link = screen.getByRole('link');
-    expect(link).toHaveAttribute('href', '/admin-platform/users/42');
+    expect(link).toHaveAttribute('href', '/admin-platform/users/detail?id=42');
   });
 
   it('shows "Sin actividad" when last_login is null', () => {

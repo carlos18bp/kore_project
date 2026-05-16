@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import AdminShell from '@/app/components/admin/AdminShell';
 import Btn from '@/app/components/admin/Btn';
@@ -59,9 +59,9 @@ function fromUser(u: AdminUserDetail): EditState {
 }
 
 export default function UserDetailClient() {
-  const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const id = Number(params.id);
+  const id = Number(searchParams.get('id'));
   const {
     selected,
     loading,
@@ -376,7 +376,7 @@ export default function UserDetailClient() {
               {selected.assigned_clients!.map((c) => (
                 <div key={c.id} className="flex items-center justify-between rounded-xl bg-white border border-kore-burgundy/8 px-4 py-3">
                   <div className="min-w-0">
-                    <Link href={`/admin-platform/users/${c.id}`} prefetch={false} className="text-sm font-semibold text-kore-burgundy hover:underline">
+                    <Link href={`/admin-platform/users/detail?id=${c.id}`} prefetch={false} className="text-sm font-semibold text-kore-burgundy hover:underline">
                       {[c.first_name, c.last_name].filter(Boolean).join(' ') || c.email}
                     </Link>
                     <div className="text-[11px] text-kore-burgundy/55 truncate">{c.email}{c.active_package ? ` · ${c.active_package}` : ''}</div>

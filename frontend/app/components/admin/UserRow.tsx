@@ -55,7 +55,7 @@ export default function UserRow({ user }: { user: AdminUserRowData }) {
 
   return (
     <Link
-      href={`/admin-platform/users/${user.id}`}
+      href={`/admin-platform/users/detail?id=${user.id}`}
       prefetch={false}
       className="grid grid-cols-[52px_2.2fr_1fr_1.4fr_1.2fr_0.8fr_28px] gap-4 items-center px-5 py-4 rounded-2xl bg-white/65 border border-kore-burgundy/8 hover:bg-white/95 hover:border-kore-red/20 hover:-translate-y-px hover:shadow-[0_6px_18px_-10px_rgba(45,15,26,0.18)] transition-all duration-150 group"
     >

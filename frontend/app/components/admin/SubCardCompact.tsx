@@ -39,7 +39,7 @@ export default function SubCardCompact({ sub }: { sub: UserSubscriptionEntry }) 
 
   return (
     <Link
-      href={`/admin-platform/subscriptions/${sub.id}`}
+      href={`/admin-platform/subscriptions/detail?id=${sub.id}`}
       prefetch={false}
       className="grid grid-cols-[46px_1fr_auto_auto_auto] gap-4 items-center px-4 py-3.5 rounded-xl bg-kore-cream/50 border border-kore-burgundy/8 hover:bg-white/95 hover:border-kore-red/20 transition-all duration-150"
     >

@@ -474,7 +474,7 @@
       "module": "program",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Navigate to a past or future program day via /mi-programa/dia/[date]: view exercises, completion state, and trainer notes.",
+      "description": "Navigate to a past or future program day via /mi-programa/dia/detail?date=YYYY-MM-DD: view exercises, completion state, and trainer notes.",
       "coverage": "missing"
     },
     "trainer-alerts": {

@@ -29,7 +29,7 @@ test.describe('Mi Programa — Día Específico', { tag: [...FlowTags.CUSTOMER_M
     });
 
     const today = new Date().toISOString().slice(0, 10);
-    await page.goto(`/mi-programa/dia/${today}`);
+    await page.goto(`/mi-programa/dia/detail?date=${today}`);
 
     await page.waitForURL('**/mi-programa/rutina', { timeout: 15_000 });
   });
@@ -50,7 +50,7 @@ test.describe('Mi Programa — Día Específico', { tag: [...FlowTags.CUSTOMER_M
       });
     });
 
-    await page.goto('/mi-programa/dia/2026-05-10');
+    await page.goto('/mi-programa/dia/detail?date=2026-05-10');
 
     await page.waitForURL('**/mi-programa', { timeout: 15_000 });
   });
@@ -64,7 +64,7 @@ test.describe('Mi Programa — Día Específico', { tag: [...FlowTags.CUSTOMER_M
       });
     });
 
-    const response = await page.goto('/mi-programa/dia/2026-05-10');
+    const response = await page.goto('/mi-programa/dia/detail?date=2026-05-10');
     expect(response?.status()).not.toBe(404);
   });
 
@@ -83,7 +83,7 @@ test.describe('Mi Programa — Día Específico', { tag: [...FlowTags.CUSTOMER_M
     });
 
     const today = new Date().toISOString().slice(0, 10);
-    const gotoPromise = page.goto(`/mi-programa/dia/${today}`);
+    const gotoPromise = page.goto(`/mi-programa/dia/detail?date=${today}`);
     // The spinner (border-kore-red animate-spin) should appear while routing
     // We just verify the page doesn't hard-error
     resolve!();
