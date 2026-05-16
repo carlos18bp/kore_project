@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
+import { useSplashGate } from '@/lib/hooks/useSplashGate';
 import Sidebar from '@/app/components/layouts/Sidebar';
 import TrainerSidebar from '@/app/components/layouts/TrainerSidebar';
 import MobileBottomNav from '@/app/components/layouts/MobileBottomNav';
@@ -24,8 +25,7 @@ export default function AppLayout({
   const pathname = usePathname();
   const { user, isAuthenticated, hydrate, hydrated } = useAuthStore();
   const { hasActiveSubscription, subscriptions, loading: subsLoading, fetchSubscriptions } = useSubscriptionStore();
-  const [splashDone, setSplashDone] = useState(false);
-  const handleSplashDone = useCallback(() => setSplashDone(true), []);
+  const { splashDone, handleSplashDone } = useSplashGate();
 
   useEffect(() => {
     hydrate();

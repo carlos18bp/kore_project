@@ -44,9 +44,9 @@ class Command(BaseCommand):
                     'is_superuser': True,
                 },
             )
+            admin_user.set_password(admin_password)
+            admin_user.save(update_fields=['password'])
             if created:
-                admin_user.set_password(admin_password)
-                admin_user.save(update_fields=['password'])
                 created_admin = 1
 
         for i in range(1, customers + 1):
@@ -62,9 +62,9 @@ class Command(BaseCommand):
                     'role': User.Role.CUSTOMER,
                 },
             )
+            user.set_password(customer_password)
+            user.save(update_fields=['password'])
             if created:
-                user.set_password(customer_password)
-                user.save(update_fields=['password'])
                 created_customers += 1
 
         total_users = User.objects.count()
