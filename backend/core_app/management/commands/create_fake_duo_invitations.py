@@ -27,7 +27,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--host-email', type=str, default='host@kore.com')
         parser.add_argument('--guest-email', type=str, default='guest@kore.com')
-        parser.add_argument('--password', type=str, default='ogthsv25')
+        parser.add_argument('--password', type=str, default='password')
 
     def handle(self, *args, **options):
         host_email = options['host_email']
