@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta
 from datetime import timezone as dt_timezone
+from unittest.mock import patch
 
 import pytest
 from django.urls import reverse
@@ -11,6 +12,7 @@ from core_app.models import (
     Booking,
     Package,
     Subscription,
+    SubscriptionGuest,
     TrainerProfile,
     User,
 )
@@ -399,3 +401,211 @@ class TestBookingAdminPermissions:
         response = api_client.patch(url, {'status': 'canceled'}, format='json')
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+# ----------------------------------------------------------------
+# create() — active guest block
+# ----------------------------------------------------------------
+
+@pytest.mark.django_db
+class TestCreateGuestBlock:
+    """Active subscription guests cannot create bookings directly."""
+
+    def test_active_guest_cannot_create_booking(
+        self, api_client, customer, package, trainer_profile, subscription
+    ):
+        """SubscriptionGuest with STATUS_ACCEPTED → create returns 403."""
+        # Create a guest user and link them as an accepted guest
+        guest_user = User.objects.create_user(
+            email='guest_block@example.com', password='p', role=User.Role.CUSTOMER,
+        )
+        SubscriptionGuest.objects.create(
+            subscription=subscription,
+            guest=guest_user,
+            invited_email=guest_user.email,
+            token=SubscriptionGuest.generate_token(),
+            status=SubscriptionGuest.STATUS_ACCEPTED,
+        )
+
+        api_client.force_authenticate(user=guest_user)
+        url = reverse('booking-list')
+        response = api_client.post(
+            url,
+            {'package_id': package.id, 'starts_at': '2026-01-17T14:00:00Z'},
+            format='json',
+        )
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert 'invitados' in response.data['detail']
+
+    def test_non_guest_customer_can_still_create(
+        self, api_client, customer, package, trainer_profile, subscription
+    ):
+        """A normal customer (not an active guest) can create a booking."""
+        customer.assigned_trainer = trainer_profile
+        customer.save(update_fields=['assigned_trainer'])
+
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-list')
+        with patch('core_app.services.email_service.send_booking_confirmation'):
+            response = api_client.post(
+                url,
+                {'package_id': package.id, 'starts_at': '2026-01-17T14:00:00Z'},
+                format='json',
+            )
+
+        assert response.status_code == status.HTTP_201_CREATED
+
+
+# ----------------------------------------------------------------
+# session_prep() custom action
+# ----------------------------------------------------------------
+
+@pytest.mark.django_db
+class TestSessionPrepAction:
+    """Trainer-only action: set session objective and notes before a session.
+
+    Note: get_queryset filters bookings to customer=request.user for non-admins.
+    To test session_prep (IsTrainerRole permission), we make the trainer-role user
+    the customer of the booking so that get_object() succeeds.
+    """
+
+    @pytest.fixture
+    def trainer_user(self, db):
+        # This user has role=TRAINER so IsTrainerRole passes.
+        # They are also the `customer` on the booking so get_object() succeeds.
+        return User.objects.create_user(
+            email='sp_trainer@example.com', password='p', role=User.Role.TRAINER,
+            first_name='Session', last_name='Trainer',
+        )
+
+    @pytest.fixture
+    def sp_trainer_profile(self, trainer_user):
+        return TrainerProfile.objects.create(user=trainer_user, specialty='Yoga')
+
+    def _make_trainer_booking(self, trainer_user, package, trainer_profile=None):
+        """Create a booking where the trainer-role user is the customer (for queryset access)."""
+        return Booking.objects.create(
+            customer=trainer_user,   # trainer is also the booking "owner" for queryset
+            package=package,
+            trainer=trainer_profile,
+            status=Booking.Status.CONFIRMED,
+            starts_at=BOOKING_STARTS_AT,
+            ends_at=BOOKING_ENDS_AT,
+        )
+
+    def test_session_prep_no_body_returns_400(
+        self, api_client, package, trainer_user, sp_trainer_profile
+    ):
+        """PATCH with empty body returns 400 (no allowed fields provided)."""
+        booking = self._make_trainer_booking(trainer_user, package, sp_trainer_profile)
+
+        api_client.force_authenticate(user=trainer_user)
+        url = reverse('booking-session-prep', args=[booking.pk])
+        response = api_client.patch(url, {}, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'session_objective' in response.data['detail']
+
+    def test_session_prep_with_objective_returns_200(
+        self, api_client, package, trainer_user, sp_trainer_profile
+    ):
+        """PATCH with session_objective updates booking and returns 200."""
+        booking = self._make_trainer_booking(trainer_user, package, sp_trainer_profile)
+
+        api_client.force_authenticate(user=trainer_user)
+        url = reverse('booking-session-prep', args=[booking.pk])
+        response = api_client.patch(
+            url, {'session_objective': 'Improve core stability'}, format='json',
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        booking.refresh_from_db()
+        assert booking.session_objective == 'Improve core stability'
+
+    def test_session_prep_with_notes_returns_200(
+        self, api_client, package, trainer_user, sp_trainer_profile
+    ):
+        """PATCH with session_notes_for_customer updates booking and returns 200."""
+        booking = self._make_trainer_booking(trainer_user, package, sp_trainer_profile)
+
+        api_client.force_authenticate(user=trainer_user)
+        url = reverse('booking-session-prep', args=[booking.pk])
+        response = api_client.patch(
+            url, {'session_notes_for_customer': 'Stretch before starting'}, format='json',
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        booking.refresh_from_db()
+        assert booking.session_notes_for_customer == 'Stretch before starting'
+
+    def test_session_prep_unknown_fields_ignored_returns_400(
+        self, api_client, package, trainer_user, sp_trainer_profile
+    ):
+        """PATCH with only unknown fields is filtered out, resulting in 400."""
+        booking = self._make_trainer_booking(trainer_user, package, sp_trainer_profile)
+
+        api_client.force_authenticate(user=trainer_user)
+        url = reverse('booking-session-prep', args=[booking.pk])
+        response = api_client.patch(
+            url, {'random_field': 'value'}, format='json',
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+# ----------------------------------------------------------------
+# _maybe_create_guest_booking — indirect coverage via cancel
+# ----------------------------------------------------------------
+
+@pytest.mark.django_db
+class TestGuestBookingHelpers:
+    """Cover _maybe_create_guest_booking and _cancel_guest_booking_for_slot branches."""
+
+    def test_cancel_without_subscription_skips_guest_cancel(
+        self, api_client, customer, package
+    ):
+        """Cancelling a booking with no subscription doesn't crash when guest logic fires."""
+        booking = _make_booking(customer, package, subscription=None)
+
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-cancel', args=[booking.pk])
+        with patch('core_app.services.email_service.send_booking_cancellation'):
+            response = api_client.post(url, {'canceled_reason': 'no sub'}, format='json')
+
+        assert response.status_code == status.HTTP_200_OK
+        booking.refresh_from_db()
+        assert booking.status == Booking.Status.CANCELED
+
+    def test_guest_link_with_pending_status_does_not_create_guest_booking(
+        self, api_client, customer, package, trainer_profile, subscription
+    ):
+        """_maybe_create_guest_booking: guest_link.status == PENDING → no guest booking created."""
+        # Create an ACCEPTED guest user but with PENDING status (not accepted yet)
+        guest_user = User.objects.create_user(
+            email='pending_guest@example.com', password='p', role=User.Role.CUSTOMER,
+        )
+        SubscriptionGuest.objects.create(
+            subscription=subscription,
+            guest=guest_user,
+            invited_email=guest_user.email,
+            token=SubscriptionGuest.generate_token(),
+            status=SubscriptionGuest.STATUS_PENDING,
+        )
+
+        customer.assigned_trainer = trainer_profile
+        customer.save(update_fields=['assigned_trainer'])
+
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-list')
+        with patch('core_app.services.email_service.send_booking_confirmation'):
+            response = api_client.post(
+                url,
+                {'package_id': package.id, 'starts_at': '2026-01-17T14:00:00Z'},
+                format='json',
+            )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        # Guest should NOT have a booking (link is pending, not accepted)
+        guest_bookings = Booking.objects.filter(customer=guest_user)
+        assert guest_bookings.count() == 0

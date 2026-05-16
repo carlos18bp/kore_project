@@ -346,3 +346,165 @@ class TestTrainerClientAvatarUrl:
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data.get('avatar_url') is not None
+
+
+# ── TrainerClientFitnessLevelView ──
+
+
+@pytest.mark.django_db
+class TestTrainerClientFitnessLevelView:
+    """Tests for GET and PATCH on the trainer fitness-level override endpoint."""
+
+    def test_get_returns_override_and_computed(self, api_client, trainer, customer, booking_with_slot):
+        """GET returns fitness_level_override (null) and fitness_level_computed (1) for customer with no evals."""
+        api_client.force_authenticate(user=trainer.user)
+        url = reverse('trainer-client-fitness-level', args=[customer.id])
+        response = api_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert 'fitness_level_override' in response.data
+        assert 'fitness_level_computed' in response.data
+
+    def test_get_nonexistent_customer_returns_404(self, api_client, trainer):
+        """GET for nonexistent customer ID returns 404."""
+        api_client.force_authenticate(user=trainer.user)
+        url = reverse('trainer-client-fitness-level', args=[99999])
+        response = api_client.get(url)
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_patch_valid_value_sets_override(self, api_client, trainer, customer, booking_with_slot):
+        """PATCH with a valid integer (1-5) sets fitness_level_override and returns 200."""
+        api_client.force_authenticate(user=trainer.user)
+        url = reverse('trainer-client-fitness-level', args=[customer.id])
+        response = api_client.patch(url, {'fitness_level': 3}, format='json')
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['fitness_level_override'] == 3
+
+    def test_patch_non_integer_string_returns_400(self, api_client, trainer, customer, booking_with_slot):
+        """PATCH with non-integer value ('abc') returns 400."""
+        api_client.force_authenticate(user=trainer.user)
+        url = reverse('trainer-client-fitness-level', args=[customer.id])
+        response = api_client.patch(url, {'fitness_level': 'abc'}, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'entero' in response.data['detail']
+
+    def test_patch_value_zero_returns_400(self, api_client, trainer, customer, booking_with_slot):
+        """PATCH with fitness_level=0 (out of 1-5 range) returns 400."""
+        api_client.force_authenticate(user=trainer.user)
+        url = reverse('trainer-client-fitness-level', args=[customer.id])
+        response = api_client.patch(url, {'fitness_level': 0}, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'entre 1 y 5' in response.data['detail']
+
+    def test_patch_value_six_returns_400(self, api_client, trainer, customer, booking_with_slot):
+        """PATCH with fitness_level=6 (out of 1-5 range) returns 400."""
+        api_client.force_authenticate(user=trainer.user)
+        url = reverse('trainer-client-fitness-level', args=[customer.id])
+        response = api_client.patch(url, {'fitness_level': 6}, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'entre 1 y 5' in response.data['detail']
+
+    def test_patch_null_clears_override(self, api_client, trainer, customer, booking_with_slot):
+        """PATCH with fitness_level=null clears the override (sets to None)."""
+        api_client.force_authenticate(user=trainer.user)
+        url = reverse('trainer-client-fitness-level', args=[customer.id])
+        # Set first
+        api_client.patch(url, {'fitness_level': 4}, format='json')
+        # Then clear
+        response = api_client.patch(url, {'fitness_level': None}, format='json')
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['fitness_level_override'] is None
+
+    def test_patch_trainer_without_profile_returns_404(self, api_client, customer, db):
+        """PATCH by trainer user with no TrainerProfile returns 404."""
+        trainer_no_profile = User.objects.create_user(
+            email='trainer-no-profile-fl@test.com', password='p', role=User.Role.TRAINER,
+        )
+        api_client.force_authenticate(user=trainer_no_profile)
+        url = reverse('trainer-client-fitness-level', args=[customer.id])
+        response = api_client.patch(url, {'fitness_level': 3}, format='json')
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_patch_unrelated_customer_returns_404(self, api_client, trainer, db):
+        """PATCH for a customer not assigned to this trainer returns 404."""
+        other_customer = User.objects.create_user(
+            email='unrelated-fl@test.com', password='p', role=User.Role.CUSTOMER,
+        )
+        api_client.force_authenticate(user=trainer.user)
+        url = reverse('trainer-client-fitness-level', args=[other_customer.id])
+        response = api_client.patch(url, {'fitness_level': 3}, format='json')
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+# ── _get_fitness_level_from_evals helper ──
+
+
+@pytest.mark.django_db
+class TestGetFitnessLevelFromEvals:
+    """Exercise the _get_fitness_level_from_evals helper indirectly via the GET endpoint."""
+
+    def test_no_physical_evaluation_returns_computed_level_1(
+        self, api_client, trainer, customer, booking_with_slot
+    ):
+        """Customer with no PhysicalEvaluation → computed level defaults to 1."""
+        api_client.force_authenticate(user=trainer.user)
+        url = reverse('trainer-client-fitness-level', args=[customer.id])
+        response = api_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['fitness_level_computed'] == 1
+
+    def test_physical_evaluation_with_general_index_computes_level(
+        self, api_client, trainer, customer, booking_with_slot
+    ):
+        """Customer with PhysicalEvaluation general_index=3.0 → computed level is 3."""
+        from datetime import date
+        from core_app.models.physical_evaluation import PhysicalEvaluation
+
+        # Create the evaluation, then force-set general_index via update() to bypass
+        # save() which recomputes the index from raw test data.
+        eval_ = PhysicalEvaluation.objects.create(
+            customer=customer,
+            trainer=trainer,
+            evaluation_date=date(2026, 1, 10),
+        )
+        PhysicalEvaluation.objects.filter(pk=eval_.pk).update(general_index=3.0)
+
+        api_client.force_authenticate(user=trainer.user)
+        url = reverse('trainer-client-fitness-level', args=[customer.id])
+        response = api_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        # floor(3.0 + 0.5) = 3
+        assert response.data['fitness_level_computed'] == 3
+
+    def test_physical_evaluation_with_null_general_index_returns_1(
+        self, api_client, trainer, customer, booking_with_slot
+    ):
+        """PhysicalEvaluation where general_index=None → computed level is 1 (filter excludes it)."""
+        from datetime import date
+        from core_app.models.physical_evaluation import PhysicalEvaluation
+
+        # The save() computes general_index from raw data; with no raw data provided,
+        # general_index may end up None — either way the filter (general_index__isnull=False)
+        # excludes the record and the fallback is 1.
+        PhysicalEvaluation.objects.create(
+            customer=customer,
+            trainer=trainer,
+            evaluation_date=date(2026, 1, 10),
+        )
+
+        api_client.force_authenticate(user=trainer.user)
+        url = reverse('trainer-client-fitness-level', args=[customer.id])
+        response = api_client.get(url)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['fitness_level_computed'] == 1

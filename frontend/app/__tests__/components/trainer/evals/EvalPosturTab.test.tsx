@@ -108,4 +108,122 @@ describe('EvalPosturTab', () => {
     expect(fullUpdateEvaluation).toHaveBeenCalledWith(CLIENT_ID, 1, expect.objectContaining({ evaluation_date: '2026-03-14' }));
     expect(screen.getByText('Última evaluación')).toBeInTheDocument();
   });
+
+  // ── New tests targeting uncovered branches ──────────────────
+
+  it('renders view tab switcher in edit mode (Anterior, Lateral derecha)', () => {
+    setupStore({ evaluations: [makeEval()] });
+
+    render(<EvalPosturTab clientId={CLIENT_ID} />);
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Editar esta evaluación' }));
+    });
+
+    // FORM_VIEWS tabs: Anterior, Lateral derecha, Lateral izquierda, Posterior
+    expect(screen.getByRole('button', { name: 'Anterior' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Lateral derecha' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Posterior' })).toBeInTheDocument();
+  });
+
+  it('clicking a view tab changes the active view (lateral izquierda segments render)', () => {
+    setupStore({ evaluations: [makeEval()] });
+
+    render(<EvalPosturTab clientId={CLIENT_ID} />);
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Editar esta evaluación' }));
+    });
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Lateral izquierda' }));
+    });
+
+    // After switching to lateral_left, multiple elements reference "lateral izquierda"
+    expect(screen.getAllByText(/lateral izquierda/i).length).toBeGreaterThan(0);
+  });
+
+  it('renders Funcional band label when global_index is 0.3 (≤ 0.5)', () => {
+    setupStore({ evaluations: [makeEval({ global_index: '0.3', upper_index: '0.3', central_index: '0.3', lower_index: '0.3' })] });
+
+    render(<EvalPosturTab clientId={CLIENT_ID} />);
+
+    expect(screen.getAllByText('Funcional').length).toBeGreaterThan(0);
+  });
+
+  it('renders Moderado band label when global_index is 1.5 (> 1.2 and ≤ 2.0)', () => {
+    setupStore({ evaluations: [makeEval({ global_index: '1.5', upper_index: '1.5', central_index: '1.5', lower_index: '1.5' })] });
+
+    render(<EvalPosturTab clientId={CLIENT_ID} />);
+
+    expect(screen.getAllByText('Moderado').length).toBeGreaterThan(0);
+  });
+
+  it('renders Importante band label when global_index is 2.2 (> 2.0)', () => {
+    setupStore({ evaluations: [makeEval({ global_index: '2.2', upper_index: '2.2', central_index: '2.2', lower_index: '2.2' })] });
+
+    render(<EvalPosturTab clientId={CLIENT_ID} />);
+
+    expect(screen.getAllByText('Importante').length).toBeGreaterThan(0);
+  });
+
+  it('renders a delta pill on the hero when two evaluations exist', () => {
+    const prev = makeEval({ id: 0, evaluation_date: '2026-01-14', global_index: '1.8', upper_index: '1.8', central_index: '1.8', lower_index: '1.8' });
+    setupStore({ evaluations: [makeEval({ global_index: '0.8', upper_index: '0.8', central_index: '0.8', lower_index: '0.8' }), prev] });
+
+    render(<EvalPosturTab clientId={CLIENT_ID} />);
+
+    expect(screen.getAllByText(/↑|↓/).length).toBeGreaterThan(0);
+  });
+
+  it('renders the photo slot (Foto vista) area in edit mode', () => {
+    setupStore({ evaluations: [makeEval()] });
+
+    render(<EvalPosturTab clientId={CLIENT_ID} />);
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Editar esta evaluación' }));
+    });
+
+    // PhotoSlot renders with label text matching the view
+    expect(screen.getByText(/foto vista anterior/i)).toBeInTheDocument();
+  });
+
+  it('shows the notes textarea in edit mode', () => {
+    setupStore({ evaluations: [makeEval({ notes: 'Corrección postural necesaria' })] });
+
+    render(<EvalPosturTab clientId={CLIENT_ID} />);
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Editar esta evaluación' }));
+    });
+
+    // NotesField renders a textarea pre-filled with existing notes
+    expect(screen.getByDisplayValue('Corrección postural necesaria')).toBeInTheDocument();
+  });
+
+  it('renders the region card with importance text for the global region', () => {
+    setupStore({ evaluations: [makeEval({ global_index: '0.3', upper_index: '0.3', central_index: '0.3', lower_index: '0.3', global_color: 'green' })] });
+
+    render(<EvalPosturTab clientId={CLIENT_ID} />);
+
+    // RegionCard renders "Por qué importa" section (appears once per region card)
+    expect(screen.getAllByText('Por qué importa').length).toBeGreaterThan(0);
+    // The global region's importance text for 'green' color
+    expect(screen.getByText('Postura funcional, base de movimiento eficiente.')).toBeInTheDocument();
+  });
+
+  it('displays the error message when the store error field is non-empty', () => {
+    mStore.mockReturnValue({
+      evaluations: [makeEval()],
+      loading: false,
+      submitting: false,
+      error: 'Error al guardar la posturometría',
+      fetchEvaluations: jest.fn(),
+      createEvaluation: jest.fn(),
+      fullUpdateEvaluation: jest.fn(),
+    });
+
+    render(<EvalPosturTab clientId={CLIENT_ID} />);
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Editar esta evaluación' }));
+    });
+
+    expect(screen.getByText('Error al guardar la posturometría')).toBeInTheDocument();
+  });
 });

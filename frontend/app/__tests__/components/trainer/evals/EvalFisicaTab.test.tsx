@@ -178,4 +178,94 @@ describe('EvalFisicaTab', () => {
 
     expect(screen.getByText('⚠ Dolor')).toBeInTheDocument();
   });
+
+  // ── New tests targeting uncovered branches ──────────────────
+
+  it('renders all 5 test capacity cards in results view', () => {
+    setupStore({ evaluations: [makeEval()] });
+
+    render(<EvalFisicaTab clientId={CLIENT_ID} />);
+
+    expect(screen.getAllByText('Sentadillas').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Flexiones').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Plancha').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Caminata 6 min').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Equilibrio unipodal').length).toBeGreaterThan(0);
+  });
+
+  it('renders the interrupted flag on a test card when squats_interrupted is true', () => {
+    setupStore({ evaluations: [makeEval({ squats_interrupted: true })] });
+
+    render(<EvalFisicaTab clientId={CLIENT_ID} />);
+
+    expect(screen.getByText('◔ Interrumpida')).toBeInTheDocument();
+  });
+
+  it('renders the Borg effort perception label for the walk test', () => {
+    setupStore({ evaluations: [makeEval({ walk_effort_perception: 7, walk_heart_rate: 140 })] });
+
+    render(<EvalFisicaTab clientId={CLIENT_ID} />);
+
+    // The TestCard renders "Borg 7 · esfuerzo"
+    expect(screen.getByText(/Borg 7/)).toBeInTheDocument();
+  });
+
+  it('renders the Mobility section with joint labels', () => {
+    setupStore({ evaluations: [makeEval({ hip_mobility: 4, shoulder_mobility: 3, ankle_mobility: 4 })] });
+
+    render(<EvalFisicaTab clientId={CLIENT_ID} />);
+
+    expect(screen.getByText('Movilidad articular')).toBeInTheDocument();
+    // MobilitySection renders individual joint labels
+    expect(screen.getByText('Cadera')).toBeInTheDocument();
+    expect(screen.getByText('Hombros')).toBeInTheDocument();
+    expect(screen.getByText('Tobillo')).toBeInTheDocument();
+  });
+
+  it('renders sub-index cells (Fuerza, Resistencia) in the dark hero section', () => {
+    setupStore({ evaluations: [makeEval()] });
+
+    render(<EvalFisicaTab clientId={CLIENT_ID} />);
+
+    // ResultsHero renders subAxes: Fuerza, Resistencia, Movilidad, Balance
+    expect(screen.getAllByText('Fuerza').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Resistencia').length).toBeGreaterThan(0);
+  });
+
+  it('renders a delta pill on the general index when a first evaluation exists', () => {
+    const first = makeEval({ id: 0, evaluation_date: '2026-01-12', squats_reps: 15, general_index: '2.5' });
+    setupStore({ evaluations: [makeEval(), first] });
+
+    render(<EvalFisicaTab clientId={CLIENT_ID} />);
+
+    // Delta pill appears in the dark hero card
+    expect(screen.getAllByText(/↑|↓/).length).toBeGreaterThan(0);
+  });
+
+  it('renders pushups pain flag when pushups_pain is true', () => {
+    setupStore({ evaluations: [makeEval({ pushups_pain: true })] });
+
+    render(<EvalFisicaTab clientId={CLIENT_ID} />);
+
+    expect(screen.getByText('⚠ Dolor')).toBeInTheDocument();
+  });
+
+  it('displays the error message when the store error field is non-empty', () => {
+    mStore.mockReturnValue({
+      evaluations: [makeEval()],
+      loading: false,
+      submitting: false,
+      error: 'Error al guardar la evaluación física',
+      fetchEvaluations: jest.fn(),
+      createEvaluation: jest.fn(),
+      updateEvaluation: jest.fn(),
+    });
+
+    render(<EvalFisicaTab clientId={CLIENT_ID} />);
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Editar esta evaluación' }));
+    });
+
+    expect(screen.getByText('Error al guardar la evaluación física')).toBeInTheDocument();
+  });
 });

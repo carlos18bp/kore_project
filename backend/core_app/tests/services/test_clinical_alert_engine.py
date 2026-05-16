@@ -688,3 +688,197 @@ class TestComputeClinicalSignals:
         # anthropometry signal should NOT include obesity (bmi < 30)
         anthro_obesity = [s for s in result if s['type'] == 'anthropometry_obesity']
         assert anthro_obesity == []
+
+    def test_customer_with_posturometry_evaluation_exercises_postural_branch(self):
+        """Customer with PosturometryEvaluation exercises both multiple-alterations and findings branches."""
+        from datetime import date
+        from core_app.models import User
+        from core_app.models.posturometry import PosturometryEvaluation
+        from core_app.services.clinical_alert_engine import compute_clinical_signals
+
+        customer = User.objects.create_user(
+            email='test_clinical_with_posturo@example.com',
+            password='testpass',
+            role=User.Role.CUSTOMER,
+        )
+        today = date(2026, 5, 15)
+
+        # Evaluation with enough altered segments to trigger the signal
+        PosturometryEvaluation.objects.create(
+            customer=customer,
+            evaluation_date=today,
+            segment_scores={
+                'seg1': {'score': 1},
+                'seg2': {'score': 1},
+                'seg3': {'score': 1},
+            },
+            findings={},
+        )
+
+        result = compute_clinical_signals(customer, None, today)
+
+        assert isinstance(result, list)
+        types = [s['type'] for s in result]
+        assert 'posturometry_multiple_alterations' in types
+
+    def test_customer_with_posturometry_no_postural_findings_skips_exercise_conflict(self):
+        """When postural findings dict is empty, the postural-exercise conflict branch is not fired."""
+        from datetime import date
+        from core_app.models import User
+        from core_app.models.posturometry import PosturometryEvaluation
+        from core_app.services.clinical_alert_engine import compute_clinical_signals
+
+        customer = User.objects.create_user(
+            email='test_clinical_posturo_nofindings@example.com',
+            password='testpass',
+            role=User.Role.CUSTOMER,
+        )
+        today = date(2026, 5, 15)
+
+        # No findings dict means postural_findings list stays empty → no conflict signal
+        PosturometryEvaluation.objects.create(
+            customer=customer,
+            evaluation_date=today,
+            segment_scores={},
+            findings={},
+        )
+
+        result = compute_clinical_signals(customer, None, today)
+
+        assert isinstance(result, list)
+        types = [s['type'] for s in result]
+        assert 'postural_exercise_conflict' not in types
+
+    def test_customer_with_physical_evaluation_exercises_physical_branch(self):
+        """Customer with low PhysicalEvaluation triggers physical_low_fitness signal."""
+        from datetime import date
+        from core_app.models import User
+        from core_app.models.physical_evaluation import PhysicalEvaluation
+        from core_app.services.clinical_alert_engine import compute_clinical_signals
+
+        customer = User.objects.create_user(
+            email='test_clinical_with_physical@example.com',
+            password='testpass',
+            role=User.Role.CUSTOMER,
+        )
+        today = date(2026, 5, 15)
+
+        # save() recomputes general_index via calculator; use update() to force low value
+        eval_ = PhysicalEvaluation.objects.create(
+            customer=customer,
+            evaluation_date=today,
+        )
+        PhysicalEvaluation.objects.filter(pk=eval_.pk).update(
+            general_index=1.0, general_category='Muy bajo',
+        )
+
+        result = compute_clinical_signals(customer, None, today)
+
+        assert isinstance(result, list)
+        types = [s['type'] for s in result]
+        assert 'physical_low_fitness' in types
+
+    def test_customer_with_parq_assessment_exercises_parq_branch(self):
+        """Customer with high-risk PARQ (3 yes answers) triggers parq_high_risk signal."""
+        from datetime import date
+        from core_app.models import User, ParqAssessment
+        from core_app.services.clinical_alert_engine import compute_clinical_signals
+
+        customer = User.objects.create_user(
+            email='test_clinical_with_parq@example.com',
+            password='testpass',
+            role=User.Role.CUSTOMER,
+        )
+        today = date(2026, 5, 15)
+
+        # save() recomputes yes_count from individual booleans — set 3 questions to True
+        ParqAssessment.objects.create(
+            customer=customer,
+            q1_heart_condition=True,
+            q2_chest_pain=True,
+            q3_dizziness=True,
+            q4_chronic_condition=False,
+            q5_prescribed_medication=False,
+            q6_bone_joint_problem=False,
+            q7_medical_supervision=False,
+        )
+
+        result = compute_clinical_signals(customer, None, today)
+
+        assert isinstance(result, list)
+        types = [s['type'] for s in result]
+        assert 'parq_high_risk' in types
+
+    def test_customer_with_nutrition_habit_exercises_nutrition_branches(self):
+        """Customer with bad NutritionHabit triggers nutrition-specific and deficit signals."""
+        from datetime import date
+        from core_app.models import User, NutritionHabit
+        from core_app.services.clinical_alert_engine import compute_clinical_signals
+
+        customer = User.objects.create_user(
+            email='test_clinical_with_nutrition@example.com',
+            password='testpass',
+            role=User.Role.CUSTOMER,
+        )
+        today = date(2026, 5, 15)
+
+        # save() recomputes habit_score via nutrition_calculator; use update() to force low value.
+        # All required fields must be provided.
+        habit = NutritionHabit.objects.create(
+            customer=customer,
+            meals_per_day=2,
+            water_liters=0.5,
+            fruit_weekly=0,
+            vegetable_weekly=0,
+            protein_frequency=1,
+            ultraprocessed_weekly=10,
+            sugary_drinks_weekly=9,
+            eats_breakfast=False,
+        )
+        NutritionHabit.objects.filter(pk=habit.pk).update(habit_score=2.0)
+
+        result = compute_clinical_signals(customer, None, today)
+
+        assert isinstance(result, list)
+        types = [s['type'] for s in result]
+        assert 'nutrition_ultraprocessed_high' in types
+        assert 'nutrition_low_water' in types
+        assert 'nutrition_skips_breakfast' in types
+        assert 'nutritional_deficit' in types
+
+
+class TestDetectExpiredEvaluationsBoundary:
+    """Edge cases for the exact boundary values of the expiry threshold."""
+
+    def test_eval_exactly_at_threshold_returns_no_signal(self):
+        """Evaluation made exactly `threshold` days ago → no signal (boundary is strict >)."""
+        today = date(2026, 5, 5)
+        threshold = EVAL_THRESHOLDS['anthropometry']  # 60
+        # exactly threshold days ago: days_since == threshold, NOT > threshold
+        exact_date = date.fromordinal(today.toordinal() - threshold)
+        last_eval_dates = _all_recent(today, 'anthropometry', exact_date)
+        signals = detect_expired_evaluations(last_eval_dates, today)
+        anthro = [s for s in signals if s['type'] == 'expired_anthropometry']
+        assert len(anthro) == 0
+
+    def test_eval_one_day_under_threshold_returns_no_signal(self):
+        """Evaluation `threshold - 1` days ago → no signal (strictly within threshold)."""
+        today = date(2026, 5, 5)
+        threshold = EVAL_THRESHOLDS['anthropometry']  # 60
+        under_date = date.fromordinal(today.toordinal() - (threshold - 1))
+        last_eval_dates = _all_recent(today, 'anthropometry', under_date)
+        signals = detect_expired_evaluations(last_eval_dates, today)
+        anthro = [s for s in signals if s['type'] == 'expired_anthropometry']
+        assert len(anthro) == 0
+
+    def test_eval_exactly_at_double_threshold_returns_medio_not_alto(self):
+        """Evaluation made exactly 2*threshold days ago → medio (boundary is strict > 2*threshold)."""
+        today = date(2026, 5, 5)
+        threshold = EVAL_THRESHOLDS['anthropometry']  # 60
+        double_exact = date.fromordinal(today.toordinal() - threshold * 2)
+        last_eval_dates = _all_recent(today, 'anthropometry', double_exact)
+        signals = detect_expired_evaluations(last_eval_dates, today)
+        anthro = [s for s in signals if s['type'] == 'expired_anthropometry']
+        # days_since == 120, NOT > 120, so it falls into the `> threshold` branch (medio)
+        assert len(anthro) == 1
+        assert anthro[0]['severity'] == 'medio'

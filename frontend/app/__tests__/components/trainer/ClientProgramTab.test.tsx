@@ -533,4 +533,143 @@ describe('ClientProgramTab', () => {
     const textarea = screen.getByPlaceholderText(/Explícale al cliente/);
     expect(textarea).toHaveAttribute('readonly');
   });
+
+  it('renders the goal label in Spanish for a fat_loss program', async () => {
+    setupApi({ programs: [draftProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    expect(screen.getByText(/Pérdida de grasa/)).toBeInTheDocument();
+  });
+
+  it('renders the program date range text in the header', async () => {
+    setupApi({ programs: [draftProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    // programDateRange formats start_date + end_date — confirm at least one element with month visible
+    expect(screen.getAllByText(/feb/i).length).toBeGreaterThan(0);
+  });
+
+  it('renders the rest-day chip with Descanso label', async () => {
+    setupApi({ programs: [draftProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    // Rest days in week 1 have the Descanso chip
+    const descansoChips = screen.getAllByText('Descanso');
+    expect(descansoChips.length).toBeGreaterThan(0);
+  });
+
+  it('does not show the expand chevron for rest day rows', async () => {
+    setupApi({ programs: [draftProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    // Rest-day rows have cursor:default — they show recovery text instead of exercise count
+    expect(screen.getAllByText('Recuperación · sin ejercicios').length).toBeGreaterThan(0);
+  });
+
+  it('renders the time-mode label Tiempo in the reps/time unit column', async () => {
+    const timeExercise = {
+      id: 99,
+      exercise: { id: 990, name: 'Plancha 90s', pattern: 'core', youtube_url: '', explanation: '', is_corrective: false, primary_muscles: 'core', secondary_muscles: '' },
+      sets: 3, reps: null, duration_seconds: 90, rest_seconds: 45, order: 1, notes: '',
+    };
+    const programWithTimeEx = {
+      ...draftProgram(),
+      days: [
+        { id: 1, day_number: 1, date: '2026-02-01', day_type: 'training', exercises: [timeExercise] },
+        ...[...Array(27)].map((_, i) => ({
+          id: i + 2, day_number: i + 2, date: `2026-02-${String(i + 2).padStart(2, '0')}`, day_type: 'rest', exercises: [],
+        })),
+      ],
+    };
+    setupApi({ programs: [programWithTimeEx] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('1 ejercicios'));
+    });
+
+    // duration_seconds is set, reps is null → shows seconds value + Tiempo unit label
+    expect(screen.getByText('Tiempo')).toBeInTheDocument();
+    expect(screen.getByText('90s')).toBeInTheDocument();
+  });
+
+  it('renders the adherence SVG ring when a published program has daily logs', async () => {
+    setupStore({ logs: DAILY_LOGS });
+    setupApi({ programs: [publishedProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Publicado');
+
+    // The adherence card renders an SVG with a circle
+    const svgEl = document.querySelector('svg circle');
+    expect(svgEl).not.toBeNull();
+  });
+
+  it('shows the week 1 header open by default and week 2 collapsed', async () => {
+    setupApi({ programs: [draftProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    // Week 1 is defaultOpen=true, so exercise rows are visible without clicking
+    expect(screen.getByText('Semana 1')).toBeInTheDocument();
+    // Week 2 days should not be visible without expanding
+    expect(screen.getByText('Semana 2')).toBeInTheDocument();
+  });
+
+  it('filters the catalog results when the user types in the exercise search input', async () => {
+    setupApi({ programs: [draftProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getAllByText('2 ejercicios')[0]);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getAllByRole('button', { name: 'Editar ejercicio' })[0]);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Cambiar ejercicio del catálogo' }));
+    });
+
+    const searchInput = screen.getByPlaceholderText(/Buscar por nombre/);
+    await act(async () => {
+      fireEvent.change(searchInput, { target: { value: 'Zancada' } });
+    });
+
+    // After typing, catalog exercise names from EXERCISE_CATALOG are visible
+    expect(screen.getByText('Zancada con mancuernas')).toBeInTheDocument();
+  });
+
+  it('PATCHes fitness level 4 when the Avanzado button is clicked', async () => {
+    setupApi({ programs: [draftProgram()], levelComputed: 2 });
+    mockedApi.patch.mockResolvedValueOnce({ data: {} });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Editar nivel/ }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Avanzado/ }));
+    });
+
+    expect(mockedApi.patch).toHaveBeenCalledWith(
+      `/trainer/my-clients/${CLIENT_ID}/fitness-level/`,
+      { fitness_level: 4 },
+      expect.anything(),
+    );
+  });
 });

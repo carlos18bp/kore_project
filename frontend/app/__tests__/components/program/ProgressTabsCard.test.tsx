@@ -140,4 +140,99 @@ describe('ProgressTabsCard', () => {
 
     expect(screen.getByText('No hay datos de progreso todavía.')).toBeInTheDocument();
   });
+
+  it('calls fetchWeeklySummary with week 2 when the Sem. 2 button is clicked', () => {
+    const fetchWeeklySummary = jest.fn();
+    mStore.mockReturnValue({
+      weeklySummary: { ...WEEKLY, week_number: 1 },
+      weeklyLoading: false,
+      monthlySummary: MONTHLY,
+      monthlyLoading: false,
+      projection: PROJECTION,
+      fetchWeeklySummary,
+      fetchMonthlySummary: jest.fn(),
+      fetchProjection: jest.fn(),
+    });
+
+    render(<ProgressTabsCard />);
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Sem. 2' }));
+    });
+
+    expect(fetchWeeklySummary).toHaveBeenCalledWith(2);
+  });
+
+  it('renders the Evolución heading in the monthly summary view', () => {
+    setupStore();
+
+    render(<ProgressTabsCard />);
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Resumen Mensual' }));
+    });
+
+    expect(screen.getByText('Evolución')).toBeInTheDocument();
+  });
+
+  it('renders the monthly ring percentage number in the summary view', () => {
+    setupStore();
+
+    render(<ProgressTabsCard />);
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Resumen Mensual' }));
+    });
+
+    // overall_adherence=0.8 → 80
+    expect(screen.getByText('80')).toBeInTheDocument();
+  });
+
+  it('renders Excelente mes copy when combined adherence is 85% or above', () => {
+    const highAdherence = { ...MONTHLY, overall_adherence: 0.90, training_adherence: 0.92, nutrition_adherence: 0.88 };
+    setupStore({ monthly: highAdherence });
+
+    render(<ProgressTabsCard />);
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Resumen Mensual' }));
+    });
+
+    expect(screen.getByText('Excelente mes')).toBeInTheDocument();
+  });
+
+  it('renders Mes en pausa copy when combined adherence is below 50%', () => {
+    const lowAdherence = { ...MONTHLY, overall_adherence: 0.40, training_adherence: 0.35, nutrition_adherence: 0.45 };
+    setupStore({ monthly: lowAdherence });
+
+    render(<ProgressTabsCard />);
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Resumen Mensual' }));
+    });
+
+    expect(screen.getByText('Mes en pausa')).toBeInTheDocument();
+  });
+
+  it('calls onToggleMobile when the expand button is clicked in the monthly tab', () => {
+    const onToggleMobile = jest.fn();
+    setupStore();
+
+    render(<ProgressTabsCard onToggleMobile={onToggleMobile} />);
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Resumen Mensual' }));
+    });
+    act(() => {
+      // The monthly tab also renders a toggle button
+      const toggleBtns = screen.getAllByRole('button', { name: /Ver detalle|Ocultar detalle/ });
+      fireEvent.click(toggleBtns[toggleBtns.length - 1]);
+    });
+
+    expect(onToggleMobile).toHaveBeenCalled();
+  });
+
+  it('renders the day-label letters for each day in the weekly chart', () => {
+    setupStore();
+
+    render(<ProgressTabsCard />);
+
+    // WEEKLY has 3 days: 2026-02-09 (Mon=L), 2026-02-10 (Tue=M), 2026-02-11 (Wed=X)
+    // DAY_INITIAL: '1'->L, '2'->M, '3'->X
+    expect(screen.getAllByText('L').length).toBeGreaterThan(0);
+  });
 });

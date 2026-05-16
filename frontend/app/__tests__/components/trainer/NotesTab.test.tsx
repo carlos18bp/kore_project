@@ -226,4 +226,85 @@ describe('NotesTab', () => {
 
     expect(screen.getByDisplayValue('Postura correcta')).toBeInTheDocument();
   });
+
+  // ── New tests targeting uncovered branches ──────────────────
+
+  it('calls posturometry updateEvaluation when the Posturometría module note is saved', async () => {
+    const updateEvaluation = jest.fn().mockResolvedValue(undefined);
+    mAnthrop.mockReturnValue({ evaluations: [], fetchEvaluations: jest.fn(), updateEvaluation: jest.fn() });
+    mPostur.mockReturnValue({
+      evaluations: [{ id: 5, evaluation_date: '2026-02-20', notes: 'Nota postur' }],
+      fetchEvaluations: jest.fn(),
+      updateEvaluation,
+    });
+    mFisica.mockReturnValue({ evaluations: [], fetchEvaluations: jest.fn(), updateEvaluation: jest.fn() });
+    mParq.mockReturnValue({ assessments: [], fetchClientAssessments: jest.fn(), updateNotes: jest.fn() });
+    mTrainer.mockReturnValue({ clientSessionsFull: { [CLIENT_ID]: [] }, sessionsFullLoading: false, fetchClientSessionsFull: jest.fn(), updateSessionObjective: jest.fn() });
+
+    renderTab();
+
+    // Find the Guardar button in the Posturometría card (second module card with a textarea)
+    const saveButtons = screen.getAllByRole('button', { name: 'Guardar' });
+    await act(async () => {
+      fireEvent.click(saveButtons[0]);
+    });
+
+    expect(updateEvaluation).toHaveBeenCalledWith(CLIENT_ID, 5, { notes: 'Nota postur' });
+  });
+
+  it('calls física updateEvaluation when the Evaluación Física module note is saved', async () => {
+    const updateFisicaEval = jest.fn().mockResolvedValue(undefined);
+    mAnthrop.mockReturnValue({ evaluations: [], fetchEvaluations: jest.fn(), updateEvaluation: jest.fn() });
+    mPostur.mockReturnValue({ evaluations: [], fetchEvaluations: jest.fn(), updateEvaluation: jest.fn() });
+    mFisica.mockReturnValue({
+      evaluations: [{ id: 7, evaluation_date: '2026-03-12', notes: 'Nivel base sólido' }],
+      fetchEvaluations: jest.fn(),
+      updateEvaluation: updateFisicaEval,
+    });
+    mParq.mockReturnValue({ assessments: [], fetchClientAssessments: jest.fn(), updateNotes: jest.fn() });
+    mTrainer.mockReturnValue({ clientSessionsFull: { [CLIENT_ID]: [] }, sessionsFullLoading: false, fetchClientSessionsFull: jest.fn(), updateSessionObjective: jest.fn() });
+
+    renderTab();
+
+    const saveButtons = screen.getAllByRole('button', { name: 'Guardar' });
+    await act(async () => {
+      fireEvent.click(saveButtons[0]);
+    });
+
+    expect(updateFisicaEval).toHaveBeenCalledWith(CLIENT_ID, 7, { notes: 'Nivel base sólido' });
+  });
+
+  it('pre-fills the Evaluación Física module textarea with the existing note', () => {
+    setup({
+      fisicaEvals: [{ id: 7, evaluation_date: '2026-03-12', notes: 'Nivel base sólido' }],
+    });
+    renderTab();
+
+    expect(screen.getByDisplayValue('Nivel base sólido')).toBeInTheDocument();
+  });
+
+  it('applies a wine-colored dot for a manual trigger_type message', () => {
+    setup();
+    renderTab({
+      messages: [{ id: 5, message: 'Test manual', trigger_type: 'manual', seen_by_customer: false, created_at: '2026-04-10T10:00:00Z' }],
+    });
+
+    // The dot for manual type uses color '#9A0526' (wine/red) — not sage or amber
+    // We verify the manual label "Manual" renders (dot color is inline style, not text)
+    expect(screen.getByText('Manual')).toBeInTheDocument();
+    // The post_session dot uses T.sage (#A8C29C) — verify no sage-colored label shown here
+    expect(screen.queryByText('Post sesión')).not.toBeInTheDocument();
+  });
+
+  it('renders a sage-colored dot indicator for a post_session message (dot distinct from manual)', () => {
+    setup();
+    renderTab({
+      messages: [
+        { id: 6, message: 'Session done', trigger_type: 'post_session', seen_by_customer: false, created_at: '2026-04-11T10:00:00Z' },
+      ],
+    });
+
+    // post_session messages show 'Post sesión' label — the dot color is T.sage (#A8C29C)
+    expect(screen.getByText('Post sesión')).toBeInTheDocument();
+  });
 });

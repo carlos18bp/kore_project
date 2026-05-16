@@ -421,4 +421,147 @@ describe('ClientNutritionTab', () => {
     // Habit summary section shows the score
     expect(await screen.findByText('8.2')).toBeInTheDocument();
   });
+
+  it('shows the photo indicator icon when a meal entry has a photo', async () => {
+    const logsWithPhoto = [
+      {
+        date: '2026-01-05',
+        adherence: 1,
+        is_closed: true,
+        meals: [
+          { meal_entry_id: 10, meal_block: 'desayuno', status: 'completed', notes: '', photo_url: 'https://example.com/photo.jpg', trainer_comment: '', flagged_for_session: false },
+        ],
+      },
+    ];
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={logsWithPhoto} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getAllByText('2 comidas')[0]);
+    });
+
+    expect(document.querySelector('[title="El cliente subió foto"]')).toBeInTheDocument();
+  });
+
+  it('renders the compliance ring percentage label on a published plan', async () => {
+    setupApi({ planList: [{ id: 51, status: 'published' }], planDetail: publishedPlan() });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Publicado');
+
+    // ComplianceGrid renders Cumplimiento label and a percentage
+    expect(screen.getByText('Cumplimiento')).toBeInTheDocument();
+  });
+
+  it('renders all four week pill buttons when the plan has days', async () => {
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Borrador');
+
+    expect(screen.getByRole('button', { name: /Semana 1/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Semana 2/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Semana 3/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Semana 4/ })).toBeInTheDocument();
+  });
+
+  it('shows the compliance grid meal-slot status indicator cells for a published plan', async () => {
+    const logsWithCompleted = [
+      {
+        date: '2026-01-05',
+        adherence: 1,
+        is_closed: true,
+        meals: [
+          { meal_entry_id: 20, meal_block: 'desayuno', status: 'completed', notes: '', photo_url: null, trainer_comment: '', flagged_for_session: false },
+        ],
+      },
+    ];
+    setupApi({ planList: [{ id: 51, status: 'published' }], planDetail: publishedPlan() });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={logsWithCompleted} />);
+    await screen.findByText('Publicado');
+
+    // ComplianceGrid renders checkmark icons for completed cells
+    expect(screen.getAllByText('✓').length).toBeGreaterThan(0);
+  });
+
+  it('shows the skipped status icon in the compliance grid for a skipped meal', async () => {
+    const logsWithSkipped = [
+      {
+        date: '2026-01-05',
+        adherence: 0,
+        is_closed: true,
+        meals: [
+          { meal_entry_id: 21, meal_block: 'desayuno', status: 'skipped', notes: '', photo_url: null, trainer_comment: '', flagged_for_session: false },
+        ],
+      },
+    ];
+    setupApi({ planList: [{ id: 51, status: 'published' }], planDetail: publishedPlan() });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={logsWithSkipped} />);
+    await screen.findByText('Publicado');
+
+    expect(screen.getAllByText('✕').length).toBeGreaterThan(0);
+  });
+
+  it('renders the Sin sugerencia asignada label when a meal has no suggestion', async () => {
+    const planWithNoSuggestion = {
+      ...draftPlan(),
+      days: [
+        {
+          id: 1, day_number: 1, week_number: 1, date: '2026-01-05',
+          meals: [
+            { id: 11, meal_block: 'desayuno', meal_block_label: 'Desayuno', meal_block_time: '07:00', order: 1, suggestion: null, trainer_notes: '' },
+          ],
+        },
+        { id: 2, day_number: 2, week_number: 1, date: '2026-01-06', meals: [] },
+        { id: 8, day_number: 8, week_number: 2, date: '2026-01-12', meals: [] },
+      ],
+    };
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: planWithNoSuggestion });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('1 comidas'));
+    });
+
+    expect(screen.getByText('Sin sugerencia asignada')).toBeInTheDocument();
+  });
+
+  it('shows the Cambiar button on meal rows for a published plan', async () => {
+    setupApi({ planList: [{ id: 51, status: 'published' }], planDetail: publishedPlan() });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Publicado');
+
+    // Expand first day card
+    await act(async () => {
+      fireEvent.click(screen.getAllByText('2 comidas')[0]);
+    });
+
+    // Published plans (not 'completed') still show the Cambiar swap button
+    expect(screen.getAllByRole('button', { name: 'Cambiar' }).length).toBeGreaterThan(0);
+  });
+
+  it('renders the habit score category label when habit data is present', async () => {
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan(), habit: [HABIT_SUMMARY] });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Borrador');
+
+    expect(await screen.findByText(/Saludable/)).toBeInTheDocument();
+  });
+
+  it('renders the Hábitos del cliente section header when any plan is loaded', async () => {
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan(), habit: [HABIT_SUMMARY] });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Borrador');
+
+    expect(await screen.findByText('Hábitos del cliente')).toBeInTheDocument();
+  });
 });

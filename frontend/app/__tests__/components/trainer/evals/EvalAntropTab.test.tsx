@@ -176,4 +176,76 @@ describe('EvalAntropTab', () => {
 
     expect(screen.queryByText('Composición corporal')).not.toBeInTheDocument();
   });
+
+  // ── New tests targeting uncovered branches ──────────────────
+
+  it('renders MetricStrip with % Grasa label in results view', () => {
+    setupStore({ evaluations: [makeEval()] });
+
+    render(<EvalAntropTab clientId={CLIENT_ID} />);
+
+    // The MetricStrip renders "% Grasa" as a metric cell label
+    expect(screen.getAllByText('% Grasa').length).toBeGreaterThan(0);
+  });
+
+  it('renders CompositionBars section (Composición corporal) when weight > 0', () => {
+    setupStore({ evaluations: [makeEval({ weight_kg: '80.0', lean_mass_kg: '64.0', fat_mass_kg: '16.0', body_fat_pct: '20.0' })] });
+
+    render(<EvalAntropTab clientId={CLIENT_ID} />);
+
+    expect(screen.getByText('Composición corporal')).toBeInTheDocument();
+  });
+
+  it('renders the Perímetros table section in results view', () => {
+    setupStore({ evaluations: [makeEval()] });
+
+    render(<EvalAntropTab clientId={CLIENT_ID} />);
+
+    // The MeasurementsTable renders a "Perímetros" section header
+    expect(screen.getByText('Perímetros')).toBeInTheDocument();
+    // And label rows like "Brazo relajado"
+    expect(screen.getByText('Brazo relajado')).toBeInTheDocument();
+  });
+
+  it('renders the Pliegues (skinfold) table section in results view', () => {
+    setupStore({ evaluations: [makeEval()] });
+
+    render(<EvalAntropTab clientId={CLIENT_ID} />);
+
+    // The MeasurementsTable renders a "Pliegues" section header
+    expect(screen.getByText('Pliegues')).toBeInTheDocument();
+    // And skinfold label rows like "Tríceps"
+    expect(screen.getByText('Tríceps')).toBeInTheDocument();
+  });
+
+  it('renders the timeline table with column headers when 2+ evaluations exist', () => {
+    const prev = makeEval({ id: 0, evaluation_date: '2026-01-10', bmi: '27.0' });
+    setupStore({ evaluations: [makeEval(), prev] });
+
+    render(<EvalAntropTab clientId={CLIENT_ID} />);
+
+    // AntropTimeline renders with "Línea de tiempo" and column headers
+    expect(screen.getByText('Línea de tiempo')).toBeInTheDocument();
+    // Column headers include "Peso" and "IMC"
+    expect(screen.getAllByText('Peso').length).toBeGreaterThan(0);
+  });
+
+  it('displays the error message when the store error field is non-empty', () => {
+    mStore.mockReturnValue({
+      evaluations: [makeEval()],
+      loading: false,
+      submitting: false,
+      error: 'Error al guardar la evaluación',
+      fetchEvaluations: jest.fn(),
+      createEvaluation: jest.fn(),
+      fullUpdateEvaluation: jest.fn(),
+    });
+
+    render(<EvalAntropTab clientId={CLIENT_ID} />);
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Editar esta evaluación' }));
+    });
+
+    expect(screen.getByText('Error al guardar la evaluación')).toBeInTheDocument();
+  });
 });
