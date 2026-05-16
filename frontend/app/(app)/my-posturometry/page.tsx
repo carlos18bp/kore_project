@@ -235,13 +235,13 @@ function Delta({ now, prev, big = false, dark = false }: { now: number | null; p
 
 /* Radar over 4 axes (global, upper, central, lower). Latest as filled, first as ghost */
 function RadarChart({
-  size = 300, dataLatest, dataFirst,
+  dataLatest, dataFirst,
 }: {
-  size?: number;
   dataLatest: { global: number; upper: number; central: number; lower: number };
   dataFirst: { global: number; upper: number; central: number; lower: number } | null;
 }) {
   const id = useId().replace(/:/g, '');
+  const size = 300;
   const cx = size / 2;
   const cy = size / 2;
   const r = size * 0.36;
@@ -263,7 +263,13 @@ function RadarChart({
       .join(' ');
   const ringRadii = [0.5, 1.0, 1.5, 2.0, 2.5];
   return (
-    <svg width={size} height={size}>
+    <svg
+      width="100%"
+      height="auto"
+      viewBox={`0 0 ${size} ${size}`}
+      preserveAspectRatio="xMidYMid meet"
+      style={{ display: 'block', maxWidth: 300 }}
+    >
       <defs>
         <radialGradient id={`radar-${id}`}>
           <stop offset="0%" stopColor={KORE.cream} stopOpacity="0.55" />
@@ -273,28 +279,41 @@ function RadarChart({
       {ringRadii.map((v, i) => {
         const rr = (v / max) * r;
         const b = band(v);
+        const ringOpacity = v === 1.0 ? 0.45 : 0.32;
         return (
           <circle
             key={i}
             cx={cx} cy={cy} r={rr}
-            fill="none" stroke={b.color} strokeOpacity="0.18" strokeWidth="1"
+            fill="none" stroke={b.color} strokeOpacity={ringOpacity} strokeWidth="1"
             strokeDasharray={i === 0 ? '0' : '2,3'}
           />
         );
       })}
       {angles.map((a, i) => (
-        <line key={i} x1={cx} y1={cy} x2={cx + r * Math.cos(a)} y2={cy + r * Math.sin(a)} stroke="rgba(231,200,160,0.20)" strokeWidth="1" />
+        <line key={i} x1={cx} y1={cy} x2={cx + r * Math.cos(a)} y2={cy + r * Math.sin(a)} stroke="rgba(231,200,160,0.28)" strokeWidth="1" />
       ))}
       {dataFirst && (
         <polygon points={polygon(dataFirst)} fill="rgba(228,168,168,0.10)" stroke={KORE.sakuraDeep} strokeOpacity="0.55" strokeWidth="1.2" strokeDasharray="3,3" />
       )}
-      <polygon points={polygon(dataLatest)} fill={`url(#radar-${id})`} stroke={KORE.cream} strokeWidth="1.8" strokeLinejoin="round" />
+      <polygon
+        points={polygon(dataLatest)}
+        fill={`url(#radar-${id})`}
+        stroke={KORE.cream}
+        strokeWidth="2.2"
+        strokeLinejoin="round"
+        style={{ filter: 'drop-shadow(0 0 6px rgba(255,233,220,0.35))' }}
+      />
       {axes.map((ax, i) => {
         const v = Math.min(dataLatest[ax.key], max);
         const rr = (v / max) * r;
         const x = cx + rr * Math.cos(angles[i]);
         const y = cy + rr * Math.sin(angles[i]);
-        return <circle key={ax.key} cx={x} cy={y} r="3.5" fill={KORE.ivory} stroke={KORE.gold} strokeWidth="1.5" />;
+        return (
+          <g key={ax.key}>
+            <circle cx={x} cy={y} r="8" fill={KORE.gold} fillOpacity="0.18" />
+            <circle cx={x} cy={y} r="5" fill={KORE.ivory} stroke={KORE.gold} strokeWidth="1.8" />
+          </g>
+        );
       })}
       {axes.map((ax, i) => {
         const lr = r + 22;
@@ -302,10 +321,28 @@ function RadarChart({
         const y = cy + lr * Math.sin(angles[i]);
         return (
           <g key={ax.key} transform={`translate(${x},${y})`}>
-            <text textAnchor="middle" dominantBaseline="middle" fontFamily="Montserrat" fontSize="10" fontWeight="700" fill={KORE.gold} letterSpacing="1.5">
+            <text
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontFamily="Montserrat"
+              fontSize="10"
+              fontWeight="700"
+              fill={KORE.gold}
+              letterSpacing="1.5"
+              style={{ paintOrder: 'stroke fill', stroke: '#2D0F1A', strokeWidth: 3, strokeLinejoin: 'round' }}
+            >
               {ax.label.toUpperCase()}
             </text>
-            <text textAnchor="middle" dominantBaseline="middle" y="14" fontFamily="Cinzel" fontSize="13" fontWeight="600" fill={KORE.ivory}>
+            <text
+              textAnchor="middle"
+              dominantBaseline="middle"
+              y="14"
+              fontFamily="Cinzel"
+              fontSize="13"
+              fontWeight="600"
+              fill={KORE.ivory}
+              style={{ paintOrder: 'stroke fill', stroke: '#2D0F1A', strokeWidth: 3, strokeLinejoin: 'round' }}
+            >
               {dataLatest[ax.key].toFixed(2)}
             </text>
           </g>
@@ -530,7 +567,9 @@ function Hero({
               </div>
             </div>
             <div className="flex justify-center">
-              <RadarChart size={300} dataLatest={dataLatest} dataFirst={dataFirst} />
+              <div style={{ width: '100%', maxWidth: 320 }}>
+                <RadarChart dataLatest={dataLatest} dataFirst={dataFirst} />
+              </div>
             </div>
           </div>
         </div>
