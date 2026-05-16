@@ -90,12 +90,7 @@ export const useProgressStore = create<ProgressState>((set) => ({
         `/my-program/weekly-summary/${params}`,
         { headers: authHeaders() },
       );
-      // Backend sends an empty body (0 bytes) — not literal JSON null — when
-      // the customer has no active program. Axios surfaces that as "" (string),
-      // which slips past `?? null`; normalize to a real null so consumers can
-      // optional-chain safely without crashing.
-      const normalized = (data && typeof data === 'object') ? data : null;
-      set({ weeklySummary: normalized, weeklyLoading: false });
+      set({ weeklySummary: data ?? null, weeklyLoading: false });
     } catch {
       set({ weeklySummary: null, weeklyLoading: false });
     }
@@ -107,7 +102,7 @@ export const useProgressStore = create<ProgressState>((set) => ({
       const { data } = await api.get<Projection | null>('/my-program/projection/', {
         headers: authHeaders(),
       });
-      set({ projection: (data && typeof data === 'object') ? data : null, projectionLoading: false });
+      set({ projection: data ?? null, projectionLoading: false });
     } catch {
       set({ projection: null, projectionLoading: false });
     }
@@ -121,7 +116,7 @@ export const useProgressStore = create<ProgressState>((set) => ({
         `/my-program/monthly-summary/${params}`,
         { headers: authHeaders() },
       );
-      set({ monthlySummary: (data && typeof data === 'object') ? data : null, monthlyLoading: false });
+      set({ monthlySummary: data ?? null, monthlyLoading: false });
     } catch {
       set({ monthlySummary: null, monthlyLoading: false });
     }

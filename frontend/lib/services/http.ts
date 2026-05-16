@@ -25,7 +25,16 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // DRF `Response(None)` (and any other 200-with-empty-body) is surfaced by
+    // axios as `data: ""`, which slips past callers using `data ?? null`
+    // (empty string is not nullish) and crashes consumers that optional-chain.
+    // Normalize to `null` here so the "no resource" contract is uniform.
+    if (response.data === '') {
+      response.data = null;
+    }
+    return response;
+  },
   (error: AxiosError) => {
     // SimpleJWT is configured without a refresh endpoint, so on a real 401
     // the only recovery is to drop the (now-invalid) auth cookies. The next
