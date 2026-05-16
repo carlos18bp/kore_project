@@ -1294,7 +1294,6 @@ export default function DashboardPage() {
   const { user } = useAuthStore();
   const {
     activeSubscription: sub,
-    fetchSubscriptions,
     subscriptions,
     hasOwnActiveSubscription,
     subscriptionsLoaded,
@@ -1318,27 +1317,57 @@ export default function DashboardPage() {
   const [showUpcoming, setShowUpcoming] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<BookingData | null>(null);
 
+  // Staggered fetch waves to stay below nginx's per-IP `limit_req` burst.
+  // Without this the dashboard fired ~13 parallel requests on mount and the
+  // server returned a chain of 429s. We split it into 3 waves of <=4 each,
+  // gated by Promise.allSettled so a single slow/failed call doesn't stall
+  // the rest. Stores have in-flight + "already loaded" guards, so re-entries
+  // (e.g. fast tab switches) are no-ops.
   useEffect(() => {
-    fetchSubscriptions();
-    fetchUpcomingReminder();
-    fetchBookings();
-    fetchPendingAssessments();
-    fetchActiveProgram();
-    fetchWeeklySummary();
-    fetchNutritionToday();
-    if (!anthroEvals.length) fetchMyAnthrometry();
-    if (!posturoEvals.length) fetchMyPosturo();
-    if (!physicalEvals.length) fetchMyPhysical();
-    if (!nutritionEntries.length) fetchMyNutrition();
-    if (!parqAssessments.length) fetchMyParq();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchSubscriptions, fetchUpcomingReminder, fetchBookings, fetchPendingAssessments, fetchActiveProgram, fetchWeeklySummary, fetchNutritionToday, fetchMyAnthrometry, fetchMyPosturo, fetchMyPhysical, fetchMyNutrition, fetchMyParq]);
+    let cancelled = false;
+    const skipAnthro = anthroEvals.length > 0;
+    const skipPosturo = posturoEvals.length > 0;
+    const skipPhysical = physicalEvals.length > 0;
+    const skipNutrition = nutritionEntries.length > 0;
+    const skipParq = parqAssessments.length > 0;
 
-  useEffect(() => {
-    if (profileFetchedRef.current) return;
-    profileFetchedRef.current = true;
-    fetchProfile();
-  }, [fetchProfile]);
+    (async () => {
+      // Wave 1 — identity + primary signals (gates the page).
+      // NOTE: fetchSubscriptions is already fired by `(app)/layout.tsx` for
+      // customers; we don't repeat it here. fetchProfile dedupes itself in
+      // the store, so multiple callers (CTA / MoodCheckIn / dashboard) are safe.
+      await Promise.allSettled([
+        profileFetchedRef.current ? Promise.resolve() : fetchProfile(),
+        fetchPendingAssessments(),
+        fetchActiveProgram(),
+      ]);
+      profileFetchedRef.current = true;
+      if (cancelled) return;
+
+      // Wave 2 — above-the-fold session/program data
+      await Promise.allSettled([
+        fetchUpcomingReminder(),
+        fetchBookings(),
+        fetchWeeklySummary(),
+        fetchNutritionToday(),
+      ]);
+      if (cancelled) return;
+
+      // Wave 3 — assessment history (lazy: skip if cached in store)
+      await Promise.allSettled([
+        skipAnthro ? Promise.resolve() : fetchMyAnthrometry(),
+        skipPosturo ? Promise.resolve() : fetchMyPosturo(),
+        skipPhysical ? Promise.resolve() : fetchMyPhysical(),
+        skipNutrition ? Promise.resolve() : fetchMyNutrition(),
+        skipParq ? Promise.resolve() : fetchMyParq(),
+      ]);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Streak ─────────────────────────────────────────────────
   // Source: weekly adherence summary (matches /mi-programa).

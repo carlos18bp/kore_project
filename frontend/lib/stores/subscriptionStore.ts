@@ -94,6 +94,10 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   }),
 
   fetchSubscriptions: async () => {
+    // Dedupe concurrent callers — without this guard, the (app) layout and
+    // the dashboard page can fire two parallel /subscriptions/ requests on
+    // mount and trip nginx's per-IP `limit_req` burst.
+    if (get().loading) return;
     set({ loading: true, error: '' });
     try {
       const { data } = await api.get('/subscriptions/', {
