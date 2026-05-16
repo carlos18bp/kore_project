@@ -126,7 +126,7 @@ test.describe('bookingStore rescheduleBooking error branch', { tag: [...FlowTags
   }
 
   async function selectSlotAndConfirm(page: import('@playwright/test').Page) {
-    await page.getByText('Lun').waitFor({ state: 'visible', timeout: 10_000 });
+    await page.getByText('Lun', { exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
     // Navigate to next month if targetDay is not in the current calendar month
     if (targetDay.getMonth() !== new Date().getMonth() || targetDay.getFullYear() !== new Date().getFullYear()) {
       await page.getByRole('button', { name: 'Mes siguiente' }).click();

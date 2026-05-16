@@ -2,23 +2,29 @@ import type { Page } from '@playwright/test';
 import { test, expect, injectAuthCookies, setupDefaultApiMocks } from '../fixtures';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
+function isoDate(offsetDays: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return d.toISOString().slice(0, 10);
+}
+
 const fakeProgram = {
   id: 1,
   fitness_level: 2,
   goal: 'fat_loss',
-  start_date: '2026-05-01',
-  end_date: '2026-05-28',
+  start_date: isoDate(0),
+  end_date: isoDate(27),
   trainer_notes: 'Mantén el ritmo esta semana.',
   days: [
     {
-      id: 10, date: '2026-05-15', day_number: 15, day_type: 'training',
+      id: 10, date: isoDate(0), day_number: 1, day_type: 'training',
       exercises: [
         { id: 101, order: 1, sets: 3, reps: 10, duration_seconds: null, rest_seconds: 60,
           exercise: { id: 1, name: 'Sentadilla', category: 'legs', video_url: null } },
       ],
     },
-    { id: 11, date: '2026-05-16', day_number: 16, day_type: 'active_rest', exercises: [] },
-    { id: 12, date: '2026-05-17', day_number: 17, day_type: 'rest', exercises: [] },
+    { id: 11, date: isoDate(1), day_number: 2, day_type: 'active_rest', exercises: [] },
+    { id: 12, date: isoDate(2), day_number: 3, day_type: 'rest', exercises: [] },
   ],
 };
 
