@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useMemo } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { usePosturometryStore, type PosturometryEvaluation } from '@/lib/stores/posturometryStore';
@@ -742,6 +742,107 @@ function RegionCard({
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
+ *  Regions carousel — scroll-snap nativo con bullets gold (mobile + tablet)
+ *  En lg+ se rinde como grid 2-col sin carrusel.
+ *  ────────────────────────────────────────────────────────────────────── */
+
+function RegionsCarousel({
+  regions, latest, first,
+}: {
+  regions: Array<'global' | 'upper' | 'central' | 'lower'>;
+  latest: PosturometryEvaluation;
+  first: PosturometryEvaluation | null;
+}) {
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.matchMedia('(min-width: 1024px)').matches) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        let best = { idx: activeIndex, ratio: 0 };
+        for (const entry of entries) {
+          const idx = Number((entry.target as HTMLElement).dataset.idx);
+          if (entry.intersectionRatio > best.ratio) {
+            best = { idx, ratio: entry.intersectionRatio };
+          }
+        }
+        if (best.ratio > 0.55) setActiveIndex(best.idx);
+      },
+      { root: trackRef.current, threshold: [0.4, 0.55, 0.7, 0.9] },
+    );
+    cardRefs.current.forEach((el) => el && observer.observe(el));
+    return () => observer.disconnect();
+  }, [activeIndex]);
+
+  const scrollTo = (idx: number) => {
+    const el = cardRefs.current[idx];
+    if (el) el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  };
+
+  return (
+    <>
+      <style>{`.kore-regions-track::-webkit-scrollbar{display:none}`}</style>
+      <div
+        ref={trackRef}
+        className="kore-regions-track flex gap-4 overflow-x-auto snap-x snap-mandatory -mx-5 px-5 pb-3 lg:grid lg:grid-cols-2 lg:gap-5 lg:mx-0 lg:px-0 lg:pb-0 lg:overflow-visible"
+        style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
+      >
+        {regions.map((rk, idx) => (
+          <div
+            key={rk}
+            ref={(el) => { cardRefs.current[idx] = el; }}
+            data-idx={idx}
+            className="snap-center shrink-0 w-[88%] max-w-[440px] lg:w-auto lg:max-w-none lg:shrink"
+          >
+            <RegionCard regionKey={rk} latest={latest} first={first} />
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 flex items-center justify-center gap-2.5 lg:hidden" role="tablist" aria-label="Regiones">
+        {regions.map((rk, idx) => {
+          const isActive = idx === activeIndex;
+          return (
+            <button
+              key={rk}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              aria-label={`Ver ${REGION_LABELS[rk]}`}
+              onClick={() => scrollTo(idx)}
+              className="grid place-items-center transition-all"
+              style={{
+                width: 28, height: 28, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
+              }}
+            >
+              <span
+                aria-hidden="true"
+                style={{
+                  display: 'block',
+                  width: isActive ? 10 : 8,
+                  height: isActive ? 10 : 8,
+                  borderRadius: 999,
+                  background: isActive ? KORE.gold : 'transparent',
+                  border: isActive ? `1px solid ${KORE.goldDeep}` : `1px solid ${KORE.gold}66`,
+                  boxShadow: isActive
+                    ? `0 0 0 4px ${KORE.gold}22, 0 0 0 5px ${KORE.wineDark}1A`
+                    : 'none',
+                  transition: 'all 280ms ease-out',
+                }}
+              />
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
  *  Findings list — grouped by severity, narrative
  *  ────────────────────────────────────────────────────────────────────── */
 
@@ -1177,11 +1278,7 @@ export default function MyPosturometryPage() {
               Bandas · ≤ 0.50 funcional · ≤ 1.20 leve · ≤ 2.00 moderado · &gt; 2.00 importante
             </span>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5">
-            {orderedRegions.map((rk) => (
-              <RegionCard key={rk} regionKey={rk} latest={latest} first={first} />
-            ))}
-          </div>
+          <RegionsCarousel regions={orderedRegions} latest={latest} first={first} />
         </div>
 
         {/* VIEW SECTIONS */}
