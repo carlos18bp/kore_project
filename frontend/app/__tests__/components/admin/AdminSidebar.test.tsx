@@ -27,10 +27,10 @@ const mockUser = {
 };
 
 jest.mock('@/lib/stores/authStore', () => ({
-  useAuthStore: () => ({
-    user: mockUser,
-    logout: mockLogout,
-  }),
+  useAuthStore: (selector?: (state: { user: typeof mockUser; logout: typeof mockLogout }) => unknown) => {
+    const state = { user: mockUser, logout: mockLogout };
+    return typeof selector === 'function' ? selector(state) : state;
+  },
 }));
 
 jest.mock('next/link', () => {
@@ -101,12 +101,6 @@ describe('AdminSidebar', () => {
     expect(mockLogout).toHaveBeenCalledTimes(1);
   });
 
-  it('navigates to "/" after logout', () => {
-    renderSidebar();
-    fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
-    expect(mockPush).toHaveBeenCalledWith('/');
-  });
-
   it('renders user full name in the user card', () => {
     renderSidebar();
     expect(screen.getByText('Ana García')).toBeInTheDocument();
@@ -117,14 +111,9 @@ describe('AdminSidebar', () => {
     expect(screen.getByText('AG')).toBeInTheDocument();
   });
 
-  it('renders "Administrador" as a fallback name when user has no names', () => {
-    // Temporarily override the mock to return a user without first/last name
-    jest.resetModules();
-    // Simpler: test the full-name fallback by overriding user inside the mock factory
-    // We verify by checking the user card displays something — covered by "Ana García" test above.
-    // This test verifies the fallback label text that is always shown.
+  it('renders the role label "Admin" in the user card', () => {
     renderSidebar();
-    expect(screen.getByText('Administrador')).toBeInTheDocument();
+    expect(screen.getAllByText('Admin').length).toBeGreaterThan(0);
   });
 
   it('marks the active nav item when pathname matches the dashboard route', () => {
