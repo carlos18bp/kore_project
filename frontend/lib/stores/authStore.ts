@@ -43,6 +43,10 @@ type AuthState = {
   isAuthenticated: boolean;
   justLoggedIn: boolean;
   hydrated: boolean;
+  // True only when the in-memory session was reconstructed from cookies and
+  // still needs a backend `/auth/profile/` revalidation. login/register set it
+  // to false because they already produced the data from the backend.
+  pendingRevalidation: boolean;
   login: (email: string, password: string, captchaToken?: string) => Promise<{ success: boolean; error?: string }>;
   register: (params: RegisterParams) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
@@ -93,7 +97,7 @@ function clearAuthCookies() {
   Cookies.remove('kore_user');
 }
 
-const SPLASH_SHOWN_KEY = 'kore_splash_shown';
+export const SPLASH_SHOWN_KEY = 'kore_splash_shown';
 
 function clearSplashShown() {
   if (typeof window === 'undefined') return;
@@ -109,6 +113,15 @@ type AuthSnapshot = {
   accessToken: string | null;
   isAuthenticated: boolean;
   hydrated: boolean;
+  pendingRevalidation: boolean;
+};
+
+const EMPTY_SNAPSHOT: AuthSnapshot = {
+  user: null,
+  accessToken: null,
+  isAuthenticated: false,
+  hydrated: false,
+  pendingRevalidation: false,
 };
 
 // Read cookies synchronously at store construction so `hydrated` is true on the
@@ -116,19 +129,15 @@ type AuthSnapshot = {
 // from flashing the splash on every navigation under static export, where each
 // route is a separate HTML file and the JS bundle re-initializes the store.
 function readAuthFromCookies(): AuthSnapshot {
-  if (typeof window === 'undefined') {
-    return { user: null, accessToken: null, isAuthenticated: false, hydrated: false };
-  }
+  if (typeof window === 'undefined') return EMPTY_SNAPSHOT;
   const token = Cookies.get('kore_token');
   const userStr = Cookies.get('kore_user');
-  if (!token || !userStr) {
-    return { user: null, accessToken: null, isAuthenticated: false, hydrated: false };
-  }
+  if (!token || !userStr) return EMPTY_SNAPSHOT;
   try {
     const user = JSON.parse(userStr) as User;
-    return { user, accessToken: token, isAuthenticated: true, hydrated: true };
+    return { user, accessToken: token, isAuthenticated: true, hydrated: true, pendingRevalidation: true };
   } catch {
-    return { user: null, accessToken: null, isAuthenticated: false, hydrated: false };
+    return EMPTY_SNAPSHOT;
   }
 }
 
@@ -150,6 +159,32 @@ export function mapUser(raw: LoginResponse['user'], extra?: { profile_completed?
   };
 }
 
+function revalidateProfile(token: string, set: (partial: Partial<AuthState>) => void) {
+  void api.get<ProfileResponse>('/auth/profile/', {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+    .then(({ data }) => {
+      const cp = data.user.customer_profile;
+      const user = mapUser(data.user, {
+        profile_completed: cp?.profile_completed ?? false,
+        avatar_url: cp?.avatar_url ?? null,
+        assigned_trainer: data.user.assigned_trainer ?? null,
+      });
+      Cookies.set('kore_user', JSON.stringify(user), { expires: 7 });
+      set({ user, accessToken: token, isAuthenticated: true });
+    })
+    .catch((err: unknown) => {
+      // Only log out when the server *explicitly* rejects auth. Transient 5xx
+      // / network / 404 must NOT wipe the session — that turned every flaky
+      // /auth/profile/ call into a forced logout.
+      const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+      if (status === 401 || status === 403) {
+        clearAuthCookies();
+        set({ user: null, accessToken: null, isAuthenticated: false });
+      }
+    });
+}
+
 const initialAuth = readAuthFromCookies();
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -158,6 +193,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: initialAuth.isAuthenticated,
   justLoggedIn: false,
   hydrated: initialAuth.hydrated,
+  pendingRevalidation: initialAuth.pendingRevalidation,
 
   login: async (email: string, password: string, captchaToken?: string) => {
     try {
@@ -176,7 +212,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       clearSplashShown();
 
-      set({ user, accessToken, isAuthenticated: true, justLoggedIn: true, hydrated: true });
+      set({ user, accessToken, isAuthenticated: true, justLoggedIn: true, hydrated: true, pendingRevalidation: false });
       return { success: true };
     } catch (err) {
       const axiosErr = err as AxiosError<Record<string, unknown>>;
@@ -202,7 +238,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       Cookies.set('kore_user', JSON.stringify(user), { expires: 7 });
       clearSplashShown();
 
-      set({ user, accessToken, isAuthenticated: true, hydrated: true });
+      set({ user, accessToken, isAuthenticated: true, hydrated: true, pendingRevalidation: false });
       return { success: true };
     } catch (err) {
       const axiosErr = err as AxiosError<Record<string, unknown>>;
@@ -238,25 +274,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       selectedStartsAt: null,
       bookingResult: null,
     });
-    set({ user: null, accessToken: null, isAuthenticated: false });
+    set({ user: null, accessToken: null, isAuthenticated: false, pendingRevalidation: false });
   },
 
   hydrate: () => {
-    if (get().hydrated) {
+    const state = get();
+
+    // Already hydrated and no pending backend revalidation — nothing to do.
+    if (state.hydrated && !state.pendingRevalidation) return;
+
+    // State is in memory (from login/register or from cookies at module init).
+    if (state.isAuthenticated && state.accessToken && state.user) {
+      if (!state.pendingRevalidation) {
+        set({ hydrated: true });
+        return;
+      }
+      // Mark non-pending up front so a re-entrant hydrate() call does not
+      // double-fire the network request.
+      set({ hydrated: true, pendingRevalidation: false });
+      revalidateProfile(state.accessToken, set);
       return;
     }
 
-    const currentState = get();
-    if (currentState.isAuthenticated && currentState.accessToken && currentState.user) {
-      set({ hydrated: true });
-      return;
-    }
-
+    // No in-memory session — try to recover from cookies (covers test setups
+    // that mock cookies after module load).
     const token = Cookies.get('kore_token');
     const userStr = Cookies.get('kore_user');
 
     if (!token || !userStr) {
-      set({ user: null, accessToken: null, isAuthenticated: false, hydrated: true });
+      set({ user: null, accessToken: null, isAuthenticated: false, hydrated: true, pendingRevalidation: false });
       return;
     }
 
@@ -265,38 +311,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       cachedUser = JSON.parse(userStr) as User;
     } catch {
       clearAuthCookies();
-      set({ user: null, accessToken: null, isAuthenticated: false, hydrated: true });
+      set({ user: null, accessToken: null, isAuthenticated: false, hydrated: true, pendingRevalidation: false });
       return;
     }
 
     // Optimistic hydration: trust the cookie-cached user immediately so the
     // (app) layout doesn't bounce to /login while we revalidate.
-    set({ user: cachedUser, accessToken: token, isAuthenticated: true, hydrated: true });
-
-    void api.get<ProfileResponse>('/auth/profile/', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(({ data }) => {
-        const cp = data.user.customer_profile;
-        const user = mapUser(data.user, {
-          profile_completed: cp?.profile_completed ?? false,
-          avatar_url: cp?.avatar_url ?? null,
-          assigned_trainer: data.user.assigned_trainer ?? null,
-        });
-        Cookies.set('kore_user', JSON.stringify(user), { expires: 7 });
-        set({ user, accessToken: token, isAuthenticated: true });
-      })
-      .catch((err: unknown) => {
-        // Only log out when the server *explicitly* rejects auth.
-        // Transient 5xx / network / 404 must NOT wipe the session — that was
-        // turning every flaky /auth/profile/ call into a forced logout.
-        const status = axios.isAxiosError(err) ? err.response?.status : undefined;
-        if (status === 401 || status === 403) {
-          clearAuthCookies();
-          set({ user: null, accessToken: null, isAuthenticated: false });
-        }
-        // else: keep the optimistic session; next authenticated call will retry.
-      });
+    set({ user: cachedUser, accessToken: token, isAuthenticated: true, hydrated: true, pendingRevalidation: false });
+    revalidateProfile(token, set);
   },
 
   clearJustLoggedIn: () => {

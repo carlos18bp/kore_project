@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/authStore';
 import AppSplash from '@/app/components/layouts/AppSplash';
+import { useSplashGate } from '@/lib/hooks/useSplashGate';
 
 export default function AdminLayout({
   children,
@@ -13,22 +14,7 @@ export default function AdminLayout({
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const hydrated = useAuthStore((s) => s.hydrated);
   const hydrate = useAuthStore((s) => s.hydrate);
-  const [splashDone, setSplashDone] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    try {
-      return sessionStorage.getItem('kore_splash_shown') === '1';
-    } catch {
-      return false;
-    }
-  });
-  const handleSplashDone = useCallback(() => {
-    setSplashDone(true);
-    try {
-      sessionStorage.setItem('kore_splash_shown', '1');
-    } catch {
-      // sessionStorage may be unavailable — skip persistence silently.
-    }
-  }, []);
+  const { splashDone, handleSplashDone } = useSplashGate();
 
   useEffect(() => {
     hydrate();

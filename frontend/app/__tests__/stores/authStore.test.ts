@@ -1,6 +1,6 @@
 // quality: disable test_too_long (hydration integration test requires full cookie+API mock setup and state verification)
 import Cookies from 'js-cookie';
-import { useAuthStore } from '@/lib/stores/authStore';
+import { useAuthStore, SPLASH_SHOWN_KEY } from '@/lib/stores/authStore';
 import { api } from '@/lib/services/http';
 import { AxiosError, AxiosHeaders } from 'axios';
 import { waitFor } from '@testing-library/react';
@@ -39,6 +39,7 @@ function resetStore() {
     accessToken: null,
     isAuthenticated: false,
     hydrated: false,
+    pendingRevalidation: false,
   });
 }
 
@@ -490,16 +491,16 @@ describe('authStore', () => {
 
   describe('splash session flag', () => {
     it('login clears the splash-shown flag so the next gate replays the animation', async () => {
-      sessionStorage.setItem('kore_splash_shown', '1');
+      sessionStorage.setItem(SPLASH_SHOWN_KEY, '1');
       mockedApi.post.mockResolvedValueOnce({ data: MOCK_LOGIN_RESPONSE });
 
       await useAuthStore.getState().login('customer10@kore.com', 'ogthsv25');
 
-      expect(sessionStorage.getItem('kore_splash_shown')).toBeNull();
+      expect(sessionStorage.getItem(SPLASH_SHOWN_KEY)).toBeNull();
     });
 
     it('register clears the splash-shown flag', async () => {
-      sessionStorage.setItem('kore_splash_shown', '1');
+      sessionStorage.setItem(SPLASH_SHOWN_KEY, '1');
       mockedApi.post.mockResolvedValueOnce({ data: MOCK_LOGIN_RESPONSE });
 
       await useAuthStore.getState().register({
@@ -510,15 +511,15 @@ describe('authStore', () => {
         last_name: 'Kore',
       });
 
-      expect(sessionStorage.getItem('kore_splash_shown')).toBeNull();
+      expect(sessionStorage.getItem(SPLASH_SHOWN_KEY)).toBeNull();
     });
 
     it('logout clears the splash-shown flag', async () => {
-      sessionStorage.setItem('kore_splash_shown', '1');
+      sessionStorage.setItem(SPLASH_SHOWN_KEY, '1');
 
       useAuthStore.getState().logout();
 
-      expect(sessionStorage.getItem('kore_splash_shown')).toBeNull();
+      expect(sessionStorage.getItem(SPLASH_SHOWN_KEY)).toBeNull();
     });
 
     it('login leaves hydrated=true so the layout gate does not re-block on the splash', async () => {
@@ -527,11 +528,85 @@ describe('authStore', () => {
       await useAuthStore.getState().login('customer10@kore.com', 'ogthsv25');
 
       expect(useAuthStore.getState().hydrated).toBe(true);
+      expect(useAuthStore.getState().pendingRevalidation).toBe(false);
+    });
+  });
+
+  describe('hydrate backend revalidation', () => {
+    it('fires /auth/profile/ when state was populated from cookies at init (pendingRevalidation=true)', async () => {
+      useAuthStore.setState({
+        user: {
+          id: '22',
+          email: 'customer10@kore.com',
+          first_name: 'Customer10',
+          last_name: 'Kore',
+          phone: '',
+          role: 'customer',
+          name: 'Customer10 Kore',
+          profile_completed: false,
+          avatar_url: null,
+          must_change_password: false,
+          assigned_trainer: null,
+        },
+        accessToken: 'cookie-token',
+        isAuthenticated: true,
+        hydrated: true,
+        pendingRevalidation: true,
+      });
+      mockedApi.get.mockResolvedValueOnce({
+        data: {
+          user: {
+            id: 22,
+            email: 'customer10@kore.com',
+            first_name: 'Customer10',
+            last_name: 'Kore',
+            phone: '',
+            role: 'customer',
+          },
+        },
+      });
+
+      useAuthStore.getState().hydrate();
+
+      expect(mockedApi.get).toHaveBeenCalledWith('/auth/profile/', {
+        headers: { Authorization: 'Bearer cookie-token' },
+      });
+      expect(useAuthStore.getState().pendingRevalidation).toBe(false);
+    });
+
+    it('does not double-fire /auth/profile/ when hydrate is called twice with pendingRevalidation=true', () => {
+      useAuthStore.setState({
+        user: {
+          id: '22',
+          email: 'customer10@kore.com',
+          first_name: 'Customer10',
+          last_name: 'Kore',
+          phone: '',
+          role: 'customer',
+          name: 'Customer10 Kore',
+          profile_completed: false,
+          avatar_url: null,
+          must_change_password: false,
+          assigned_trainer: null,
+        },
+        accessToken: 'cookie-token',
+        isAuthenticated: true,
+        hydrated: true,
+        pendingRevalidation: true,
+      });
+      mockedApi.get.mockResolvedValue({ data: { user: {
+        id: 22, email: 'x@kore.com', first_name: 'X', last_name: 'Y', phone: '', role: 'customer',
+      } } });
+
+      useAuthStore.getState().hydrate();
+      useAuthStore.getState().hydrate();
+
+      expect(mockedApi.get).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('initial state from cookies', () => {
-    it('loads user, accessToken, and hydrated=true when cookies are present at module load', () => {
+    it('loads user, accessToken, hydrated=true, and pendingRevalidation=true when cookies are present at module load', () => {
       mockedCookies.get.mockImplementation((key: string) => {
         if (key === 'kore_token') return 'cached-token';
         if (key === 'kore_user') {
@@ -556,6 +631,7 @@ describe('authStore', () => {
         expect(state.isAuthenticated).toBe(true);
         expect(state.accessToken).toBe('cached-token');
         expect(state.user?.email).toBe('customer10@kore.com');
+        expect(state.pendingRevalidation).toBe(true);
       });
     });
 
