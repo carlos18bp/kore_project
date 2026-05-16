@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from core_app.models import MealSuggestion, User, WeeklyNutritionPlan, WeeklyPlanDay, WeeklyPlanMeal
 from core_app.permissions import IsTrainerRole
 from core_app.services.nutrition_plan_generator import generate_weekly_plan
+from core_app.utils.renderers import NullableJSONRenderer
 
 MEAL_BLOCKS = [
     MealSuggestion.MealBlock.BREAKFAST,
@@ -397,6 +398,7 @@ class CustomerNutritionPlanWeekView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    renderer_classes = [NullableJSONRenderer]
 
     def get(self, request):
         today = date.today()

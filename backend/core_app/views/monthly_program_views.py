@@ -20,6 +20,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from core_app.utils.renderers import NullableJSONRenderer
 from core_app.models.monthly_program import (
     DailyLog,
     ExerciseLog,
@@ -308,6 +309,7 @@ class MyProgramView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    renderer_classes = [NullableJSONRenderer]
 
     def get(self, request):
         from core_app.models import Booking
@@ -338,6 +340,7 @@ class TodayProgramView(APIView):
     """GET — today's ProgramDay with the DailyLog (creates log if needed)."""
 
     permission_classes = [IsAuthenticated]
+    renderer_classes = [NullableJSONRenderer]
 
     def get(self, request):
         today = date.today()

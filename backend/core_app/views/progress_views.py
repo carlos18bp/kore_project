@@ -4,12 +4,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core_app.services.progress_service import get_monthly_summary, get_projection, get_weekly_summary
+from core_app.utils.renderers import NullableJSONRenderer
 
 
 class WeeklySummaryView(APIView):
     """GET /api/my-program/weekly-summary/?week=N"""
 
     permission_classes = [IsAuthenticated]
+    renderer_classes = [NullableJSONRenderer]
 
     def get(self, request):
         week_param = request.query_params.get('week')
@@ -32,6 +34,7 @@ class ProjectionView(APIView):
     """GET /api/my-program/projection/"""
 
     permission_classes = [IsAuthenticated]
+    renderer_classes = [NullableJSONRenderer]
 
     def get(self, request):
         data = get_projection(request.user)
@@ -44,6 +47,7 @@ class MonthlySummaryView(APIView):
     """GET /api/my-program/monthly-summary/?program=<id>"""
 
     permission_classes = [IsAuthenticated]
+    renderer_classes = [NullableJSONRenderer]
 
     def get(self, request):
         program_id = request.query_params.get('program')
