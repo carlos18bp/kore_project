@@ -354,20 +354,22 @@ function RadarChart({
 
 /* Photo with japandi grid overlay + corner registration marks */
 function PhotoFrame({
-  src, label, sublabel, dim = false, height = 380,
+  src, label, sublabel, dim = false, height, className,
 }: {
   src: string | null;
   label: string;
   sublabel?: string;
   dim?: boolean;
   height?: number;
+  className?: string;
 }) {
+  const sizeStyle = height !== undefined ? { height } : { height: '100%' };
   if (!src) {
     return (
       <div
-        className="relative grid place-items-center"
+        className={`relative grid place-items-center ${className ?? ''}`}
         style={{
-          borderRadius: 18, height,
+          borderRadius: 18, ...sizeStyle,
           background: 'rgba(103,15,34,0.05)',
           border: '1px dashed rgba(103,15,34,0.18)',
         }}
@@ -381,11 +383,11 @@ function PhotoFrame({
   }
   return (
     <div
-      className="relative overflow-hidden"
+      className={`relative overflow-hidden ${className ?? ''}`}
       style={{
         borderRadius: 18,
         background: '#1A0A11',
-        height,
+        ...sizeStyle,
         boxShadow: '0 8px 24px -10px rgba(45,15,26,0.4), inset 0 0 0 1px rgba(231,200,160,0.18)',
       }}
     >
@@ -980,8 +982,10 @@ function ViewSection({
       )}
 
       <div
-        className="grid gap-5"
-        style={{ gridTemplateColumns: first ? '1.1fr 1fr 1.1fr' : '1fr 1fr' }}
+        className={`grid gap-5 ${first
+          ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.1fr_1fr_1.1fr]'
+          : 'grid-cols-1 lg:grid-cols-2'
+        }`}
       >
         {first && (
           <PhotoFrame
@@ -989,10 +993,15 @@ function ViewSection({
             label={`Inicial · ${formatDate(first.evaluation_date || first.created_at)}`}
             sublabel={meta.label}
             dim
-            height={520}
+            className="h-72 md:h-96 lg:h-[520px] md:order-1 lg:order-1"
           />
         )}
-        <div className="px-1 py-2">
+        <div
+          className={`px-1 py-2 ${first
+            ? 'md:order-3 md:col-span-2 lg:order-2 lg:col-span-1'
+            : ''
+          }`}
+        >
           <p className="text-[10px] font-bold uppercase mb-4" style={{ letterSpacing: '0.22em', color: 'rgba(103,15,34,0.55)' }}>
             Hallazgos · Última evaluación
           </p>
@@ -1002,7 +1011,7 @@ function ViewSection({
           src={photoLatest}
           label={`Última · ${formatDate(latest.evaluation_date || latest.created_at)}`}
           sublabel={meta.label}
-          height={520}
+          className={`h-72 md:h-96 lg:h-[520px] ${first ? 'md:order-2 lg:order-3' : ''}`}
         />
       </div>
     </div>
