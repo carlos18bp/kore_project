@@ -36,14 +36,16 @@ test.describe('Sidebar — Navigation & Active States', { tag: [...FlowTags.APP_
     // The sidebar must NOT include the booking entry — booking lives only on the dashboard CTA.
     await expect(sidebar.getByRole('link', { name: 'Agendar Sesión' })).toHaveCount(0);
 
-    // On /dashboard — "Inicio" should be active (has text-kore-red class)
-    const inicioLink = page.getByRole('link', { name: 'Inicio' });
-    await expect(inicioLink).toHaveAttribute('class', /text-kore-red/);
+    // On /dashboard — "Inicio" should be active.
+    // AppSidebar marks active items with the gradient bg `from-kore-petal/...` —
+    // a class that is unique to the active state.
+    const inicioLink = sidebar.getByRole('link', { name: 'Inicio' });
+    await expect(inicioLink).toHaveClass(/from-kore-petal/);
 
     // Navigate to /subscription — "Mi Suscripción" should be active
     await sidebar.getByRole('link', { name: 'Mi Suscripción' }).click();
     await page.waitForURL('**/subscription');
     const subscriptionLink = sidebar.getByRole('link', { name: 'Mi Suscripción' });
-    await expect(subscriptionLink).toHaveAttribute('class', /text-kore-red/);
+    await expect(subscriptionLink).toHaveClass(/from-kore-petal/);
   });
 });
