@@ -224,7 +224,9 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
       page.getByRole('heading', { name: 'Resumen del programa' }),
     ).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Paquete Pro')).toBeVisible();
-    await expect(page.getByText('8')).toBeVisible(); // sessions_count
+    await expect(
+      page.getByText('Sesiones incluidas', { exact: true }).locator('..'),
+    ).toContainText('8');
     await expect(page.getByText('60 días', { exact: true })).toBeVisible();
   });
 
