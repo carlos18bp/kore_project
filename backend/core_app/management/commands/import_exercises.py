@@ -215,7 +215,7 @@ class Command(BaseCommand):
             base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
                 os.path.abspath(__file__)
             ))))
-            path = os.path.join(base, 'tier2_exercises_with_links.xlsx')
+            path = os.path.join(base, 'data', 'tier2_exercises_with_links.xlsx')
 
         if not os.path.exists(path):
             raise CommandError(f'File not found: {path}')
