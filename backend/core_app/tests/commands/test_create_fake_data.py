@@ -105,6 +105,7 @@ class TestCreateFakeData:
             skip_notifications=True,
             skip_analytics_events=True,
             skip_diagnostics=True,
+            skip_spotlight=True,
             stdout=out,
         )
         output = out.getvalue()

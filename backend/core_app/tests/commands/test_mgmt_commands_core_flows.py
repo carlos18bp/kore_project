@@ -608,8 +608,22 @@ class TestCreateFakeBookings:
             status=Booking.Status.CONFIRMED,
         )
 
+        overlapping_window = (
+            now + timedelta(hours=2, minutes=30),
+            now + timedelta(hours=3, minutes=30),
+        )
         out = StringIO()
-        call_command('create_fake_bookings', num=1, stdout=out)
+        with patch(
+            'core_app.management.commands.create_fake_bookings._candidate_window',
+            return_value=overlapping_window,
+        ):
+            call_command(
+                'create_fake_bookings',
+                num=1,
+                min_booking_ratio=1.0,
+                max_booking_ratio=1.0,
+                stdout=out,
+            )
         output = out.getvalue()
         # Should have only the 1 pre-existing booking
         assert Booking.objects.count() == 1
