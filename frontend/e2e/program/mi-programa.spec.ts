@@ -50,6 +50,8 @@ test.describe('Mi Programa — Overview', { tag: [...FlowTags.CUSTOMER_MI_PROGRA
     await injectAuthCookies(page);
     await setupDefaultApiMocks(page);
     await setupProgramMocks(page);
+    await page.goto('/');
+    await page.evaluate(() => sessionStorage.setItem('kore_splash_shown', '1'));
     await page.goto('/mi-programa');
 
     await expect(page.getByRole('heading', { name: 'Básico' })).toBeVisible({ timeout: 15_000 });
@@ -59,18 +61,22 @@ test.describe('Mi Programa — Overview', { tag: [...FlowTags.CUSTOMER_MI_PROGRA
     await injectAuthCookies(page);
     await setupDefaultApiMocks(page);
     await setupProgramMocks(page);
+    await page.goto('/');
+    await page.evaluate(() => sessionStorage.setItem('kore_splash_shown', '1'));
     await page.goto('/mi-programa');
 
     // "Mi Programa" appears in the hero dark card as a label
     await expect(page.getByText('Mi Programa').first()).toBeVisible({ timeout: 10_000 });
     // "entrenos" appears as a lowercase stat label in the hero card
-    await expect(page.getByText('entrenos').first()).toBeVisible();
+    await expect(page.getByText('entrenos').first()).toBeVisible({ timeout: 10_000 });
   });
 
   test('stats strip shows Recuperación and Descanso labels', async ({ page }) => {
     await injectAuthCookies(page);
     await setupDefaultApiMocks(page);
     await setupProgramMocks(page);
+    await page.goto('/');
+    await page.evaluate(() => sessionStorage.setItem('kore_splash_shown', '1'));
     await page.goto('/mi-programa');
 
     // Stats grid labels (stats strip section)
@@ -82,6 +88,8 @@ test.describe('Mi Programa — Overview', { tag: [...FlowTags.CUSTOMER_MI_PROGRA
     await injectAuthCookies(page);
     await setupDefaultApiMocks(page);
     await setupProgramMocks(page);
+    await page.goto('/');
+    await page.evaluate(() => sessionStorage.setItem('kore_splash_shown', '1'));
     await page.goto('/mi-programa');
 
     await expect(page.getByText('Básico').first()).toBeVisible({ timeout: 10_000 });
@@ -91,6 +99,8 @@ test.describe('Mi Programa — Overview', { tag: [...FlowTags.CUSTOMER_MI_PROGRA
     await injectAuthCookies(page);
     await setupDefaultApiMocks(page);
     await setupProgramMocks(page);
+    await page.goto('/');
+    await page.evaluate(() => sessionStorage.setItem('kore_splash_shown', '1'));
     await page.goto('/mi-programa');
 
     const rutinaLink = page.getByRole('link', { name: /Iniciar rutina|Día de entrenamiento/i }).first();
@@ -108,6 +118,8 @@ test.describe('Mi Programa — Overview', { tag: [...FlowTags.CUSTOMER_MI_PROGRA
     await page.route('**/api/my-program/today/', async (route) => {
       await route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ detail: 'Not found' }) });
     });
+    await page.goto('/');
+    await page.evaluate(() => sessionStorage.setItem('kore_splash_shown', '1'));
     await page.goto('/mi-programa');
 
     await expect(page.getByText('Sin programa activo')).toBeVisible({ timeout: 15_000 });
