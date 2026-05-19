@@ -15,8 +15,11 @@ class Exercise(TimestampedModel):
     pattern = models.CharField(max_length=100, blank=True)
     exercise_type = models.CharField(max_length=100, blank=True)
     main_implement = models.CharField(max_length=100, blank=True)
-    primary_muscles = models.CharField(max_length=255, blank=True)
-    secondary_muscles = models.CharField(max_length=255, blank=True)
+    # TextField (no max_length) because some imported rows can exceed 255
+    # chars when listing many muscles or when CSV data is malformed (mixed
+    # columns). DB column is TEXT post-migration 0051.
+    primary_muscles = models.TextField(blank=True)
+    secondary_muscles = models.TextField(blank=True)
     plane = models.CharField(max_length=50, blank=True)
     explanation = models.TextField(blank=True)
     youtube_url = models.URLField(blank=True)

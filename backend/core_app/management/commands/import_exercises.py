@@ -13,9 +13,12 @@ import csv
 import os
 
 from django.core.management.base import BaseCommand, CommandError
-from openpyxl import load_workbook
 
 from core_app.models.exercise import Exercise
+
+# Note: openpyxl is imported lazily inside _import_excel() so that --csv
+# invocations (which only use stdlib csv) don't require the openpyxl
+# dependency to be installed.
 
 
 # ── Spanish → English vocabulary maps ─────────────────────────────────────────
@@ -211,6 +214,9 @@ class Command(BaseCommand):
             self._import_excel(options['path'])
 
     def _import_excel(self, path):
+        # Lazy import — openpyxl is only required when importing from Excel.
+        from openpyxl import load_workbook
+
         if path is None:
             base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
                 os.path.abspath(__file__)
