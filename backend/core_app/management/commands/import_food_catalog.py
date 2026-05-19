@@ -3,7 +3,7 @@ Import food catalog from two CSV sources:
   - TACO Brasil (translated to Spanish): taco_alimentos_es.csv
   - Open Food Facts Colombia: off_colombia.csv
 
-Run: python manage.py import_food_catalog --data-dir backend/data/
+Run: python manage.py import_food_catalog [--data-dir data/nutrition]
 """
 import csv
 import os
@@ -12,6 +12,10 @@ from decimal import Decimal, InvalidOperation
 from django.core.management.base import BaseCommand
 
 from core_app.models import Food
+
+DEFAULT_DATA_DIR = os.path.join(
+    os.path.dirname(__file__), '..', '..', '..', 'data', 'nutrition'
+)
 
 # Map TACO categories (ES) → Food.Category
 TACO_CATEGORY_MAP = {
@@ -85,8 +89,8 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument(
             '--data-dir',
-            default='data',
-            help='Directory containing taco_alimentos_es.csv and off_colombia.csv',
+            default=DEFAULT_DATA_DIR,
+            help='Directory containing taco_alimentos_es.csv and off_colombia.csv (default: backend/data/nutrition)',
         )
         parser.add_argument('--dry-run', action='store_true', help='Preview counts without saving')
 

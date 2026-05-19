@@ -1,9 +1,9 @@
 """Import exercises from Excel (EN) or CSV (ES) into the Exercise model.
 
 Usage:
-    python manage.py import_exercises                          # English Excel
-    python manage.py import_exercises --path file.xlsx        # Custom Excel
-    python manage.py import_exercises --csv file.csv          # Spanish CSV (update by URL)
+    python manage.py import_exercises                                                          # English Excel (data/exercises/tier2_exercises_with_links.xlsx)
+    python manage.py import_exercises --path file.xlsx                                         # Custom Excel
+    python manage.py import_exercises --csv data/exercises/tier2_exercises_spa.csv             # Spanish CSV (update by URL)
 
 The command is idempotent: re-running updates existing records.
 English Excel uses name as the unique key; Spanish CSV uses youtube_url.
@@ -206,13 +206,13 @@ def _goal_tags(exercise_type: str, pattern: str) -> list:
 
 
 class Command(BaseCommand):
-    help = 'Import exercises from tier2_exercises_with_links.xlsx (EN) or tier2_exercises_spa.csv (ES)'
+    help = 'Import exercises from data/exercises/tier2_exercises_with_links.xlsx (EN) or data/exercises/tier2_exercises_spa.csv (ES)'
 
     def add_arguments(self, parser):
         parser.add_argument(
             '--path',
             default=None,
-            help='Path to the Excel file (defaults to <project_root>/tier2_exercises_with_links.xlsx)',
+            help='Path to the Excel file (defaults to backend/data/exercises/tier2_exercises_with_links.xlsx)',
         )
         parser.add_argument(
             '--csv',
@@ -245,7 +245,7 @@ class Command(BaseCommand):
             base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
                 os.path.abspath(__file__)
             ))))
-            path = os.path.join(base, 'data', 'tier2_exercises_with_links.xlsx')
+            path = os.path.join(base, 'data', 'exercises', 'tier2_exercises_with_links.xlsx')
 
         if not os.path.exists(path):
             raise CommandError(f'File not found: {path}')
