@@ -2,7 +2,7 @@
 Seed Colombian meal suggestions from a CSV file.
 Idempotent — re-running updates existing records without duplicating.
 
-Run: python manage.py seed_meal_suggestions [--csv data/meal_suggestions_co.csv]
+Run: python manage.py seed_meal_suggestions [--csv data/nutrition/meal_suggestions_co.csv]
 """
 import csv
 import os
@@ -15,7 +15,7 @@ from core_app.models.food import Food
 VALID_GOAL_TAGS = {'general_health', 'fat_loss', 'muscle_gain'}
 VALID_MEAL_BLOCKS = {c[0] for c in MealSuggestion.MealBlock.choices}
 
-DEFAULT_CSV = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data', 'meal_suggestions_co.csv')
+DEFAULT_CSV = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data', 'nutrition', 'meal_suggestions_co.csv')
 
 
 class Command(BaseCommand):
@@ -25,7 +25,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--csv',
             default=DEFAULT_CSV,
-            help='Path to CSV file (default: data/meal_suggestions_co.csv relative to backend/)',
+            help='Path to CSV file (default: data/nutrition/meal_suggestions_co.csv relative to backend/)',
         )
 
     def handle(self, *args, **options):
