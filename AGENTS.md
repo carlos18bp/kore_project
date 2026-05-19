@@ -475,7 +475,7 @@ See `.agents/skills/deploy-and-check/SKILL.md`. Summary:
 3. Frontend: `cd frontend && npm ci && npm run build` (Next.js static export → `backend/templates/`)
 4. Backend: `python manage.py collectstatic --noinput`
 5. Restart: `sudo systemctl restart kore_project && sudo systemctl restart kore-huey`
-6. Verify: `bash /home/ryzepeck/webapps/ops/vps/scripts/deployment/post-deploy-check.sh kore_project`
+6. Verify: `bash /home/ryzepeck/webapps/vps-ops-toolkit/scripts/deployment/post-deploy-check.sh kore_project`
 
 #### `gunicorn.conf.py`
 The repo includes a custom Gunicorn config at `backend/gunicorn.conf.py`:
