@@ -105,6 +105,19 @@ _IMPLEMENT_ES = {
 
 _STATUS_ACTIVE_ES = {'hecho', 'realizado', 'filmado', 'done', 'white label'}
 
+# Filas corruptas en el CSV original: el export desde la fuente mezcló columnas
+# adyacentes, por lo que la columna de músculos termina con URLs de YouTube o
+# texto narrativo del campo de explicación. No son recuperables, deben saltarse.
+_MAX_MUSCLE_LEN = 120  # nombres legítimos de listas de músculos no exceden este límite
+
+
+def _is_corrupt_row(primary: str, secondary: str, plane: str) -> bool:
+    if 'http' in primary or 'http' in secondary or 'http' in plane:
+        return True
+    if len(primary) > _MAX_MUSCLE_LEN or len(secondary) > _MAX_MUSCLE_LEN:
+        return True
+    return False
+
 
 def _normalize_es(spa_val: str, mapping: dict) -> str:
     return mapping.get(spa_val.lower().strip(), spa_val.strip())
@@ -206,12 +219,23 @@ class Command(BaseCommand):
             default=None,
             help='Path to the Spanish CSV file (uses youtube_url as unique key)',
         )
+        parser.add_argument(
+            '--cleanup-corrupt',
+            action='store_true',
+            help=(
+                'After import, delete any Exercise record whose muscle fields '
+                'still contain corrupt data (URLs or oversized text from prior '
+                'broken imports). Use once after deploying the import fix.'
+            ),
+        )
 
     def handle(self, *args, **options):
         if options['csv']:
             self._import_csv(options['csv'])
         else:
             self._import_excel(options['path'])
+        if options.get('cleanup_corrupt'):
+            self._cleanup_corrupt()
 
     def _import_excel(self, path):
         # Lazy import — openpyxl is only required when importing from Excel.
@@ -284,7 +308,7 @@ class Command(BaseCommand):
             raise CommandError(f'File not found: {path}')
 
         self.stdout.write(f'Loading Spanish CSV: {path}...')
-        created = updated = skipped = 0
+        created = updated = skipped = corrupt = 0
 
         with open(path, newline='', encoding='utf-8') as f:
             reader = csv.DictReader(f)
@@ -302,6 +326,10 @@ class Command(BaseCommand):
 
                 if not name or not youtube_url.startswith('http'):
                     skipped += 1
+                    continue
+
+                if _is_corrupt_row(primary, secondary, plane):
+                    corrupt += 1
                     continue
 
                 # English values for _fitness_level / _goal_tags logic
@@ -361,5 +389,35 @@ class Command(BaseCommand):
                     created += 1
 
         self.stdout.write(self.style.SUCCESS(
-            f'Done — created: {created}, updated: {updated}, skipped: {skipped}'
+            f'Done — created: {created}, updated: {updated}, '
+            f'skipped: {skipped}, corrupt rows ignored: {corrupt}'
+        ))
+
+    def _cleanup_corrupt(self):
+        """Remove Exercise rows polluted by the pre-fix import.
+
+        Targets records whose muscle fields contain URLs or oversized text.
+        These rows were created when CharField(255) was widened to TextField
+        without filtering malformed CSV rows.
+        """
+        from django.db.models import Q
+
+        qs = Exercise.objects.filter(
+            Q(primary_muscles__icontains='http')
+            | Q(secondary_muscles__icontains='http')
+        )
+        url_count = qs.count()
+        url_count and qs.delete()
+
+        # Records with absurdly long muscle text but no URL leak.
+        long_qs = []
+        for ex in Exercise.objects.only('id', 'primary_muscles', 'secondary_muscles'):
+            if len(ex.primary_muscles) > _MAX_MUSCLE_LEN or len(ex.secondary_muscles) > _MAX_MUSCLE_LEN:
+                long_qs.append(ex.id)
+        long_count = len(long_qs)
+        if long_count:
+            Exercise.objects.filter(id__in=long_qs).delete()
+
+        self.stdout.write(self.style.SUCCESS(
+            f'Cleanup — deleted: {url_count} with URL leak, {long_count} with oversized muscles'
         ))
