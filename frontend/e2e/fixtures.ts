@@ -233,12 +233,12 @@ export async function setupDefaultApiMocks(page: Page, exclude: string[] = []) {
     });
   });
 
-  // Availability slots — empty by default
-  await page.route('**/api/availability-slots/**', async (route) => {
+  // Availability — empty by default
+  await page.route('**/api/availability/**', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }),
+      body: JSON.stringify({}),
     });
   });
 

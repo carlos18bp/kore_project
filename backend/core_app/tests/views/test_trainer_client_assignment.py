@@ -1,9 +1,12 @@
+from datetime import datetime, timezone as dt_tz
+
 import pytest
 from django.utils import timezone
 from rest_framework.test import APIClient
+from unittest.mock import patch
 
 from core_app.models import (
-    AvailabilitySlot, Booking, Package, Subscription, TrainerProfile, User,
+    Booking, Package, Subscription, TrainerProfile, User,
 )
 
 
@@ -189,73 +192,68 @@ def test_profile_assigned_trainer_null_when_unassigned(customer):
     assert resp.data['user']['assigned_trainer'] is None
 
 
-@pytest.fixture
-def future_slot(db, trainer_a):
-    now = timezone.now()
-    starts = now + timezone.timedelta(hours=20)
-    return AvailabilitySlot.objects.create(
-        trainer=trainer_a, starts_at=starts, ends_at=starts + timezone.timedelta(hours=1),
-        is_active=True, is_blocked=False,
-    )
-
-
-@pytest.fixture
-def future_slot_other(db, trainer_b):
-    now = timezone.now()
-    starts = now + timezone.timedelta(hours=21)
-    return AvailabilitySlot.objects.create(
-        trainer=trainer_b, starts_at=starts, ends_at=starts + timezone.timedelta(hours=1),
-        is_active=True, is_blocked=False,
-    )
+FUTURE_STARTS = '2026-06-01T14:00:00Z'
+FUTURE_ENDS = '2026-06-01T15:00:00Z'
 
 
 @pytest.mark.django_db
-def test_booking_blocked_without_assigned_trainer(customer, package, future_slot):
+def test_booking_blocked_without_assigned_trainer(customer, package):
     sub = _active_sub(customer, package)
     c = APIClient()
     c.force_authenticate(user=customer)
-    resp = c.post('/api/bookings/', {
-        'package_id': package.id, 'slot_id': future_slot.id, 'subscription_id': sub.id,
-    }, format='json')
+    with patch('core_app.serializers.booking_serializers.is_start_time_available', return_value=True):
+        resp = c.post('/api/bookings/', {
+            'package_id': package.id, 'starts_at': FUTURE_STARTS, 'subscription_id': sub.id,
+        }, format='json')
     assert resp.status_code == 400
     assert resp.data.get('code') == 'no_trainer_assigned'
 
 
 @pytest.mark.django_db
-def test_booking_succeeds_with_assigned_trainer_and_forces_trainer(customer, package, future_slot, trainer_a):
+def test_booking_succeeds_with_assigned_trainer_and_forces_trainer(customer, package, trainer_a):
     customer.assigned_trainer = trainer_a
     customer.save(update_fields=['assigned_trainer'])
     sub = _active_sub(customer, package)
     c = APIClient()
     c.force_authenticate(user=customer)
-    resp = c.post('/api/bookings/', {
-        'package_id': package.id, 'slot_id': future_slot.id, 'subscription_id': sub.id,
-    }, format='json')
+    with patch('core_app.serializers.booking_serializers.is_start_time_available', return_value=True), \
+         patch('core_app.serializers.booking_serializers.session_window',
+               return_value=(None, datetime(2026, 6, 1, 15, 0, 0, tzinfo=dt_tz.utc))):
+        resp = c.post('/api/bookings/', {
+            'package_id': package.id, 'starts_at': FUTURE_STARTS, 'subscription_id': sub.id,
+        }, format='json')
     assert resp.status_code == 201, resp.data
     assert Booking.objects.get(id=resp.data['id']).trainer_id == trainer_a.id
 
 
 @pytest.mark.django_db
-def test_booking_rejected_for_slot_of_another_trainer(customer, package, future_slot_other, trainer_a):
+def test_booking_rejected_when_starts_at_unavailable(customer, package, trainer_a):
+    """Booking is rejected when is_start_time_available returns False."""
     customer.assigned_trainer = trainer_a
     customer.save(update_fields=['assigned_trainer'])
     sub = _active_sub(customer, package)
     c = APIClient()
     c.force_authenticate(user=customer)
-    resp = c.post('/api/bookings/', {
-        'package_id': package.id, 'slot_id': future_slot_other.id, 'subscription_id': sub.id,
-    }, format='json')
+    with patch('core_app.serializers.booking_serializers.is_start_time_available', return_value=False):
+        resp = c.post('/api/bookings/', {
+            'package_id': package.id, 'starts_at': FUTURE_STARTS, 'subscription_id': sub.id,
+        }, format='json')
     assert resp.status_code == 400
-    assert 'slot_id' in resp.data
+    assert 'starts_at' in resp.data
 
 
 @pytest.mark.django_db
-def test_trainer_my_clients_returns_assigned_not_booking_derived(future_slot, package, trainer_a, trainer_b):
+def test_trainer_my_clients_returns_assigned_not_booking_derived(package, trainer_a, trainer_b):
     # c_booking has a booking with trainer_a but is NOT assigned to them
     c_booking = User.objects.create_user(email='cb@kore.com', password='x', role=User.Role.CUSTOMER,
                                          first_name='Booked', last_name='Only')
-    Booking.objects.create(customer=c_booking, package=package, slot=future_slot,
-                           trainer=trainer_a, status=Booking.Status.PENDING)
+    now = timezone.now()
+    Booking.objects.create(
+        customer=c_booking, package=package, trainer=trainer_a,
+        starts_at=now + timezone.timedelta(hours=20),
+        ends_at=now + timezone.timedelta(hours=21),
+        status=Booking.Status.PENDING,
+    )
     # c_assigned is assigned to trainer_a but has no booking
     c_assigned = User.objects.create_user(email='cas@kore.com', password='x', role=User.Role.CUSTOMER,
                                           first_name='Assigned', last_name='User')

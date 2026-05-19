@@ -3,12 +3,18 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/authStore';
+import AppSplash from '@/app/components/layouts/AppSplash';
+import { useSplashGate } from '@/lib/hooks/useSplashGate';
 
 export default function AdminLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const router = useRouter();
-  const { user, isAuthenticated, hydrate, hydrated } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const hydrated = useAuthStore((s) => s.hydrated);
+  const hydrate = useAuthStore((s) => s.hydrate);
+  const { splashDone, handleSplashDone } = useSplashGate();
 
   useEffect(() => {
     hydrate();
@@ -17,7 +23,7 @@ export default function AdminLayout({
   useEffect(() => {
     if (!hydrated) return;
     if (!isAuthenticated) {
-      router.push('/login');
+      router.replace('/login');
       return;
     }
     if (!user) return;
@@ -31,13 +37,14 @@ export default function AdminLayout({
   }, [hydrated, isAuthenticated, user, router]);
 
   if (
+    !splashDone ||
     !hydrated ||
     !isAuthenticated ||
     !user ||
     user.role !== 'admin' ||
     user.must_change_password
   ) {
-    return null;
+    return <AppSplash onEntranceComplete={handleSplashDone} />;
   }
 
   return <>{children}</>;

@@ -1,21 +1,30 @@
 """Tests for shared schedule constants and slot-generation helpers."""
 # quality: disable test_too_short (boundary-value constant assertions, intentionally concise)
 
+import datetime as dt
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import pytest
 
-from core_app.models import AvailabilitySlot, TrainerProfile, User
+from core_app.models import Booking, Package, TrainerProfile, User
 from core_app.services.slot_schedule import (
     BOOKING_HORIZON_DAYS,
     MAX_ROLLOVER_SESSIONS,
     WEEKLY_SCHEDULE,
-    generate_slots_for_trainer,
+    _expand_schedule,
+    BUSINESS_TZ,
+    compute_available_start_times,
+    is_start_time_available,
+    session_window,
 )
 
 BOGOTA = ZoneInfo('America/Bogota')
 FIXED_NOW = datetime(2026, 3, 2, 10, 0, 0, tzinfo=BOGOTA)  # Monday
+
+
+def _utc(y, m, d, h, minute=0):
+    return dt.datetime(y, m, d, h, minute, tzinfo=dt.timezone.utc)
 
 
 @pytest.fixture(autouse=True)
@@ -29,6 +38,11 @@ def trainer(db):
         email='sched-trainer@kore.com', password='p', role=User.Role.TRAINER,
     )
     return TrainerProfile.objects.create(user=user, specialty='Strength')
+
+
+@pytest.fixture
+def package(db):
+    return Package.objects.create(title='P', is_active=True)
 
 
 # ── Constants ────────────────────────────────────────────────────────────
@@ -60,65 +74,92 @@ class TestWeeklySchedule:
         assert MAX_ROLLOVER_SESSIONS == 2
 
 
-# ── generate_slots_for_trainer ───────────────────────────────────────────
+
+# ── _expand_schedule ─────────────────────────────────────────────────────
+
+class TestExpandSchedule:
+    def test_weekday_yields_morning_and_evening_starts(self):
+        # 2026-05-18 is a Monday
+        from datetime import date
+        starts = list(_expand_schedule(date(2026, 5, 18), date(2026, 5, 19),
+                                       step_minutes=15, session_minutes=60, tz=BUSINESS_TZ))
+        # Mon windows 5-13 & 16-21: 60-min sessions every 15 min that fit → 29 + 17 = 46
+        assert len(starts) == 46
+        first = starts[0].astimezone(BUSINESS_TZ)
+        last_morning = [s for s in starts if s.astimezone(BUSINESS_TZ).hour < 14][-1].astimezone(BUSINESS_TZ)
+        assert (first.hour, first.minute) == (5, 0)
+        assert (last_morning.hour, last_morning.minute) == (12, 0)   # 12:00→13:00 is the last that fits
+        assert all(s.tzinfo is not None for s in starts)             # aware
+
+    def test_saturday_one_window(self):
+        # 2026-05-16 is a Saturday
+        from datetime import date
+        starts = list(_expand_schedule(date(2026, 5, 16), date(2026, 5, 17),
+                                       step_minutes=15, session_minutes=60, tz=BUSINESS_TZ))
+        # Sat 6-13: 60-min every 15 min → 25
+        assert len(starts) == 25
+
+    def test_sunday_empty(self):
+        # 2026-05-17 is a Sunday
+        from datetime import date
+        starts = list(_expand_schedule(date(2026, 5, 17), date(2026, 5, 18),
+                                       step_minutes=15, session_minutes=60, tz=BUSINESS_TZ))
+        assert starts == []
+
+
+# ── compute_available_start_times / is_start_time_available / session_window ──
 
 @pytest.mark.django_db
-class TestGenerateSlotsForTrainer:
-    def test_creates_slots_for_monday(self, trainer):
-        """Generates slots on a Monday (FIXED_NOW is Monday)."""
-        created = generate_slots_for_trainer(trainer=trainer, days=1, tz=BOGOTA)
-        assert created > 0
-        assert AvailabilitySlot.objects.filter(trainer=trainer).count() == created
+class TestComputeAvailability:
+    # FIXED_NOW = 2026-03-02T15:00Z (Monday), min_start = 03-03T07:00Z, horizon = 04-01T15:00Z
 
-    def test_skips_sunday(self, trainer):
-        """No slots generated on Sunday."""
-        # FIXED_NOW is Monday 2026-03-02. Sunday is day offset=6 (2026-03-08).
-        # Generate only day 6 by using a far-future now that makes day 0-5 past.
-        sunday_now = datetime(2026, 3, 8, 0, 0, 0, tzinfo=BOGOTA)
-        from unittest.mock import patch
-        with patch('core_app.services.slot_schedule.timezone') as mock_tz:
-            mock_tz.now.return_value = sunday_now
-            created = generate_slots_for_trainer(trainer=trainer, days=1, tz=BOGOTA)
-        assert created == 0
+    def test_clean_week_counts(self, trainer):
+        # Mon 2026-03-09, Sat 2026-03-14 — within 30-day horizon; date_to 03-16 includes Sun 03-15
+        days = compute_available_start_times(trainer, dt.date(2026, 3, 9), dt.date(2026, 3, 16))
+        assert len(days[dt.date(2026, 3, 9)]) == 46    # Mon: 29 morning + 17 evening
+        assert len(days[dt.date(2026, 3, 14)]) == 25   # Sat: 25
+        assert dt.date(2026, 3, 15) not in days         # Sun → no key
 
-    def test_generates_saturday_slots(self, trainer):
-        """Saturday slots are generated with 06:00-13:00 window."""
-        # Saturday is day offset=5 from Monday 2026-03-02 → 2026-03-07
-        created = generate_slots_for_trainer(trainer=trainer, days=6, tz=BOGOTA)
-        assert created > 0
+    def test_min_advance_cutoff(self, trainer):
+        # min_start = 2026-03-03T07:00Z; Tue morning window 10:00-18:00Z — all > cutoff
+        days = compute_available_start_times(trainer, dt.date(2026, 3, 3), dt.date(2026, 3, 4))
+        starts = days.get(dt.date(2026, 3, 3), [])
+        assert _utc(2026, 3, 3, 10) in starts
+        assert min(starts) >= _utc(2026, 3, 3, 7)
 
-        saturday = datetime(2026, 3, 7, tzinfo=BOGOTA).date()
-        sat_start = datetime.combine(saturday, datetime.min.time().replace(hour=6), tzinfo=BOGOTA)
-        sat_end = datetime.combine(saturday, datetime.min.time().replace(hour=13), tzinfo=BOGOTA)
+    def test_horizon_cutoff(self, trainer):
+        # horizon = 2026-04-01T15:00Z; all candidates on 2026-04-02 start after horizon
+        days = compute_available_start_times(trainer, dt.date(2026, 4, 1), dt.date(2026, 4, 3))
+        assert dt.date(2026, 4, 2) not in days
 
-        sat_slots = AvailabilitySlot.objects.filter(
-            trainer=trainer,
-            starts_at__gte=sat_start,
-            starts_at__lt=sat_end,
+    def test_booking_blocks_overlapping_starts_with_buffer(self, trainer, package):
+        # Booking Mon 2026-03-09 17:00→18:00 UTC (12:00→13:00 Bogota).
+        # Buffer ±45min: blocked open interval (15:15, 18:45) UTC.
+        # Rule: candidate [s, s+60] blocked iff s < be+buffer AND s+session > bs-buffer.
+        b_start = _utc(2026, 3, 9, 17)
+        Booking.objects.create(
+            customer=User.objects.create_user(email='c1@k.com', password='p'),
+            package=package, trainer=trainer,
+            status=Booking.Status.PENDING,
+            starts_at=b_start, ends_at=b_start + dt.timedelta(minutes=60),
         )
-        assert sat_slots.count() > 0
+        days = compute_available_start_times(trainer, dt.date(2026, 3, 9), dt.date(2026, 3, 10))
+        starts = days[dt.date(2026, 3, 9)]
+        # Blocked (strictly: s ∈ (15:15, 18:45) UTC)
+        assert _utc(2026, 3, 9, 17) not in starts       # booked slot itself
+        assert _utc(2026, 3, 9, 16, 30) not in starts   # 16:30+60=17:30 > 16:15 → blocked
+        assert _utc(2026, 3, 9, 16, 15) not in starts   # blocked
+        assert _utc(2026, 3, 9, 15, 30) not in starts   # 15:30+60=16:30 > 16:15 → first blocked
+        # Free (at or before boundary)
+        assert _utc(2026, 3, 9, 15) in starts            # 15:00+60=16:00 not > 16:15 → free
+        assert _utc(2026, 3, 9, 15, 15) in starts        # 15:15+60=16:15 not strictly > 16:15 → free
 
-        # No slots before 06:00 on Saturday
-        early_sat_slots = AvailabilitySlot.objects.filter(
-            trainer=trainer,
-            starts_at__gte=datetime.combine(saturday, datetime.min.time().replace(hour=5), tzinfo=BOGOTA),
-            starts_at__lt=sat_start,
-        )
-        assert early_sat_slots.count() == 0
+    def test_is_start_time_available(self, trainer):
+        assert is_start_time_available(trainer, _utc(2026, 3, 9, 10)) is True    # Mon on grid
+        assert is_start_time_available(trainer, _utc(2026, 3, 9, 10, 7)) is False # off 15-min grid
+        assert is_start_time_available(trainer, _utc(2026, 3, 15, 10)) is False   # Sunday
+        assert is_start_time_available(trainer, _utc(2026, 1, 1, 10)) is False    # past
 
-    def test_idempotent(self, trainer):
-        """Running twice produces the same count (get_or_create)."""
-        created1 = generate_slots_for_trainer(trainer=trainer, days=3, tz=BOGOTA)
-        created2 = generate_slots_for_trainer(trainer=trainer, days=3, tz=BOGOTA)
-        assert created1 > 0
-        assert created2 == 0
-
-    def test_skips_past_slots(self, trainer):
-        """Slots ending before now are not created."""
-        # FIXED_NOW is 10:00 Monday. The 05:00-06:00 slot should be skipped.
-        generate_slots_for_trainer(trainer=trainer, days=1, tz=BOGOTA)
-        early_slot = AvailabilitySlot.objects.filter(
-            trainer=trainer,
-            ends_at__lte=FIXED_NOW,
-        )
-        assert early_slot.count() == 0
+    def test_session_window(self, trainer):
+        s = _utc(2026, 3, 9, 10)
+        assert session_window(trainer, s) == (s, s + dt.timedelta(minutes=60))

@@ -30,8 +30,7 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
   // Use LOCAL date components (matching calendar display and WEEKDAY_WINDOWS generation)
   const dateStr = `${targetDay.getFullYear()}-${String(targetDay.getMonth() + 1).padStart(2, '0')}-${String(targetDay.getDate()).padStart(2, '0')}`;
 
-  // Build mock slot times in LOCAL time (matching WEEKDAY_WINDOWS virtual slot generation)
-  // then convert to ISO so slotLabelFor produces labels matching the virtual slot buttons.
+  // Build mock slot times in LOCAL time so the availability map key matches the calendar date.
   const slot1Start = new Date(`${dateStr}T10:00:00`);
   const slot1End   = new Date(`${dateStr}T11:00:00`);
   const slot2Start = new Date(`${dateStr}T17:00:00`);
@@ -76,12 +75,9 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
     expires_at: new Date(Date.now() + 50 * 86400000).toISOString(),
   };
 
-  function slotLabelFor(slot: { starts_at: string; ends_at: string }) {
-    // TimeSlotPicker defaults to 12h format (hour12: true)
-    const formatTime = (isoString: string) => (
-      new Date(isoString).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
-    );
-    return `${formatTime(slot.starts_at)} — ${formatTime(slot.ends_at)}`;
+  function slotLabelFor(slot: { starts_at: string }) {
+    // TimeSlotPicker now shows only start time in es-CO locale
+    return new Date(slot.starts_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
   }
 
   const primarySlotLabel = slotLabelFor(mockSlots[0]);
@@ -105,11 +101,17 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
           body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockTrainer] }),
         });
       }),
-      page.route('**/api/availability-slots/**', async (route) => {
+      page.route('**/api/availability/**', async (route) => {
+        const availabilityMap: Record<string, string[]> = {};
+        for (const slot of mockSlots) {
+          const key = slot.starts_at.slice(0, 10);
+          if (!availabilityMap[key]) availabilityMap[key] = [];
+          availabilityMap[key].push(slot.starts_at);
+        }
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ count: mockSlots.length, next: null, previous: null, results: mockSlots }),
+          body: JSON.stringify(availabilityMap),
         });
       }),
       page.route('**/api/subscriptions/**', async (route) => {
@@ -161,7 +163,8 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
             id: 999,
             subscription_id_display: mockSubscription.id,
             status: 'confirmed',
-            slot: mockSlots[0],
+            starts_at: mockSlots[0].starts_at,
+            ends_at: mockSlots[0].ends_at,
             trainer: mockTrainer,
             package: mockSubscription.package,
             customer_id: 1,

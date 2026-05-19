@@ -339,10 +339,9 @@ function TrainerAnthropometryPage() {
               )}
             </div>
 
-            {/* Notes + Submit */}
+            {/* Submit */}
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/60 shadow-sm">
-              <label className="block text-xs text-kore-gray-dark/60 uppercase tracking-wider mb-1">Observaciones</label>
-              <textarea value={form.notes} onChange={(e) => handleBasicChange('notes', e.target.value)} rows={2} className={inputClass + ' resize-none mb-4'} placeholder="Notas adicionales..." />
+              <p className="text-xs text-kore-gray-dark/50 mb-4">Las notas del entrenador se gestionan desde la tab <strong>Notas → Evaluaciones</strong>.</p>
               <div className="flex gap-3">
                 <button type="submit" disabled={submitting} className="bg-kore-red hover:bg-kore-red-dark text-white font-medium py-2.5 px-6 rounded-xl transition-colors text-sm disabled:opacity-60 cursor-pointer">
                   {submitting ? 'Calculando...' : editingId ? 'Actualizar evaluación' : 'Calcular y guardar'}

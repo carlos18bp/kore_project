@@ -60,7 +60,7 @@ test.describe('bookingStore rescheduleBooking error branch', { tag: [...FlowTags
     email: 'g@kore.com', specialty: 'Funcional', bio: '', location: 'Bogotá',
     session_duration_minutes: 60,
   };
-  // Build mock slot in LOCAL time (matching WEEKDAY_WINDOWS virtual slot generation)
+  // Build mock slot in LOCAL time so the availability map key matches the calendar date
   const mockSlot = {
     id: 601, trainer_id: 1,
     starts_at: new Date(`${dateIso}T10:00:00`).toISOString(),
@@ -78,15 +78,15 @@ test.describe('bookingStore rescheduleBooking error branch', { tag: [...FlowTags
   const mockBooking = {
     id: 800, customer_id: 1,
     package: mockSubscription.package,
-    slot: { id: 900, trainer_id: 1, starts_at: new Date(`${dateIso}T08:00:00`).toISOString(), ends_at: new Date(`${dateIso}T09:00:00`).toISOString(), is_active: true, is_blocked: false },
+    starts_at: new Date(`${dateIso}T08:00:00`).toISOString(),
+    ends_at: new Date(`${dateIso}T09:00:00`).toISOString(),
     trainer: mockTrainer, subscription_id_display: 11, status: 'confirmed',
     notes: '', canceled_reason: '', created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
   };
 
-  function slotLabel(slot: { starts_at: string; ends_at: string }) {
-    // TimeSlotPicker defaults to 12h format (hour12: true)
-    const fmt = (s: string) => new Date(s).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-    return `${fmt(slot.starts_at)} \u2014 ${fmt(slot.ends_at)}`;
+  function slotLabel(slot: { starts_at: string }) {
+    // TimeSlotPicker now shows only start time in es-CO locale
+    return new Date(slot.starts_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
   }
 
   async function setupRescheduleMocks(page: import('@playwright/test').Page) {
@@ -99,9 +99,9 @@ test.describe('bookingStore rescheduleBooking error branch', { tag: [...FlowTags
       status: 200, contentType: 'application/json',
       body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockTrainer] }),
     }));
-    await page.route('**/api/availability-slots/**', (r) => r.fulfill({
+    await page.route('**/api/availability/**', (r) => r.fulfill({
       status: 200, contentType: 'application/json',
-      body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockSlot] }),
+      body: JSON.stringify({ [mockSlot.starts_at.slice(0, 10)]: [mockSlot.starts_at] }),
     }));
     await page.route('**/api/subscriptions/', (r) => r.fulfill({
       status: 200, contentType: 'application/json',
@@ -126,7 +126,7 @@ test.describe('bookingStore rescheduleBooking error branch', { tag: [...FlowTags
   }
 
   async function selectSlotAndConfirm(page: import('@playwright/test').Page) {
-    await page.getByText('Lun').waitFor({ state: 'visible', timeout: 10_000 });
+    await page.getByText('Lun', { exact: true }).waitFor({ state: 'visible', timeout: 10_000 });
     // Navigate to next month if targetDay is not in the current calendar month
     if (targetDay.getMonth() !== new Date().getMonth() || targetDay.getFullYear() !== new Date().getFullYear()) {
       await page.getByRole('button', { name: 'Mes siguiente' }).click();

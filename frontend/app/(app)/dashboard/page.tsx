@@ -24,6 +24,8 @@ import { useProgramStore } from '@/lib/stores/programStore';
 import { useProgressStore } from '@/lib/stores/progressStore';
 import UpcomingSessionReminder from '@/app/components/booking/UpcomingSessionReminder';
 import UpcomingSessionsCard from '@/app/components/booking/UpcomingSessionsCard';
+import SessionDetailModal from '@/app/components/booking/SessionDetailModal';
+import type { BookingData } from '@/lib/stores/bookingStore';
 import SubscriptionExpiryReminder from '@/app/components/subscription/SubscriptionExpiryReminder';
 import SubscriptionDashboardToast from '@/app/components/subscription/SubscriptionDashboardToast';
 import ProgressTabsCard from '@/app/components/program/ProgressTabsCard';
@@ -560,7 +562,6 @@ function CondicionFisicaCard({
         <div className="relative shrink-0" style={{ width: gw, height: gh + 26 }}>
           <svg width={gw} height={gh + 26}>
             <path d={arc(startA, endA)} fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="11" strokeLinecap="round" />
-            {/* Segmented colored arc that fills up to current value (avoids stroke-gradient rendering bug) */}
             {(() => {
               const segs: { color: string; from: number; to: number }[] = [
                 { color: '#FF4040', from: 0,    to: 0.34 },
@@ -610,7 +611,7 @@ function CondicionFisicaCard({
           <p className="text-[9px] font-bold uppercase" style={{ letterSpacing: '0.10em', color: 'rgba(51,51,51,0.55)' }}>Próximo paso</p>
           <p className="text-[11px] mt-1.5 leading-snug italic" style={{ color: '#333' }}>
             {latest.notes
-              ? `“${latest.notes.length > 80 ? latest.notes.slice(0, 80) + '…' : latest.notes}”`
+              ? `"${latest.notes.length > 80 ? latest.notes.slice(0, 80) + '…' : latest.notes}"`
               : 'Tu trainer ajusta el plan según estos resultados.'}
           </p>
         </div>
@@ -733,7 +734,7 @@ function MotivacionMiniCard({ message }: { message?: string }) {
         className="absolute font-heading"
         style={{ top: 4, left: 16, fontSize: 56, color: 'rgba(154,5,38,0.12)', lineHeight: 1, fontWeight: 700 }}
       >
-        “
+        "
       </span>
       <div className="relative">
         <p className="text-[9px] font-bold uppercase" style={{ letterSpacing: '0.18em', color: 'rgba(102,15,34,0.55)' }}>
@@ -1293,7 +1294,6 @@ export default function DashboardPage() {
   const { user } = useAuthStore();
   const {
     activeSubscription: sub,
-    fetchSubscriptions,
     subscriptions,
     hasOwnActiveSubscription,
     subscriptionsLoaded,
@@ -1315,48 +1315,79 @@ export default function DashboardPage() {
   const [sessionExpanded, setSessionExpanded] = useState(false);
   const [progressExpanded, setProgressExpanded] = useState(false);
   const [showUpcoming, setShowUpcoming] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<BookingData | null>(null);
 
+  // Staggered fetch waves to stay below nginx's per-IP `limit_req` burst.
+  // Without this the dashboard fired ~13 parallel requests on mount and the
+  // server returned a chain of 429s. We split it into 3 waves of <=4 each,
+  // gated by Promise.allSettled so a single slow/failed call doesn't stall
+  // the rest. Stores have in-flight + "already loaded" guards, so re-entries
+  // (e.g. fast tab switches) are no-ops.
   useEffect(() => {
-    fetchSubscriptions();
-    fetchUpcomingReminder();
-    fetchBookings();
-    fetchPendingAssessments();
-    fetchActiveProgram();
-    fetchWeeklySummary();
-    fetchNutritionToday();
-    if (!anthroEvals.length) fetchMyAnthrometry();
-    if (!posturoEvals.length) fetchMyPosturo();
-    if (!physicalEvals.length) fetchMyPhysical();
-    if (!nutritionEntries.length) fetchMyNutrition();
-    if (!parqAssessments.length) fetchMyParq();
+    let cancelled = false;
+    const skipAnthro = anthroEvals.length > 0;
+    const skipPosturo = posturoEvals.length > 0;
+    const skipPhysical = physicalEvals.length > 0;
+    const skipNutrition = nutritionEntries.length > 0;
+    const skipParq = parqAssessments.length > 0;
+
+    (async () => {
+      // Wave 1 — identity + primary signals (gates the page).
+      // NOTE: fetchSubscriptions is already fired by `(app)/layout.tsx` for
+      // customers; we don't repeat it here. fetchProfile dedupes itself in
+      // the store, so multiple callers (CTA / MoodCheckIn / dashboard) are safe.
+      await Promise.allSettled([
+        profileFetchedRef.current ? Promise.resolve() : fetchProfile(),
+        fetchPendingAssessments(),
+        fetchActiveProgram(),
+      ]);
+      profileFetchedRef.current = true;
+      if (cancelled) return;
+
+      // Wave 2 — above-the-fold session/program data
+      await Promise.allSettled([
+        fetchUpcomingReminder(),
+        fetchBookings(),
+        fetchWeeklySummary(),
+        fetchNutritionToday(),
+      ]);
+      if (cancelled) return;
+
+      // Wave 3 — assessment history (lazy: skip if cached in store)
+      await Promise.allSettled([
+        skipAnthro ? Promise.resolve() : fetchMyAnthrometry(),
+        skipPosturo ? Promise.resolve() : fetchMyPosturo(),
+        skipPhysical ? Promise.resolve() : fetchMyPhysical(),
+        skipNutrition ? Promise.resolve() : fetchMyNutrition(),
+        skipParq ? Promise.resolve() : fetchMyParq(),
+      ]);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchSubscriptions, fetchUpcomingReminder, fetchBookings, fetchPendingAssessments, fetchActiveProgram, fetchWeeklySummary, fetchNutritionToday, fetchMyAnthrometry, fetchMyPosturo, fetchMyPhysical, fetchMyNutrition, fetchMyParq]);
-
-  useEffect(() => {
-    if (profileFetchedRef.current) return;
-    profileFetchedRef.current = true;
-    fetchProfile();
-  }, [fetchProfile]);
+  }, []);
 
   // ── Streak ─────────────────────────────────────────────────
   // Source: weekly adherence summary (matches /mi-programa).
-  const streakCount = weeklySummary?.streak.current ?? 0;
-  const longestStreak = weeklySummary?.streak.longest ?? 0;
+  const streakCount = weeklySummary?.streak?.current ?? 0;
+  const longestStreak = weeklySummary?.streak?.longest ?? 0;
 
   // ── Session ────────────────────────────────────────────────
-  const formattedDate = upcomingReminder?.slot
-    ? new Date(upcomingReminder.slot.starts_at).toLocaleDateString('es-CO', {
+  const formattedDate = upcomingReminder?.starts_at
+    ? new Date(upcomingReminder.starts_at).toLocaleDateString('es-CO', {
         weekday: 'short', day: 'numeric', month: 'short',
       })
     : null;
-  const formattedTime = upcomingReminder?.slot
-    ? new Date(upcomingReminder.slot.starts_at).toLocaleTimeString('es-CO', {
+  const formattedTime = upcomingReminder?.starts_at
+    ? new Date(upcomingReminder.starts_at).toLocaleTimeString('es-CO', {
         hour: '2-digit', minute: '2-digit', hour12: true,
       })
     : '';
-  const sessionInDays = upcomingReminder?.slot
+  const sessionInDays = upcomingReminder?.starts_at
     ? Math.max(0, Math.ceil(
-        (new Date(upcomingReminder.slot.starts_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+        (new Date(upcomingReminder.starts_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
       ))
     : null;
   const trainerName = upcomingReminder?.trainer
@@ -1378,7 +1409,7 @@ export default function DashboardPage() {
 
   // ── Program day ────────────────────────────────────────────
   const today = new Date().toISOString().slice(0, 10);
-  const todayProgDay = activeProgram?.days.find((d) => d.date === today);
+  const todayProgDay = activeProgram?.days?.find((d) => d.date === today);
   const hasRoutine = !!(todayProgDay && todayProgDay.day_type !== 'rest' && todayProgDay.exercises.length > 0);
   const allExercises = todayProgDay?.exercises ?? [];
   const exerciseCount = allExercises.length;
@@ -1395,8 +1426,8 @@ export default function DashboardPage() {
 
   // ── Historial (past confirmed bookings) ────────────────────
   const pastBookings = bookings
-    .filter((b) => new Date(b.slot.starts_at).getTime() < Date.now())
-    .sort((a, b) => new Date(b.slot.starts_at).getTime() - new Date(a.slot.starts_at).getTime())
+    .filter((b) => new Date(b.starts_at).getTime() < Date.now())
+    .sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime())
     .slice(0, 5);
 
   // ── Special states ─────────────────────────────────────────
@@ -1466,9 +1497,23 @@ export default function DashboardPage() {
           onClick={(e) => { if (e.target === e.currentTarget) setShowUpcoming(false); }}
         >
           <div className="w-full max-w-md">
-            <UpcomingSessionsCard bookings={bookings} onClose={() => setShowUpcoming(false)} />
+            <UpcomingSessionsCard
+              bookings={bookings}
+              onClose={() => setShowUpcoming(false)}
+              onSelectBooking={(b) => setSelectedBooking(b)}
+            />
           </div>
         </div>,
+        document.body,
+      )}
+
+      {selectedBooking && createPortal(
+        <SessionDetailModal
+          booking={selectedBooking}
+          subscriptionId={selectedBooking.subscription_id_display ?? 0}
+          onClose={() => setSelectedBooking(null)}
+          onCanceled={() => { setSelectedBooking(null); fetchBookings(); }}
+        />,
         document.body,
       )}
 
@@ -1689,7 +1734,7 @@ export default function DashboardPage() {
               {getGreeting()}, {user.name.split(' ')[0]}.
             </h1>
             <p className="text-[14px] text-kore-gray-dark/55 mt-1.5">
-              {todayProgDay ? `Día ${todayProgDay.day_number} de ${activeProgram?.days.length}` : 'Sin programa activo'} · {streakCount} días consecutivos
+              {todayProgDay ? `Día ${todayProgDay.day_number} de ${activeProgram?.days?.length ?? 0}` : 'Sin programa activo'} · {streakCount} días consecutivos
             </p>
           </div>
           <div className="flex items-stretch gap-2 shrink-0">

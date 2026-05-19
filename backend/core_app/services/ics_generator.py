@@ -23,14 +23,13 @@ def generate_ics(booking):
     organizer.
 
     Args:
-        booking: A ``Booking`` instance with related ``slot`` and
+        booking: A ``Booking`` instance with ``starts_at``/``ends_at`` set and
             optionally ``trainer`` (with nested ``user``) populated.
 
     Returns:
         bytes: UTF-8 encoded iCalendar content ready to be used as an
         email attachment.
     """
-    slot = booking.slot
     trainer = booking.trainer
     customer = booking.customer
 
@@ -64,14 +63,14 @@ def generate_ics(booking):
         attendee_lines.append(f'ATTENDEE;CN={attendee_name};RSVP=TRUE:mailto:{attendee_email}')
 
     # Use UTC format for maximum compatibility with Yahoo/Apple Calendar
-    dtstart_utc = _format_dt_utc(slot.starts_at)
-    dtend_utc = _format_dt_utc(slot.ends_at)
+    dtstart_utc = _format_dt_utc(booking.starts_at)
+    dtend_utc = _format_dt_utc(booking.ends_at)
     dtstamp = _format_dt_utc(datetime.now(dt_tz.utc))
     uid = f'booking-{booking.pk}@korehealths.com'
 
     # Add human-readable time zone info to description
-    bogota_start = slot.starts_at.astimezone(BOGOTA_TZ)
-    bogota_end = slot.ends_at.astimezone(BOGOTA_TZ)
+    bogota_start = booking.starts_at.astimezone(BOGOTA_TZ)
+    bogota_end = booking.ends_at.astimezone(BOGOTA_TZ)
     time_info = (
         f'{bogota_start.strftime("%A %d de %B de %Y, %I:%M %p")} - '
         f'{bogota_end.strftime("%I:%M %p")} (hora de Colombia, America/Bogota / UTC-5)'
@@ -111,14 +110,13 @@ def generate_cancellation_ics(booking):
     remove the event from attendees' calendars when they receive this file.
 
     Args:
-        booking: A ``Booking`` instance with related ``slot``, ``trainer``
-            (optional), and ``customer`` populated.
+        booking: A ``Booking`` instance with ``starts_at``/``ends_at`` set,
+            ``trainer`` (optional), and ``customer`` populated.
 
     Returns:
         bytes: UTF-8 encoded iCalendar cancellation content ready for email
         attachment.
     """
-    slot = booking.slot
     trainer = booking.trainer
     customer = booking.customer
 
@@ -144,8 +142,8 @@ def generate_cancellation_ics(booking):
         seen_attendees.add(normalized_email)
         attendee_lines.append(f'ATTENDEE;CN={attendee_name};RSVP=FALSE:mailto:{attendee_email}')
 
-    dtstart_utc = _format_dt_utc(slot.starts_at)
-    dtend_utc = _format_dt_utc(slot.ends_at)
+    dtstart_utc = _format_dt_utc(booking.starts_at)
+    dtend_utc = _format_dt_utc(booking.ends_at)
     dtstamp = _format_dt_utc(datetime.now(dt_tz.utc))
     uid = f'booking-{booking.pk}@korehealths.com'
 

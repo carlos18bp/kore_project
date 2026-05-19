@@ -144,8 +144,10 @@ class TestCreateTransaction:
     """Covers transaction creation payload handling and error cases."""
 
     @override_settings(**WOMPI_SETTINGS)
+    @patch('core_app.services.wompi_service.get_personal_data_auth_token', return_value='personal_test')
+    @patch('core_app.services.wompi_service.get_acceptance_token', return_value='accept_test')
     @patch('core_app.services.wompi_service.requests.post')
-    def test_returns_transaction_data(self, mock_post):
+    def test_returns_transaction_data(self, mock_post, mock_accept, mock_personal):
         """Returns transaction data and keeps recurrent payload fields."""
         mock_resp = MagicMock()
         mock_resp.raise_for_status.return_value = None
@@ -169,10 +171,14 @@ class TestCreateTransaction:
         assert payload['recurrent'] is True
         assert payload['payment_source_id'] == 9999
         assert payload['payment_method']['installments'] == 1
+        assert payload['acceptance_token'] == 'accept_test'
+        assert payload['accept_personal_auth'] == 'personal_test'
 
     @override_settings(**WOMPI_SETTINGS)
+    @patch('core_app.services.wompi_service.get_personal_data_auth_token', return_value='personal_test')
+    @patch('core_app.services.wompi_service.get_acceptance_token', return_value='accept_test')
     @patch('core_app.services.wompi_service.requests.post')
-    def test_raises_wompi_error_on_no_txn_id(self, mock_post):
+    def test_raises_wompi_error_on_no_txn_id(self, mock_post, mock_accept, mock_personal):
         """Missing transaction id in provider response raises WompiError."""
         mock_resp = MagicMock()
         mock_resp.raise_for_status.return_value = None
@@ -185,8 +191,10 @@ class TestCreateTransaction:
         mock_post.assert_called_once()
 
     @override_settings(**WOMPI_SETTINGS)
+    @patch('core_app.services.wompi_service.get_personal_data_auth_token', return_value='personal_test')
+    @patch('core_app.services.wompi_service.get_acceptance_token', return_value='accept_test')
     @patch('core_app.services.wompi_service.requests.post')
-    def test_normalizes_installments_to_one(self, mock_post):
+    def test_normalizes_installments_to_one(self, mock_post, mock_accept, mock_personal):
         """Installments <= 0 are normalized to 1 before sending to Wompi."""
         mock_resp = MagicMock()
         mock_resp.raise_for_status.return_value = None
@@ -403,8 +411,10 @@ class TestCreateTransactionErrors:
     """Covers create_transaction request exception handling."""
 
     @override_settings(**WOMPI_SETTINGS)
+    @patch('core_app.services.wompi_service.get_personal_data_auth_token', return_value='personal_test')
+    @patch('core_app.services.wompi_service.get_acceptance_token', return_value='accept_test')
     @patch('core_app.services.wompi_service.requests.post')
-    def test_request_exception_raises_wompi_error(self, mock_post):
+    def test_request_exception_raises_wompi_error(self, mock_post, mock_accept, mock_personal):
         """RequestException in create_transaction raises WompiError (lines 183-185)."""
         import requests as req
         mock_resp = MagicMock()
@@ -524,8 +534,10 @@ class TestCreateTransactionNegativeInstallments:
     """Covers create_transaction installments < 1 normalization — line 202."""
 
     @override_settings(**WOMPI_SETTINGS)
+    @patch('core_app.services.wompi_service.get_personal_data_auth_token', return_value='personal_test')
+    @patch('core_app.services.wompi_service.get_acceptance_token', return_value='accept_test')
     @patch('core_app.services.wompi_service.requests.post')
-    def test_negative_installments_normalized_to_one(self, mock_post):
+    def test_negative_installments_normalized_to_one(self, mock_post, mock_accept, mock_personal):
         """Negative installments value is clamped to 1 before payload dispatch."""
         mock_resp = MagicMock()
         mock_resp.raise_for_status.return_value = None

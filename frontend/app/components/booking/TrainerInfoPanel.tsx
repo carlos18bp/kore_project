@@ -1,14 +1,13 @@
 'use client';
 
-import type { Trainer, Slot } from '@/lib/stores/bookingStore';
+import type { Trainer } from '@/lib/stores/bookingStore';
 
 type Props = {
   trainer: Trainer | null;
-  selectedSlot?: Slot | null;
   timezone?: string;
 };
 
-export default function TrainerInfoPanel({ trainer, selectedSlot, timezone }: Props) {
+export default function TrainerInfoPanel({ trainer, timezone }: Props) {
   const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   return (

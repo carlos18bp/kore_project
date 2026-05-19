@@ -2,11 +2,11 @@ import { render, screen, waitFor } from '@testing-library/react';
 import AppLayout from '@/app/(app)/layout';
 import { useAuthStore } from '@/lib/stores/authStore';
 
-const mockPush = jest.fn();
+const mockReplace = jest.fn();
 
 jest.mock('next/navigation', () => ({
   usePathname: () => '/dashboard',
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: jest.fn(), replace: mockReplace }),
 }));
 
 jest.mock('next/link', () => ({
@@ -35,6 +35,7 @@ const mockUser = {
 describe('AppLayout', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    sessionStorage.clear();
     useAuthStore.setState({
       user: null,
       accessToken: null,
@@ -64,7 +65,7 @@ describe('AppLayout', () => {
     );
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/login');
+      expect(mockReplace).toHaveBeenCalledWith('/login');
     });
   });
 
@@ -76,7 +77,35 @@ describe('AppLayout', () => {
       </AppLayout>
     );
 
-    expect(mockPush).not.toHaveBeenCalledWith('/login');
+    expect(mockReplace).not.toHaveBeenCalledWith('/login');
+  });
+
+  it('skips the splash on first render when kore_splash_shown flag is set', () => {
+    sessionStorage.setItem('kore_splash_shown', '1');
+    useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token', hydrated: true });
+
+    render(
+      <AppLayout>
+        <div data-testid="child-content">Dashboard content</div>
+      </AppLayout>
+    );
+
+    expect(screen.queryByRole('status', { name: /cargando/i })).not.toBeInTheDocument();
+    expect(screen.getByTestId('child-content')).toBeInTheDocument();
+  });
+
+  it('persists the splash-shown flag once the entrance animation completes', async () => {
+    useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token', hydrated: true });
+
+    render(
+      <AppLayout>
+        <div data-testid="child-content">Dashboard content</div>
+      </AppLayout>
+    );
+
+    await waitFor(() => {
+      expect(sessionStorage.getItem('kore_splash_shown')).toBe('1');
+    });
   });
 
 });

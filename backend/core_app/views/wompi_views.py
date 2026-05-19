@@ -18,7 +18,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from core_app.models import Payment, PaymentIntent, Subscription, User
+from core_app.models import Payment, PaymentIntent, Subscription, User, WompiEvent
+
+TERMINAL_TXN_STATUSES = frozenset({'APPROVED', 'DECLINED', 'ERROR', 'VOIDED'})
+from core_app.services.billing_calendar import bogota_today
 from core_app.services.email_service import send_payment_receipt, send_welcome_email
 from core_app.services.wompi_service import (
     generate_integrity_signature,
@@ -35,6 +38,8 @@ ALLOWED_INITIAL_PAYMENT_METHOD_TYPES = {
 }
 RECURRING_PAYMENT_METHOD_TYPES = {
     'CARD',
+    'NEQUI',
+    'BANCOLOMBIA_TRANSFER',
 }
 
 
@@ -148,6 +153,25 @@ def _handle_transaction_updated(data):
         logger.warning('Webhook transaction.updated missing transaction ID')
         return
 
+    # --- Idempotency guard ---
+    # Wompi retransmits webhook events; record terminal statuses in WompiEvent
+    # with a unique transaction_id constraint so subsequent retransmissions
+    # (including a late DECLINED following an APPROVED) become no-ops and
+    # cannot corrupt subscription state.
+    if txn_status in TERMINAL_TXN_STATUSES:
+        try:
+            with db_transaction.atomic():
+                WompiEvent.objects.create(
+                    transaction_id=txn_id,
+                    status=txn_status,
+                )
+        except IntegrityError:
+            logger.info(
+                'Wompi webhook for txn %s already processed, skipping (incoming status=%s)',
+                txn_id, txn_status,
+            )
+            return
+
     # --- Path 1: Resolve a PaymentIntent (initial purchase) ---
     try:
         intent = PaymentIntent.objects.select_related(
@@ -243,7 +267,9 @@ def _resolve_payment_intent(intent, txn_status, payment_method_type=''):
         package = intent.package
         next_billing_date = None
         if is_recurring:
-            next_billing_date = (now + timedelta(days=package.validity_days)).date()
+            # Use Bogota local date so the billing day matches the customer's
+            # calendar; UTC would push it one day forward for ~5 hours each night.
+            next_billing_date = bogota_today() + timedelta(days=package.validity_days)
 
         is_guest_creation = False
         try:

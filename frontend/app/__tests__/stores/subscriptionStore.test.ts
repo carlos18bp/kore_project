@@ -262,4 +262,189 @@ describe('subscriptionStore', () => {
       expect(result).toBe(false);
     });
   });
+
+  // ----------------------------------------------------------------
+  // fetchPendingInvitation
+  // ----------------------------------------------------------------
+  describe('fetchPendingInvitation', () => {
+    it('sets pendingInvitation from API response', async () => {
+      const inv = { token: 'tok-1', host_name: 'Ana', package_title: 'Gold', invited_email: 'guest@kore.com' };
+      mockedApi.get.mockResolvedValueOnce({ data: inv });
+
+      await useSubscriptionStore.getState().fetchPendingInvitation();
+
+      expect(useSubscriptionStore.getState().pendingInvitation).toEqual(inv);
+    });
+
+    it('sets pendingInvitation to null on error', async () => {
+      useSubscriptionStore.setState({ pendingInvitation: { token: 't', host_name: 'X', package_title: 'Y', invited_email: 'e@e.com' } });
+      mockedApi.get.mockRejectedValueOnce(new Error('fail'));
+
+      await useSubscriptionStore.getState().fetchPendingInvitation();
+
+      expect(useSubscriptionStore.getState().pendingInvitation).toBeNull();
+    });
+  });
+
+  // ----------------------------------------------------------------
+  // acceptPendingInvitation
+  // ----------------------------------------------------------------
+  describe('acceptPendingInvitation', () => {
+    it('returns success false immediately when pendingInvitation is null', async () => {
+      useSubscriptionStore.setState({ pendingInvitation: null });
+
+      const result = await useSubscriptionStore.getState().acceptPendingInvitation();
+
+      expect(result).toEqual({ success: false });
+      expect(mockedApi.post).not.toHaveBeenCalled();
+    });
+
+    it('posts invite token, clears invitation, refetches subscriptions, and returns success with host data', async () => {
+      const inv = { token: 'tok-1', host_name: 'Ana', package_title: 'Gold', invited_email: 'guest@kore.com' };
+      useSubscriptionStore.setState({ pendingInvitation: inv });
+      mockedApi.post.mockResolvedValueOnce({ data: { host_name: 'Ana', package_title: 'Gold' } });
+      mockedApi.get.mockResolvedValueOnce({ data: [MOCK_SUBSCRIPTION] });
+
+      const result = await useSubscriptionStore.getState().acceptPendingInvitation();
+
+      expect(result).toEqual({ success: true, host_name: 'Ana', package_title: 'Gold' });
+      expect(useSubscriptionStore.getState().pendingInvitation).toBeNull();
+      expect(mockedApi.post).toHaveBeenCalledWith(
+        '/subscriptions/accept-invite/',
+        { token: 'tok-1' },
+        expect.any(Object),
+      );
+    });
+
+    it('returns success false on API error', async () => {
+      const inv = { token: 'tok-err', host_name: 'Ana', package_title: 'Gold', invited_email: 'g@g.com' };
+      useSubscriptionStore.setState({ pendingInvitation: inv });
+      mockedApi.post.mockRejectedValueOnce(new Error('fail'));
+
+      const result = await useSubscriptionStore.getState().acceptPendingInvitation();
+
+      expect(result).toEqual({ success: false });
+    });
+  });
+
+  // ----------------------------------------------------------------
+  // reset
+  // ----------------------------------------------------------------
+  describe('reset', () => {
+    it('restores all state fields to initial empty values', () => {
+      useSubscriptionStore.setState({
+        subscriptions: [MOCK_SUBSCRIPTION],
+        activeSubscription: MOCK_SUBSCRIPTION,
+        hasActiveSubscription: true,
+        hasOwnActiveSubscription: true,
+        subscriptionsLoaded: true,
+        pendingInvitation: { token: 't', host_name: 'X', package_title: 'Y', invited_email: 'e@e.com' },
+        selectedSubscriptionId: 5,
+        payments: [MOCK_PAYMENT],
+        expiryReminder: MOCK_EXPIRING_SUBSCRIPTION,
+        error: 'prev error',
+      });
+
+      useSubscriptionStore.getState().reset();
+
+      const state = useSubscriptionStore.getState();
+      expect(state.subscriptions).toEqual([]);
+      expect(state.activeSubscription).toBeNull();
+      expect(state.hasActiveSubscription).toBe(false);
+      expect(state.hasOwnActiveSubscription).toBe(false);
+      expect(state.subscriptionsLoaded).toBe(false);
+      expect(state.pendingInvitation).toBeNull();
+      expect(state.selectedSubscriptionId).toBeNull();
+      expect(state.payments).toEqual([]);
+      expect(state.expiryReminder).toBeNull();
+      expect(state.error).toBe('');
+    });
+  });
+
+  // ----------------------------------------------------------------
+  // inviteGuest
+  // ----------------------------------------------------------------
+  describe('inviteGuest', () => {
+    it('calls invite endpoint, refetches subscriptions, and returns success true', async () => {
+      mockedApi.post.mockResolvedValueOnce({ data: {} });
+      mockedApi.get.mockResolvedValueOnce({ data: [MOCK_SUBSCRIPTION] });
+
+      const result = await useSubscriptionStore.getState().inviteGuest(2, 'guest@kore.com');
+
+      expect(result).toEqual({ success: true });
+      expect(mockedApi.post).toHaveBeenCalledWith(
+        '/subscriptions/2/invite-guest/',
+        { email: 'guest@kore.com' },
+        expect.any(Object),
+      );
+    });
+
+    it('returns success false with detail error message when response contains detail', async () => {
+      const err = { response: { data: { detail: 'Email ya invitado' } } };
+      mockedApi.post.mockRejectedValueOnce(err);
+
+      const result = await useSubscriptionStore.getState().inviteGuest(2, 'dup@kore.com');
+
+      expect(result).toEqual({ success: false, error: 'Email ya invitado' });
+    });
+
+    it('returns generic error message when response has no detail field', async () => {
+      mockedApi.post.mockRejectedValueOnce(new Error('Network'));
+
+      const result = await useSubscriptionStore.getState().inviteGuest(2, 'x@kore.com');
+
+      expect(result).toEqual({ success: false, error: 'No se pudo enviar la invitación.' });
+    });
+  });
+
+  // ----------------------------------------------------------------
+  // revokeGuest
+  // ----------------------------------------------------------------
+  describe('revokeGuest', () => {
+    it('calls revoke endpoint, refetches subscriptions, and returns true', async () => {
+      mockedApi.post.mockResolvedValueOnce({ data: {} });
+      mockedApi.get.mockResolvedValueOnce({ data: [MOCK_SUBSCRIPTION] });
+
+      const result = await useSubscriptionStore.getState().revokeGuest(2);
+
+      expect(result).toBe(true);
+      expect(mockedApi.post).toHaveBeenCalledWith(
+        '/subscriptions/2/revoke-guest/',
+        {},
+        expect.any(Object),
+      );
+    });
+
+    it('sets error and returns false on failure', async () => {
+      mockedApi.post.mockRejectedValueOnce(new Error('fail'));
+
+      const result = await useSubscriptionStore.getState().revokeGuest(2);
+
+      expect(result).toBe(false);
+      expect(useSubscriptionStore.getState().error).toBe('No se pudo revocar la invitación.');
+    });
+  });
+
+  // ----------------------------------------------------------------
+  // fetchSubscriptions — hasOwnActiveSubscription branches
+  // ----------------------------------------------------------------
+  describe('fetchSubscriptions — hasOwnActiveSubscription', () => {
+    it('sets hasOwnActiveSubscription to true when a non-guest active subscription exists', async () => {
+      const ownSub = { ...MOCK_SUBSCRIPTION, is_guest: false };
+      mockedApi.get.mockResolvedValueOnce({ data: [ownSub] });
+
+      await useSubscriptionStore.getState().fetchSubscriptions();
+
+      expect(useSubscriptionStore.getState().hasOwnActiveSubscription).toBe(true);
+    });
+
+    it('sets hasOwnActiveSubscription to false when only a guest active subscription exists', async () => {
+      const guestSub = { ...MOCK_SUBSCRIPTION, is_guest: true };
+      mockedApi.get.mockResolvedValueOnce({ data: [guestSub] });
+
+      await useSubscriptionStore.getState().fetchSubscriptions();
+
+      expect(useSubscriptionStore.getState().hasOwnActiveSubscription).toBe(false);
+    });
+  });
 });

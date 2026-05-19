@@ -69,12 +69,13 @@ export default function AlertCard({ alert, onResolve }: Props) {
   const borderColor = BORDER_COLOR[alert.level] ?? BORDER_COLOR.sin_riesgo;
   const allSignals = [...alert.behavioral_signals, ...alert.clinical_signals];
   const evalModule = pickEvalModule(allSignals);
-  const initials = alert.customer_name
+  const initials = (alert.customer_name ?? '')
     .split(' ')
+    .filter(Boolean)
     .slice(0, 2)
     .map((w) => w[0])
     .join('')
-    .toUpperCase();
+    .toUpperCase() || '—';
 
   return (
     <div className={`bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm border-l-4 ${borderColor} overflow-hidden`}>

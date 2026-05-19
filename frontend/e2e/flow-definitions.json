@@ -474,7 +474,7 @@
       "module": "program",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Navigate to a past or future program day via /mi-programa/dia/[date]: view exercises, completion state, and trainer notes.",
+      "description": "Navigate to a past or future program day via /mi-programa/dia/detail?date=YYYY-MM-DD: view exercises, completion state, and trainer notes.",
       "coverage": "missing"
     },
     "trainer-alerts": {
@@ -491,14 +491,6 @@
       "priority": "P2",
       "roles": ["trainer"],
       "description": "View and manage a client's monthly training program from the trainer perspective: generate, publish, and review program days and exercise logs.",
-      "coverage": "missing"
-    },
-    "trainer-evidence": {
-      "name": "Trainer Evidence Gallery",
-      "module": "trainer",
-      "priority": "P3",
-      "roles": ["trainer"],
-      "description": "Browse client progress photos with date filter; open photo detail sheet and add/view trainer comments.",
       "coverage": "missing"
     },
     "trainer-metrics": {

@@ -16,6 +16,9 @@ import BancolombiaPaymentForm from '@/app/components/checkout/BancolombiaPayment
 
 const CHECKOUT_REGISTRATION_TOKEN_KEY = 'kore_checkout_registration_token';
 const CHECKOUT_REGISTRATION_PACKAGE_KEY = 'kore_checkout_registration_package';
+const BANCOLOMBIA_PENDING_REF_KEY = 'kore_checkout_bancolombia_reference';
+const BANCOLOMBIA_PENDING_ACCESS_KEY = 'kore_checkout_bancolombia_access_token';
+const BANCOLOMBIA_CALLBACK_PARAM = 'bancolombia_callback';
 
 declare global {
   interface Window {
@@ -52,7 +55,8 @@ export default function CheckoutClient() {
     fetchPSEBanks,
     purchaseWithNequi,
     purchaseWithPSE,
-    purchaseWithBancolombia,
+    startBancolombiaPurchase,
+    confirmBancolombiaPurchase,
     pollIntentStatus,
     fetchTermsStatus,
     acceptTerms,
@@ -326,11 +330,35 @@ export default function CheckoutClient() {
   const handleBancolombiaPayment = useCallback(async () => {
     if (!pkg) return;
     if (needsTermsAcceptance) { await acceptTerms(); }
-    await purchaseWithBancolombia(
+
+    const callbackUrl = `${window.location.origin}/checkout?package=${pkg.id}&${BANCOLOMBIA_CALLBACK_PARAM}=1`;
+    const result = await startBancolombiaPurchase(
       pkg.id,
+      callbackUrl,
       isAuthenticated ? undefined : (registrationToken || undefined),
     );
-  }, [pkg, purchaseWithBancolombia, isAuthenticated, registrationToken, needsTermsAcceptance, acceptTerms]);
+    if (!result) return;
+
+    sessionStorage.setItem(BANCOLOMBIA_PENDING_REF_KEY, result.reference);
+    if (result.checkout_access_token) {
+      sessionStorage.setItem(BANCOLOMBIA_PENDING_ACCESS_KEY, result.checkout_access_token);
+    } else {
+      sessionStorage.removeItem(BANCOLOMBIA_PENDING_ACCESS_KEY);
+    }
+    window.location.href = result.authorization_url;
+  }, [pkg, startBancolombiaPurchase, isAuthenticated, registrationToken, needsTermsAcceptance, acceptTerms]);
+
+  // Detect Bancolombia callback and confirm the pending intent
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (searchParams.get(BANCOLOMBIA_CALLBACK_PARAM) !== '1') return;
+    const pendingRef = sessionStorage.getItem(BANCOLOMBIA_PENDING_REF_KEY);
+    if (!pendingRef) return;
+    const pendingAccessToken = sessionStorage.getItem(BANCOLOMBIA_PENDING_ACCESS_KEY) || undefined;
+    sessionStorage.removeItem(BANCOLOMBIA_PENDING_REF_KEY);
+    sessionStorage.removeItem(BANCOLOMBIA_PENDING_ACCESS_KEY);
+    void confirmBancolombiaPurchase(pendingRef, pendingAccessToken);
+  }, [searchParams, confirmBancolombiaPurchase]);
 
   const formatPrice = (price: string) => {
     return new Intl.NumberFormat('en-US', {
@@ -538,7 +566,7 @@ export default function CheckoutClient() {
                     <span className="text-lg font-semibold text-kore-red">{formatPrice(pkg.price)}</span>
                   </div>
                   <p className="text-xs text-kore-gray-dark/40">
-                    El cobro automático aplica solo con tarjeta. Con otros métodos, deberás renovar manualmente cada {pkg.validity_days} días.
+                    Renovación automática cada {pkg.validity_days} días. Puedes cancelar cuando quieras desde tu suscripción.
                   </p>
                 </div>
               </div>

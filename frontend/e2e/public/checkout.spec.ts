@@ -224,7 +224,9 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
       page.getByRole('heading', { name: 'Resumen del programa' }),
     ).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Paquete Pro')).toBeVisible();
-    await expect(page.getByText('8')).toBeVisible(); // sessions_count
+    await expect(
+      page.getByText('Sesiones incluidas', { exact: true }).locator('..'),
+    ).toContainText('8');
     await expect(page.getByText('60 días', { exact: true })).toBeVisible();
   });
 
@@ -349,7 +351,9 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
     await expect(page.getByText('No se pudo cargar la configuración de pago.')).toBeVisible({ timeout: 10_000 });
   });
 
-  test('payment method selector shows all four options', async ({ page }) => {
+  test('payment method selector shows the three Wompi-aligned recurring methods', async ({ page }) => {
+    // PSE is intentionally hidden — Wompi does not support PSE as a recurring
+    // payment_source. Backend endpoint stays intact for future re-enable.
     await mockWompiWidgetScript(page);
     await setupDefaultApiMocks(page);
     await setupCheckoutMocks(page, mockPackage);
@@ -361,8 +365,8 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
 
     await expect(page.getByRole('button', { name: /Tarjeta/ })).toBeVisible();
     await expect(page.getByRole('button', { name: /Nequi/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /PSE/ })).toBeVisible();
     await expect(page.getByRole('button', { name: /Bancolombia/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^PSE$/ })).toHaveCount(0);
   });
 
   test('card tokenization failure shows error message', async ({ page }) => {
@@ -415,6 +419,9 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
   });
 
   test('nequi payment success shows pago exitoso', async ({ page }) => {
+    // NEQUI now uses the Wompi-aligned 2-step flow:
+    //   POST /subscriptions/nequi/start/    (tokenize phone)
+    //   POST /subscriptions/nequi/confirm/  (poll + payment_source + recurring txn)
     await mockWompiWidgetScript(page);
     await setupDefaultApiMocks(page);
     await setupCheckoutMocks(page, mockPackage);
@@ -422,9 +429,20 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
     const intentPending = buildIntent(60, 'pending', 'txn_nequi_001');
     const intentApproved = { ...intentPending, status: 'approved' as const };
 
-    await page.route('**/api/subscriptions/purchase-alternative/**', async (route) => {
+    await page.route('**/api/subscriptions/nequi/start/**', async (route) => {
       await route.fulfill({
         status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ...intentPending,
+          nequi_token_id: 'nequi_tok_e2e',
+          await_user_approval: true,
+        }),
+      });
+    });
+    await page.route('**/api/subscriptions/nequi/confirm/**', async (route) => {
+      await route.fulfill({
+        status: 200,
         contentType: 'application/json',
         body: JSON.stringify(intentPending),
       });
@@ -445,37 +463,10 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
 
     await expect(page.getByText('¡Pago exitoso!')).toBeVisible({ timeout: 15_000 });
   });
-
-  test('pse form renders after selecting PSE method', async ({ page }) => {
-    await mockWompiWidgetScript(page);
-    await setupDefaultApiMocks(page);
-    await setupCheckoutMocks(page, mockPackage);
-
-    await page.route('**/sandbox.wompi.co/v1/pse/financial_institutions', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          data: [
-            { financial_institution_code: '1007', financial_institution_name: 'BANCOLOMBIA' },
-            { financial_institution_code: '1051', financial_institution_name: 'DAVIVIENDA' },
-          ],
-        }),
-      });
-    });
-
-    await seedAuthenticatedCookies(page);
-    await page.goto('/checkout?package=6');
-    await expect(
-      page.getByRole('heading', { name: 'Resumen del programa' }),
-    ).toBeVisible({ timeout: 15_000 });
-
-    await page.getByRole('button', { name: /PSE/ }).click();
-    await expect(page.getByText('Serás redirigido a tu banco')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByLabel('Banco')).toBeVisible();
-    await expect(page.getByLabel('Número de documento')).toBeVisible();
-    await expect(page.getByLabel('Nombre completo')).toBeVisible();
-  });
+  // 'pse form renders' test removed: PSE is hidden from the UI selector
+  // (Wompi does not support PSE as a recurring source). PSEPaymentForm
+  // component, purchaseWithPSE store action, and the backend endpoint are
+  // intentionally kept for a future re-enable.
 
   test('bancolombia form renders after selecting Bancolombia method', async ({ page }) => {
     await mockWompiWidgetScript(page);

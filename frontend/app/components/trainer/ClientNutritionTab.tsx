@@ -94,8 +94,6 @@ interface NutritionLogMeal {
   status: string;
   notes: string;
   photo_url: string | null;
-  trainer_comment: string;
-  flagged_for_session: boolean;
 }
 
 interface NutritionLogDay {
@@ -1095,23 +1093,24 @@ export default function ClientNutritionTab({
         <ComplianceGrid plan={activePlan as WeeklyNutritionPlan & { days: PlanDay[] }} nutritionLogs={nutritionLogs} weekNum={selectedWeek} />
       )}
 
-      {/* Trainer Notes */}
+      {/* Trainer Notes — readonly mirror; edit in Notas tab */}
       <div style={{ background: '#fff', borderRadius: 22, padding: 26, marginBottom: 18, border: `1px solid ${T.borderSoft}`, boxShadow: '0 2px 12px -8px rgba(45,15,26,0.10)' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
           <div>
             <div style={{ fontFamily: 'Cinzel, serif', fontSize: 18, fontWeight: 600, color: T.wine }}>Nota del entrenador</div>
-            <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 12, color: T.textSoft, marginTop: 4 }}>Aparece en la app del cliente junto al plan semanal.</div>
+            <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 12, color: T.textSoft, marginTop: 4 }}>Edita esta nota en <strong>Notas → Nutrición</strong>.</div>
           </div>
-          {!isDraft && <span style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.20em', textTransform: 'uppercase', color: T.sageDark }}>· Solo lectura</span>}
+          <span style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.20em', textTransform: 'uppercase', color: T.sageDark }}>Solo lectura</span>
         </div>
-        <textarea
-          readOnly={!isDraft}
-          value={trainerNotes}
-          onChange={e => setTrainerNotes(e.target.value)}
-          rows={3}
-          placeholder="Escribe una nota orientativa para el cliente..."
-          style={{ width: '100%', padding: '14px 16px', borderRadius: 12, background: isDraft ? 'rgba(255,255,255,0.85)' : 'rgba(168,194,156,0.10)', border: `1px solid ${T.border}`, fontFamily: 'Montserrat, sans-serif', fontSize: 13, color: T.textDark, outline: 'none', resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box' }}
-        />
+        {trainerNotes ? (
+          <p style={{ width: '100%', padding: '14px 16px', borderRadius: 12, background: 'rgba(168,194,156,0.10)', border: `1px solid ${T.border}`, fontFamily: 'Montserrat, sans-serif', fontSize: 13, color: T.textDark, lineHeight: 1.6, boxSizing: 'border-box', margin: 0, whiteSpace: 'pre-wrap' }}>
+            {trainerNotes}
+          </p>
+        ) : (
+          <p style={{ padding: '14px 16px', borderRadius: 12, background: 'rgba(103,15,34,0.04)', border: `1px dashed ${T.borderSoft}`, fontFamily: 'Montserrat, sans-serif', fontSize: 12, color: T.textSoft, fontStyle: 'italic', margin: 0 }}>
+            Sin nota aún. Agrega una desde la tab Notas → Nutrición.
+          </p>
+        )}
       </div>
 
       {/* Day cards — filtered by selected week */}

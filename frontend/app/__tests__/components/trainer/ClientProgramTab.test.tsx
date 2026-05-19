@@ -234,4 +234,279 @@ describe('ClientProgramTab', () => {
       expect.anything(),
     );
   });
+
+  it('generates the first program via POST when "Generar programa" is clicked', async () => {
+    setupApi({ programs: [] });
+    mockedApi.post.mockResolvedValueOnce({ data: {} });
+    // After POST, fetchPrograms re-runs — return empty so empty state persists
+    mockedApi.get.mockImplementation((url: string) => {
+      if (url.includes('/monthly-programs/customer/')) return Promise.resolve({ data: [] });
+      if (url.includes('/fitness-level/')) return Promise.resolve({ data: { fitness_level_computed: 3, fitness_level_override: null } });
+      return Promise.resolve({ data: {} });
+    });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Sin programa mensual');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Generar programa' }));
+    });
+
+    expect(mockedApi.post).toHaveBeenCalledWith(
+      '/monthly-programs/generate/',
+      { customer_id: CLIENT_ID },
+      expect.anything(),
+    );
+  });
+
+  it('shows program selector pill when there are multiple programs', async () => {
+    setupApi({ programs: [draftProgram(), publishedProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    // Both programs should appear as selector buttons
+    expect(screen.getByRole('button', { name: /Borrador/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Activo/ })).toBeInTheDocument();
+  });
+
+  it('switches to second program when selector is clicked', async () => {
+    setupApi({ programs: [draftProgram(), publishedProgram()] });
+    setupStore();
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Activo/ }));
+    });
+
+    expect(screen.getByText('Publicado')).toBeInTheDocument();
+  });
+
+  it('PATCHes fitness level when a level button is selected', async () => {
+    setupApi({ programs: [draftProgram()], levelComputed: 3 });
+    mockedApi.patch.mockResolvedValueOnce({ data: {} });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Editar nivel/ }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Avanzado/ }));
+    });
+
+    expect(mockedApi.patch).toHaveBeenCalledWith(
+      `/trainer/my-clients/${CLIENT_ID}/fitness-level/`,
+      { fitness_level: 4 },
+      expect.anything(),
+    );
+  });
+
+  it('deletes the draft when delete button is confirmed', async () => {
+    jest.spyOn(window, 'confirm').mockReturnValueOnce(true);
+    mockedApi.delete.mockResolvedValueOnce({});
+
+    let programCallCount = 0;
+    mockedApi.get.mockImplementation((url: string) => {
+      if (url.includes('/monthly-programs/customer/')) {
+        programCallCount++;
+        return Promise.resolve({ data: programCallCount === 1 ? [draftProgram()] : [] });
+      }
+      if (url.includes('/fitness-level/')) {
+        return Promise.resolve({ data: { fitness_level_computed: 3, fitness_level_override: null } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+    setupStore();
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByTitle('Eliminar borrador'));
+    });
+
+    expect(mockedApi.delete).toHaveBeenCalledWith(
+      '/monthly-programs/70/delete/',
+      expect.anything(),
+    );
+  });
+
+  it('expands Week 2 to show its days', async () => {
+    setupApi({ programs: [draftProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Semana 2'));
+    });
+
+    // Week 2 is now open, should show days 8–14
+    expect(screen.getAllByText('2 ejercicios').length).toBeGreaterThan(1);
+  });
+
+  it('fetches similar exercises (similar_to) when the catalog picker opens without search query', async () => {
+    setupApi({ programs: [draftProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getAllByText('2 ejercicios')[0]);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getAllByRole('button', { name: 'Editar ejercicio' })[0]);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Cambiar ejercicio del catálogo' }));
+    });
+
+    expect(mockedApi.get).toHaveBeenCalledWith(
+      expect.stringMatching(/\/exercises\/\?.*similar_to=/),
+      expect.anything(),
+    );
+  });
+
+  it('fetches exercises by search query when user types in the catalog search input', async () => {
+    setupApi({ programs: [draftProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getAllByText('2 ejercicios')[0]);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getAllByRole('button', { name: 'Editar ejercicio' })[0]);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Cambiar ejercicio del catálogo' }));
+    });
+
+    const searchInput = screen.getByPlaceholderText(/Buscar por nombre/);
+    await act(async () => {
+      fireEvent.change(searchInput, { target: { value: 'press' } });
+    });
+
+    expect(mockedApi.get).toHaveBeenCalledWith(
+      expect.stringMatching(/\/exercises\/\?.*search=press/),
+      expect.anything(),
+    );
+  });
+
+  it('PATCHes the program approval endpoint when Publicar is clicked on a draft', async () => {
+    setupApi({ programs: [draftProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Publicar' }));
+    });
+
+    expect(mockedApi.patch).toHaveBeenCalledWith(
+      '/monthly-programs/70/approve/',
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
+  it('shows the Solo lectura label in the notes block when the program is published', async () => {
+    setupStore({ logs: DAILY_LOGS });
+    setupApi({ programs: [publishedProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Publicado');
+
+    expect(screen.getByText('Solo lectura')).toBeInTheDocument();
+  });
+
+  it('renders the Descanso chip for a rest-type day row', async () => {
+    setupApi({ programs: [draftProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    expect(screen.getAllByText('Descanso').length).toBeGreaterThan(0);
+  });
+
+  it('renders the rest-day row with the recovery text instead of exercise count', async () => {
+    setupApi({ programs: [draftProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    expect(screen.getAllByText('Recuperación · sin ejercicios').length).toBeGreaterThan(0);
+  });
+
+  it('shows an error banner after a failed regenerate attempt on a draft program', async () => {
+    setupApi({ programs: [draftProgram()] });
+    jest.spyOn(window, 'confirm').mockReturnValueOnce(true);
+    // Regenerate POST fails
+    mockedApi.post.mockRejectedValueOnce(new Error('Server error'));
+    // fetchPrograms after error still returns the original draft
+    mockedApi.get.mockImplementation((url: string) => {
+      if (url.includes('/monthly-programs/customer/')) return Promise.resolve({ data: [draftProgram()] });
+      if (url.includes('/fitness-level/')) return Promise.resolve({ data: { fitness_level_computed: 3, fitness_level_override: null } });
+      return Promise.resolve({ data: {} });
+    });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Regenerar borrador/ }));
+    });
+
+    expect(await screen.findByText('No se pudo regenerar el borrador.')).toBeInTheDocument();
+  });
+
+  it('renders the time-based exercise display value with seconds suffix', async () => {
+    const timeExercise = {
+      id: 99,
+      exercise: { id: 990, name: 'Plancha isométrica', pattern: 'core', youtube_url: '', explanation: '', is_corrective: false, primary_muscles: 'core', secondary_muscles: '' },
+      sets: 3, reps: null, duration_seconds: 45, rest_seconds: 30, order: 1, notes: '',
+    };
+    const programWithTimeEx = {
+      ...draftProgram(),
+      days: [
+        {
+          id: 1, day_number: 1, date: '2026-02-01', day_type: 'training',
+          exercises: [timeExercise],
+        },
+        // pad out days 2-28 as rest
+        ...[...Array(27)].map((_, i) => ({
+          id: i + 2, day_number: i + 2, date: `2026-02-${String(i + 2).padStart(2, '0')}`, day_type: 'rest', exercises: [],
+        })),
+      ],
+    };
+    setupApi({ programs: [programWithTimeEx] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('1 ejercicios'));
+    });
+
+    expect(screen.getByText('45s')).toBeInTheDocument();
+  });
+
+  it('shows the adherence ring percentage label for a published program with logs', async () => {
+    setupStore({ logs: DAILY_LOGS });
+    setupApi({ programs: [publishedProgram()] });
+
+    render(<ClientProgramTab clientId={CLIENT_ID} />);
+    await screen.findByText('Publicado');
+
+    expect(screen.getByText('Adherencia')).toBeInTheDocument();
+    // The ring renders a percentage — it should be a number followed by %
+    const pctEl = document.querySelector('[style*="Cinzel"]');
+    expect(screen.getByText(/\d+%/)).toBeInTheDocument();
+  });
+
 });

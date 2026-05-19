@@ -31,11 +31,14 @@ const mockedUseTrainerStore = useTrainerStore as unknown as jest.Mock;
 
 function setupStore(overrides: Record<string, unknown> = {}, trainerOverrides: Record<string, unknown> = {}) {
   const mockLogout = jest.fn();
-  mockedUseAuthStore.mockReturnValue({
+  const state = {
     user: { name: 'Trainer Carlos', email: 'trainer@kore.com' },
     logout: mockLogout,
     ...overrides,
-  });
+  };
+  mockedUseAuthStore.mockImplementation((selector?: (s: typeof state) => unknown) =>
+    selector ? selector(state) : state,
+  );
   mockedUseTrainerStore.mockReturnValue({
     riskDashboard: null,
     ...trainerOverrides,
@@ -87,7 +90,7 @@ describe('TrainerSidebar', () => {
     expect(screen.getByText('Mis Clientes')).toBeInTheDocument();
     expect(screen.getByText('Alertas')).toBeInTheDocument();
     expect(screen.getByText('Métricas')).toBeInTheDocument();
-    expect(screen.getByText('Evidencia')).toBeInTheDocument();
+    expect(screen.getByText('Catálogo comidas')).toBeInTheDocument();
   });
 
   it('Hoy link points to /trainer/dashboard', () => {
@@ -122,14 +125,6 @@ describe('TrainerSidebar', () => {
     expect(link).toHaveAttribute('href', '/trainer/metrics');
   });
 
-  it('Evidencia link points to /trainer/evidence', () => {
-    setupStore();
-    render(<TrainerSidebar />);
-
-    const link = screen.getByText('Evidencia').closest('a');
-    expect(link).toHaveAttribute('href', '/trainer/evidence');
-  });
-
   it('does not show alert badge when alto and medio counts are 0', () => {
     setupStore({}, { riskDashboard: { risk_summary: { alto: 0, medio: 0, bajo: 1, sin_riesgo: 3 } } });
     render(<TrainerSidebar />);
@@ -158,14 +153,13 @@ describe('TrainerSidebar', () => {
     expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument();
   });
 
-  it('calls logout and navigates to / on logout click', () => {
+  it('calls logout on logout click', () => {
     const { mockLogout } = setupStore();
     render(<TrainerSidebar />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }));
 
     expect(mockLogout).toHaveBeenCalled();
-    expect(mockPush).toHaveBeenCalledWith('/');
   });
 
   it('renders Mis Clientes link with correct href', () => {

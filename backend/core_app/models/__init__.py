@@ -2,13 +2,13 @@ from .user import User
 from .package import Package
 from .trainer_profile import TrainerProfile
 from .subscription import Subscription
-from .availability import AvailabilitySlot
 from .booking import Booking
 from .payment import Payment
 from .notification import Notification
 from .content import ContactMessage, FAQCategory, FAQItem, SiteSettings
 from .analytics import AnalyticsEvent
 from .payment_intent import PaymentIntent
+from .wompi_event import WompiEvent
 from .customer_profile import CustomerProfile
 from .mood_entry import MoodEntry
 from .weight_entry import WeightEntry
@@ -25,7 +25,7 @@ from .exercise import Exercise
 from .monthly_program import MonthlyProgram, ProgramDay, ProgramExercise, DailyLog, ExerciseLog
 from .food import Food
 from .meal_suggestion import MealSuggestion
-from .nutrition_daily_log import NutritionDailyLog, MealEntry
+from .nutrition_daily_log import NutritionDailyLog, MealEntry, WaterGlassLog
 from .trainer_alert import ClientRiskScore
 from .trainer_alert_resolution import TrainerAlertResolution
 from .trainer_message import TrainerMessage
@@ -36,10 +36,10 @@ __all__ = [
     'Package',
     'TrainerProfile',
     'Subscription',
-    'AvailabilitySlot',
     'Booking',
     'Payment',
     'PaymentIntent',
+    'WompiEvent',
     'Notification',
     'SiteSettings',
     'FAQCategory',
@@ -68,6 +68,7 @@ __all__ = [
     'MealSuggestion',
     'NutritionDailyLog',
     'MealEntry',
+    'WaterGlassLog',
     'ClientRiskScore',
     'TrainerAlertResolution',
     'TrainerMessage',

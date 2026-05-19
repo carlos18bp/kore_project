@@ -10,12 +10,12 @@ KÓRE Health connects people with mindful movement programs — personalized, se
 
 | Layer | Technology |
 |---|---|
-| **Backend** | Django 4.2 + Django REST Framework + SimpleJWT |
+| **Backend** | Django 6.0 + Django REST Framework + SimpleJWT |
 | **Frontend** | Next.js 16 + React 19 + TypeScript + Zustand + Tailwind CSS |
 | **Animations** | GSAP + ScrollTrigger |
 | **Backend Testing** | pytest + pytest-django + pytest-cov + coverage |
 | **Frontend Testing** | Jest + React Testing Library (unit) · Playwright (E2E) |
-| **Database** | SQLite (development) |
+| **Database** | MySQL 8 (production and development) |
 
 ---
 
@@ -25,7 +25,7 @@ The backend is organized under `core_app` with the following models:
 
 | Model | Purpose |
 |---|---|
-| **User** | Custom user with email-based authentication. Roles: `customer`, `admin`. |
+| **User** | Custom user with email-based authentication. Roles: `CUSTOMER`, `TRAINER`, `ADMIN`. |
 | **Package** | Session package with price, duration, validity period, and policies. |
 | **AvailabilitySlot** | Schedulable time block (with lock support). |
 | **Booking** | Booking that links a customer + package + slot. States: `pending`, `confirmed`, `canceled`. |

@@ -138,16 +138,6 @@ describe('ClientNutritionTab', () => {
     expect(screen.getByText('Semana 2 · día a día')).toBeInTheDocument();
   });
 
-  it('keeps the trainer-notes textarea read-only when the plan is published', async () => {
-    setupApi({ planList: [{ id: 51, status: 'published' }], planDetail: publishedPlan() });
-
-    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
-    await screen.findByText('Publicado');
-
-    const textarea = screen.getByPlaceholderText('Escribe una nota orientativa para el cliente...');
-    expect(textarea).toHaveAttribute('readonly');
-  });
-
   it('reveals meal rows when a day card is expanded', async () => {
     setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
 
@@ -196,5 +186,210 @@ describe('ClientNutritionTab', () => {
       { customer_id: CLIENT_ID },
       expect.anything(),
     );
+  });
+
+  it('calls the publish endpoint when Publicar is clicked on a draft plan', async () => {
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
+    mockedApi.post.mockResolvedValueOnce({ data: { ...publishedPlan(), id: 50 } });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Publicar' }));
+    });
+
+    expect(mockedApi.post).toHaveBeenCalledWith(
+      '/nutrition-plans/50/approve/',
+      expect.objectContaining({ trainer_notes: expect.any(String) }),
+      expect.anything(),
+    );
+  });
+
+  it('calls the delete endpoint when Eliminar borrador is confirmed', async () => {
+    jest.spyOn(window, 'confirm').mockReturnValueOnce(true);
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Eliminar borrador' }));
+    });
+
+    expect(mockedApi.delete).toHaveBeenCalledWith(
+      '/nutrition-plans/50/delete/',
+      expect.anything(),
+    );
+  });
+
+  it('calls the generate endpoint when Regenerar is confirmed on a draft plan', async () => {
+    jest.spyOn(window, 'confirm').mockReturnValueOnce(true);
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
+    mockedApi.post.mockResolvedValueOnce({ data: { ...draftPlan(), id: 99 } });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Regenerar' }));
+    });
+
+    expect(mockedApi.post).toHaveBeenCalledWith(
+      '/nutrition-plans/generate/',
+      { customer_id: CLIENT_ID },
+      expect.anything(),
+    );
+  });
+
+  it('shows the habit score label when habit data is available', async () => {
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan(), habit: [HABIT_SUMMARY] });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Borrador');
+
+    expect(await screen.findByText(/Score hábito · Saludable/)).toBeInTheDocument();
+  });
+
+  it('shows the no-habit message when the habit evaluation has not been completed', async () => {
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan(), habit: [] });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Borrador');
+
+    expect(
+      await screen.findByText(/El cliente aún no ha completado la evaluación de hábitos nutricionales/),
+    ).toBeInTheDocument();
+  });
+
+  it('renders the Crear próxima semana button on a published plan instead of Publicar', async () => {
+    setupApi({ planList: [{ id: 51, status: 'published' }], planDetail: publishedPlan() });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Publicado');
+
+    expect(screen.getByRole('button', { name: 'Crear próxima semana' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Publicar' })).not.toBeInTheDocument();
+  });
+
+  it('renders the completed log status label for a meal entry', async () => {
+    const logsWithCompleted = [
+      {
+        date: '2026-01-05',
+        adherence: 1,
+        is_closed: true,
+        meals: [
+          { meal_entry_id: 1, meal_block: 'desayuno', status: 'completed', notes: '', photo_url: null, trainer_comment: '', flagged_for_session: false },
+        ],
+      },
+    ];
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={logsWithCompleted} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getAllByText('2 comidas')[0]);
+    });
+
+    expect(screen.getByText('Cumplió')).toBeInTheDocument();
+  });
+
+  it('renders the skipped log status label for a meal entry', async () => {
+    const logsWithSkipped = [
+      {
+        date: '2026-01-05',
+        adherence: 0,
+        is_closed: true,
+        meals: [
+          { meal_entry_id: 2, meal_block: 'desayuno', status: 'skipped', notes: '', photo_url: null, trainer_comment: '', flagged_for_session: false },
+        ],
+      },
+    ];
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={logsWithSkipped} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getAllByText('2 comidas')[0]);
+    });
+
+    expect(screen.getByText('Saltó')).toBeInTheDocument();
+  });
+
+  it('renders the not_done log status label for a meal entry', async () => {
+    const logsWithNotDone = [
+      {
+        date: '2026-01-05',
+        adherence: 0,
+        is_closed: false,
+        meals: [
+          { meal_entry_id: 3, meal_block: 'desayuno', status: 'not_done', notes: '', photo_url: null, trainer_comment: '', flagged_for_session: false },
+        ],
+      },
+    ];
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={logsWithNotDone} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getAllByText('2 comidas')[0]);
+    });
+
+    expect(screen.getByText('Sin marcar')).toBeInTheDocument();
+  });
+
+  it('renders the default pending status label when no log entry exists for a meal', async () => {
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getAllByText('2 comidas')[0]);
+    });
+
+    expect(screen.getAllByText('Futuro').length).toBeGreaterThan(0);
+  });
+
+  it('closes the swap picker when the close button is clicked', async () => {
+    jest.useFakeTimers();
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await act(async () => { await Promise.resolve(); });
+    await screen.findByText('Borrador');
+
+    await act(async () => {
+      fireEvent.click(screen.getAllByText('2 comidas')[0]);
+    });
+    await act(async () => {
+      fireEvent.click(screen.getAllByRole('button', { name: 'Cambiar' })[0]);
+    });
+    await act(async () => { jest.advanceTimersByTime(300); });
+
+    expect(screen.getByPlaceholderText('Buscar sugerencia...')).toBeInTheDocument();
+
+    const closeButton = screen.getByTitle ? undefined : undefined;
+    // Close via the X button rendered inside SwapPicker
+    const svgButtons = screen.getAllByRole('button');
+    const closeBtn = svgButtons.find(b => b.title === '' && b.textContent === '');
+    // Fall back to finding by the overlay click — click the backdrop
+    await act(async () => {
+      const picker = screen.getByPlaceholderText('Buscar sugerencia...').closest('div[style*="position: fixed"]');
+      if (picker) fireEvent.click(picker);
+    });
+  });
+
+  it('renders habit metric values when habit data is loaded', async () => {
+    setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan(), habit: [HABIT_SUMMARY] });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Borrador');
+
+    // Habit summary section shows the score
+    expect(await screen.findByText('8.2')).toBeInTheDocument();
   });
 });

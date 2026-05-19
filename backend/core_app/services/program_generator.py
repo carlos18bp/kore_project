@@ -173,6 +173,10 @@ def generate_monthly_program(customer_id: int, start_date: date | None = None) -
 # ---------------------------------------------------------------------------
 
 def _get_fitness_level(customer) -> int:
+    cp = getattr(customer, 'customer_profile', None)
+    if cp and cp.fitness_level_override is not None:
+        return max(1, min(5, cp.fitness_level_override))
+
     eval_ = (
         customer.physical_evaluations
         .filter(general_index__isnull=False)

@@ -4,12 +4,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core_app.services.progress_service import get_monthly_summary, get_projection, get_weekly_summary
+from core_app.utils.renderers import NullableJSONRenderer
 
 
 class WeeklySummaryView(APIView):
     """GET /api/my-program/weekly-summary/?week=N"""
 
     permission_classes = [IsAuthenticated]
+    renderer_classes = [NullableJSONRenderer]
 
     def get(self, request):
         week_param = request.query_params.get('week')
@@ -24,7 +26,7 @@ class WeeklySummaryView(APIView):
 
         data = get_weekly_summary(request.user, week_number)
         if data is None:
-            return Response({'detail': 'No active program.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(None)
         return Response(data)
 
 
@@ -32,11 +34,12 @@ class ProjectionView(APIView):
     """GET /api/my-program/projection/"""
 
     permission_classes = [IsAuthenticated]
+    renderer_classes = [NullableJSONRenderer]
 
     def get(self, request):
         data = get_projection(request.user)
         if data is None:
-            return Response({'detail': 'No active program.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(None)
         return Response(data)
 
 
@@ -44,11 +47,12 @@ class MonthlySummaryView(APIView):
     """GET /api/my-program/monthly-summary/?program=<id>"""
 
     permission_classes = [IsAuthenticated]
+    renderer_classes = [NullableJSONRenderer]
 
     def get(self, request):
         program_id = request.query_params.get('program')
         pid = int(program_id) if program_id and program_id.isdigit() else None
         data = get_monthly_summary(request.user, pid)
         if data is None:
-            return Response({'detail': 'No program found.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(None)
         return Response(data)

@@ -33,7 +33,7 @@ class Command(BaseCommand):
         if package_id:
             filters['package_id'] = package_id
 
-        bookings_qs = Booking.objects.select_related('customer', 'package', 'slot').filter(**filters).order_by('id')
+        bookings_qs = Booking.objects.select_related('customer', 'package').filter(**filters).order_by('id')
         if limit:
             bookings_qs = bookings_qs[:limit]
 
@@ -44,7 +44,7 @@ class Command(BaseCommand):
 
         for booking in bookings_qs:
             total += 1
-            if not booking.slot_id:
+            if not booking.starts_at:
                 skipped_no_match += 1
                 continue
 
@@ -52,8 +52,8 @@ class Command(BaseCommand):
                 Subscription.objects.filter(
                     customer=booking.customer,
                     package=booking.package,
-                    starts_at__lte=booking.slot.starts_at,
-                    expires_at__gte=booking.slot.starts_at,
+                    starts_at__lte=booking.starts_at,
+                    expires_at__gte=booking.starts_at,
                 ).order_by('starts_at').values_list('id', flat=True)[:2]
             )
 

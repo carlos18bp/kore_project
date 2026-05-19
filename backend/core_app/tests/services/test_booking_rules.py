@@ -1,212 +1,61 @@
 """Tests for booking scheduling business-rule helpers."""
 
-from datetime import datetime, timedelta
+import datetime as dt
 
 import pytest
-from django.utils import timezone
 
-from core_app.models import AvailabilitySlot, Booking, Package, TrainerProfile, User
+from core_app.models import Booking, Package, TrainerProfile, User
 from core_app.services.booking_rules import (
-    build_trainer_buffer_slot_conflict_q,
+    ACTIVE_BOOKING_STATUSES,
     has_trainer_travel_buffer_conflict,
-    resolve_effective_trainer_id,
 )
 
-FIXED_NOW = timezone.make_aware(datetime(2025, 1, 20, 9, 0, 0), timezone.get_current_timezone())
+
+def _utc(y, m, d, h, minute=0):
+    return dt.datetime(y, m, d, h, minute, tzinfo=dt.timezone.utc)
 
 
-@pytest.fixture(autouse=True)
-def freeze_now(monkeypatch):
-    """Freeze ``timezone.now`` for deterministic buffer-window checks."""
-    monkeypatch.setattr('django.utils.timezone.now', lambda: FIXED_NOW)
-
-
-def _make_customer(email: str):
-    return User.objects.create_user(email=email, password='p', role=User.Role.CUSTOMER)
-
-
-def _make_trainer(email: str):
+def _make_trainer(email):
     user = User.objects.create_user(email=email, password='p', role=User.Role.TRAINER)
-    return TrainerProfile.objects.create(user=user, specialty='Strength')
+    return TrainerProfile.objects.create(user=user, specialty='S')
 
 
-@pytest.mark.django_db
-def test_resolve_effective_trainer_id_prefers_slot_trainer():
-    """Slot trainer takes precedence over fallback trainer argument."""
-    slot_trainer = _make_trainer('slot-trainer@example.com')
-    fallback_trainer = _make_trainer('fallback-trainer@example.com')
-
-    slot = AvailabilitySlot.objects.create(
-        starts_at=FIXED_NOW + timedelta(hours=1),
-        ends_at=FIXED_NOW + timedelta(hours=2),
-        trainer=slot_trainer,
-    )
-
-    assert resolve_effective_trainer_id(slot, trainer=fallback_trainer) == slot_trainer.pk
-
-
-@pytest.mark.django_db
-def test_has_trainer_travel_buffer_conflict_detects_within_45_minutes():
-    """A new slot starting 30 minutes after another booking ends must conflict."""
-    trainer = _make_trainer('buffer-trainer@example.com')
-    customer = _make_customer('buffer-customer@example.com')
-    package = Package.objects.create(title='Buffer Package')
-
-    existing_slot = AvailabilitySlot.objects.create(
-        starts_at=FIXED_NOW + timedelta(hours=2),
-        ends_at=FIXED_NOW + timedelta(hours=3),
-        trainer=trainer,
-    )
-    Booking.objects.create(
-        customer=customer,
-        package=package,
-        slot=existing_slot,
-        trainer=trainer,
-        status=Booking.Status.CONFIRMED,
-    )
-
-    candidate_slot = AvailabilitySlot.objects.create(
-        starts_at=FIXED_NOW + timedelta(hours=3, minutes=30),
-        ends_at=FIXED_NOW + timedelta(hours=4, minutes=30),
-        trainer=trainer,
-    )
-
-    assert has_trainer_travel_buffer_conflict(candidate_slot) is True
-
-
-@pytest.mark.django_db
-def test_has_trainer_travel_buffer_conflict_allows_exact_45_min_boundary_and_exclusion():
-    """Exactly 45-minute separation is allowed, and exclusion omits self-conflicts."""
-    trainer = _make_trainer('boundary-trainer@example.com')
-    customer = _make_customer('boundary-customer@example.com')
-    package = Package.objects.create(title='Boundary Package')
-
-    existing_slot = AvailabilitySlot.objects.create(
-        starts_at=FIXED_NOW + timedelta(hours=2),
-        ends_at=FIXED_NOW + timedelta(hours=3),
-        trainer=trainer,
-    )
-    existing_booking = Booking.objects.create(
-        customer=customer,
-        package=package,
-        slot=existing_slot,
-        trainer=trainer,
+def _make_booking(trainer, starts_at, ends_at, *, customer_email, package):
+    """Create a Booking with starts_at/ends_at set directly."""
+    return Booking.objects.create(
+        customer=User.objects.create_user(email=customer_email, password='p'),
+        package=package, trainer=trainer,
         status=Booking.Status.PENDING,
+        starts_at=starts_at, ends_at=ends_at,
     )
 
-    boundary_slot = AvailabilitySlot.objects.create(
-        starts_at=FIXED_NOW + timedelta(hours=3, minutes=45),
-        ends_at=FIXED_NOW + timedelta(hours=4, minutes=45),
-        trainer=trainer,
-    )
-    assert has_trainer_travel_buffer_conflict(boundary_slot) is False
 
-    assert has_trainer_travel_buffer_conflict(existing_slot) is True
-    assert has_trainer_travel_buffer_conflict(existing_slot, exclude_booking_id=existing_booking.pk) is False
-
+# ── has_trainer_travel_buffer_conflict (new signature) ───────────────────────
 
 @pytest.mark.django_db
-def test_build_trainer_buffer_slot_conflict_q_excludes_conflicting_slots_only():
-    """Generated ``Q`` excludes slots in the trainer buffer window but keeps boundary slots."""
-    trainer = _make_trainer('q-trainer@example.com')
-    other_trainer = _make_trainer('q-other-trainer@example.com')
-    customer = _make_customer('q-customer@example.com')
-    package = Package.objects.create(title='Q Package')
+class TestTravelBufferConflict:
+    def test_no_bookings_no_conflict(self):
+        t = _make_trainer('t@k.com')
+        assert has_trainer_travel_buffer_conflict(t, _utc(2026, 5, 18, 10), _utc(2026, 5, 18, 11)) is False
 
-    booked_slot = AvailabilitySlot.objects.create(
-        starts_at=FIXED_NOW + timedelta(hours=2),
-        ends_at=FIXED_NOW + timedelta(hours=3),
-        trainer=trainer,
-        is_blocked=True,
-    )
-    booking = Booking.objects.create(
-        customer=customer,
-        package=package,
-        slot=booked_slot,
-        trainer=trainer,
-        status=Booking.Status.CONFIRMED,
-    )
+    def test_overlap_within_buffer_is_conflict(self):
+        t = _make_trainer('t2@k.com')
+        p = Package.objects.create(title='P', is_active=True)
+        bs = _utc(2026, 5, 18, 12)
+        _make_booking(t, bs, bs + dt.timedelta(minutes=60), customer_email='c@k.com', package=p)
+        # 11:30-12:30 → within ±45m of [12:00, 13:00] → conflict
+        assert has_trainer_travel_buffer_conflict(t, _utc(2026, 5, 18, 11, 30), _utc(2026, 5, 18, 12, 30)) is True
+        # 9:00-10:00 → 2h gap → no conflict (10:45 < 12:00)
+        assert has_trainer_travel_buffer_conflict(t, _utc(2026, 5, 18, 9), _utc(2026, 5, 18, 10)) is False
 
-    conflict_slot = AvailabilitySlot.objects.create(
-        starts_at=FIXED_NOW + timedelta(hours=3, minutes=30),
-        ends_at=FIXED_NOW + timedelta(hours=4, minutes=30),
-        trainer=trainer,
-    )
-    boundary_slot = AvailabilitySlot.objects.create(
-        starts_at=FIXED_NOW + timedelta(hours=3, minutes=45),
-        ends_at=FIXED_NOW + timedelta(hours=4, minutes=45),
-        trainer=trainer,
-    )
-    other_trainer_slot = AvailabilitySlot.objects.create(
-        starts_at=FIXED_NOW + timedelta(hours=3, minutes=15),
-        ends_at=FIXED_NOW + timedelta(hours=4, minutes=15),
-        trainer=other_trainer,
-    )
+    def test_exclude_booking_id(self):
+        t = _make_trainer('t3@k.com')
+        p = Package.objects.create(title='P', is_active=True)
+        bs = _utc(2026, 5, 18, 12)
+        b = _make_booking(t, bs, bs + dt.timedelta(minutes=60), customer_email='c2@k.com', package=p)
+        # excluding own booking → no conflict
+        assert has_trainer_travel_buffer_conflict(t, bs, bs + dt.timedelta(minutes=60), exclude_booking_id=b.id) is False
 
-    conflict_q = build_trainer_buffer_slot_conflict_q(
-        Booking.objects.filter(pk=booking.pk).select_related('slot')
-    )
-    available_ids = set(AvailabilitySlot.objects.exclude(conflict_q).values_list('id', flat=True))
+    def test_none_trainer_returns_false(self):
+        assert has_trainer_travel_buffer_conflict(None, _utc(2026, 5, 18, 10), _utc(2026, 5, 18, 11)) is False
 
-    assert conflict_slot.id not in available_ids
-    assert boundary_slot.id in available_ids
-    assert other_trainer_slot.id in available_ids
-
-
-@pytest.mark.django_db
-def test_resolve_effective_trainer_id_falls_back_to_trainer_arg():
-    """When slot has no trainer, falls back to explicit trainer argument."""
-    trainer = _make_trainer('fallback-only@example.com')
-    slot = AvailabilitySlot.objects.create(
-        starts_at=FIXED_NOW + timedelta(hours=1),
-        ends_at=FIXED_NOW + timedelta(hours=2),
-        trainer=None,
-    )
-    assert resolve_effective_trainer_id(slot, trainer=trainer) == trainer.pk
-
-
-@pytest.mark.django_db
-def test_resolve_effective_trainer_id_returns_none_when_both_missing():
-    """Returns None when neither slot nor explicit trainer is provided."""
-    slot = AvailabilitySlot.objects.create(
-        starts_at=FIXED_NOW + timedelta(hours=1),
-        ends_at=FIXED_NOW + timedelta(hours=2),
-        trainer=None,
-    )
-    assert resolve_effective_trainer_id(slot) is None
-
-
-@pytest.mark.django_db
-def test_has_conflict_returns_false_when_no_trainer_id():
-    """Returns False when no trainer can be resolved for the slot."""
-    slot = AvailabilitySlot.objects.create(
-        starts_at=FIXED_NOW + timedelta(hours=1),
-        ends_at=FIXED_NOW + timedelta(hours=2),
-        trainer=None,
-    )
-    assert has_trainer_travel_buffer_conflict(slot) is False
-
-
-@pytest.mark.django_db
-def test_build_conflict_q_skips_booking_without_trainer():
-    """Bookings with no trainer on slot or booking are skipped."""
-    customer = _make_customer('skip-cust@example.com')
-    package = Package.objects.create(title='Skip Package')
-
-    slot_no_trainer = AvailabilitySlot.objects.create(
-        starts_at=FIXED_NOW + timedelta(hours=2),
-        ends_at=FIXED_NOW + timedelta(hours=3),
-        trainer=None,
-    )
-    Booking.objects.create(
-        customer=customer,
-        package=package,
-        slot=slot_no_trainer,
-        trainer=None,
-        status=Booking.Status.CONFIRMED,
-    )
-
-    conflict_q = build_trainer_buffer_slot_conflict_q(
-        Booking.objects.filter(slot=slot_no_trainer).select_related('slot'),
-    )
-    assert not conflict_q

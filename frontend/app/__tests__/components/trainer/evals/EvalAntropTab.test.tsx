@@ -109,4 +109,71 @@ describe('EvalAntropTab', () => {
     expect(fullUpdateEvaluation).toHaveBeenCalledWith(CLIENT_ID, 1, expect.objectContaining({ evaluation_date: '2026-03-10' }));
     expect(screen.getByText('Última evaluación')).toBeInTheDocument();
   });
+
+  it('shows the loading spinner when loading is true', () => {
+    setupStore({ evaluations: [], loading: true });
+
+    render(<EvalAntropTab clientId={CLIENT_ID} />);
+
+    // EvalSpinner renders while loading; metric strip must not appear
+    expect(screen.queryByText('Sin evaluaciones antropométricas. Registra la primera.')).not.toBeInTheDocument();
+    expect(screen.queryByText('IMC')).not.toBeInTheDocument();
+  });
+
+  it('enters create mode when Nueva is clicked from the results view', () => {
+    setupStore({ evaluations: [makeEval()] });
+
+    render(<EvalAntropTab clientId={CLIENT_ID} />);
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: '+ Nueva' }));
+    });
+
+    expect(screen.getByRole('button', { name: 'Crear evaluación' })).toBeInTheDocument();
+  });
+
+  it('calls createEvaluation and returns to results after saving a new evaluation', async () => {
+    const { createEvaluation } = setupStore({ evaluations: [makeEval()] });
+
+    render(<EvalAntropTab clientId={CLIENT_ID} />);
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: '+ Nueva' }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Crear evaluación' }));
+    });
+
+    expect(createEvaluation).toHaveBeenCalledWith(CLIENT_ID, expect.objectContaining({ evaluation_date: expect.any(String) }));
+    expect(screen.getByText('Última evaluación')).toBeInTheDocument();
+  });
+
+  it('returns to results view when Cancelar is clicked during edit', () => {
+    setupStore({ evaluations: [makeEval()] });
+
+    render(<EvalAntropTab clientId={CLIENT_ID} />);
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Editar esta evaluación' }));
+    });
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    });
+
+    expect(screen.getByText('Última evaluación')).toBeInTheDocument();
+  });
+
+  it('shows ICC metric cell when waist_hip_ratio is populated', () => {
+    setupStore({ evaluations: [makeEval({ waist_hip_ratio: '0.85', whr_risk: 'Riesgo moderado' })] });
+
+    render(<EvalAntropTab clientId={CLIENT_ID} />);
+
+    expect(screen.getAllByText('ICC').length).toBeGreaterThan(0);
+    expect(screen.getByText('Riesgo moderado')).toBeInTheDocument();
+  });
+
+  it('does not render composition bars when weight is zero', () => {
+    setupStore({ evaluations: [makeEval({ weight_kg: '0' })] });
+
+    render(<EvalAntropTab clientId={CLIENT_ID} />);
+
+    expect(screen.queryByText('Composición corporal')).not.toBeInTheDocument();
+  });
 });

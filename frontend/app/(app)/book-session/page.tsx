@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { X, ArrowRight, Calendar, CalendarPlus } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores/authStore';
-import { useBookingStore, type Slot } from '@/lib/stores/bookingStore';
+import { useBookingStore } from '@/lib/stores/bookingStore';
 import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
 import { WHATSAPP_URL } from '@/lib/constants';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
@@ -40,8 +40,6 @@ function BookingShell({
       className="fixed inset-0 z-[55] overflow-y-auto overflow-x-hidden"
     >
       <style>{BOOKING_HERO_STYLES}</style>
-      {/* Background layer: at least one viewport tall, but grows with the
-          scrollable content so the gradient never cuts off mid-page. */}
       <div
         className="relative min-h-screen w-full overflow-hidden"
         style={{
@@ -127,41 +125,11 @@ function BookingShell({
   );
 }
 
-const WEEKDAY_WINDOWS: Record<number, { startHour: number; endHour: number }[]> = {
-  1: [{ startHour: 5, endHour: 13 }, { startHour: 16, endHour: 21 }], // Mon
-  2: [{ startHour: 5, endHour: 13 }, { startHour: 16, endHour: 21 }], // Tue
-  3: [{ startHour: 5, endHour: 13 }, { startHour: 16, endHour: 21 }], // Wed
-  4: [{ startHour: 5, endHour: 13 }, { startHour: 16, endHour: 21 }], // Thu
-  5: [{ startHour: 5, endHour: 13 }, { startHour: 16, endHour: 21 }], // Fri
-  6: [{ startHour: 6, endHour: 13 }],                                  // Sat
-  // 0: Sunday — closed
-};
-const SLOT_STEP_MINUTES = 15;
-const TRAVEL_BUFFER_MINUTES = 45;
-const DEFAULT_SESSION_DURATION_MINUTES = 60;
-const AVAILABILITY_HORIZON_DAYS = 30;
-
 function toDateKey(date: Date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
-}
-
-function hasTravelBufferConflict(
-  slotStart: Date,
-  slotEnd: Date,
-  dayBookedSlots: Array<{ starts_at: string; ends_at: string }>,
-) {
-  const bufferMs = TRAVEL_BUFFER_MINUTES * 60 * 1000;
-  const slotStartMs = slotStart.getTime();
-  const slotEndMs = slotEnd.getTime();
-
-  return dayBookedSlots.some((booked) => {
-    const bookedStartMs = new Date(booked.starts_at).getTime();
-    const bookedEndMs = new Date(booked.ends_at).getTime();
-    return slotStartMs < bookedEndMs + bufferMs && slotEndMs > bookedStartMs - bufferMs;
-  });
 }
 
 function BookSessionContent() {
@@ -177,17 +145,16 @@ function BookSessionContent() {
     setStep,
     selectedDate,
     setSelectedDate,
-    selectedSlot,
-    setSelectedSlot,
+    selectedStartsAt,
+    setSelectedStartsAt,
     trainer,
     bookingResult,
-    dayBookedSlots,
-    dayAvailabilityLoading,
+    availability,
+    availabilityLoading,
     loading,
     error,
     fetchTrainers,
-    fetchSlots,
-    fetchTrainerDayBookings,
+    fetchAvailability,
     fetchSubscriptions,
     fetchBookings,
     bookings,
@@ -211,7 +178,7 @@ function BookSessionContent() {
   }, [subscriptionParam]);
   const isReschedule = rescheduleBookingId !== null;
   const rescheduleSubscriptionId = isReschedule ? subscriptionIdParam : null;
-  const [slotResolutionError, setSlotResolutionError] = useState<string | null>(null);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const [confirmInFlight, setConfirmInFlight] = useState(false);
 
   // Load trainers and subscriptions on mount
@@ -221,7 +188,6 @@ function BookSessionContent() {
   }, [fetchTrainers, fetchSubscriptions]);
 
   // Sync the assigned trainer from the auth profile into the booking store.
-  // Only for the normal booking flow — reschedule loads its trainer from the booking.
   const assignedTrainer = user?.assigned_trainer ?? null;
   useEffect(() => {
     if (!isReschedule) {
@@ -255,7 +221,6 @@ function BookSessionContent() {
     }
   }, [isReschedule, rescheduleSubscriptionId, selectedSubId]);
 
-  // Set default selection when subscriptions load (fallback if invalid selection)
   useEffect(() => {
     if (selectableSubscriptions.length === 0) return;
     const isValidSelection = selectedSubId !== null
@@ -266,9 +231,6 @@ function BookSessionContent() {
   }, [selectableSubscriptions, selectedSubId]);
 
   // Reset stale success state on mount only.
-  // The store is global so step/bookingResult may persist across navigations.
-  // On remount we clear it; for same-URL navigation the modal stays visible
-  // and the user can dismiss it.
   useEffect(() => {
     if (step === 3 || bookingResult) {
       reset();
@@ -282,7 +244,6 @@ function BookSessionContent() {
     [selectableSubscriptions, selectedSubId],
   );
 
-  // Check if user has no remaining sessions on selected subscription
   const hasNoSessions = !isReschedule && activeSubscriptions.length > 0 && selectableSubscriptions.length === 0;
 
   // Fetch bookings for selected subscription when it changes
@@ -306,171 +267,80 @@ function BookSessionContent() {
     return activeBookings.find((b) => b.id === rescheduleBookingId) ?? null;
   }, [activeBookings, isReschedule, rescheduleBookingId]);
 
-  // For the reschedule flow, populate the store trainer from the booking being rescheduled.
-  // bookingToReschedule is computed asynchronously (after fetchBookings resolves), so this
-  // effect re-runs whenever it becomes available.
+  // For reschedule flow, populate store trainer from the booking being rescheduled.
   useEffect(() => {
     if (isReschedule && bookingToReschedule?.trainer) {
       useBookingStore.setState({ trainer: bookingToReschedule.trainer });
     }
   }, [isReschedule, bookingToReschedule?.trainer]);
 
-  // Note: a user may book any available day. The only timing constraints are the
-  // 16-hour minimum advance and the 30-day horizon (enforced below and in the
-  // backend serializer). There is intentionally no "must be after your last
-  // session" / "between neighbouring sessions" restriction.
-
-  // Fetch occupied sessions only for the selected day and trainer.
+  // Fetch availability from the backend whenever trainer is known.
   useEffect(() => {
-    fetchTrainerDayBookings(selectedDate ?? undefined, trainer?.id);
-  }, [selectedDate, trainer?.id, fetchTrainerDayBookings]);
+    if (trainer?.id) {
+      fetchAvailability(undefined, undefined, trainer.id);
+    }
+  }, [trainer?.id, fetchAvailability]);
 
   useEffect(() => {
-    setSlotResolutionError(null);
-  }, [selectedDate, selectedSlot?.id]);
+    setConfirmError(null);
+  }, [selectedDate, selectedStartsAt]);
 
-  // Build set of selectable dates using the fixed weekly schedule pattern.
+  // Available dates = keys of availability with at least one start time.
   const availableDates = useMemo(() => {
     const dates = new Set<string>();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    for (let offset = 0; offset < AVAILABILITY_HORIZON_DAYS; offset += 1) {
-      const day = new Date(today);
-      day.setDate(today.getDate() + offset);
-
-      const weekDay = day.getDay();
-      if (!WEEKDAY_WINDOWS[weekDay]) continue;
-
-      dates.add(toDateKey(day));
+    for (const [date, slots] of Object.entries(availability)) {
+      if (slots.length > 0) dates.add(date);
     }
-
     return dates;
-  }, []);
+  }, [availability]);
 
-  // Days that already have a (non-canceled, future) booked session — get a marker dot.
+  // Days with a non-canceled future booked session — get a marker dot.
   const bookedDates = useMemo(() => {
     const dates = new Set<string>();
     const nowMs = Date.now();
     for (const b of bookings) {
       if (b.status === 'canceled') continue;
-      const start = new Date(b.slot.starts_at);
+      const start = new Date(b.starts_at);
       if (start.getTime() <= nowMs) continue;
       dates.add(toDateKey(start));
     }
     return dates;
   }, [bookings]);
 
-  // Build virtual slots for the selected date from fixed windows and booked-day conflicts.
-  const slotsForDate = useMemo(() => {
-    if (!selectedDate) return [];
-    if (!trainer?.id) return [];
+  // Slots available for the selected date.
+  const slotsForDate = useMemo(
+    () => (selectedDate ? (availability[selectedDate] ?? []) : []),
+    [availability, selectedDate],
+  );
 
-    const selectedDay = new Date(`${selectedDate}T00:00:00`).getDay();
-    const dayWindows = WEEKDAY_WINDOWS[selectedDay];
-    if (!dayWindows) return [];
+  // Computed end time for the confirmation panel.
+  const endsAt = useMemo(() => {
+    if (!selectedStartsAt) return '';
+    const durationMs = (trainer?.session_duration_minutes ?? 60) * 60 * 1000;
+    return new Date(new Date(selectedStartsAt).getTime() + durationMs).toISOString();
+  }, [selectedStartsAt, trainer?.session_duration_minutes]);
 
-    const slotDurationMinutes = trainer?.session_duration_minutes ?? DEFAULT_SESSION_DURATION_MINUTES;
-    const slotStepMs = SLOT_STEP_MINUTES * 60 * 1000;
-    const slotDurationMs = slotDurationMinutes * 60 * 1000;
-    const nowMs = Date.now();
-
-    const generated: Slot[] = [];
-    let virtualId = -1;
-
-    dayWindows.forEach(({ startHour, endHour }) => {
-      const startHourStr = String(startHour).padStart(2, '0');
-      const endHourStr = String(endHour).padStart(2, '0');
-      const windowStart = new Date(`${selectedDate}T${startHourStr}:00:00`);
-      const windowEnd = new Date(`${selectedDate}T${endHourStr}:00:00`);
-
-      for (
-        let cursorMs = windowStart.getTime();
-        cursorMs < windowEnd.getTime();
-        cursorMs += slotStepMs
-      ) {
-        const slotStart = new Date(cursorMs);
-        const slotEnd = new Date(cursorMs + slotDurationMs);
-
-        if (slotEnd.getTime() > windowEnd.getTime()) break;
-        if (slotEnd.getTime() <= nowMs) continue;
-        if (slotStart.getTime() < nowMs + 16 * 60 * 60 * 1000) continue;
-        if (hasTravelBufferConflict(slotStart, slotEnd, dayBookedSlots)) continue;
-
-        generated.push({
-          id: virtualId,
-          trainer_id: trainer?.id ?? null,
-          starts_at: slotStart.toISOString(),
-          ends_at: slotEnd.toISOString(),
-          is_active: true,
-          is_blocked: false,
-        });
-        virtualId -= 1;
-      }
-    });
-
-    return generated;
-  }, [
-    dayBookedSlots,
-    selectedDate,
-    trainer?.id,
-    trainer?.session_duration_minutes,
-  ]);
-
+  // Show a "contact trainer" notice when availability is fully loaded but empty.
   const showRescheduleNoAvailability =
     isReschedule &&
-    bookingToReschedule &&
-    selectedDate &&
-    !dayAvailabilityLoading &&
-    slotsForDate.length === 0;
+    !availabilityLoading &&
+    availableDates.size === 0;
 
   const handleConfirm = useCallback(async () => {
-    if (!selectedSlot || confirmInFlight) return;
+    if (!selectedStartsAt || confirmInFlight) return;
 
     setConfirmInFlight(true);
-    setSlotResolutionError(null);
+    setConfirmError(null);
 
     try {
-      let resolvedSlotId = selectedSlot.id;
-      if (selectedSlot.id < 0 && selectedDate) {
-        if (!trainer?.id) {
-          setSlotResolutionError('No se pudo identificar el entrenador para validar el horario.');
-          return;
-        }
-
-        await fetchSlots(selectedDate, trainer.id);
-        const { slots: realDaySlots, error: slotFetchError } = useBookingStore.getState();
-
-        if (slotFetchError) {
-          setSlotResolutionError(slotFetchError);
-          return;
-        }
-
-        const selectedStartMs = new Date(selectedSlot.starts_at).getTime();
-        const selectedEndMs = new Date(selectedSlot.ends_at).getTime();
-        const matched = realDaySlots.find(
-          (slot) => (
-            new Date(slot.starts_at).getTime() === selectedStartMs
-            && new Date(slot.ends_at).getTime() === selectedEndMs
-          ),
-        );
-
-        if (!matched) {
-          setSlotResolutionError('El horario ya no está disponible. Intenta con otro.');
-          return;
-        }
-
-        resolvedSlotId = matched.id;
-      }
-
       if (isReschedule && rescheduleBookingId) {
-        await rescheduleBooking(rescheduleBookingId, resolvedSlotId);
+        await rescheduleBooking(rescheduleBookingId, selectedStartsAt);
         return;
       }
       if (!activeSub) return;
       await createBooking({
         package_id: activeSub.package.id,
-        slot_id: resolvedSlotId,
+        starts_at: selectedStartsAt,
         trainer_id: trainer?.id,
         subscription_id: activeSub.id,
       });
@@ -481,12 +351,10 @@ function BookSessionContent() {
     activeSub,
     confirmInFlight,
     createBooking,
-    fetchSlots,
     isReschedule,
     rescheduleBooking,
     rescheduleBookingId,
-    selectedDate,
-    selectedSlot,
+    selectedStartsAt,
     trainer?.id,
   ]);
 
@@ -616,7 +484,7 @@ function BookSessionContent() {
         </div>
       )}
 
-      {/* Step 1 — Calendar + Slots (also visible behind success modal at step 3) */}
+      {/* Step 1 — Calendar + Slots */}
       {(step === 1 || step === 3) && (
         <div
           data-hero="body"
@@ -627,16 +495,22 @@ function BookSessionContent() {
               <p className="text-[10.5px] text-kore-gray-dark/40 uppercase tracking-[0.14em] font-semibold mb-3">
                 Selecciona un día
               </p>
-              <BookingCalendar
-                availableDates={availableDates}
-                bookedDates={bookedDates}
-                selectedDate={selectedDate}
-                onSelectDate={(date) => {
-                  if (!hasNoSessions) {
-                    setSelectedDate(date);
-                  }
-                }}
-              />
+              {availabilityLoading && availableDates.size === 0 ? (
+                <div className="flex justify-center py-12">
+                  <div className="animate-spin h-5 w-5 border-2 border-kore-red border-t-transparent rounded-full" />
+                </div>
+              ) : (
+                <BookingCalendar
+                  availableDates={availableDates}
+                  bookedDates={bookedDates}
+                  selectedDate={selectedDate}
+                  onSelectDate={(date) => {
+                    if (!hasNoSessions) {
+                      setSelectedDate(date);
+                    }
+                  }}
+                />
+              )}
             </div>
             <div className="p-5 md:p-6">
               <p className="text-[10.5px] text-kore-gray-dark/40 uppercase tracking-[0.14em] font-semibold mb-1.5">
@@ -652,23 +526,22 @@ function BookSessionContent() {
                   : 'Sin fecha'}
               </h3>
               {selectedDate ? (
-                <>
+                availabilityLoading ? (
+                  <div className="flex justify-center py-4">
+                    <div className="animate-spin h-5 w-5 border-2 border-kore-red border-t-transparent rounded-full" />
+                  </div>
+                ) : (
                   <TimeSlotPicker
                     slots={slotsForDate}
-                    selectedSlot={selectedSlot}
-                    onSelectSlot={(slot) => {
+                    selectedStartsAt={selectedStartsAt}
+                    onSelect={(startsAt) => {
                       if (!hasNoSessions) {
-                        setSelectedSlot(slot);
+                        setSelectedStartsAt(startsAt);
                         setStep(2);
                       }
                     }}
                   />
-                  {dayAvailabilityLoading && (
-                    <div className="flex justify-center py-4">
-                      <div className="animate-spin h-5 w-5 border-2 border-kore-red border-t-transparent rounded-full" />
-                    </div>
-                  )}
-                </>
+                )
               ) : (
                 <p className="text-[13px] text-kore-gray-dark/40 py-8 text-center leading-relaxed">
                   Selecciona una fecha en el calendario para ver los horarios disponibles.
@@ -680,17 +553,18 @@ function BookSessionContent() {
       )}
 
       {/* Step 2 — Confirmation */}
-      {step === 2 && selectedSlot && (
+      {step === 2 && selectedStartsAt && (
         <div data-hero="body" className="bg-white rounded-3xl shadow-2xl p-5 md:p-6">
           <BookingConfirmation
             trainer={trainer}
-            slot={selectedSlot}
+            startsAt={selectedStartsAt}
+            endsAt={endsAt}
             subscription={activeSub}
             loading={confirmInFlight}
-            error={slotResolutionError ?? error}
+            error={confirmError ?? error}
             onConfirm={handleConfirm}
             onBack={() => {
-              setSlotResolutionError(null);
+              setConfirmError(null);
               setStep(1);
             }}
           />

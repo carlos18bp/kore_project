@@ -137,7 +137,7 @@ export default function MiProgramaPage() {
       if (dateStr === new Date().toISOString().slice(0, 10) && day?.day_type === 'training') {
         router.push('/mi-programa/rutina');
       } else {
-        router.push(`/mi-programa/dia/${dateStr}`);
+        router.push(`/mi-programa/dia/detail?date=${dateStr}`);
       }
       return;
     }

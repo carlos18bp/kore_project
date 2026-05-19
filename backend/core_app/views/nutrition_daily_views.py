@@ -5,11 +5,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core_app.models import MealEntry, NutritionDailyLog
+from core_app.models import MealEntry, NutritionDailyLog, WaterGlassLog
 from core_app.serializers.nutrition_daily_serializers import (
     MealEntryUpdateSerializer,
     MealPhotoSerializer,
     NutritionDailyLogSerializer,
+    WaterGlassPhotoSerializer,
 )
 from core_app.services.meal_suggestion_service import get_daily_suggestions
 
@@ -147,6 +148,38 @@ class MealEntryPhotoView(APIView):
 
         from core_app.serializers.nutrition_daily_serializers import MealEntrySerializer
         return Response(MealEntrySerializer(entry, context={'request': request}).data)
+
+
+class WaterGlassLogCreateView(APIView):
+    """POST — register one glass of water with a selfie photo for today's log."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, log_id):
+        try:
+            log = NutritionDailyLog.objects.get(pk=log_id, customer=request.user)
+        except NutritionDailyLog.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if log.is_closed:
+            return Response(
+                {'detail': 'El registro del día ya está cerrado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = WaterGlassPhotoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        glass = WaterGlassLog.objects.create(
+            daily_log=log,
+            photo=serializer.validated_data['photo'],
+        )
+
+        from core_app.serializers.nutrition_daily_serializers import WaterGlassLogSerializer
+        return Response(
+            WaterGlassLogSerializer(glass, context={'request': request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class NutritionHistoryView(APIView):

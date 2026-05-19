@@ -7,15 +7,15 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('--customers', type=int, default=20)
-        parser.add_argument('--password', type=str, default='ogthsv25')
+        parser.add_argument('--password', type=str, default='password')
         parser.add_argument('--admin-email', type=str, default='admin@kore.com')
-        parser.add_argument('--admin-password', type=str, default='ogthsv25')
+        parser.add_argument('--admin-password', type=str, default='password')
         parser.add_argument('--no-admin', action='store_true', default=False)
         parser.add_argument('--skip-users', action='store_true', default=False)
 
         parser.add_argument('--skip-content', action='store_true', default=False)
 
-        parser.add_argument('--trainer-password', type=str, default='ogthsv25')
+        parser.add_argument('--trainer-password', type=str, default='password')
         parser.add_argument('--skip-trainers', action='store_true', default=False)
 
         parser.add_argument('--extra-packages', type=int, default=0)
@@ -31,28 +31,30 @@ class Command(BaseCommand):
 
         parser.add_argument('--skip-duo', action='store_true', default=False)
 
-        parser.add_argument('--days', type=int, default=30)
-        parser.add_argument('--start-hour', type=int, default=9)
-        parser.add_argument('--end-hour', type=int, default=18)
-        parser.add_argument('--slot-minutes', type=int, default=60)
-        parser.add_argument('--slot-step-minutes', type=int, default=15)
-        parser.add_argument('--timezone', type=str, default=None)
-        parser.add_argument('--skip-slots', action='store_true', default=False)
-
-        parser.add_argument('--bookings', type=int, default=40)
+        parser.add_argument('--bookings', type=int, default=120)
         parser.add_argument('--skip-bookings', action='store_true', default=False)
 
-        parser.add_argument('--payments', type=int, default=40)
+        parser.add_argument('--payments', type=int, default=120)
         parser.add_argument('--skip-payments', action='store_true', default=False)
 
-        parser.add_argument('--notifications', type=int, default=30)
+        parser.add_argument('--notifications', type=int, default=80)
         parser.add_argument('--skip-notifications', action='store_true', default=False)
 
-        parser.add_argument('--analytics-events', type=int, default=100)
+        parser.add_argument('--analytics-events', type=int, default=200)
         parser.add_argument('--skip-analytics-events', action='store_true', default=False)
 
-        parser.add_argument('--diagnostics-per-customer', type=int, default=1)
+        parser.add_argument('--diagnostics-per-customer', type=int, default=2)
         parser.add_argument('--skip-diagnostics', action='store_true', default=False)
+
+        parser.add_argument(
+            '--spotlight-emails', type=str, default='customer1@kore.com',
+            help='Comma-separated emails to receive a deep historical journey (after random seed).',
+        )
+        parser.add_argument(
+            '--spotlight-months', type=int, default=6,
+            help='Months of history to generate for spotlight customers (default: 6).',
+        )
+        parser.add_argument('--skip-spotlight', action='store_true', default=False)
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS('=' * 70))
@@ -114,21 +116,6 @@ class Command(BaseCommand):
         else:
             self.stdout.write(self.style.WARNING('Skipped duo invitations'))
 
-        if not options['skip_slots']:
-            call_command(
-                'create_fake_slots',
-                days=options['days'],
-                start_hour=options['start_hour'],
-                end_hour=options['end_hour'],
-                slot_minutes=options['slot_minutes'],
-                slot_step_minutes=options['slot_step_minutes'],
-                timezone=options['timezone'],
-                stdout=self.stdout,
-            )
-            executed.append('slots')
-        else:
-            self.stdout.write(self.style.WARNING('Skipped slots'))
-
         if not options['skip_bookings']:
             call_command('create_fake_bookings', num=options['bookings'], stdout=self.stdout)
             executed.append('bookings')
@@ -162,6 +149,22 @@ class Command(BaseCommand):
             executed.append('diagnostics')
         else:
             self.stdout.write(self.style.WARNING('Skipped diagnostics'))
+
+        if not options['skip_spotlight']:
+            spotlight_emails = [
+                e.strip() for e in options['spotlight_emails'].split(',') if e.strip()
+            ]
+            for email in spotlight_emails:
+                call_command(
+                    'create_fake_customer_history',
+                    email=email,
+                    months=options['spotlight_months'],
+                    stdout=self.stdout,
+                )
+            if spotlight_emails:
+                executed.append(f"spotlight ({', '.join(spotlight_emails)})")
+        else:
+            self.stdout.write(self.style.WARNING('Skipped spotlight customer history'))
 
         self.stdout.write('')
         self.stdout.write(self.style.SUCCESS('=' * 70))

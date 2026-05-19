@@ -130,6 +130,10 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   closeMoodModal: () => set({ moodModalOpen: false }),
 
   fetchProfile: async () => {
+    // Dedupe concurrent callers — `(app)/layout`, ProfileCompletionCTA and
+    // MoodCheckIn all fire fetchProfile on mount; without this guard they
+    // burst three identical /auth/profile/ requests at nginx and trip 429.
+    if (get().loading) return;
     set({ loading: true, error: '' });
     try {
       const { data } = await api.get<{ user: ProfileData }>('/auth/profile/', {

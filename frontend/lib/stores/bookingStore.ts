@@ -18,21 +18,8 @@ export type Trainer = {
   session_duration_minutes: number;
 };
 
-export type Slot = {
-  id: number;
-  trainer_id: number | null;
-  starts_at: string;
-  ends_at: string;
-  is_active: boolean;
-  is_blocked: boolean;
-};
-
-export type OccupiedDaySlot = {
-  slot_id: number;
-  trainer_id: number | null;
-  starts_at: string;
-  ends_at: string;
-};
+/** Shape returned by GET /api/availability/ — date keys, arrays of ISO start-time strings. */
+export type AvailabilityMap = Record<string, string[]>;
 
 export type PackageInfo = {
   id: number;
@@ -81,7 +68,8 @@ export type BookingData = {
   id: number;
   customer_id: number;
   package: PackageInfo;
-  slot: Slot;
+  starts_at: string;
+  ends_at: string;
   trainer: Trainer | null;
   subscription_id_display: number | null;
   status: 'pending' | 'confirmed' | 'canceled';
@@ -111,16 +99,15 @@ type BookingState = {
   // Booking flow
   step: BookingStep;
   selectedDate: string | null;
-  selectedSlot: Slot | null;
+  selectedStartsAt: string | null;
   trainer: Trainer | null;
   subscription: Subscription | null;
   bookingResult: BookingData | null;
 
   // Data lists
   trainers: Trainer[];
-  slots: Slot[];
-  dayBookedSlots: OccupiedDaySlot[];
-  dayAvailabilityLoading: boolean;
+  availability: AvailabilityMap;
+  availabilityLoading: boolean;
   subscriptions: Subscription[];
   bookings: BookingData[];
   bookingDetail: BookingData | null;
@@ -134,27 +121,26 @@ type BookingState = {
   // Actions — flow
   setStep: (step: BookingStep) => void;
   setSelectedDate: (date: string | null) => void;
-  setSelectedSlot: (slot: Slot | null) => void;
+  setSelectedStartsAt: (startsAt: string | null) => void;
   setTrainerFromAssigned: (t: { id: number; first_name: string; last_name: string; location: string; session_duration_minutes: number } | null) => void;
   reset: () => void;
 
   // Actions — API
   fetchTrainers: () => Promise<void>;
-  fetchSlots: (date?: string, trainerId?: number) => Promise<void>;
-  fetchTrainerDayBookings: (date?: string, trainerId?: number) => Promise<void>;
+  fetchAvailability: (dateFrom?: string, dateTo?: string, trainerId?: number) => Promise<void>;
   fetchSubscriptions: () => Promise<void>;
   fetchBookings: (subscriptionId?: number, page?: number) => Promise<void>;
   fetchBookingById: (bookingId: number) => Promise<BookingData | null>;
   fetchUpcomingReminder: () => Promise<void>;
   createBooking: (payload: {
     package_id: number;
-    slot_id: number;
+    starts_at: string;
     trainer_id?: number;
     subscription_id?: number;
     notes?: string;
   }) => Promise<BookingData | null>;
   cancelBooking: (bookingId: number, reason?: string) => Promise<BookingData | null>;
-  rescheduleBooking: (bookingId: number, newSlotId: number) => Promise<BookingData | null>;
+  rescheduleBooking: (bookingId: number, newStartsAt: string) => Promise<BookingData | null>;
 };
 
 function authHeaders() {
@@ -165,20 +151,17 @@ function authHeaders() {
 function extractErrorMessage(errData: Record<string, unknown> | undefined): string {
   if (!errData) return 'No se pudo crear la reserva.';
 
-  // DRF detail field (string or array)
   if (errData.detail) {
     if (typeof errData.detail === 'string') return errData.detail;
     if (Array.isArray(errData.detail) && typeof errData.detail[0] === 'string') return errData.detail[0];
   }
 
-  // DRF non_field_errors (string or array)
   if (errData.non_field_errors) {
     if (typeof errData.non_field_errors === 'string') return errData.non_field_errors;
     if (Array.isArray(errData.non_field_errors) && typeof errData.non_field_errors[0] === 'string') return errData.non_field_errors[0];
   }
 
-  // Field-specific errors (e.g., slot_id, subscription_id)
-  const fieldKeys = ['slot_id', 'subscription_id', 'package_id', 'trainer_id'];
+  const fieldKeys = ['starts_at', 'subscription_id', 'package_id', 'trainer_id'];
   for (const key of fieldKeys) {
     const val = errData[key];
     if (typeof val === 'string') return val;
@@ -192,14 +175,13 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   // Initial state
   step: 1,
   selectedDate: null,
-  selectedSlot: null,
+  selectedStartsAt: null,
   trainer: null,
   subscription: null,
   bookingResult: null,
   trainers: [],
-  slots: [],
-  dayBookedSlots: [],
-  dayAvailabilityLoading: false,
+  availability: {},
+  availabilityLoading: false,
   subscriptions: [],
   bookings: [],
   bookingDetail: null,
@@ -210,8 +192,8 @@ export const useBookingStore = create<BookingState>((set, get) => ({
 
   // Flow actions
   setStep: (step) => set({ step }),
-  setSelectedDate: (date) => set({ selectedDate: date, selectedSlot: null }),
-  setSelectedSlot: (slot) => set({ selectedSlot: slot }),
+  setSelectedDate: (date) => set({ selectedDate: date, selectedStartsAt: null }),
+  setSelectedStartsAt: (startsAt) => set({ selectedStartsAt: startsAt }),
   setTrainerFromAssigned: (t) => {
     if (!t) { set({ trainer: null }); return; }
     set({
@@ -226,7 +208,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     set({
       step: 1,
       selectedDate: null,
-      selectedSlot: null,
+      selectedStartsAt: null,
       bookingResult: null,
       error: null,
     }),
@@ -270,48 +252,22 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     }
   },
 
-  fetchSlots: async (date, trainerId) => {
-    set({ loading: true, error: null });
+  fetchAvailability: async (dateFrom, dateTo, trainerId) => {
+    set({ availabilityLoading: true, error: null });
     try {
       const params: Record<string, string> = {};
-      if (date) params.date = date;
+      if (dateFrom) params.date_from = dateFrom;
+      if (dateTo) params.date_to = dateTo;
       if (trainerId) params.trainer = String(trainerId);
-      const { data } = await api.get<PaginatedResponse<Slot>>('/availability-slots/', {
+      const { data } = await api.get<AvailabilityMap>('/availability/', {
         headers: authHeaders(),
         params,
       });
-      const slots = data.results ?? data;
-      set({ slots: Array.isArray(slots) ? slots : [] });
+      set({ availability: typeof data === 'object' && data !== null ? data : {} });
     } catch {
-      set({ error: 'No se pudieron cargar los horarios.' });
+      set({ error: 'No se pudieron cargar los horarios.', availability: {} });
     } finally {
-      set({ loading: false });
-    }
-  },
-
-  fetchTrainerDayBookings: async (date, trainerId) => {
-    if (!date || !trainerId) {
-      set({ dayBookedSlots: [], dayAvailabilityLoading: false });
-      return;
-    }
-
-    set({ dayAvailabilityLoading: true, error: null });
-    try {
-      const { data } = await api.get<OccupiedDaySlot[]>('/bookings/occupied-day/', {
-        headers: authHeaders(),
-        params: {
-          date,
-          trainer: String(trainerId),
-        },
-      });
-      set({ dayBookedSlots: Array.isArray(data) ? data : [] });
-    } catch {
-      set({
-        dayBookedSlots: [],
-        error: 'No se pudieron cargar las sesiones agendadas del día.',
-      });
-    } finally {
-      set({ dayAvailabilityLoading: false });
+      set({ availabilityLoading: false });
     }
   },
 
@@ -402,12 +358,12 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     }
   },
 
-  rescheduleBooking: async (bookingId, newSlotId) => {
+  rescheduleBooking: async (bookingId, newStartsAt) => {
     set({ loading: true, error: null });
     try {
       const { data } = await api.post<BookingData>(
         `/bookings/${bookingId}/reschedule/`,
-        { new_slot_id: newSlotId },
+        { new_starts_at: newStartsAt },
         { headers: authHeaders() },
       );
       set({ bookingResult: data, step: 3 });

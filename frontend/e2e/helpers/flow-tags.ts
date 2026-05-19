@@ -74,7 +74,6 @@ export const FlowTags = {
   TRAINER_CLIENT_POSTUROMETRY: ['@flow:trainer-client-posturometry', '@module:trainer', '@priority:P2'],
   TRAINER_ALERTS: ['@flow:trainer-alerts', '@module:trainer', '@priority:P1'],
   TRAINER_CLIENT_PROGRAM: ['@flow:trainer-client-program', '@module:trainer', '@priority:P2'],
-  TRAINER_EVIDENCE: ['@flow:trainer-evidence', '@module:trainer', '@priority:P3'],
   TRAINER_METRICS: ['@flow:trainer-metrics', '@module:trainer', '@priority:P3'],
   TRAINER_NUTRITION_CATALOG: ['@flow:trainer-nutrition-catalog', '@module:trainer', '@priority:P2'],
 

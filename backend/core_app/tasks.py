@@ -17,6 +17,7 @@ from huey import crontab
 from huey.contrib.djhuey import db_periodic_task
 
 from core_app.models import Notification, Payment, Subscription
+from core_app.services.billing_calendar import bogota_today
 from core_app.services.email_service import (
     send_payment_receipt,
     send_subscription_expiry_reminder,
@@ -42,7 +43,9 @@ def process_recurring_billing():
     Returns:
         dict: Summary with 'processed', 'succeeded', and 'failed' counts.
     """
-    today = timezone.now().date()
+    # Use Bogota local date so subscriptions are considered "due" only when
+    # the calendar day has actually arrived for the customer (not UTC).
+    today = bogota_today()
     due_subscriptions = Subscription.objects.filter(
         status=Subscription.Status.ACTIVE,
         next_billing_date__lte=today,
@@ -208,7 +211,7 @@ def auto_complete_past_bookings():
     now = timezone.now()
     past_pending_bookings = Booking.objects.filter(
         status=Booking.Status.PENDING,
-        slot__ends_at__lte=now,
+        ends_at__lte=now,
     )
     completed = past_pending_bookings.update(status=Booking.Status.CONFIRMED)
     if completed:
@@ -339,20 +342,6 @@ def send_parq_reminders():
     logger.info('PAR-Q reminders completed: %s', summary)
     return summary
 
-
-@db_periodic_task(crontab(minute=30, hour=2))
-def maintain_availability_slots():
-    """Daily slot maintenance: prune free past slots, fill future window.
-
-    Delegates to the ``maintain_slots`` management command so the logic
-    is shared with the ad-hoc CLI invocation.
-
-    Returns:
-        None
-    """
-    from django.core.management import call_command
-    call_command('maintain_slots', timezone='America/Bogota')
-    logger.info('maintain_availability_slots task completed')
 
 
 @db_periodic_task(crontab(minute=55, hour=23))

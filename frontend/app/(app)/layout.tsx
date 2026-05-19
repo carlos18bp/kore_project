@@ -4,10 +4,12 @@ import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
+import { useSplashGate } from '@/lib/hooks/useSplashGate';
 import Sidebar from '@/app/components/layouts/Sidebar';
 import TrainerSidebar from '@/app/components/layouts/TrainerSidebar';
 import MobileBottomNav from '@/app/components/layouts/MobileBottomNav';
 import TrainerMobileBottomNav from '@/app/components/layouts/TrainerMobileBottomNav';
+import AppSplash from '@/app/components/layouts/AppSplash';
 import ProfileCompletionCTA from '@/app/components/profile/ProfileCompletionCTA';
 import MoodCheckIn from '@/app/components/profile/MoodCheckIn';
 import TrainerMessageModal from '@/app/components/dashboard/TrainerMessageModal';
@@ -23,6 +25,7 @@ export default function AppLayout({
   const pathname = usePathname();
   const { user, isAuthenticated, hydrate, hydrated } = useAuthStore();
   const { hasActiveSubscription, subscriptions, loading: subsLoading, fetchSubscriptions } = useSubscriptionStore();
+  const { splashDone, handleSplashDone } = useSplashGate();
 
   useEffect(() => {
     hydrate();
@@ -30,7 +33,7 @@ export default function AppLayout({
 
   useEffect(() => {
     if (hydrated && !isAuthenticated) {
-      router.push('/login');
+      router.replace('/login');
     }
   }, [hydrated, isAuthenticated, router]);
 
@@ -71,6 +74,27 @@ export default function AppLayout({
       router.replace('/subscription');
     }
   }, [hydrated, isAuthenticated, user, isTrainer, subsLoading, subscriptions, hasActiveSubscription, pathname, router]);
+
+  const isChangePasswordRoute = pathname === '/change-password-required';
+  const routeMatchesRole = isAdmin
+    ? false
+    : isTrainer
+      ? isOnTrainerRoute
+      : !isOnTrainerRoute;
+  const mustRedirectForPassword =
+    !!user?.must_change_password && !isChangePasswordRoute;
+
+  const ready =
+    splashDone &&
+    hydrated &&
+    isAuthenticated &&
+    !!user &&
+    !mustRedirectForPassword &&
+    routeMatchesRole;
+
+  if (!ready) {
+    return <AppSplash onEntranceComplete={handleSplashDone} />;
+  }
 
   return (
     <div className="min-h-screen bg-kore-cream">

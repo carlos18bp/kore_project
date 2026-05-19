@@ -13,7 +13,6 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from core_app.models import (
-    AvailabilitySlot,
     Booking,
     Package,
     Subscription,
@@ -65,17 +64,14 @@ def package(db):
 def booking_with_slot(trainer, customer, package):
     """Create a confirmed booking linking trainer and customer, and assign the trainer."""
     future = FIXED_NOW + timedelta(days=3)
-    slot = AvailabilitySlot.objects.create(
-        starts_at=future, ends_at=future + timedelta(hours=1),
-        is_active=True, is_blocked=True,
-    )
     booking = Booking.objects.create(
         customer=customer, trainer=trainer, package=package,
-        slot=slot, status=Booking.Status.CONFIRMED,
+        starts_at=future, ends_at=future + timedelta(hours=1),
+        status=Booking.Status.CONFIRMED,
     )
     customer.assigned_trainer = trainer
     customer.save(update_fields=['assigned_trainer'])
-    return booking, slot
+    return booking
 
 
 # ── TrainerClientListView ──

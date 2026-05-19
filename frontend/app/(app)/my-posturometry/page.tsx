@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useId, useMemo } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { usePosturometryStore, type PosturometryEvaluation } from '@/lib/stores/posturometryStore';
+import TrainerNoteHero from '@/app/components/shared/TrainerNoteHero';
 
 /* ──────────────────────────────────────────────────────────────────────────
  *  Constants — palette, copy, helpers
@@ -234,13 +235,13 @@ function Delta({ now, prev, big = false, dark = false }: { now: number | null; p
 
 /* Radar over 4 axes (global, upper, central, lower). Latest as filled, first as ghost */
 function RadarChart({
-  size = 300, dataLatest, dataFirst,
+  dataLatest, dataFirst,
 }: {
-  size?: number;
   dataLatest: { global: number; upper: number; central: number; lower: number };
   dataFirst: { global: number; upper: number; central: number; lower: number } | null;
 }) {
   const id = useId().replace(/:/g, '');
+  const size = 300;
   const cx = size / 2;
   const cy = size / 2;
   const r = size * 0.36;
@@ -262,7 +263,13 @@ function RadarChart({
       .join(' ');
   const ringRadii = [0.5, 1.0, 1.5, 2.0, 2.5];
   return (
-    <svg width={size} height={size}>
+    <svg
+      width="100%"
+      height="auto"
+      viewBox={`0 0 ${size} ${size}`}
+      preserveAspectRatio="xMidYMid meet"
+      style={{ display: 'block', maxWidth: 300 }}
+    >
       <defs>
         <radialGradient id={`radar-${id}`}>
           <stop offset="0%" stopColor={KORE.cream} stopOpacity="0.55" />
@@ -272,28 +279,41 @@ function RadarChart({
       {ringRadii.map((v, i) => {
         const rr = (v / max) * r;
         const b = band(v);
+        const ringOpacity = v === 1.0 ? 0.45 : 0.32;
         return (
           <circle
             key={i}
             cx={cx} cy={cy} r={rr}
-            fill="none" stroke={b.color} strokeOpacity="0.18" strokeWidth="1"
+            fill="none" stroke={b.color} strokeOpacity={ringOpacity} strokeWidth="1"
             strokeDasharray={i === 0 ? '0' : '2,3'}
           />
         );
       })}
       {angles.map((a, i) => (
-        <line key={i} x1={cx} y1={cy} x2={cx + r * Math.cos(a)} y2={cy + r * Math.sin(a)} stroke="rgba(231,200,160,0.20)" strokeWidth="1" />
+        <line key={i} x1={cx} y1={cy} x2={cx + r * Math.cos(a)} y2={cy + r * Math.sin(a)} stroke="rgba(231,200,160,0.28)" strokeWidth="1" />
       ))}
       {dataFirst && (
         <polygon points={polygon(dataFirst)} fill="rgba(228,168,168,0.10)" stroke={KORE.sakuraDeep} strokeOpacity="0.55" strokeWidth="1.2" strokeDasharray="3,3" />
       )}
-      <polygon points={polygon(dataLatest)} fill={`url(#radar-${id})`} stroke={KORE.cream} strokeWidth="1.8" strokeLinejoin="round" />
+      <polygon
+        points={polygon(dataLatest)}
+        fill={`url(#radar-${id})`}
+        stroke={KORE.cream}
+        strokeWidth="2.2"
+        strokeLinejoin="round"
+        style={{ filter: 'drop-shadow(0 0 6px rgba(255,233,220,0.35))' }}
+      />
       {axes.map((ax, i) => {
         const v = Math.min(dataLatest[ax.key], max);
         const rr = (v / max) * r;
         const x = cx + rr * Math.cos(angles[i]);
         const y = cy + rr * Math.sin(angles[i]);
-        return <circle key={ax.key} cx={x} cy={y} r="3.5" fill={KORE.ivory} stroke={KORE.gold} strokeWidth="1.5" />;
+        return (
+          <g key={ax.key}>
+            <circle cx={x} cy={y} r="8" fill={KORE.gold} fillOpacity="0.18" />
+            <circle cx={x} cy={y} r="5" fill={KORE.ivory} stroke={KORE.gold} strokeWidth="1.8" />
+          </g>
+        );
       })}
       {axes.map((ax, i) => {
         const lr = r + 22;
@@ -301,10 +321,28 @@ function RadarChart({
         const y = cy + lr * Math.sin(angles[i]);
         return (
           <g key={ax.key} transform={`translate(${x},${y})`}>
-            <text textAnchor="middle" dominantBaseline="middle" fontFamily="Montserrat" fontSize="10" fontWeight="700" fill={KORE.gold} letterSpacing="1.5">
+            <text
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontFamily="Montserrat"
+              fontSize="10"
+              fontWeight="700"
+              fill={KORE.gold}
+              letterSpacing="1.5"
+              style={{ paintOrder: 'stroke fill', stroke: '#2D0F1A', strokeWidth: 3, strokeLinejoin: 'round' }}
+            >
               {ax.label.toUpperCase()}
             </text>
-            <text textAnchor="middle" dominantBaseline="middle" y="14" fontFamily="Cinzel" fontSize="13" fontWeight="600" fill={KORE.ivory}>
+            <text
+              textAnchor="middle"
+              dominantBaseline="middle"
+              y="14"
+              fontFamily="Cinzel"
+              fontSize="13"
+              fontWeight="600"
+              fill={KORE.ivory}
+              style={{ paintOrder: 'stroke fill', stroke: '#2D0F1A', strokeWidth: 3, strokeLinejoin: 'round' }}
+            >
               {dataLatest[ax.key].toFixed(2)}
             </text>
           </g>
@@ -316,20 +354,22 @@ function RadarChart({
 
 /* Photo with japandi grid overlay + corner registration marks */
 function PhotoFrame({
-  src, label, sublabel, dim = false, height = 380,
+  src, label, sublabel, dim = false, height, className,
 }: {
   src: string | null;
   label: string;
   sublabel?: string;
   dim?: boolean;
   height?: number;
+  className?: string;
 }) {
+  const sizeStyle = height !== undefined ? { height } : { height: '100%' };
   if (!src) {
     return (
       <div
-        className="relative grid place-items-center"
+        className={`relative grid place-items-center ${className ?? ''}`}
         style={{
-          borderRadius: 18, height,
+          borderRadius: 18, ...sizeStyle,
           background: 'rgba(103,15,34,0.05)',
           border: '1px dashed rgba(103,15,34,0.18)',
         }}
@@ -343,11 +383,11 @@ function PhotoFrame({
   }
   return (
     <div
-      className="relative overflow-hidden"
+      className={`relative overflow-hidden ${className ?? ''}`}
       style={{
         borderRadius: 18,
         background: '#1A0A11',
-        height,
+        ...sizeStyle,
         boxShadow: '0 8px 24px -10px rgba(45,15,26,0.4), inset 0 0 0 1px rgba(231,200,160,0.18)',
       }}
     >
@@ -529,7 +569,9 @@ function Hero({
               </div>
             </div>
             <div className="flex justify-center">
-              <RadarChart size={300} dataLatest={dataLatest} dataFirst={dataFirst} />
+              <div style={{ width: '100%', maxWidth: 320 }}>
+                <RadarChart dataLatest={dataLatest} dataFirst={dataFirst} />
+              </div>
             </div>
           </div>
         </div>
@@ -702,6 +744,107 @@ function RegionCard({
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
+ *  Regions carousel — scroll-snap nativo con bullets gold (mobile + tablet)
+ *  En lg+ se rinde como grid 2-col sin carrusel.
+ *  ────────────────────────────────────────────────────────────────────── */
+
+function RegionsCarousel({
+  regions, latest, first,
+}: {
+  regions: Array<'global' | 'upper' | 'central' | 'lower'>;
+  latest: PosturometryEvaluation;
+  first: PosturometryEvaluation | null;
+}) {
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (window.matchMedia('(min-width: 1024px)').matches) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        let best = { idx: activeIndex, ratio: 0 };
+        for (const entry of entries) {
+          const idx = Number((entry.target as HTMLElement).dataset.idx);
+          if (entry.intersectionRatio > best.ratio) {
+            best = { idx, ratio: entry.intersectionRatio };
+          }
+        }
+        if (best.ratio > 0.55) setActiveIndex(best.idx);
+      },
+      { root: trackRef.current, threshold: [0.4, 0.55, 0.7, 0.9] },
+    );
+    cardRefs.current.forEach((el) => el && observer.observe(el));
+    return () => observer.disconnect();
+  }, [activeIndex]);
+
+  const scrollTo = (idx: number) => {
+    const el = cardRefs.current[idx];
+    if (el) el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  };
+
+  return (
+    <>
+      <style>{`.kore-regions-track::-webkit-scrollbar{display:none}`}</style>
+      <div
+        ref={trackRef}
+        className="kore-regions-track flex gap-4 overflow-x-auto snap-x snap-mandatory -mx-5 px-5 pb-3 lg:grid lg:grid-cols-2 lg:gap-5 lg:mx-0 lg:px-0 lg:pb-0 lg:overflow-visible"
+        style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
+      >
+        {regions.map((rk, idx) => (
+          <div
+            key={rk}
+            ref={(el) => { cardRefs.current[idx] = el; }}
+            data-idx={idx}
+            className="snap-center shrink-0 w-[88%] max-w-[440px] lg:w-auto lg:max-w-none lg:shrink"
+          >
+            <RegionCard regionKey={rk} latest={latest} first={first} />
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 flex items-center justify-center gap-2.5 lg:hidden" role="tablist" aria-label="Regiones">
+        {regions.map((rk, idx) => {
+          const isActive = idx === activeIndex;
+          return (
+            <button
+              key={rk}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              aria-label={`Ver ${REGION_LABELS[rk]}`}
+              onClick={() => scrollTo(idx)}
+              className="grid place-items-center transition-all"
+              style={{
+                width: 28, height: 28, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
+              }}
+            >
+              <span
+                aria-hidden="true"
+                style={{
+                  display: 'block',
+                  width: isActive ? 10 : 8,
+                  height: isActive ? 10 : 8,
+                  borderRadius: 999,
+                  background: isActive ? KORE.gold : 'transparent',
+                  border: isActive ? `1px solid ${KORE.goldDeep}` : `1px solid ${KORE.gold}66`,
+                  boxShadow: isActive
+                    ? `0 0 0 4px ${KORE.gold}22, 0 0 0 5px ${KORE.wineDark}1A`
+                    : 'none',
+                  transition: 'all 280ms ease-out',
+                }}
+              />
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
  *  Findings list — grouped by severity, narrative
  *  ────────────────────────────────────────────────────────────────────── */
 
@@ -839,8 +982,10 @@ function ViewSection({
       )}
 
       <div
-        className="grid gap-5"
-        style={{ gridTemplateColumns: first ? '1.1fr 1fr 1.1fr' : '1fr 1fr' }}
+        className={`grid gap-5 ${first
+          ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-[1.1fr_1fr_1.1fr]'
+          : 'grid-cols-1 lg:grid-cols-2'
+        }`}
       >
         {first && (
           <PhotoFrame
@@ -848,10 +993,15 @@ function ViewSection({
             label={`Inicial · ${formatDate(first.evaluation_date || first.created_at)}`}
             sublabel={meta.label}
             dim
-            height={520}
+            className="h-72 md:h-96 lg:h-[520px] md:order-1 lg:order-1"
           />
         )}
-        <div className="px-1 py-2">
+        <div
+          className={`px-1 py-2 ${first
+            ? 'md:order-3 md:col-span-2 lg:order-2 lg:col-span-1'
+            : ''
+          }`}
+        >
           <p className="text-[10px] font-bold uppercase mb-4" style={{ letterSpacing: '0.22em', color: 'rgba(103,15,34,0.55)' }}>
             Hallazgos · Última evaluación
           </p>
@@ -861,7 +1011,7 @@ function ViewSection({
           src={photoLatest}
           label={`Última · ${formatDate(latest.evaluation_date || latest.created_at)}`}
           sublabel={meta.label}
-          height={520}
+          className={`h-72 md:h-96 lg:h-[520px] ${first ? 'md:order-2 lg:order-3' : ''}`}
         />
       </div>
     </div>
@@ -1002,31 +1152,9 @@ function Timeline({ evaluations }: { evaluations: PosturometryEvaluation[] }) {
  *  ────────────────────────────────────────────────────────────────────── */
 
 function ClosingNote({ latest }: { latest: PosturometryEvaluation }) {
-  const trainerName = latest.trainer_name?.trim();
-  const dateStr = formatDate(latest.evaluation_date || latest.created_at, true);
-
+  void latest;
   return (
-    <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
-      {latest.notes && (
-        <div
-          style={{
-            padding: 'clamp(20px, 3vw, 32px)',
-            borderRadius: 24,
-            background: 'linear-gradient(135deg, rgba(103,15,34,0.04), rgba(231,200,160,0.10))',
-            border: '1px solid rgba(103,15,34,0.08)',
-          }}
-        >
-          <p className="text-[10px] font-bold uppercase" style={{ letterSpacing: '0.22em', color: KORE.wineDark }}>Notas de tu trainer</p>
-          <p className="font-heading text-xl xl:text-[22px] font-semibold mt-2.5 leading-[1.4]" style={{ color: KORE.wineDark, letterSpacing: '0.005em' }}>
-            “{latest.notes}”
-          </p>
-          {(trainerName || dateStr) && (
-            <p className="text-[12px] italic mt-3.5" style={{ color: 'rgba(103,15,34,0.6)' }}>
-              — {trainerName || 'Tu trainer'} · {dateStr}
-            </p>
-          )}
-        </div>
-      )}
+    <div className="grid gap-5 lg:grid-cols-1">
       <div
         style={{
           padding: 24,
@@ -1133,6 +1261,14 @@ export default function MyPosturometryPage() {
           </Link>
         </div>
 
+        {/* Trainer note */}
+        <TrainerNoteHero
+          className="mb-6"
+          note={latest.notes ?? ''}
+          trainerName={latest.trainer_name}
+          date={latest.evaluation_date || latest.created_at}
+        />
+
         {/* HERO */}
         <Hero latest={latest} first={first} />
 
@@ -1151,11 +1287,7 @@ export default function MyPosturometryPage() {
               Bandas · ≤ 0.50 funcional · ≤ 1.20 leve · ≤ 2.00 moderado · &gt; 2.00 importante
             </span>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5">
-            {orderedRegions.map((rk) => (
-              <RegionCard key={rk} regionKey={rk} latest={latest} first={first} />
-            ))}
-          </div>
+          <RegionsCarousel regions={orderedRegions} latest={latest} first={first} />
         </div>
 
         {/* VIEW SECTIONS */}

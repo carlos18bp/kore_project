@@ -1,12 +1,13 @@
 'use client';
 
-import type { Trainer, Slot, Subscription } from '@/lib/stores/bookingStore';
+import type { Trainer, Subscription } from '@/lib/stores/bookingStore';
 import { useAuthStore } from '@/lib/stores/authStore';
 import TrainerInfoPanel from './TrainerInfoPanel';
 
 type Props = {
   trainer: Trainer | null;
-  slot: Slot;
+  startsAt: string;
+  endsAt: string;
   subscription: Subscription | null;
   loading: boolean;
   error: string | null;
@@ -16,7 +17,8 @@ type Props = {
 
 export default function BookingConfirmation({
   trainer,
-  slot,
+  startsAt,
+  endsAt,
   subscription,
   loading,
   error,
@@ -38,10 +40,10 @@ export default function BookingConfirmation({
           Confirmar reserva
         </h3>
 
-        {/* Selected slot info */}
+        {/* Selected time info */}
         <div className="p-4 bg-kore-red/5 rounded-xl border border-kore-red/10">
           <p className="text-sm font-semibold text-kore-red capitalize">
-            {new Date(slot.starts_at).toLocaleDateString('es-CO', {
+            {new Date(startsAt).toLocaleDateString('es-CO', {
               weekday: 'long',
               day: 'numeric',
               month: 'long',
@@ -49,13 +51,13 @@ export default function BookingConfirmation({
             })}
           </p>
           <p className="text-sm text-kore-gray-dark/60 mt-1">
-            {new Date(slot.starts_at).toLocaleTimeString('es-CO', {
+            {new Date(startsAt).toLocaleTimeString('es-CO', {
               hour: '2-digit',
               minute: '2-digit',
               hour12: true,
             })}
             {' — '}
-            {new Date(slot.ends_at).toLocaleTimeString('es-CO', {
+            {new Date(endsAt).toLocaleTimeString('es-CO', {
               hour: '2-digit',
               minute: '2-digit',
               hour12: true,

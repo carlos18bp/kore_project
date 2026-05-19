@@ -8,7 +8,6 @@ from django.core.management import call_command
 
 from core_app.models import (
     AnalyticsEvent,
-    AvailabilitySlot,
     Booking,
     FAQCategory,
     FAQItem,
@@ -22,7 +21,6 @@ def _run_create_fake_data(stdout):
     call_command(
         'create_fake_data',
         customers=2,
-        days=2,
         bookings=2,
         payments=2,
         notifications=2,
@@ -39,12 +37,12 @@ def _assert_non_overlapping_active_bookings_per_subscription():
         bookings = Booking.objects.filter(
             subscription_id=subscription_id,
             status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
-        ).select_related('slot').order_by('slot__starts_at')
+        ).order_by('starts_at')
         previous_end = None
         for booking in bookings:
             if previous_end is not None:
-                assert booking.slot.starts_at >= previous_end
-            previous_end = booking.slot.ends_at
+                assert booking.starts_at >= previous_end
+            previous_end = booking.ends_at
 
 
 @pytest.mark.django_db
@@ -69,12 +67,11 @@ class TestCreateFakeData:
         assert FAQCategory.objects.count() >= 1
         assert FAQItem.objects.count() >= 1
 
-    def test_full_orchestration_creates_slots_and_bookings(self):
-        """Orchestration creates availability slots and at least one booking."""
+    def test_full_orchestration_creates_bookings(self):
+        """Orchestration creates at least one booking."""
         out = StringIO()
         _run_create_fake_data(out)
 
-        assert AvailabilitySlot.objects.count() > 0
         assert Booking.objects.count() >= 1
 
     def test_full_orchestration_creates_analytics_events(self):
@@ -103,12 +100,12 @@ class TestCreateFakeData:
             skip_packages=True,
             skip_subscriptions=True,
             skip_duo=True,
-            skip_slots=True,
             skip_bookings=True,
             skip_payments=True,
             skip_notifications=True,
             skip_analytics_events=True,
             skip_diagnostics=True,
+            skip_spotlight=True,
             stdout=out,
         )
         output = out.getvalue()
@@ -124,7 +121,6 @@ class TestCreateFakeData:
                 skip_content=True,
                 skip_trainers=True,
                 skip_packages=True,
-                skip_slots=True,
                 skip_bookings=True,
                 skip_payments=True,
                 skip_notifications=True,
@@ -139,32 +135,6 @@ class TestCreateFakeData:
             for call in mock_call.call_args_list
         )
 
-    def test_slot_step_minutes_is_forwarded_to_slot_subcommand(self):
-        """Propagate ``slot_step_minutes`` option to ``create_fake_slots``."""
-        out = StringIO()
-        with patch('core_app.management.commands.create_fake_data.call_command') as mock_call:
-            call_command(
-                'create_fake_data',
-                skip_users=True,
-                skip_content=True,
-                skip_trainers=True,
-                skip_packages=True,
-                skip_subscriptions=True,
-                skip_bookings=True,
-                skip_payments=True,
-                skip_notifications=True,
-                skip_analytics_events=True,
-                skip_diagnostics=True,
-                slot_step_minutes=20,
-                stdout=out,
-            )
-
-        assert any(
-            call.args and call.args[0] == 'create_fake_slots'
-            and call.kwargs.get('slot_step_minutes') == 20
-            for call in mock_call.call_args_list
-        )
-
     def test_diagnostics_runs_when_not_skipped_and_other_steps_are_skipped(self):
         """Run diagnostics when all other generation steps are explicitly skipped."""
         out = StringIO()
@@ -176,7 +146,6 @@ class TestCreateFakeData:
                 skip_trainers=True,
                 skip_packages=True,
                 skip_subscriptions=True,
-                skip_slots=True,
                 skip_bookings=True,
                 skip_payments=True,
                 skip_notifications=True,

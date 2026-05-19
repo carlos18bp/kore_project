@@ -58,7 +58,7 @@ describe('Sidebar', () => {
 
   it('displays user initial avatar', () => {
     render(<Sidebar />);
-    expect(screen.getByText('C')).toBeInTheDocument();
+    expect(screen.getByText('CK')).toBeInTheDocument();
   });
 
   it('renders navigation items', () => {
@@ -76,14 +76,14 @@ describe('Sidebar', () => {
     mockPathname = '/dashboard';
     render(<Sidebar />);
     const dashboardLink = screen.getByText('Inicio').closest('a');
-    expect(dashboardLink).toHaveClass('bg-kore-red/10');
+    expect(dashboardLink).toHaveClass('from-kore-petal/15');
   });
 
   it('highlights Mi Suscripción for nested routes', () => {
     mockPathname = '/subscription';
     render(<Sidebar />);
     const subscriptionLink = screen.getByText('Mi Suscripción').closest('a');
-    expect(subscriptionLink).toHaveClass('bg-kore-red/10');
+    expect(subscriptionLink).toHaveClass('from-kore-petal/15');
   });
 
   it('renders Soporte link and Cerrar sesión button', () => {
@@ -92,7 +92,7 @@ describe('Sidebar', () => {
     expect(screen.getByText('Cerrar sesión')).toBeInTheDocument();
   });
 
-  it('calls logout and redirects to home on Cerrar sesión click', async () => {
+  it('calls logout on Cerrar sesión click', async () => {
     render(<Sidebar />);
     const user = userEvent.setup();
 
@@ -101,7 +101,6 @@ describe('Sidebar', () => {
     const state = useAuthStore.getState();
     expect(state.isAuthenticated).toBe(false);
     expect(state.user).toBeNull();
-    expect(mockPush).toHaveBeenCalledWith('/');
   });
 
   it('does not render user info when user is null', () => {

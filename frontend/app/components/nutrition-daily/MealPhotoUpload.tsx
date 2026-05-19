@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { compressImage } from '@/lib/utils/compressImage';
+import { useIsMobileDevice } from '@/lib/utils/isMobileDevice';
 
 interface Props {
   photoUrl: string | null;
@@ -12,6 +13,7 @@ interface Props {
 export default function MealPhotoUpload({ photoUrl, onUpload, disabled }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const isMobile = useIsMobileDevice();
 
   async function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -26,22 +28,29 @@ export default function MealPhotoUpload({ photoUrl, onUpload, disabled }: Props)
     }
   }
 
+  const cameraDisabled = disabled || uploading || !isMobile;
+  const cameraTitle = !isMobile ? 'Solo disponible desde el teléfono' : undefined;
+
   return (
     <div>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        className="hidden"
-        onChange={handleChange}
-        disabled={disabled || uploading}
-      />
+      {isMobile && (
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handleChange}
+          disabled={disabled || uploading}
+        />
+      )}
       {photoUrl ? (
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          disabled={disabled || uploading}
-          className="relative w-full h-28 rounded-xl overflow-hidden border border-white/60 shadow-sm"
+          disabled={cameraDisabled}
+          title={cameraTitle}
+          className="relative w-full h-28 rounded-xl overflow-hidden border border-white/60 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={photoUrl} alt="Foto de comida" className="w-full h-full object-cover" />
@@ -60,8 +69,9 @@ export default function MealPhotoUpload({ photoUrl, onUpload, disabled }: Props)
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          disabled={disabled || uploading}
-          className="flex items-center gap-1.5 text-xs text-kore-gray-dark/50 hover:text-kore-red transition-colors"
+          disabled={cameraDisabled}
+          title={cameraTitle}
+          className="flex items-center gap-1.5 text-xs text-kore-gray-dark/50 hover:text-kore-red transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:text-kore-gray-dark/50"
         >
           {uploading ? (
             <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-kore-red border-t-transparent" />
@@ -71,7 +81,7 @@ export default function MealPhotoUpload({ photoUrl, onUpload, disabled }: Props)
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
             </svg>
           )}
-          Subir foto
+          {isMobile ? 'Tomar foto' : 'Solo desde el teléfono'}
         </button>
       )}
     </div>

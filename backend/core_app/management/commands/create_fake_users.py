@@ -18,9 +18,9 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('--customers', type=int, default=20)
-        parser.add_argument('--customer-password', type=str, default='ogthsv25')
+        parser.add_argument('--customer-password', type=str, default='password')
         parser.add_argument('--admin-email', type=str, default='admin@kore.com')
-        parser.add_argument('--admin-password', type=str, default='ogthsv25')
+        parser.add_argument('--admin-password', type=str, default='password')
         parser.add_argument('--no-admin', action='store_true', default=False)
 
     def handle(self, *args, **options):
@@ -44,9 +44,9 @@ class Command(BaseCommand):
                     'is_superuser': True,
                 },
             )
+            admin_user.set_password(admin_password)
+            admin_user.save(update_fields=['password'])
             if created:
-                admin_user.set_password(admin_password)
-                admin_user.save(update_fields=['password'])
                 created_admin = 1
 
         for i in range(1, customers + 1):
@@ -62,9 +62,9 @@ class Command(BaseCommand):
                     'role': User.Role.CUSTOMER,
                 },
             )
+            user.set_password(customer_password)
+            user.save(update_fields=['password'])
             if created:
-                user.set_password(customer_password)
-                user.save(update_fields=['password'])
                 created_customers += 1
 
         total_users = User.objects.count()

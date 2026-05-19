@@ -6,6 +6,7 @@ import { Activity, Dumbbell, Flame, PieChart, Ruler, Scale, Triangle } from 'luc
 import type { LucideIcon } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useAnthropometryStore, type AnthropometryEvaluation } from '@/lib/stores/anthropometryStore';
+import TrainerNoteHero from '@/app/components/shared/TrainerNoteHero';
 
 /* ──────────────────────────────────────────────────────────────────────────
  *  Constants
@@ -621,19 +622,12 @@ export default function MyDiagnosisPage() {
         </div>
 
         {/* ── Notas del trainer */}
-        {latest.notes && (
-          <div className="mb-6 bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-full bg-kore-red/10 flex items-center justify-center shrink-0">
-                <span className="text-base">💬</span>
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-[0.14em] font-semibold text-kore-gray-dark/50">Tu entrenador dice</p>
-                <p className="text-[13px] text-kore-gray-dark/85 leading-relaxed italic mt-1">&ldquo;{latest.notes}&rdquo;</p>
-              </div>
-            </div>
-          </div>
-        )}
+        <TrainerNoteHero
+          className="mb-6"
+          note={latest.notes ?? ''}
+          trainerName={latest.trainer_name}
+          date={latest.evaluation_date || latest.created_at}
+        />
 
         {/* ══════════════ DARK HERO ══════════════ */}
         {latestBf !== null && latestWeight !== null && (

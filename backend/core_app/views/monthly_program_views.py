@@ -20,6 +20,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from core_app.utils.renderers import NullableJSONRenderer
 from core_app.models.monthly_program import (
     DailyLog,
     ExerciseLog,
@@ -184,6 +185,25 @@ class ProgramDetailView(APIView):
         return Response(MonthlyProgramSerializer(program).data)
 
 
+class UpdateProgramNoteView(APIView):
+    """PATCH — trainer updates `trainer_notes` of any MonthlyProgram (draft or published)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, program_id):
+        if not (is_admin_user(request.user) or request.user.role == 'trainer'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            program = MonthlyProgram.objects.get(pk=program_id)
+        except MonthlyProgram.DoesNotExist:
+            return Response({'detail': 'Program not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        program.trainer_notes = request.data.get('trainer_notes', '') or ''
+        program.save(update_fields=['trainer_notes'])
+        return Response({'id': program.pk, 'trainer_notes': program.trainer_notes})
+
+
 class ApproveProgramView(APIView):
     """PATCH — trainer publishes a draft program."""
 
@@ -198,11 +218,13 @@ class ApproveProgramView(APIView):
         except MonthlyProgram.DoesNotExist:
             return Response({'detail': 'Draft program not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        notes = request.data.get('trainer_notes', '')
-        program.trainer_notes = notes
+        update_fields = ['status', 'approved_at']
+        if 'trainer_notes' in request.data:
+            program.trainer_notes = request.data['trainer_notes'] or ''
+            update_fields.append('trainer_notes')
         program.status = MonthlyProgram.Status.PUBLISHED
         program.approved_at = timezone.now()
-        program.save(update_fields=['status', 'approved_at', 'trainer_notes'])
+        program.save(update_fields=update_fields)
         return Response({'id': program.pk, 'status': program.status})
 
 
@@ -280,9 +302,14 @@ class CustomerProgramListView(APIView):
 # ---------------------------------------------------------------------------
 
 class MyProgramView(APIView):
-    """GET — active published program for the authenticated customer."""
+    """GET — active published program for the authenticated customer.
+
+    Returns 200 with `null` body when the customer has no published program;
+    the frontend treats this as an empty state, not an error.
+    """
 
     permission_classes = [IsAuthenticated]
+    renderer_classes = [NullableJSONRenderer]
 
     def get(self, request):
         from core_app.models import Booking
@@ -295,15 +322,15 @@ class MyProgramView(APIView):
             .first()
         )
         if program is None:
-            return Response({'detail': 'No active program.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(None)
 
         data = MonthlyProgramSerializer(program).data
         booking_dates = list(
             Booking.objects.filter(
                 customer=request.user,
                 status__in=[Booking.Status.CONFIRMED, Booking.Status.PENDING],
-                slot__starts_at__date__range=(program.start_date, program.end_date),
-            ).values_list('slot__starts_at__date', flat=True).distinct()
+                starts_at__date__range=(program.start_date, program.end_date),
+            ).values_list('starts_at__date', flat=True).distinct()
         )
         data['booking_dates'] = [d.isoformat() for d in booking_dates]
         return Response(data)
@@ -313,6 +340,7 @@ class TodayProgramView(APIView):
     """GET — today's ProgramDay with the DailyLog (creates log if needed)."""
 
     permission_classes = [IsAuthenticated]
+    renderer_classes = [NullableJSONRenderer]
 
     def get(self, request):
         today = date.today()
@@ -328,14 +356,14 @@ class TodayProgramView(APIView):
             .first()
         )
         if program is None:
-            return Response({'detail': 'No active program for today.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(None)
 
         try:
             program_day = ProgramDay.objects.prefetch_related(
                 'exercises__exercise'
             ).get(program=program, date=today)
         except ProgramDay.DoesNotExist:
-            return Response({'detail': 'No program day for today.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response(None)
 
         daily_log, created = DailyLog.objects.get_or_create(
             customer=request.user,

@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from core_app.models import AvailabilitySlot, Booking, Package, Subscription, User
+from core_app.models import Booking, Package, Subscription, User
 from core_app.serializers.subscription_serializers import SubscriptionSerializer
 
 FIXED_NOW = datetime(2025, 6, 15, 12, 0, 0, tzinfo=dt_timezone.utc)
@@ -97,28 +97,22 @@ class TestSubscriptionSerializer:
 
     def test_sessions_completed_counts_only_past_non_cancelled_bookings(self, subscription, customer, package):
         """sessions_completed counts only bookings whose slot ended in the past and were not cancelled."""
-        past_slot = AvailabilitySlot.objects.create(
+        Booking.objects.create(
+            customer=customer, package=package,
             starts_at=FIXED_NOW - timedelta(hours=2),
             ends_at=FIXED_NOW - timedelta(hours=1),
+            subscription=subscription, status=Booking.Status.CONFIRMED,
         )
-        future_slot = AvailabilitySlot.objects.create(
+        Booking.objects.create(
+            customer=customer, package=package,
             starts_at=FIXED_NOW + timedelta(hours=25),
             ends_at=FIXED_NOW + timedelta(hours=26),
+            subscription=subscription, status=Booking.Status.CONFIRMED,
         )
-        cancelled_past_slot = AvailabilitySlot.objects.create(
+        Booking.objects.create(
+            customer=customer, package=package,
             starts_at=FIXED_NOW - timedelta(hours=4),
             ends_at=FIXED_NOW - timedelta(hours=3),
-        )
-        Booking.objects.create(
-            customer=customer, package=package, slot=past_slot,
-            subscription=subscription, status=Booking.Status.CONFIRMED,
-        )
-        Booking.objects.create(
-            customer=customer, package=package, slot=future_slot,
-            subscription=subscription, status=Booking.Status.CONFIRMED,
-        )
-        Booking.objects.create(
-            customer=customer, package=package, slot=cancelled_past_slot,
             subscription=subscription, status=Booking.Status.CANCELED,
         )
 

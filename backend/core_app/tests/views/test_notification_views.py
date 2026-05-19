@@ -8,7 +8,6 @@ from django.utils import timezone
 from rest_framework import status
 
 from core_app.models import (
-    AvailabilitySlot,
     Booking,
     Notification,
     Package,
@@ -23,10 +22,10 @@ def booking(db):
     customer = User.objects.create_user(email='nv_cust@example.com', password='p')
     pkg = Package.objects.create(title='Pkg')
     now = timezone.now()
-    slot = AvailabilitySlot.objects.create(
+    return Booking.objects.create(
+        customer=customer, package=pkg,
         starts_at=now + timedelta(hours=1), ends_at=now + timedelta(hours=2),
     )
-    return Booking.objects.create(customer=customer, package=pkg, slot=slot)
 
 
 @pytest.mark.django_db

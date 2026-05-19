@@ -208,12 +208,8 @@ test.describe('Book Session — Reschedule No Availability', { tag: [...FlowTags
   const rescheduleBooking = {
     id: 800, customer_id: 1,
     package: { id: 6, title: 'Paquete Pro', sessions_count: 4, session_duration_minutes: 60, price: '120000', currency: 'COP', validity_days: 60 },
-    slot: {
-      id: 900, trainer_id: 1,
-      starts_at: new Date(Date.now() + 48 * 3600000).toISOString(),
-      ends_at: new Date(Date.now() + 49 * 3600000).toISOString(),
-      is_active: true, is_blocked: false,
-    },
+    starts_at: new Date(Date.now() + 48 * 3600000).toISOString(),
+    ends_at: new Date(Date.now() + 49 * 3600000).toISOString(),
     trainer: { id: 1, user_id: 1, first_name: 'Germán', last_name: 'Franco', email: 'g@kore.com', specialty: 'Funcional', bio: '', location: 'Bogotá', session_duration_minutes: 60 },
     subscription_id_display: 11,
     status: 'confirmed', notes: '', canceled_reason: '',
@@ -246,18 +242,10 @@ test.describe('Book Session — Reschedule No Availability', { tag: [...FlowTags
       status: 200, contentType: 'application/json',
       body: JSON.stringify({ count: 1, next: null, previous: null, results: [rescheduleBooking.trainer] }),
     }));
-    await page.route('**/api/availability-slots/**', (r) => r.fulfill({
+    // Return empty availability so no dates are selectable
+    await page.route('**/api/availability/**', (r) => r.fulfill({
       status: 200, contentType: 'application/json',
-      body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }),
-    }));
-    // Return a full-day occupied slot so travel buffer blocks ALL virtual slots
-    await page.route('**/api/bookings/occupied-day/**', (r) => r.fulfill({
-      status: 200, contentType: 'application/json',
-      body: JSON.stringify([{
-        slot_id: 9999, trainer_id: 1,
-        starts_at: `${targetDateStr}T03:00:00Z`,
-        ends_at: `${targetDateStr}T23:00:00Z`,
-      }]),
+      body: JSON.stringify({}),
     }));
     await page.route('**/api/subscriptions/', (r) => r.fulfill({
       status: 200, contentType: 'application/json',
@@ -267,9 +255,6 @@ test.describe('Book Session — Reschedule No Availability', { tag: [...FlowTags
       const url = route.request().url();
       if (url.includes('/upcoming-reminder')) {
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
-      }
-      if (url.includes('/occupied-day')) {
-        return route.fallback();
       }
       return route.fulfill({
         status: 200, contentType: 'application/json',
@@ -281,24 +266,15 @@ test.describe('Book Session — Reschedule No Availability', { tag: [...FlowTags
   test('reschedule with no available slots shows no-availability message', async ({ page }) => {
     // Exercise book-session/page.tsx showRescheduleNoAvailability=true
     // renders the "no disponibilidad" block with the WhatsApp contact link.
-    // Requires: selectedDate set + slotsForDate empty (occupied-day mock blocks all).
+    // With computed availability, this triggers when the backend returns an empty availability map.
     await setupRescheduleNoAvailabilityMocks(page);
 
     await page.goto('/book-session?reschedule=800&subscription=11');
 
     await expect(page.getByText('Agenda tu sesión')).toBeVisible({ timeout: 10_000 });
 
-    // Click the target weekday on the calendar to set selectedDate
-    await page.getByText('Lun').waitFor({ state: 'visible', timeout: 10_000 });
-    // Navigate to next month if targetDay is not in the current calendar month
-    if (targetDay.getMonth() !== new Date().getMonth() || targetDay.getFullYear() !== new Date().getFullYear()) {
-      await page.getByRole('button', { name: 'Mes siguiente' }).click();
-    }
-    // quality: allow-fragile-selector (calendar grid uses CSS layout classes; last() targets the day-number grid vs the header row)
-    const calendarGrid = page.locator('.grid.grid-cols-7').last();
-    await calendarGrid.getByRole('button', { name: targetDayNum, exact: true }).click();
-
-    await expect(page.getByText('Por el momento no hay disponibilidad horaria.')).toBeVisible({ timeout: 10_000 });
+    // The no-availability message appears immediately when availability loads as empty
+    await expect(page.getByText(/Por el momento no hay disponibilidad horaria/)).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole('link', { name: '+57 301 4645272' })).toBeVisible();
   });
 });

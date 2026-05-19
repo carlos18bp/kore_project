@@ -1,18 +1,24 @@
 """Tests for the clinical alert engine (pure functions only)."""
 
+import pytest
 from datetime import date
 
 from core_app.services.clinical_alert_engine import (
     EVAL_THRESHOLDS,
+    detect_anthropometry_critical,
     detect_expired_evaluations,
     detect_nutritional_deficit,
+    detect_nutrition_habits_specific,
+    detect_parq_high_risk,
+    detect_physical_low_fitness,
     detect_postural_exercise_conflict,
+    detect_posturometry_multiple_alterations,
 )
 
 
 def _all_recent(today, override_module=None, override_date=None):
     """Helper: build a full 5-module dict with a very recent date, optionally overriding one."""
-    recent = date.fromordinal(today.toordinal() - 5)  # 5 days ago → never expired
+    recent = date.fromordinal(today.toordinal() - 5)  # 5 days ago -> never expired
     base = {m: recent for m in ('anthropometry', 'posturometry', 'physical', 'parq', 'nutrition')}
     if override_module is not None:
         base[override_module] = override_date
@@ -98,7 +104,7 @@ class TestDetectExpiredEvaluations:
     def test_empty_dict_returns_signals_for_all_modules(self):
         today = date(2026, 5, 5)
         signals = detect_expired_evaluations({}, today)
-        # All 5 modules have no date → one 'medio' signal each
+        # All 5 modules have no date -> one 'medio' signal each
         assert len(signals) == len(EVAL_THRESHOLDS)
         assert all(s['severity'] == 'medio' for s in signals)
 
@@ -114,7 +120,7 @@ class TestDetectPosturalExerciseConflict:
     def test_risky_segment_but_no_high_load_exercise_returns_none(self):
         result = detect_postural_exercise_conflict(
             postural_findings=['columna_lumbar'],
-            exercise_names=['curl de bíceps', 'extensión de tríceps'],
+            exercise_names=['curl de biceps', 'extension de triceps'],
         )
         assert result is None
 
@@ -183,7 +189,7 @@ class TestDetectNutritionalDeficit:
         assert result['severity'] == 'medio'
 
     def test_score_between_2_5_and_4_improving_returns_none(self):
-        # 3.5 with previous 2.5 → improving → no signal
+        # 3.5 with previous 2.5 -> improving -> no signal
         result = detect_nutritional_deficit(3.5, 2.5)
         assert result is None
 
@@ -203,4 +209,482 @@ class TestDetectNutritionalDeficit:
 
     def test_critical_label_in_detail_for_below_2_5(self):
         result = detect_nutritional_deficit(2.0, None)
-        assert 'crítico' in result['label'].lower() or '2.0' in result['label']
+        assert 'critico' in result['label'].lower() or '2.0' in result['label']
+
+
+# ---- New tests for previously-uncovered pure functions ----
+
+class TestDetectAnthropometryCritical:
+    _check_date = date(2026, 4, 1)
+
+    def _call(self, bmi=24.0, bmi_category='Normal', bf_color='verde',
+              waist_risk_color='verde', whr_color='verde', whe_color='verde',
+              check_date=None):
+        return detect_anthropometry_critical(
+            bmi=bmi,
+            bmi_category=bmi_category,
+            bf_color=bf_color,
+            waist_risk_color=waist_risk_color,
+            whr_color=whr_color,
+            whe_color=whe_color,
+            eval_date=check_date if check_date is not None else self._check_date,
+        )
+
+    def test_bmi_gte_30_returns_obesity_signal(self):
+        signals = self._call(bmi=31.0, bmi_category='Obesidad I')
+        types = [s['type'] for s in signals]
+        assert 'anthropometry_obesity' in types
+
+    def test_bmi_gte_35_returns_alto_severity(self):
+        signals = self._call(bmi=36.0, bmi_category='Obesidad II')
+        obesity = [s for s in signals if s['type'] == 'anthropometry_obesity']
+        assert obesity[0]['severity'] == 'alto'
+
+    def test_bmi_between_30_and_35_returns_medio_severity(self):
+        signals = self._call(bmi=32.0, bmi_category='Obesidad I')
+        obesity = [s for s in signals if s['type'] == 'anthropometry_obesity']
+        assert obesity[0]['severity'] == 'medio'
+
+    def test_bmi_none_does_not_produce_obesity_signal(self):
+        signals = self._call(bmi=None)
+        types = [s['type'] for s in signals]
+        assert 'anthropometry_obesity' not in types
+
+    def test_bmi_lt_30_no_obesity_signal(self):
+        signals = self._call(bmi=24.5)
+        types = [s['type'] for s in signals]
+        assert 'anthropometry_obesity' not in types
+
+    def test_critical_body_fat_color_rojo_produces_signal(self):
+        signals = self._call(bf_color='rojo')
+        types = [s['type'] for s in signals]
+        assert 'anthropometry_body_fat_critical' in types
+
+    def test_normal_body_fat_no_bf_signal(self):
+        signals = self._call(bf_color='verde')
+        types = [s['type'] for s in signals]
+        assert 'anthropometry_body_fat_critical' not in types
+
+    def test_waist_risk_color_rojo_produces_signal(self):
+        signals = self._call(waist_risk_color='rojo')
+        types = [s['type'] for s in signals]
+        assert 'anthropometry_waist_risk' in types
+
+    def test_whr_color_rojo_produces_waist_signal(self):
+        signals = self._call(whr_color='rojo')
+        types = [s['type'] for s in signals]
+        assert 'anthropometry_waist_risk' in types
+
+    def test_whe_color_rojo_produces_waist_signal(self):
+        signals = self._call(whe_color='rojo')
+        types = [s['type'] for s in signals]
+        assert 'anthropometry_waist_risk' in types
+
+    def test_all_normal_returns_empty_list(self):
+        signals = self._call()
+        assert signals == []
+
+    def test_check_date_included_in_obesity_signal(self):
+        signals = self._call(bmi=31.0, bmi_category='Obesidad I')
+        obesity = [s for s in signals if s['type'] == 'anthropometry_obesity']
+        assert obesity[0]['last_eval_date'] == self._check_date.isoformat()
+
+    def test_none_check_date_sets_last_eval_date_none(self):
+        signals = detect_anthropometry_critical(
+            bmi=31.0, bmi_category='Obesidad I',
+            bf_color='verde', waist_risk_color='verde',
+            whr_color='verde', whe_color='verde',
+            eval_date=None,
+        )
+        obesity = [s for s in signals if s['type'] == 'anthropometry_obesity']
+        assert obesity[0]['last_eval_date'] is None
+
+    def test_multiple_signals_returned_together(self):
+        """BMI obesity + critical BF + waist risk can all fire at once."""
+        signals = self._call(
+            bmi=36.0, bmi_category='Obesidad II',
+            bf_color='rojo', waist_risk_color='rojo',
+        )
+        types = [s['type'] for s in signals]
+        assert 'anthropometry_obesity' in types
+        assert 'anthropometry_body_fat_critical' in types
+        assert 'anthropometry_waist_risk' in types
+
+
+class TestDetectPosturometryMultipleAlterations:
+    _check_date = date(2026, 4, 1)
+
+    def _make_scores(self, altered_count, total=6):
+        """Build segment_scores dict with `altered_count` altered segments (score < 3)."""
+        scores = {}
+        for i in range(total):
+            name = f'segment_{i}'
+            scores[name] = {'score': 1 if i < altered_count else 3}
+        return scores
+
+    def test_three_altered_segments_returns_signal(self):
+        scores = self._make_scores(3)
+        result = detect_posturometry_multiple_alterations(scores, {}, self._check_date)
+        assert result is not None
+        assert result['type'] == 'posturometry_multiple_alterations'
+
+    def test_two_altered_segments_returns_none(self):
+        scores = self._make_scores(2)
+        result = detect_posturometry_multiple_alterations(scores, {}, self._check_date)
+        assert result is None
+
+    def test_five_altered_segments_returns_alto_severity(self):
+        scores = self._make_scores(5)
+        result = detect_posturometry_multiple_alterations(scores, {}, self._check_date)
+        assert result is not None
+        assert result['severity'] == 'alto'
+
+    def test_three_altered_segments_returns_medio_severity(self):
+        scores = self._make_scores(3)
+        result = detect_posturometry_multiple_alterations(scores, {}, self._check_date)
+        assert result['severity'] == 'medio'
+
+    def test_empty_scores_and_findings_returns_none(self):
+        result = detect_posturometry_multiple_alterations({}, {}, self._check_date)
+        assert result is None
+
+    def test_falls_back_to_findings_when_scores_empty(self):
+        """When segment_scores is empty, findings dict is used as fallback."""
+        findings = {
+            'anterior': ['segment_a', 'segment_b', 'segment_c'],
+        }
+        result = detect_posturometry_multiple_alterations({}, findings, self._check_date)
+        assert result is not None
+
+    def test_findings_with_dict_items(self):
+        """Findings with dict items (segment key) also count."""
+        findings = {
+            'lateral': [
+                {'segment': 'columna_vertebral'},
+                {'segment': 'rodillas'},
+                {'segment': 'hombros'},
+            ],
+        }
+        result = detect_posturometry_multiple_alterations({}, findings, self._check_date)
+        assert result is not None
+
+    def test_check_date_in_signal(self):
+        scores = self._make_scores(3)
+        result = detect_posturometry_multiple_alterations(scores, {}, self._check_date)
+        assert result['last_eval_date'] == self._check_date.isoformat()
+
+    def test_none_check_date_sets_none(self):
+        scores = self._make_scores(3)
+        result = detect_posturometry_multiple_alterations(scores, {}, None)
+        assert result['last_eval_date'] is None
+
+
+class TestDetectPhysicalLowFitness:
+    _check_date = date(2026, 4, 1)
+
+    def test_none_general_index_returns_none(self):
+        assert detect_physical_low_fitness(None, '', self._check_date) is None
+
+    def test_index_above_1_5_returns_none(self):
+        assert detect_physical_low_fitness(2.0, 'Normal', self._check_date) is None
+
+    def test_index_exactly_1_5_returns_signal(self):
+        result = detect_physical_low_fitness(1.5, 'Muy bajo', self._check_date)
+        assert result is not None
+        assert result['type'] == 'physical_low_fitness'
+
+    def test_index_below_1_5_returns_signal(self):
+        result = detect_physical_low_fitness(1.2, 'Muy bajo', self._check_date)
+        assert result is not None
+
+    def test_index_lte_1_0_returns_alto_severity(self):
+        result = detect_physical_low_fitness(0.8, 'Critico', self._check_date)
+        assert result['severity'] == 'alto'
+
+    def test_index_between_1_0_and_1_5_returns_medio_severity(self):
+        result = detect_physical_low_fitness(1.3, 'Muy bajo', self._check_date)
+        assert result['severity'] == 'medio'
+
+    def test_signal_includes_module_physical(self):
+        result = detect_physical_low_fitness(1.0, 'Muy bajo', self._check_date)
+        assert result['module'] == 'physical'
+
+    def test_check_date_included_in_signal(self):
+        result = detect_physical_low_fitness(1.0, 'Muy bajo', self._check_date)
+        assert result['last_eval_date'] == self._check_date.isoformat()
+
+    def test_none_check_date_sets_none_last_eval(self):
+        result = detect_physical_low_fitness(1.0, 'Muy bajo', None)
+        assert result['last_eval_date'] is None
+
+    def test_general_category_in_label(self):
+        result = detect_physical_low_fitness(1.0, 'Muy bajo', self._check_date)
+        assert 'Muy bajo' in result['label']
+
+
+class TestDetectParqHighRisk:
+    _check_date = date(2026, 4, 1)
+
+    def _call(self, yes_count=0, q1=False, q2=False, q3=False, q7=False, classification=''):
+        return detect_parq_high_risk(
+            yes_count=yes_count,
+            q1_heart=q1,
+            q2_chest=q2,
+            q3_dizziness=q3,
+            q7_medical_supervision=q7,
+            risk_classification=classification,
+            eval_date=self._check_date,
+        )
+
+    def test_yes_count_zero_returns_none(self):
+        assert self._call(yes_count=0) is None
+
+    def test_yes_count_2_no_critical_returns_none(self):
+        assert self._call(yes_count=2) is None
+
+    def test_yes_count_gte_3_returns_signal(self):
+        result = self._call(yes_count=3)
+        assert result is not None
+        assert result['type'] == 'parq_high_risk'
+
+    def test_yes_count_gte_3_returns_alto_severity(self):
+        result = self._call(yes_count=3)
+        assert result['severity'] == 'alto'
+
+    def test_q1_heart_critical_returns_signal(self):
+        result = self._call(yes_count=1, q1=True)
+        assert result is not None
+
+    def test_q1_alone_returns_medio_severity(self):
+        # Only q1 is critical but severity logic: q1 alone -> medio (not q2/q3/q7)
+        result = self._call(yes_count=1, q1=True)
+        assert result['severity'] == 'medio'
+
+    def test_q2_chest_critical_returns_signal(self):
+        result = self._call(yes_count=1, q2=True)
+        assert result is not None
+
+    def test_q2_chest_returns_alto_severity(self):
+        result = self._call(yes_count=1, q2=True)
+        assert result['severity'] == 'alto'
+
+    def test_q3_dizziness_returns_signal(self):
+        result = self._call(yes_count=1, q3=True)
+        assert result is not None
+
+    def test_q7_medical_supervision_returns_signal(self):
+        result = self._call(yes_count=1, q7=True)
+        assert result is not None
+
+    def test_risk_classification_in_detail(self):
+        result = self._call(yes_count=3, classification='Alto riesgo')
+        assert 'Alto riesgo' in result['detail']
+
+    def test_signal_module_is_parq(self):
+        result = self._call(yes_count=3)
+        assert result['module'] == 'parq'
+
+    def test_check_date_in_signal(self):
+        result = self._call(yes_count=3)
+        assert result['last_eval_date'] == self._check_date.isoformat()
+
+    def test_none_check_date_handled(self):
+        result = detect_parq_high_risk(
+            yes_count=3,
+            q1_heart=False,
+            q2_chest=False,
+            q3_dizziness=False,
+            q7_medical_supervision=False,
+            risk_classification='',
+            eval_date=None,
+        )
+        assert result['last_eval_date'] is None
+
+
+class TestDetectNutritionHabitsSpecific:
+    _check_date = date(2026, 4, 1)
+
+    def _call(self, ultraprocessed=None, water=None, breakfast=None, sugary=None):
+        return detect_nutrition_habits_specific(
+            ultraprocessed_weekly=ultraprocessed,
+            water_liters=water,
+            eats_breakfast=breakfast,
+            sugary_drinks_weekly=sugary,
+            eval_date=self._check_date,
+        )
+
+    def test_all_none_returns_empty_list(self):
+        assert self._call() == []
+
+    def test_all_normal_returns_empty_list(self):
+        result = self._call(ultraprocessed=5, water=2.0, breakfast=True, sugary=3)
+        assert result == []
+
+    def test_ultraprocessed_gt_7_returns_signal(self):
+        result = self._call(ultraprocessed=8)
+        types = [s['type'] for s in result]
+        assert 'nutrition_ultraprocessed_high' in types
+
+    def test_ultraprocessed_gt_14_returns_alto_severity(self):
+        result = self._call(ultraprocessed=15)
+        signal = next(s for s in result if s['type'] == 'nutrition_ultraprocessed_high')
+        assert signal['severity'] == 'alto'
+
+    def test_ultraprocessed_between_8_and_14_returns_medio_severity(self):
+        result = self._call(ultraprocessed=10)
+        signal = next(s for s in result if s['type'] == 'nutrition_ultraprocessed_high')
+        assert signal['severity'] == 'medio'
+
+    def test_ultraprocessed_exactly_7_no_signal(self):
+        result = self._call(ultraprocessed=7)
+        types = [s['type'] for s in result]
+        assert 'nutrition_ultraprocessed_high' not in types
+
+    def test_water_lt_1_returns_signal(self):
+        result = self._call(water=0.5)
+        types = [s['type'] for s in result]
+        assert 'nutrition_low_water' in types
+
+    def test_water_exactly_1_no_signal(self):
+        result = self._call(water=1.0)
+        types = [s['type'] for s in result]
+        assert 'nutrition_low_water' not in types
+
+    def test_water_none_no_signal(self):
+        result = self._call(water=None)
+        types = [s['type'] for s in result]
+        assert 'nutrition_low_water' not in types
+
+    def test_skips_breakfast_false_returns_signal(self):
+        result = self._call(breakfast=False)
+        types = [s['type'] for s in result]
+        assert 'nutrition_skips_breakfast' in types
+
+    def test_eats_breakfast_true_no_signal(self):
+        result = self._call(breakfast=True)
+        types = [s['type'] for s in result]
+        assert 'nutrition_skips_breakfast' not in types
+
+    def test_eats_breakfast_none_no_signal(self):
+        result = self._call(breakfast=None)
+        types = [s['type'] for s in result]
+        assert 'nutrition_skips_breakfast' not in types
+
+    def test_sugary_drinks_gt_7_returns_signal(self):
+        result = self._call(sugary=8)
+        types = [s['type'] for s in result]
+        assert 'nutrition_sugary_drinks_high' in types
+
+    def test_sugary_drinks_exactly_7_no_signal(self):
+        result = self._call(sugary=7)
+        types = [s['type'] for s in result]
+        assert 'nutrition_sugary_drinks_high' not in types
+
+    def test_sugary_drinks_none_no_signal(self):
+        result = self._call(sugary=None)
+        types = [s['type'] for s in result]
+        assert 'nutrition_sugary_drinks_high' not in types
+
+    def test_multiple_signals_all_bad(self):
+        result = self._call(ultraprocessed=10, water=0.5, breakfast=False, sugary=10)
+        assert len(result) == 4
+
+    def test_check_date_in_signals(self):
+        result = self._call(ultraprocessed=10)
+        assert result[0]['last_eval_date'] == self._check_date.isoformat()
+
+    def test_none_check_date_sets_none(self):
+        result = detect_nutrition_habits_specific(
+            ultraprocessed_weekly=10,
+            water_liters=None,
+            eats_breakfast=None,
+            sugary_drinks_weekly=None,
+            eval_date=None,
+        )
+        assert result[0]['last_eval_date'] is None
+
+
+class TestDetectNutritionalDeficitAdditional:
+    """Additional edge cases not covered by TestDetectNutritionalDeficit."""
+
+    def test_habit_score_exactly_2_5_triggers_warning_not_critical(self):
+        # 2.5 is NOT < 2.5, so goes to the 2.5-4.0 range without improvement
+        result = detect_nutritional_deficit(2.5, None)
+        assert result is not None
+        assert result['severity'] == 'bajo'
+
+    def test_habit_score_exactly_4_0_returns_none(self):
+        assert detect_nutritional_deficit(4.0, None) is None
+
+    def test_improving_score_in_range_returns_none(self):
+        # 3.0 with previous 2.0 -> improving -> no signal
+        assert detect_nutritional_deficit(3.0, 2.0) is None
+
+    def test_regressing_score_returns_signal(self):
+        # 3.0 with previous 4.0 -> not improving -> signal
+        result = detect_nutritional_deficit(3.0, 4.0)
+        assert result is not None
+
+    def test_score_above_4_always_none_regardless_of_previous(self):
+        assert detect_nutritional_deficit(5.0, 3.0) is None
+
+
+# ---- ORM orchestrator tests ----
+
+@pytest.mark.django_db
+class TestComputeClinicalSignals:
+    def test_customer_with_no_evaluations_returns_list(self):
+        """No evaluations -> expired signals returned, no exception raised."""
+        from datetime import date
+        from core_app.models import User
+        from core_app.services.clinical_alert_engine import compute_clinical_signals
+
+        customer = User.objects.create_user(
+            email='test_clinical_no_evals@example.com',
+            password='testpass',
+            role=User.Role.CUSTOMER,
+        )
+        today = date(2026, 5, 15)
+
+        result = compute_clinical_signals(customer, None, today)
+
+        assert isinstance(result, list)
+        # With no evaluations, we expect expired signals for all 5 modules
+        assert len(result) > 0
+        types = [s['type'] for s in result]
+        assert any(t.startswith('expired_') for t in types)
+
+    def test_customer_with_anthro_evaluation_returns_list(self):
+        """Customer with anthropometry evaluation -> function returns list without exception."""
+        from datetime import date
+        from core_app.models import User
+        from core_app.models.anthropometry import AnthropometryEvaluation
+        from core_app.services.clinical_alert_engine import compute_clinical_signals
+
+        customer = User.objects.create_user(
+            email='test_clinical_with_anthro@example.com',
+            password='testpass',
+            role=User.Role.CUSTOMER,
+        )
+        today = date(2026, 5, 15)
+
+        # Create an anthropometry evaluation to exercise the anthro branch
+        AnthropometryEvaluation.objects.create(
+            customer=customer,
+            evaluation_date=today,
+            weight_kg=75,
+            height_cm=170,
+            bmi=25.99,
+            bmi_category='Normal',
+            bf_color='verde',
+            waist_risk_color='verde',
+            whr_color='verde',
+            whe_color='verde',
+        )
+
+        result = compute_clinical_signals(customer, None, today)
+
+        assert isinstance(result, list)
+        # anthropometry signal should NOT include obesity (bmi < 30)
+        anthro_obesity = [s for s in result if s['type'] == 'anthropometry_obesity']
+        assert anthro_obesity == []

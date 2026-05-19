@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 
-from core_app.models import AvailabilitySlot, Booking, Package, Payment, User
+from core_app.models import Booking, Package, Payment, User
 from core_app.tests.helpers import get_results
 
 FIXED_NOW = timezone.make_aware(datetime(2024, 1, 15, 10, 0, 0))
@@ -31,10 +31,10 @@ def booking(db, customer):
     """Create a booking fixture that can be paid through the API."""
     pkg = Package.objects.create(title='Pkg', price=Decimal('100000.00'))
     now = FIXED_NOW
-    slot = AvailabilitySlot.objects.create(
+    return Booking.objects.create(
+        customer=customer, package=pkg,
         starts_at=now + timedelta(hours=1), ends_at=now + timedelta(hours=2),
     )
-    return Booking.objects.create(customer=customer, package=pkg, slot=slot)
 
 
 @pytest.mark.django_db
@@ -74,10 +74,10 @@ def test_payment_list_returns_only_own_for_customer(api_client, customer, other_
 
     now = FIXED_NOW
     pkg2 = Package.objects.create(title='Pkg2')
-    slot2 = AvailabilitySlot.objects.create(
+    b2 = Booking.objects.create(
+        customer=other_customer, package=pkg2,
         starts_at=now + timedelta(hours=3), ends_at=now + timedelta(hours=4),
     )
-    b2 = Booking.objects.create(customer=other_customer, package=pkg2, slot=slot2)
     Payment.objects.create(booking=b2, customer=other_customer, amount=Decimal('50000.00'))
 
     api_client.force_authenticate(user=customer)
@@ -94,10 +94,10 @@ def test_payment_list_returns_all_for_admin(api_client, admin_user, customer, ot
 
     now = FIXED_NOW
     pkg2 = Package.objects.create(title='Pkg2')
-    slot2 = AvailabilitySlot.objects.create(
+    b2 = Booking.objects.create(
+        customer=other_customer, package=pkg2,
         starts_at=now + timedelta(hours=3), ends_at=now + timedelta(hours=4),
     )
-    b2 = Booking.objects.create(customer=other_customer, package=pkg2, slot=slot2)
     Payment.objects.create(booking=b2, customer=other_customer, amount=Decimal('50000.00'))
 
     api_client.force_authenticate(user=admin_user)

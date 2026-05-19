@@ -63,7 +63,7 @@ test.describe('Customer Diagnosis Page', { tag: [...FlowTags.CUSTOMER_DIAGNOSIS,
   test('renders trainer notes when present', async ({ page }) => {
     await goToDiagnosisWithData(page);
 
-    await expect(page.getByText('Tu entrenador dice')).toBeVisible();
+    await expect(page.getByText('Notas de tu trainer')).toBeVisible();
     await expect(page.getByText(/Buen progreso en masa muscular/)).toBeVisible();
   });
 

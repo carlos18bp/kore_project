@@ -15,7 +15,7 @@ from .auth_views import (
     weight_view,
 )
 from .analytics_views import AnalyticsEventViewSet
-from .availability_views import AvailabilitySlotViewSet
+from .availability_views import AvailabilityView
 from .booking_views import BookingViewSet
 from .content_views import (
     ContactMessageViewSet,
@@ -32,7 +32,7 @@ from .admin_user_views import AdminUserViewSet
 
 __all__ = [
     'AnalyticsEventViewSet',
-    'AvailabilitySlotViewSet',
+    'AvailabilityView',
     'BookingViewSet',
     'ContactMessageViewSet',
     'FAQCategoryViewSet',

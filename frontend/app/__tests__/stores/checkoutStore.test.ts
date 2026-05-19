@@ -549,7 +549,9 @@ describe('checkoutStore', () => {
       mockedApi.get.mockResolvedValue({ data: MOCK_INTENT_PENDING });
 
       const promise = useCheckoutStore.getState().pollIntentStatus('ref-timeout-001');
-      for (let i = 0; i < 30; i += 1) {
+      // POLL_MAX_ATTEMPTS = 45 (90s window: wide enough for slow Bancolombia
+      // webhooks but bounded to avoid hanging the UI indefinitely).
+      for (let i = 0; i < 45; i += 1) {
         await jest.advanceTimersByTimeAsync(2000);
       }
       const result = await promise;
@@ -557,7 +559,10 @@ describe('checkoutStore', () => {
       expect(result).toBe(false);
       const state = useCheckoutStore.getState();
       expect(state.paymentStatus).toBe('error');
-      expect(state.error).toBe('El pago está tardando más de lo esperado. Revisa tu estado en unos minutos.');
+      // Soft-timeout message: previous "está tardando más" hard-fail was
+      // replaced with a reassuring follow-up since Wompi may still finish
+      // processing asynchronously via webhook.
+      expect(state.error).toMatch(/Te enviaremos un correo en cuanto se complete/);
     });
   });
 
@@ -883,96 +888,9 @@ describe('checkoutStore', () => {
     });
   });
 
-  // ----------------------------------------------------------------
-  // purchaseWithNequi
-  // ----------------------------------------------------------------
-  describe('purchaseWithNequi', () => {
-    it('creates intent and polls until approved', async () => {
-      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
-      mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
-
-      const promise = useCheckoutStore.getState().purchaseWithNequi(1, '3001234567');
-      await jest.advanceTimersByTimeAsync(0);
-      expect(useCheckoutStore.getState().paymentStatus).toBe('polling');
-
-      await jest.advanceTimersByTimeAsync(2000);
-      const result = await promise;
-
-      expect(result).toBe(true);
-      expect(useCheckoutStore.getState().paymentStatus).toBe('success');
-    });
-
-    it('sends correct payload with NEQUI payment method', async () => {
-      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
-      mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
-
-      const promise = useCheckoutStore.getState().purchaseWithNequi(1, '3001234567');
-      await jest.advanceTimersByTimeAsync(2000);
-      await promise;
-
-      expect(mockedApi.post).toHaveBeenCalledWith(
-        '/subscriptions/purchase-alternative/',
-        { package_id: 1, payment_method: 'NEQUI', phone_number: '3001234567' },
-        { headers: { Authorization: 'Bearer fake-token' } },
-      );
-    });
-
-    it('includes registration token when provided', async () => {
-      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
-      mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
-
-      const promise = useCheckoutStore.getState().purchaseWithNequi(1, '3001234567', 'reg-nequi');
-      await jest.advanceTimersByTimeAsync(2000);
-      await promise;
-
-      expect(mockedApi.post).toHaveBeenCalledWith(
-        '/subscriptions/purchase-alternative/',
-        { package_id: 1, payment_method: 'NEQUI', phone_number: '3001234567', registration_token: 'reg-nequi' },
-        { headers: { Authorization: 'Bearer fake-token' } },
-      );
-    });
-
-    it('omits auth header when token is missing', async () => {
-      mockedCookies.get.mockReturnValue(undefined);
-      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
-      mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
-
-      const promise = useCheckoutStore.getState().purchaseWithNequi(1, '3001234567');
-      await jest.advanceTimersByTimeAsync(2000);
-      await promise;
-
-      expect(mockedApi.post).toHaveBeenCalledWith(
-        '/subscriptions/purchase-alternative/',
-        expect.any(Object),
-        undefined,
-      );
-    });
-
-    it('sets error from API detail on failure', async () => {
-      const axiosError = new AxiosError('fail', '400', undefined, undefined, {
-        data: { detail: 'Nequi rechazado.' },
-        status: 400,
-        statusText: 'Bad Request',
-        headers: {},
-        config: { headers: new AxiosHeaders() },
-      });
-      mockedApi.post.mockRejectedValueOnce(axiosError);
-
-      const result = await useCheckoutStore.getState().purchaseWithNequi(1, '3001234567');
-
-      expect(result).toBe(false);
-      expect(useCheckoutStore.getState().paymentStatus).toBe('error');
-      expect(useCheckoutStore.getState().error).toBe('Nequi rechazado.');
-    });
-
-    it('uses generic error when no detail in response', async () => {
-      mockedApi.post.mockRejectedValueOnce(new Error('Network'));
-      const result = await useCheckoutStore.getState().purchaseWithNequi(1, '3001234567');
-
-      expect(result).toBe(false);
-      expect(useCheckoutStore.getState().error).toBe('Error al procesar el pago con Nequi.');
-    });
-  });
+  // purchaseWithNequi is now a 2-step Wompi-aligned flow
+  // (start → confirm → poll). Full coverage lives in
+  // checkoutStore.nequi.test.ts to keep this monolithic suite focused.
 
   // ----------------------------------------------------------------
   // purchaseWithPSE
@@ -1084,105 +1002,10 @@ describe('checkoutStore', () => {
     });
   });
 
-  // ----------------------------------------------------------------
-  // purchaseWithBancolombia
-  // ----------------------------------------------------------------
-  describe('purchaseWithBancolombia', () => {
-    it('redirects when response includes redirect_url', async () => {
-      const intentWithRedirect = {
-        ...MOCK_INTENT_PENDING,
-        redirect_url: 'https://bancolombia.example.com/pay',
-      };
-      mockedApi.post.mockResolvedValueOnce({ data: intentWithRedirect });
-
-      const result = await useCheckoutStore.getState().purchaseWithBancolombia(1);
-
-      expect(result).toBe(true);
-      expect(useCheckoutStore.getState().redirectUrl).toBe('https://bancolombia.example.com/pay');
-    });
-
-    it('polls when response has no redirect_url', async () => {
-      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
-      mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
-
-      const promise = useCheckoutStore.getState().purchaseWithBancolombia(1);
-      await jest.advanceTimersByTimeAsync(2000);
-      const result = await promise;
-
-      expect(result).toBe(true);
-      expect(useCheckoutStore.getState().paymentStatus).toBe('success');
-    });
-
-    it('sends correct payload with BANCOLOMBIA_TRANSFER method', async () => {
-      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
-      mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
-
-      const promise = useCheckoutStore.getState().purchaseWithBancolombia(1);
-      await jest.advanceTimersByTimeAsync(2000);
-      await promise;
-
-      expect(mockedApi.post).toHaveBeenCalledWith(
-        '/subscriptions/purchase-alternative/',
-        { package_id: 1, payment_method: 'BANCOLOMBIA_TRANSFER' },
-        { headers: { Authorization: 'Bearer fake-token' } },
-      );
-    });
-
-    it('includes registration token when provided', async () => {
-      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
-      mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
-
-      const promise = useCheckoutStore.getState().purchaseWithBancolombia(1, 'reg-banco');
-      await jest.advanceTimersByTimeAsync(2000);
-      await promise;
-
-      expect(mockedApi.post).toHaveBeenCalledWith(
-        '/subscriptions/purchase-alternative/',
-        { package_id: 1, payment_method: 'BANCOLOMBIA_TRANSFER', registration_token: 'reg-banco' },
-        { headers: { Authorization: 'Bearer fake-token' } },
-      );
-    });
-
-    it('omits auth header when token is missing', async () => {
-      mockedCookies.get.mockReturnValue(undefined);
-      mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
-      mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
-
-      const promise = useCheckoutStore.getState().purchaseWithBancolombia(1);
-      await jest.advanceTimersByTimeAsync(2000);
-      await promise;
-
-      expect(mockedApi.post).toHaveBeenCalledWith(
-        '/subscriptions/purchase-alternative/',
-        expect.any(Object),
-        undefined,
-      );
-    });
-
-    it('sets error from API detail on failure', async () => {
-      const axiosError = new AxiosError('fail', '400', undefined, undefined, {
-        data: { detail: 'Bancolombia rechazado.' },
-        status: 400,
-        statusText: 'Bad Request',
-        headers: {},
-        config: { headers: new AxiosHeaders() },
-      });
-      mockedApi.post.mockRejectedValueOnce(axiosError);
-
-      const result = await useCheckoutStore.getState().purchaseWithBancolombia(1);
-
-      expect(result).toBe(false);
-      expect(useCheckoutStore.getState().error).toBe('Bancolombia rechazado.');
-    });
-
-    it('uses generic error when no detail in response', async () => {
-      mockedApi.post.mockRejectedValueOnce(new Error('Network'));
-      const result = await useCheckoutStore.getState().purchaseWithBancolombia(1);
-
-      expect(result).toBe(false);
-      expect(useCheckoutStore.getState().error).toBe('Error al procesar el pago con Bancolombia.');
-    });
-  });
+  // purchaseWithBancolombia was replaced by startBancolombiaPurchase +
+  // confirmBancolombiaPurchase to match Wompi's tokenization flow
+  // (POST /tokens/bancolombia_transfer → authorization_url → confirm).
+  // Coverage lives in checkoutStore.bancolombia.test.ts.
 
   // ----------------------------------------------------------------
   // reset
@@ -1254,8 +1077,8 @@ describe('checkoutStore', () => {
       expect(useCheckoutStore.getState().intentResult).toBeNull();
       expect(useCheckoutStore.getState().paymentStatus).toBe('idle');
 
-      // Run poll to timeout
-      for (let i = 0; i < 30; i += 1) {
+      // Run poll to timeout (POLL_MAX_ATTEMPTS = 45)
+      for (let i = 0; i < 45; i += 1) {
         await jest.advanceTimersByTimeAsync(2000);
       }
       await promise;

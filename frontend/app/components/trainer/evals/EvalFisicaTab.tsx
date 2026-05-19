@@ -954,12 +954,6 @@ export default function EvalFisicaTab({ clientId }: { clientId: number }) {
             <RatingScale label="Tobillo" value={form.ankle_mobility ?? 0} hint="Dorsiflex, eversión / inversión" onChange={v => set('ankle_mobility', v)} />
           </FormSection>
 
-          <NotesField
-            placeholder="Observaciones globales: nivel inicial, progresión esperada, contraindicaciones…"
-            value={form.notes}
-            onChange={v => set('notes', v)}
-          />
-
           <StickyFooter
             lastSaved={editMode === 'edit' && latest ? new Date(latest.created_at).toLocaleDateString('es-CO') : undefined}
             onSave={handleSave}

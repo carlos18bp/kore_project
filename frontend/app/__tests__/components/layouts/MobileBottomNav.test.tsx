@@ -5,9 +5,11 @@ import { usePendingAssessmentsStore } from '@/lib/stores/pendingAssessmentsStore
 import type { Subscription } from '@/lib/stores/bookingStore';
 
 let mockPathname = '/dashboard';
+const mockPush = jest.fn();
 
 jest.mock('next/navigation', () => ({
   usePathname: () => mockPathname,
+  useRouter: () => ({ push: mockPush }),
 }));
 
 jest.mock('next/link', () => ({
@@ -62,75 +64,75 @@ describe('MobileBottomNav', () => {
     expect(screen.queryByText('Agendar')).not.toBeInTheDocument();
   });
 
-  it('renders no sheet triggers', () => {
+  it('renders the Evaluaciones sheet trigger between Nutrición and Perfil', () => {
     render(<MobileBottomNav />);
-    expect(screen.queryByText('Evaluar')).not.toBeInTheDocument();
     expect(screen.queryByText('Más')).not.toBeInTheDocument();
+    expect(screen.getByText('Evaluaciones')).toBeInTheDocument();
   });
 
   it('highlights Inicio link when pathname is /dashboard', () => {
     mockPathname = '/dashboard';
     render(<MobileBottomNav />);
-    expect(screen.getByText('Inicio').closest('a')).toHaveClass('text-kore-red');
+    expect(screen.getByText('Inicio').closest('a')).toHaveClass("text-kore-gold");
   });
 
   it('highlights Programa link when pathname is /mi-programa', () => {
     mockPathname = '/mi-programa';
     render(<MobileBottomNav />);
-    expect(screen.getByText('Programa').closest('a')).toHaveClass('text-kore-red');
+    expect(screen.getByText('Programa').closest('a')).toHaveClass("text-kore-gold");
   });
 
   it('highlights Programa link when pathname starts with /mi-programa', () => {
     mockPathname = '/mi-programa/hoy';
     render(<MobileBottomNav />);
-    expect(screen.getByText('Programa').closest('a')).toHaveClass('text-kore-red');
+    expect(screen.getByText('Programa').closest('a')).toHaveClass("text-kore-gold");
   });
 
   it('highlights Nutrición link when pathname is /my-nutrition', () => {
     mockPathname = '/my-nutrition';
     render(<MobileBottomNav />);
-    expect(screen.getByText('Nutrición').closest('a')).toHaveClass('text-kore-red');
+    expect(screen.getByText('Nutrición').closest('a')).toHaveClass("text-kore-gold");
   });
 
   it('highlights Perfil link when pathname starts with /profile', () => {
     mockPathname = '/profile/edit';
     render(<MobileBottomNav />);
-    expect(screen.getByText('Perfil').closest('a')).toHaveClass('text-kore-red');
+    expect(screen.getByText('Perfil').closest('a')).toHaveClass("text-kore-gold");
   });
 
-  it('shows badge on Perfil when anthropometryUnseen is true', () => {
+  it('shows badge on Evaluaciones when anthropometryUnseen is true', () => {
     usePendingAssessmentsStore.setState({ anthropometryUnseen: true });
     render(<MobileBottomNav />);
-    const perfilLink = screen.getByText('Perfil').closest('a');
-    expect(perfilLink?.querySelector('.animate-pulse')).toBeInTheDocument();
+    const trigger = screen.getByText('Evaluaciones').closest('button');
+    expect(trigger?.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
-  it('shows badge on Perfil when posturometryUnseen is true', () => {
+  it('shows badge on Evaluaciones when posturometryUnseen is true', () => {
     usePendingAssessmentsStore.setState({ posturometryUnseen: true });
     render(<MobileBottomNav />);
-    const perfilLink = screen.getByText('Perfil').closest('a');
-    expect(perfilLink?.querySelector('.animate-pulse')).toBeInTheDocument();
+    const trigger = screen.getByText('Evaluaciones').closest('button');
+    expect(trigger?.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
-  it('shows badge on Perfil when physicalEvalUnseen is true', () => {
+  it('shows badge on Evaluaciones when physicalEvalUnseen is true', () => {
     usePendingAssessmentsStore.setState({ physicalEvalUnseen: true });
     render(<MobileBottomNav />);
-    const perfilLink = screen.getByText('Perfil').closest('a');
-    expect(perfilLink?.querySelector('.animate-pulse')).toBeInTheDocument();
+    const trigger = screen.getByText('Evaluaciones').closest('button');
+    expect(trigger?.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
-  it('shows badge on Perfil when nutritionDue is true', () => {
-    usePendingAssessmentsStore.setState({ nutritionDue: true });
-    render(<MobileBottomNav />);
-    const perfilLink = screen.getByText('Perfil').closest('a');
-    expect(perfilLink?.querySelector('.animate-pulse')).toBeInTheDocument();
-  });
-
-  it('shows badge on Perfil when parqDue is true', () => {
+  it('shows badge on Evaluaciones when parqDue is true', () => {
     usePendingAssessmentsStore.setState({ parqDue: true });
     render(<MobileBottomNav />);
-    const perfilLink = screen.getByText('Perfil').closest('a');
-    expect(perfilLink?.querySelector('.animate-pulse')).toBeInTheDocument();
+    const trigger = screen.getByText('Evaluaciones').closest('button');
+    expect(trigger?.querySelector('.animate-pulse')).toBeInTheDocument();
+  });
+
+  it('shows badge on Nutrición tab when nutritionDue is true', () => {
+    usePendingAssessmentsStore.setState({ nutritionDue: true });
+    render(<MobileBottomNav />);
+    const tab = screen.getByText('Nutrición').closest('a');
+    expect(tab?.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
   it('shows badge on Perfil when subscriptionExpiring is true', () => {
@@ -140,17 +142,19 @@ describe('MobileBottomNav', () => {
     expect(perfilLink?.querySelector('.animate-pulse')).toBeInTheDocument();
   });
 
-  it('shows no badge on Perfil when no items are pending', () => {
+  it('shows no badges when nothing is pending', () => {
     render(<MobileBottomNav />);
-    const perfilLink = screen.getByText('Perfil').closest('a');
-    expect(perfilLink?.querySelector('.animate-pulse')).not.toBeInTheDocument();
+    expect(screen.getByText('Perfil').closest('a')?.querySelector('.animate-pulse')).not.toBeInTheDocument();
+    expect(screen.getByText('Evaluaciones').closest('button')?.querySelector('.animate-pulse')).not.toBeInTheDocument();
+    expect(screen.getByText('Nutrición').closest('a')?.querySelector('.animate-pulse')).not.toBeInTheDocument();
   });
 
-  it('tabs other than Perfil have no badge even when items pending', () => {
+  it('keeps non-eval tabs unbadged when only eval items are pending', () => {
     usePendingAssessmentsStore.setState({ anthropometryUnseen: true });
     render(<MobileBottomNav />);
-    const inicioLink = screen.getByText('Inicio').closest('a');
-    expect(inicioLink?.querySelector('.animate-pulse')).not.toBeInTheDocument();
+    expect(screen.getByText('Inicio').closest('a')?.querySelector('.animate-pulse')).not.toBeInTheDocument();
+    expect(screen.getByText('Programa').closest('a')?.querySelector('.animate-pulse')).not.toBeInTheDocument();
+    expect(screen.getByText('Perfil').closest('a')?.querySelector('.animate-pulse')).not.toBeInTheDocument();
   });
 
   it('renders tabs as disabled (pointer-events-none) when subscription expired', () => {

@@ -7,7 +7,7 @@ import pytest
 from django.test import override_settings
 from django.utils import timezone
 
-from core_app.models import AvailabilitySlot, Booking, Package, TrainerProfile, User
+from core_app.models import Booking, Package, TrainerProfile, User
 from core_app.services.ics_generator import (
     _format_dt_bogota,
     _format_dt_utc,
@@ -54,13 +54,10 @@ def package(db):
 def booking_with_trainer(customer, package, trainer_profile):
     """Create a confirmed booking linked to a trainer for ICS content assertions."""
     now = FIXED_NOW
-    slot = AvailabilitySlot.objects.create(
+    return Booking.objects.create(
+        customer=customer, package=package,
         starts_at=now + timedelta(hours=25),
         ends_at=now + timedelta(hours=26),
-        trainer=trainer_profile,
-    )
-    return Booking.objects.create(
-        customer=customer, package=package, slot=slot,
         trainer=trainer_profile, status=Booking.Status.CONFIRMED,
     )
 
@@ -128,12 +125,10 @@ class TestIcsGenerator:
     def test_works_without_trainer(self, customer, package):
         """Generate a valid ICS payload even when booking has no trainer assigned."""
         now = FIXED_NOW
-        slot = AvailabilitySlot.objects.create(
+        booking = Booking.objects.create(
+            customer=customer, package=package,
             starts_at=now + timedelta(hours=25),
             ends_at=now + timedelta(hours=26),
-        )
-        booking = Booking.objects.create(
-            customer=customer, package=package, slot=slot,
             status=Booking.Status.CONFIRMED,
         )
         ics = generate_ics(booking).decode('utf-8')
@@ -166,12 +161,9 @@ class TestIcsGenerator:
         trainer_mock.user = trainer_user_mock
         trainer_mock.location = 'Gym A'
 
-        slot_mock = MagicMock()
-        slot_mock.starts_at = datetime(2024, 6, 1, 10, 0, tzinfo=dt_tz.utc)
-        slot_mock.ends_at = datetime(2024, 6, 1, 11, 0, tzinfo=dt_tz.utc)
-
         booking_mock = MagicMock()
-        booking_mock.slot = slot_mock
+        booking_mock.starts_at = datetime(2024, 6, 1, 10, 0, tzinfo=dt_tz.utc)
+        booking_mock.ends_at = datetime(2024, 6, 1, 11, 0, tzinfo=dt_tz.utc)
         booking_mock.trainer = trainer_mock
         booking_mock.customer = customer_mock
 
@@ -235,12 +227,10 @@ class TestGenerateCancellationIcs:
     def test_works_without_trainer(self, customer, package):
         """Generate valid cancellation ICS even when no trainer is assigned."""
         now = FIXED_NOW
-        slot = AvailabilitySlot.objects.create(
+        booking = Booking.objects.create(
+            customer=customer, package=package,
             starts_at=now + timedelta(hours=25),
             ends_at=now + timedelta(hours=26),
-        )
-        booking = Booking.objects.create(
-            customer=customer, package=package, slot=slot,
             status=Booking.Status.CANCELED,
         )
         ics = generate_cancellation_ics(booking).decode('utf-8')

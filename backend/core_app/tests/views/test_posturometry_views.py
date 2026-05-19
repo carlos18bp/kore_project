@@ -9,7 +9,6 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from core_app.models import (
-    AvailabilitySlot,
     Booking,
     Package,
     PosturometryEvaluation,
@@ -23,12 +22,10 @@ FIXED_NOW = datetime(2026, 6, 15, 12, 0, 0, tzinfo=dt_timezone.utc)
 def _make_booking(customer, trainer_profile):
     """Create a valid Booking with all required FKs."""
     pkg = Package.objects.create(title='Test', price=10000, sessions_count=4, category='personalizado')
-    slot = AvailabilitySlot.objects.create(
+    return Booking.objects.create(
+        customer=customer, package=pkg,
         starts_at=FIXED_NOW + timedelta(hours=1),
         ends_at=FIXED_NOW + timedelta(hours=2),
-    )
-    return Booking.objects.create(
-        customer=customer, package=pkg, slot=slot,
         trainer=trainer_profile, status='confirmed',
     )
 
@@ -274,11 +271,9 @@ class TestTrainerPosturometryListCreateNoProfile(TestCase):
         from core_app.models.trainer_profile import TrainerProfile as TP
         TP.objects.create(user=self.trainer_user, bio='t')
         pkg = Package.objects.create(title='T', price=10000, sessions_count=4, category='personalizado')
-        slot = AvailabilitySlot.objects.create(
-            starts_at=FIXED_NOW + timedelta(hours=1), ends_at=FIXED_NOW + timedelta(hours=2),
-        )
         Booking.objects.create(
-            customer=self.customer, package=pkg, slot=slot,
+            customer=self.customer, package=pkg,
+            starts_at=FIXED_NOW + timedelta(hours=1), ends_at=FIXED_NOW + timedelta(hours=2),
             trainer=self.trainer_user.trainer_profile, status='confirmed',
         )
         resp = self.client.post(

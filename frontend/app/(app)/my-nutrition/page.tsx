@@ -3,10 +3,16 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Camera, Check, X, Plus, Minus } from 'lucide-react';
+import { Sparkles, Camera, Check, X, Plus, Minus, MessageCircle } from 'lucide-react';
 import { useNutritionStore, type NutritionFormData, type NutritionHabit } from '@/lib/stores/nutritionStore';
 import { useNutritionDailyStore, type MealEntry } from '@/lib/stores/nutritionDailyStore';
 import { compressImage } from '@/lib/utils/compressImage';
+import { useIsMobileDevice } from '@/lib/utils/isMobileDevice';
+import CameraCapture from '@/app/components/nutrition-daily/CameraCapture';
+
+type CameraTarget =
+  | { kind: 'meal'; mealId: number; facing: 'environment' }
+  | { kind: 'water'; facing: 'user' };
 
 // ─── Macro ratios by program goal ─────────────────────────────────────────────
 // [protein%, carbs%, fat%] — used to estimate daily macro targets from kcal
@@ -698,21 +704,162 @@ function HabitsFormModal({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+// ─── Trainer note section — 4-col grid + paginated rows ─────────────────
+type TrainerNoteItem = {
+  id: number;
+  dateLabel: string;
+  rangeLabel?: string;
+  note: string;
+};
+function TrainerNoteSection({
+  label, items,
+}: {
+  label: string;
+  items: TrainerNoteItem[];
+}) {
+  const [extraRows, setExtraRows] = useState(0);
+  if (items.length === 0) return null;
+
+  const [current, ...history] = items;
+  const FIRST_ROW = 3;
+  const EXTRA_ROW = 4;
+
+  const firstRowHistory = history.slice(0, FIRST_ROW);
+  const additionalRows: TrainerNoteItem[][] = [];
+  let cursor = FIRST_ROW;
+  for (let r = 0; r < extraRows; r++) {
+    additionalRows.push(history.slice(cursor, cursor + EXTRA_ROW));
+    cursor += EXTRA_ROW;
+  }
+  const remaining = Math.max(0, history.length - cursor);
+
+  return (
+    <div className="mt-6 space-y-3">
+      <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-kore-gray-dark/45">
+        {label}
+      </p>
+
+      <div className="grid gap-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
+        {/* Card vigente (col 1) */}
+        <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-7 h-7 rounded-full bg-kore-red/10 flex items-center justify-center">
+              <MessageCircle className="w-3.5 h-3.5 text-kore-red" strokeWidth={2} />
+            </div>
+            <p className="text-[10.5px] font-semibold text-kore-gray-dark/50 uppercase tracking-[0.14em]">
+              Nota actual
+            </p>
+          </div>
+          <p className="text-[11px] text-kore-gray-dark/45 mb-2">
+            {current.rangeLabel ?? current.dateLabel}
+          </p>
+          <p className="text-sm text-kore-gray-dark/75 leading-relaxed whitespace-pre-wrap">
+            {current.note}
+          </p>
+        </div>
+
+        {/* Historial (cols 2-4 fila 1) */}
+        {firstRowHistory.map((h) => (
+          <div
+            key={h.id}
+            className="bg-white/55 backdrop-blur-sm rounded-2xl p-4 border border-white/50"
+          >
+            <p className="text-[10px] text-kore-gray-dark/45 uppercase tracking-wide mb-1">
+              {h.rangeLabel ?? h.dateLabel}
+            </p>
+            <p className="text-[13px] text-kore-gray-dark/75 leading-relaxed whitespace-pre-wrap line-clamp-4">
+              {h.note}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <AnimatePresence initial={false}>
+        {additionalRows.map((row, idx) => (
+          <motion.div
+            key={idx}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            className="grid gap-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
+          >
+            {row.map((h) => (
+              <div
+                key={h.id}
+                className="bg-white/55 backdrop-blur-sm rounded-2xl p-4 border border-white/50"
+              >
+                <p className="text-[10px] text-kore-gray-dark/45 uppercase tracking-wide mb-1">
+                  {h.rangeLabel ?? h.dateLabel}
+                </p>
+                <p className="text-[13px] text-kore-gray-dark/75 leading-relaxed whitespace-pre-wrap line-clamp-4">
+                  {h.note}
+                </p>
+              </div>
+            ))}
+          </motion.div>
+        ))}
+      </AnimatePresence>
+
+      {remaining > 0 && (
+        <div className="flex justify-center pt-1">
+          <button
+            type="button"
+            onClick={() => setExtraRows((n) => n + 1)}
+            className="px-4 py-2 rounded-full bg-white/70 border border-white/60 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-kore-wine-dark hover:bg-white/90 transition-colors"
+          >
+            Ver historial anterior ({remaining})
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatPlanRange(start: string, end: string): string {
+  const a = new Date(start + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+  const b = new Date(end + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
+  return `${a} → ${b}`;
+}
+
 export default function MyNutritionPage() {
   const [expandedMeal, setExpandedMeal] = useState<number | null>(null);
   const [uploadingMealId, setUploadingMealId] = useState<number | null>(null);
-  const [waterDrank, setWaterDrank] = useState(0);
+  const [waterUploading, setWaterUploading] = useState(false);
   const [habitsOpen, setHabitsOpen] = useState(false);
   const [showHabitsModal, setShowHabitsModal] = useState(false);
-  const { entries, fetchMyEntries } = useNutritionStore();
-  const { todayLog, loading: dailyLoading, fetchTodayLog, updateMealEntry, uploadMealPhoto } = useNutritionDailyStore();
+  const [cameraTarget, setCameraTarget] = useState<CameraTarget | null>(null);
+  const { entries, fetchMyEntries, weeklyPlans, fetchMyWeeklyPlans } = useNutritionStore();
+  const { todayLog, loading: dailyLoading, fetchTodayLog, updateMealEntry, uploadMealPhoto, logWaterGlass } = useNutritionDailyStore();
+  const isMobile = useIsMobileDevice();
+  const waterDrank = todayLog?.water_glasses?.length ?? 0;
 
   useEffect(() => {
     fetchTodayLog();
     fetchMyEntries();
-  }, [fetchTodayLog, fetchMyEntries]);
+    fetchMyWeeklyPlans();
+  }, [fetchTodayLog, fetchMyEntries, fetchMyWeeklyPlans]);
 
   const latest = entries[0] ?? null;
+
+  // Trainer-note items for the customer view (current + history)
+  const planNoteItems: TrainerNoteItem[] = weeklyPlans
+    .filter((p) => p.trainer_notes && p.trainer_notes.trim() !== '')
+    .map((p) => ({
+      id: p.id,
+      dateLabel: formatHabitDate(p.week_start) || p.week_start,
+      rangeLabel: formatPlanRange(p.week_start, p.week_end),
+      note: p.trainer_notes,
+    }));
+
+  const habitNoteItems: TrainerNoteItem[] = entries
+    .filter((e) => e.trainer_approved_at && e.trainer_notes && e.trainer_notes.trim() !== '')
+    .map((e) => ({
+      id: e.id,
+      dateLabel: formatHabitDate(e.trainer_approved_at ?? e.created_at) || (e.trainer_approved_at ?? e.created_at),
+      note: e.trainer_notes,
+    }));
+
   const meals = todayLog?.meal_entries ?? [];
   const completedMeals = meals.filter(m => m.status === 'completed');
   const eatenKcal = completedMeals.reduce((acc, m) => acc + (m.suggestion?.calories_estimate ?? 0), 0);
@@ -885,6 +1032,16 @@ export default function MyNutritionPage() {
           </div>
         )}
 
+        {/* ── Trainer notes — plan & habits (customer view) ───────────────── */}
+        <TrainerNoteSection
+          label="Nota del entrenador · Plan nutricional"
+          items={planNoteItems}
+        />
+        <TrainerNoteSection
+          label="Nota del entrenador · Hábitos nutricionales"
+          items={habitNoteItems}
+        />
+
         {/* ── Main grid: meals (left 7) + sidebar (right 5) ──────────────────── */}
         {todayLog && meals.length > 0 && (
           <div className="mt-6 grid grid-cols-1 xl:grid-cols-12 gap-5">
@@ -905,43 +1062,11 @@ export default function MyNutritionPage() {
                   const isSkipped = meal.status === 'skipped';
                   const mealTime = BLOCK_TIME[meal.meal_block] ?? '';
                   const isUploading = uploadingMealId === meal.id;
-                  const quickInputId = `photo-quick-${meal.id}`;
-                  const changeInputId = `photo-change-${meal.id}`;
+                  const openMealCamera = () =>
+                    setCameraTarget({ kind: 'meal', mealId: meal.id, facing: 'environment' });
 
                   return (
                     <div key={meal.id} className="relative">
-                      {/* Hidden quick-upload input (no photo yet → single tap from header) */}
-                      {!todayLog.is_closed && !isDone && (
-                        <input
-                          id={quickInputId}
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp"
-                          className="hidden"
-                          disabled={isUploading}
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            await handlePhotoAndComplete(todayLog.id, meal.id, file);
-                            e.target.value = '';
-                          }}
-                        />
-                      )}
-                      {/* Hidden change-photo input (already done) */}
-                      {!todayLog.is_closed && isDone && (
-                        <input
-                          id={changeInputId}
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp"
-                          className="hidden"
-                          disabled={isUploading}
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            await handlePhotoAndComplete(todayLog.id, meal.id, file);
-                            e.target.value = '';
-                          }}
-                        />
-                      )}
 
                       <div
                         onClick={() => !todayLog.is_closed && setExpandedMeal(isOpen ? null : meal.id)}
@@ -1014,15 +1139,21 @@ export default function MyNutritionPage() {
                                 <Check className="w-3 h-3" strokeWidth={2.5} /> Hecha
                               </span>
                             ) : (
-                              <label
-                                htmlFor={quickInputId}
-                                onClick={(e) => e.stopPropagation()}
-                                className="flex-shrink-0 flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl cursor-pointer active:scale-95 transition-transform"
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openMealCamera();
+                                }}
+                                aria-disabled={!isMobile}
+                                disabled={!isMobile}
+                                title={!isMobile ? 'Solo desde el teléfono' : undefined}
+                                className={`flex-shrink-0 flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-xl active:scale-95 transition-transform ${isMobile ? 'cursor-pointer' : 'cursor-not-allowed opacity-55'}`}
                                 style={{ background: 'rgba(102,15,34,0.07)', color: '#670F22' }}
                               >
                                 <Camera className="w-3.5 h-3.5" strokeWidth={2} />
                                 Foto
-                              </label>
+                              </button>
                             )
                           )}
                         </div>
@@ -1063,14 +1194,18 @@ export default function MyNutritionPage() {
                                   <div className="relative rounded-xl overflow-hidden" style={{ aspectRatio: '16/7' }}>
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={meal.photo_url} alt="Foto de comida" className="w-full h-full object-cover" />
-                                    <label
-                                      htmlFor={changeInputId}
-                                      className="absolute bottom-2 right-2 flex items-center gap-1 px-2.5 py-1 rounded-lg cursor-pointer"
+                                    <button
+                                      type="button"
+                                      onClick={openMealCamera}
+                                      aria-disabled={!isMobile}
+                                      disabled={!isMobile}
+                                      title={!isMobile ? 'Solo desde el teléfono' : undefined}
+                                      className={`absolute bottom-2 right-2 flex items-center gap-1 px-2.5 py-1 rounded-lg ${isMobile ? 'cursor-pointer' : 'cursor-not-allowed opacity-55'}`}
                                       style={{ background: 'rgba(0,0,0,0.5)' }}
                                     >
                                       <Camera className="w-3 h-3 text-white" strokeWidth={2} />
                                       <span className="text-[10px] font-semibold text-white">Cambiar</span>
-                                    </label>
+                                    </button>
                                   </div>
                                   {/* Shown when photo uploaded but completion failed (network error) */}
                                   {!isDone && (
@@ -1085,9 +1220,13 @@ export default function MyNutritionPage() {
                                   )}
                                 </div>
                               ) : (
-                                <label
-                                  htmlFor={quickInputId}
-                                  className="flex flex-col items-center justify-center gap-2 w-full rounded-xl cursor-pointer"
+                                <button
+                                  type="button"
+                                  onClick={openMealCamera}
+                                  aria-disabled={!isMobile}
+                                  disabled={!isMobile}
+                                  title={!isMobile ? 'Solo desde el teléfono' : undefined}
+                                  className={`flex flex-col items-center justify-center gap-2 w-full rounded-xl ${isMobile ? 'cursor-pointer' : 'cursor-not-allowed opacity-55'}`}
                                   style={{
                                     minHeight: 96,
                                     border: '1.5px dashed rgba(102,15,34,0.25)',
@@ -1104,7 +1243,7 @@ export default function MyNutritionPage() {
                                       </p>
                                     </>
                                   )}
-                                </label>
+                                </button>
                               )}
                             </div>
 
@@ -1267,6 +1406,7 @@ export default function MyNutritionPage() {
               {/* Water tracker */}
               <div className="relative overflow-hidden rounded-[18px]" style={{ background: 'linear-gradient(135deg, #2D0F1A 0%, #5C2030 100%)', padding: 24, boxShadow: '0 8px 24px -10px rgba(45,15,26,0.5)' }}>
                 <div className="absolute pointer-events-none" style={{ top: -40, right: -40, width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(circle, rgba(64,156,255,0.35) 0%, transparent 70%)', filter: 'blur(20px)', animation: 'water-wave 6s ease-in-out infinite' }} />
+
                 <div className="relative">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/55">Hidratación</p>
                   <div className="flex items-baseline gap-1.5 mt-2">
@@ -1276,24 +1416,50 @@ export default function MyNutritionPage() {
                   <div className="mt-4 flex gap-1.5">
                     {Array.from({ length: waterGoalGlasses }, (_, i) => {
                       const filled = i < waterDrank;
+                      const isNext = !filled && i === waterDrank;
+                      const canTrigger = isMobile && isNext && !todayLog?.is_closed && !waterUploading;
                       return (
                         <button
                           key={i}
-                          onClick={() => setWaterDrank(filled ? i : i + 1)}
-                          className="flex-1 rounded-lg transition-all duration-200 active:scale-95"
+                          type="button"
+                          onClick={() => {
+                            if (canTrigger) setCameraTarget({ kind: 'water', facing: 'user' });
+                          }}
+                          aria-label={
+                            filled
+                              ? `Vaso ${i + 1} registrado`
+                              : isNext
+                                ? `Registrar vaso ${i + 1} con selfie`
+                                : `Vaso ${i + 1} pendiente`
+                          }
+                          disabled={!canTrigger && !filled}
+                          className="flex-1 rounded-lg transition-all duration-200 active:scale-95 disabled:cursor-not-allowed"
                           style={{
                             height: 34,
                             background: filled ? 'linear-gradient(180deg, #4DA3FF, #0B6BC4)' : 'rgba(255,255,255,0.08)',
                             border: filled ? 'none' : '1px solid rgba(255,255,255,0.12)',
                             boxShadow: filled ? '0 0 12px rgba(77,163,255,0.4)' : 'none',
+                            opacity: canTrigger || filled ? 1 : 0.6,
                           }}
                         />
                       );
                     })}
                   </div>
-                  <p className="text-[12px] mt-3 leading-relaxed" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                    +1 vaso = tap. Te quedan {Math.max(0, waterGoalGlasses - waterDrank)} para cerrar el día.
-                  </p>
+
+                  {waterUploading ? (
+                    <p className="text-[12px] mt-3 leading-relaxed flex items-center gap-2" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                      <span className="animate-spin inline-block w-3 h-3 border-2 border-white/60 border-t-transparent rounded-full" />
+                      Subiendo selfie…
+                    </p>
+                  ) : !isMobile ? (
+                    <p className="text-[12px] mt-3 leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                      📱 Disponible solo desde el teléfono. Abre la app en tu móvil para registrar vasos con selfie.
+                    </p>
+                  ) : (
+                    <p className="text-[12px] mt-3 leading-relaxed" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                      +1 vaso = selfie. Te quedan {Math.max(0, waterGoalGlasses - waterDrank)} para cerrar el día.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1593,6 +1759,32 @@ export default function MyNutritionPage() {
         onClose={() => setShowHabitsModal(false)}
         initial={latest}
       />
+
+      {cameraTarget && todayLog && (
+        <CameraCapture
+          facingMode={cameraTarget.facing}
+          title={cameraTarget.kind === 'meal' ? 'Foto de la comida' : 'Selfie de hidratación'}
+          hint={
+            cameraTarget.kind === 'meal'
+              ? 'Encuadrá el plato y capturá.'
+              : 'Selfie con el vaso visible para registrar el +1.'
+          }
+          onCapture={async (file) => {
+            const compressed = await compressImage(file);
+            if (cameraTarget.kind === 'meal') {
+              await handlePhotoAndComplete(todayLog.id, cameraTarget.mealId, compressed);
+            } else {
+              setWaterUploading(true);
+              try {
+                await logWaterGlass(todayLog.id, compressed);
+              } finally {
+                setWaterUploading(false);
+              }
+            }
+          }}
+          onClose={() => setCameraTarget(null)}
+        />
+      )}
     </section>
   );
 }

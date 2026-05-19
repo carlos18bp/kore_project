@@ -184,20 +184,6 @@ export type ClientKPI = {
   };
 };
 
-export type PhotoEntry = {
-  meal_entry_id: number;
-  log_id: number;
-  customer_id: number;
-  customer_name: string;
-  photo_url: string;
-  meal_block: string;
-  date: string;
-  trainer_comment: string;
-  trainer_comment_at: string | null;
-  flagged_for_session: boolean;
-  status: string;
-};
-
 export type TrainerMessageItem = {
   id: number;
   customer_id: number;
@@ -264,8 +250,6 @@ export type NutritionLogDay = {
     suggestion: string | null;
     notes: string;
     photo_url: string | null;
-    trainer_comment: string;
-    flagged_for_session: boolean;
   }>;
 };
 
@@ -296,8 +280,6 @@ type TrainerState = {
   alertsLoading: boolean;
   clientAlerts: Record<number, ClientRiskScore[]>;
   clientAlertsLoading: boolean;
-  photoGallery: PhotoEntry[];
-  galleryLoading: boolean;
   trainerMessages: Record<number, TrainerMessageItem[]>;
   messagesLoading: boolean;
   comparativeMetrics: ComparativeMetrics | null;
@@ -319,10 +301,10 @@ type TrainerState = {
     note: string;
     is_public?: boolean;
   }) => Promise<void>;
-  fetchPhotoGallery: (customerId?: number) => Promise<void>;
-  commentOnPhoto: (mealId: number, comment: string, flagged: boolean) => Promise<void>;
   sendTrainerMessage: (customerId: number, message: string, triggerType?: string, triggerRefId?: number) => Promise<void>;
   fetchTrainerMessages: (customerId: number) => Promise<void>;
+  updateTrainerMessage: (customerId: number, messageId: number, message: string) => Promise<void>;
+  deleteTrainerMessage: (customerId: number, messageId: number) => Promise<void>;
   fetchComparativeMetrics: () => Promise<void>;
   fetchClientAlerts: (customerId: number) => Promise<void>;
   pauseProgram: (customerId: number, programId: number, reason: string) => Promise<void>;
@@ -331,6 +313,41 @@ type TrainerState = {
   fetchClientNutritionLogs: (customerId: number, days?: number) => Promise<void>;
   fetchClientSessionsFull: (customerId: number) => Promise<void>;
   updateSessionObjective: (customerId: number, bookingId: number, objective: string) => Promise<void>;
+
+  // ── Notes hub: monthly programs ──
+  clientMonthlyPrograms: Record<number, ClientMonthlyProgram[]>;
+  monthlyProgramsLoading: boolean;
+  fetchClientMonthlyPrograms: (customerId: number) => Promise<void>;
+  updateMonthlyProgramNote: (customerId: number, programId: number, notes: string) => Promise<void>;
+
+  // ── Notes hub: weekly nutrition plans ──
+  clientWeeklyPlans: Record<number, ClientWeeklyPlan[]>;
+  weeklyPlansLoading: boolean;
+  fetchClientWeeklyPlans: (customerId: number) => Promise<void>;
+  updateWeeklyPlanNote: (customerId: number, planId: number, notes: string) => Promise<void>;
+};
+
+export type ClientMonthlyProgram = {
+  id: number;
+  start_date: string;
+  end_date: string;
+  status: string;
+  goal: string;
+  fitness_level: number;
+  trainer_notes: string;
+  approved_at: string | null;
+  is_paused: boolean;
+};
+
+export type ClientWeeklyPlan = {
+  id: number;
+  week_start: string;
+  week_end: string;
+  status: string;
+  goal: string;
+  fitness_level: number;
+  trainer_notes: string;
+  approved_at: string | null;
 };
 
 function authHeaders() {
@@ -359,8 +376,6 @@ export const useTrainerStore = create<TrainerState>((set, get) => ({
   alertsLoading: false,
   clientAlerts: {},
   clientAlertsLoading: false,
-  photoGallery: [],
-  galleryLoading: false,
   trainerMessages: {},
   messagesLoading: false,
   comparativeMetrics: null,
@@ -372,6 +387,10 @@ export const useTrainerStore = create<TrainerState>((set, get) => ({
   clientSessionsFull: {},
   sessionsFullLoading: false,
   programActionLoading: false,
+  clientMonthlyPrograms: {},
+  monthlyProgramsLoading: false,
+  clientWeeklyPlans: {},
+  weeklyPlansLoading: false,
 
   // ── Existing actions ──────────────────────────────────────────────────────
 
@@ -461,32 +480,6 @@ export const useTrainerStore = create<TrainerState>((set, get) => ({
     }));
   },
 
-  fetchPhotoGallery: async (customerId?: number) => {
-    set({ galleryLoading: true });
-    try {
-      const params = customerId ? `?customer_id=${customerId}` : '';
-      const { data } = await api.get(`/trainer/photo-gallery/${params}`, { headers: authHeaders() });
-      set({ photoGallery: data.photos, galleryLoading: false });
-    } catch {
-      set({ galleryLoading: false });
-    }
-  },
-
-  commentOnPhoto: async (mealId, comment, flagged) => {
-    const { data } = await api.patch(
-      `/trainer/photo-gallery/${mealId}/comment/`,
-      { trainer_comment: comment, flagged_for_session: flagged },
-      { headers: authHeaders() }
-    );
-    set((s) => ({
-      photoGallery: s.photoGallery.map((p) =>
-        p.meal_entry_id === mealId
-          ? { ...p, trainer_comment: data.trainer_comment, trainer_comment_at: data.trainer_comment_at, flagged_for_session: data.flagged_for_session }
-          : p
-      ),
-    }));
-  },
-
   sendTrainerMessage: async (customerId, message, triggerType = 'manual', triggerRefId) => {
     const body: Record<string, unknown> = {
       customer_id: customerId,
@@ -506,6 +499,28 @@ export const useTrainerStore = create<TrainerState>((set, get) => ({
     } catch {
       set({ messagesLoading: false });
     }
+  },
+
+  updateTrainerMessage: async (customerId, messageId, message) => {
+    const { data } = await api.patch(`/trainer/messages/${messageId}/`, { message }, { headers: authHeaders() });
+    set((s) => ({
+      trainerMessages: {
+        ...s.trainerMessages,
+        [customerId]: (s.trainerMessages[customerId] ?? []).map(m =>
+          m.id === messageId ? { ...m, message: data.message, trigger_type: data.trigger_type } : m
+        ),
+      },
+    }));
+  },
+
+  deleteTrainerMessage: async (customerId, messageId) => {
+    await api.delete(`/trainer/messages/${messageId}/`, { headers: authHeaders() });
+    set((s) => ({
+      trainerMessages: {
+        ...s.trainerMessages,
+        [customerId]: (s.trainerMessages[customerId] ?? []).filter(m => m.id !== messageId),
+      },
+    }));
   },
 
   fetchComparativeMetrics: async () => {
@@ -599,6 +614,54 @@ export const useTrainerStore = create<TrainerState>((set, get) => ({
           ),
         },
       }));
-    } catch { /* noop */ }
+    } catch {
+      // Swallow — surface keeps optimistic state; caller can re-fetch if needed.
+    }
+  },
+
+  fetchClientMonthlyPrograms: async (customerId) => {
+    set({ monthlyProgramsLoading: true });
+    try {
+      const { data } = await api.get(`/monthly-programs/customer/${customerId}/`, { headers: authHeaders() });
+      const programs = (data.programs ?? data ?? []) as ClientMonthlyProgram[];
+      set((s) => ({ clientMonthlyPrograms: { ...s.clientMonthlyPrograms, [customerId]: programs }, monthlyProgramsLoading: false }));
+    } catch {
+      set({ monthlyProgramsLoading: false });
+    }
+  },
+
+  updateMonthlyProgramNote: async (customerId, programId, notes) => {
+    await api.patch(`/monthly-programs/${programId}/note/`, { trainer_notes: notes }, { headers: authHeaders() });
+    set((s) => ({
+      clientMonthlyPrograms: {
+        ...s.clientMonthlyPrograms,
+        [customerId]: (s.clientMonthlyPrograms[customerId] ?? []).map(p =>
+          p.id === programId ? { ...p, trainer_notes: notes } : p
+        ),
+      },
+    }));
+  },
+
+  fetchClientWeeklyPlans: async (customerId) => {
+    set({ weeklyPlansLoading: true });
+    try {
+      const { data } = await api.get(`/nutrition-plans/customer/${customerId}/`, { headers: authHeaders() });
+      const plans = (data.plans ?? data ?? []) as ClientWeeklyPlan[];
+      set((s) => ({ clientWeeklyPlans: { ...s.clientWeeklyPlans, [customerId]: plans }, weeklyPlansLoading: false }));
+    } catch {
+      set({ weeklyPlansLoading: false });
+    }
+  },
+
+  updateWeeklyPlanNote: async (customerId, planId, notes) => {
+    await api.patch(`/nutrition-plans/${planId}/note/`, { trainer_notes: notes }, { headers: authHeaders() });
+    set((s) => ({
+      clientWeeklyPlans: {
+        ...s.clientWeeklyPlans,
+        [customerId]: (s.clientWeeklyPlans[customerId] ?? []).map(p =>
+          p.id === planId ? { ...p, trainer_notes: notes } : p
+        ),
+      },
+    }));
   },
 }));

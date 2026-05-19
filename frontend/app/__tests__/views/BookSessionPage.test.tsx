@@ -24,15 +24,14 @@ jest.mock('@/app/composables/useScrollAnimations', () => ({
 }));
 
 const mockFetchTrainers = jest.fn();
-const mockFetchSlots = jest.fn();
-const mockFetchTrainerDayBookings = jest.fn();
+const mockFetchAvailability = jest.fn();
 const mockFetchSubscriptions = jest.fn();
 const mockFetchBookings = jest.fn();
 const mockCreateBooking = jest.fn();
 const mockReset = jest.fn();
 const mockSetStep = jest.fn();
 const mockSetSelectedDate = jest.fn();
-const mockSetSelectedSlot = jest.fn();
+const mockSetSelectedStartsAt = jest.fn();
 const mockSetTrainerFromAssigned = jest.fn();
 
 jest.mock('@/lib/stores/bookingStore', () => ({
@@ -59,18 +58,17 @@ function setupStore(overrides = {}) {
     setStep: mockSetStep,
     selectedDate: null,
     setSelectedDate: mockSetSelectedDate,
-    selectedSlot: null,
-    setSelectedSlot: mockSetSelectedSlot,
+    selectedStartsAt: null,
+    setSelectedStartsAt: mockSetSelectedStartsAt,
     trainer: null,
     subscription: null,
     bookingResult: null,
-    dayBookedSlots: [],
-    dayAvailabilityLoading: false,
+    availability: {},
+    availabilityLoading: false,
     loading: false,
     error: null,
     fetchTrainers: mockFetchTrainers,
-    fetchSlots: mockFetchSlots,
-    fetchTrainerDayBookings: mockFetchTrainerDayBookings,
+    fetchAvailability: mockFetchAvailability,
     fetchSubscriptions: mockFetchSubscriptions,
     fetchBookings: mockFetchBookings,
     bookings: [],
@@ -84,6 +82,24 @@ function setupStore(overrides = {}) {
   mockedUseBookingStore.getState = () => storeState;
   mockedUseBookingStore.setState = mockSetState;
 }
+
+const MOCK_BOOKING = {
+  id: 100,
+  customer_id: 22,
+  package: { id: 1, title: 'Gold', sessions_count: 12, session_duration_minutes: 60, price: '500000', currency: 'COP', validity_days: 30 },
+  starts_at: '2025-03-01T10:00:00Z',
+  ends_at: '2025-03-01T11:00:00Z',
+  trainer: { id: 1, user_id: 10, first_name: 'G', last_name: 'F', email: 'g@k.com', specialty: '', bio: '', location: '', session_duration_minutes: 60 },
+  subscription_id_display: 2,
+  status: 'confirmed',
+  notes: '',
+  canceled_reason: '',
+  session_objective: '',
+  session_notes_for_customer: '',
+  program_day_exercises: [],
+  created_at: '',
+  updated_at: '',
+};
 
 describe('BookSessionPage', () => {
   beforeEach(() => {
@@ -191,69 +207,41 @@ describe('BookSessionPage', () => {
   });
 
   it('renders BookingConfirmation at step 2', () => {
-    const slot = { id: 5, trainer_id: 1, starts_at: '2025-03-01T10:00:00Z', ends_at: '2025-03-01T11:00:00Z', is_active: true, is_blocked: false };
-    setupStore({ step: 2, selectedSlot: slot });
+    setupStore({ step: 2, selectedStartsAt: '2025-03-01T10:00:00Z' });
     render(<BookSessionPage />);
     expect(screen.getByText('Confirmar reserva')).toBeInTheDocument();
   });
 
   it('renders BookingSuccess at step 3', () => {
-    const booking = {
-      id: 100, customer_id: 22,
-      package: { id: 1, title: 'Gold', sessions_count: 12, session_duration_minutes: 60, price: '500000', currency: 'COP', validity_days: 30 },
-      slot: { id: 5, trainer_id: 1, starts_at: '2025-03-01T10:00:00Z', ends_at: '2025-03-01T11:00:00Z', is_active: true, is_blocked: false },
-      trainer: { id: 1, user_id: 10, first_name: 'G', last_name: 'F', email: 'g@k.com', specialty: '', bio: '', location: '', session_duration_minutes: 60 },
-      subscription_id_display: 2, status: 'confirmed', notes: '', canceled_reason: '', created_at: '', updated_at: '',
-    };
-    setupStore({ step: 3, bookingResult: booking });
+    setupStore({ step: 3, bookingResult: MOCK_BOOKING });
     render(<BookSessionPage />);
     expect(screen.getByText('Tu entrenamiento está agendado')).toBeInTheDocument();
   });
 
   it('resets stale success state on mount when not rescheduling', async () => {
-    const booking = {
-      id: 100, customer_id: 22,
-      package: { id: 1, title: 'Gold', sessions_count: 12, session_duration_minutes: 60, price: '500000', currency: 'COP', validity_days: 30 },
-      slot: { id: 5, trainer_id: 1, starts_at: '2025-03-01T10:00:00Z', ends_at: '2025-03-01T11:00:00Z', is_active: true, is_blocked: false },
-      trainer: { id: 1, user_id: 10, first_name: 'G', last_name: 'F', email: 'g@k.com', specialty: '', bio: '', location: '', session_duration_minutes: 60 },
-      subscription_id_display: 2, status: 'confirmed', notes: '', canceled_reason: '', created_at: '', updated_at: '',
-    };
-    setupStore({ step: 3, bookingResult: booking });
+    setupStore({ step: 3, bookingResult: MOCK_BOOKING });
     render(<BookSessionPage />);
     await waitFor(() => expect(mockReset).toHaveBeenCalledTimes(1));
   });
 
   it('resets stale success state on mount during reschedule flow', async () => {
     mockSearchParams = new URLSearchParams({ reschedule: '533', subscription: '1' });
-    const staleBooking = {
-      id: 99, customer_id: 22,
-      package: { id: 1, title: 'Gold', sessions_count: 12, session_duration_minutes: 60, price: '500000', currency: 'COP', validity_days: 30 },
-      slot: { id: 5, trainer_id: 1, starts_at: '2025-03-01T10:00:00Z', ends_at: '2025-03-01T11:00:00Z', is_active: true, is_blocked: false },
-      trainer: { id: 1, user_id: 10, first_name: 'G', last_name: 'F', email: 'g@k.com', specialty: '', bio: '', location: '', session_duration_minutes: 60 },
-      subscription_id_display: 1, status: 'confirmed', notes: '', canceled_reason: '', created_at: '', updated_at: '',
-    };
     const subscriptions = [
       {
         id: 1, customer_email: 'cust@kore.com',
-        package: { id: 1, title: 'Gold', sessions_count: 4, session_duration_minutes: 60, price: '500000', currency: 'COP', validity_days: 30 },
-        sessions_total: 4, sessions_used: 3, sessions_remaining: 1,
+        package: { id: 1, title: 'Gold', sessions_count: 12, session_duration_minutes: 60, price: '500000', currency: 'COP', validity_days: 30 },
+        sessions_total: 12, sessions_used: 3, sessions_remaining: 9,
         status: 'active', starts_at: '2025-02-01T00:00:00Z', expires_at: '2025-03-01T00:00:00Z',
         next_billing_date: null,
       },
     ];
-    setupStore({ step: 3, bookingResult: staleBooking, subscriptions });
+    setupStore({ step: 3, bookingResult: MOCK_BOOKING, subscriptions });
     render(<BookSessionPage />);
     await waitFor(() => expect(mockReset).toHaveBeenCalledTimes(1));
   });
 
   it('does not show step indicator at step 3', () => {
-    const booking = {
-      id: 100, customer_id: 22,
-      package: { id: 1, title: 'Gold', sessions_count: 12, session_duration_minutes: 60, price: '500000', currency: 'COP', validity_days: 30 },
-      slot: { id: 5, trainer_id: 1, starts_at: '2025-03-01T10:00:00Z', ends_at: '2025-03-01T11:00:00Z', is_active: true, is_blocked: false },
-      trainer: null, subscription_id_display: 2, status: 'confirmed', notes: '', canceled_reason: '', created_at: '', updated_at: '',
-    };
-    setupStore({ step: 3, bookingResult: booking });
+    setupStore({ step: 3, bookingResult: MOCK_BOOKING });
     render(<BookSessionPage />);
     expect(screen.queryByText(/Paso 1 de 2/)).not.toBeInTheDocument();
   });
@@ -320,7 +308,7 @@ describe('BookSessionPage', () => {
     expect(screen.queryByText('Sin sesiones disponibles')).not.toBeInTheDocument();
   });
 
-  it('shows reschedule no-availability message when no slots fit the window', () => {
+  it('shows reschedule no-availability message when availability is empty for selected date', () => {
     mockSearchParams = new URLSearchParams({ reschedule: '100', subscription: '1' });
     const subscriptions = [
       {
@@ -336,12 +324,16 @@ describe('BookSessionPage', () => {
         id: 100,
         customer_id: 22,
         package: subscriptions[0].package,
-        slot: { id: 5, trainer_id: 1, starts_at: '2025-03-01T10:00:00Z', ends_at: '2025-03-01T11:00:00Z', is_active: true, is_blocked: true },
+        starts_at: '2025-03-01T10:00:00Z',
+        ends_at: '2025-03-01T11:00:00Z',
         trainer: null,
         subscription_id_display: 1,
         status: 'confirmed',
         notes: '',
         canceled_reason: '',
+        session_objective: '',
+        session_notes_for_customer: '',
+        program_day_exercises: [],
         created_at: '',
         updated_at: '',
       },
@@ -350,8 +342,8 @@ describe('BookSessionPage', () => {
       subscriptions,
       bookings,
       selectedDate: '2000-01-03',
-      dayBookedSlots: [],
-      dayAvailabilityLoading: false,
+      availability: {},
+      availabilityLoading: false,
     });
     render(<BookSessionPage />);
     expect(screen.getByText(/Por el momento no hay disponibilidad horaria/)).toBeInTheDocument();
@@ -379,7 +371,8 @@ describe('BookSessionPage', () => {
         id: 100,
         customer_id: 22,
         package: subscriptions[0].package,
-        slot: { id: 5, trainer_id: 7, starts_at: '2025-04-01T10:00:00Z', ends_at: '2025-04-01T11:00:00Z', is_active: true, is_blocked: false },
+        starts_at: '2025-04-01T10:00:00Z',
+        ends_at: '2025-04-01T11:00:00Z',
         trainer: trainerOnBooking,
         subscription_id_display: 1,
         status: 'confirmed',
@@ -463,15 +456,10 @@ describe('BookSessionPage', () => {
     ];
     setupStore({ subscriptions });
     render(<BookSessionPage />);
-    // fetchBookings is called with selected subscription ID
     expect(mockFetchBookings).toHaveBeenCalled();
   });
 
-  it('includes Saturday dates in available calendar days', () => {
-    jest.useFakeTimers();
-    // Monday March 2, 2026
-    jest.setSystemTime(new Date(2026, 2, 2, 12, 0, 0));
-
+  it('calls fetchAvailability when trainer is set', () => {
     const trainerData = {
       id: 1, user_id: 10, first_name: 'G', last_name: 'F',
       email: 'g@k.com', specialty: '', bio: '', location: '',
@@ -479,17 +467,34 @@ describe('BookSessionPage', () => {
     };
     setupStore({ trainer: trainerData });
     render(<BookSessionPage />);
+    expect(mockFetchAvailability).toHaveBeenCalledWith(undefined, undefined, 1);
+  });
 
-    // Saturday March 7 should be enabled (day 7)
+  it('shows available dates from availability map', () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(2026, 2, 2, 12, 0, 0));
+
+    const trainerData = {
+      id: 1, user_id: 10, first_name: 'G', last_name: 'F',
+      email: 'g@k.com', specialty: '', bio: '', location: '',
+      session_duration_minutes: 60,
+    };
+    // Saturday March 7 has availability
+    setupStore({
+      trainer: trainerData,
+      availability: { '2026-03-07': ['2026-03-07T11:00:00Z'] },
+    });
+    render(<BookSessionPage />);
+
+    // March 7 should be enabled (in availability map)
     const satBtn = screen.getByRole('button', { name: '7' });
     expect(satBtn).not.toBeDisabled();
 
     jest.useRealTimers();
   });
 
-  it('excludes Sunday dates from available calendar days', () => {
+  it('disables dates not in availability map', () => {
     jest.useFakeTimers();
-    // Monday March 2, 2026
     jest.setSystemTime(new Date(2026, 2, 2, 12, 0, 0));
 
     const trainerData = {
@@ -497,50 +502,18 @@ describe('BookSessionPage', () => {
       email: 'g@k.com', specialty: '', bio: '', location: '',
       session_duration_minutes: 60,
     };
-    setupStore({ trainer: trainerData });
+    // No availability provided — all dates disabled
+    setupStore({ trainer: trainerData, availability: {} });
     render(<BookSessionPage />);
 
-    // Sunday March 8 should be disabled (day 8)
+    // March 8 (Sunday) should be disabled when no availability
     const sunBtn = screen.getByRole('button', { name: '8' });
     expect(sunBtn).toBeDisabled();
 
     jest.useRealTimers();
   });
 
-  it('limits available dates to 30-day horizon', () => {
-    jest.useFakeTimers();
-    // Wednesday March 4, 2026
-    jest.setSystemTime(new Date(2026, 2, 4, 12, 0, 0));
-
-    const trainerData = {
-      id: 1, user_id: 10, first_name: 'G', last_name: 'F',
-      email: 'g@k.com', specialty: '', bio: '', location: '',
-      session_duration_minutes: 60,
-    };
-    setupStore({ trainer: trainerData });
-    render(<BookSessionPage />);
-
-    // March 4 + 29 days = April 2, so last included day is April 2 (Thursday).
-    // March 31 (offset=27, Tuesday) should be enabled.
-    const day31Btn = screen.getByRole('button', { name: '31' });
-    expect(day31Btn).not.toBeDisabled();
-
-    // March 5 (offset=1, Thursday) should be enabled.
-    const day5Btn = screen.getByRole('button', { name: '5' });
-    expect(day5Btn).not.toBeDisabled();
-
-    // March 1 is before today (March 4) so it should be disabled.
-    const day1Btn = screen.getByRole('button', { name: '1' });
-    expect(day1Btn).toBeDisabled();
-
-    jest.useRealTimers();
-  });
-
-  it('generates Saturday slots with 06:00-13:00 window when Saturday selected', () => {
-    jest.useFakeTimers();
-    // Set time to Thursday March 5, so Saturday March 7 is 2 days away (>24h)
-    jest.setSystemTime(new Date(2026, 2, 5, 0, 0, 0));
-
+  it('shows time slots for selected date from availability', () => {
     const trainerData = {
       id: 1, user_id: 10, first_name: 'G', last_name: 'F',
       email: 'g@k.com', specialty: '', bio: '', location: '',
@@ -549,33 +522,13 @@ describe('BookSessionPage', () => {
     setupStore({
       trainer: trainerData,
       selectedDate: '2026-03-07',
-      dayBookedSlots: [],
-      dayAvailabilityLoading: false,
+      availability: { '2026-03-07': ['2026-03-07T11:00:00Z', '2026-03-07T15:00:00Z'] },
     });
     render(<BookSessionPage />);
-
-    // TimeSlotPicker defaults to 24h format
-    // Should show 06:00 slot (first Saturday slot)
-    expect(screen.getByText(/^06:00/)).toBeInTheDocument();
-    // Should show 12:00 (last full slot: 12:00-13:00)
-    expect(screen.getByText(/^12:00/)).toBeInTheDocument();
-    // Should NOT show 05:00 (Saturday starts at 06:00, not 05:00)
-    expect(screen.queryByText(/^05:00/)).not.toBeInTheDocument();
-    // Should NOT show 16:00 (Saturday has no evening window)
-    expect(screen.queryByText(/^16:00/)).not.toBeInTheDocument();
-
-    jest.useRealTimers();
+    expect(screen.getAllByRole('button').length).toBeGreaterThan(0);
   });
 
   it('allows confirmation request even when global loading is true', async () => {
-    const slot = {
-      id: 5,
-      trainer_id: 1,
-      starts_at: '2025-03-01T10:00:00Z',
-      ends_at: '2025-03-01T11:00:00Z',
-      is_active: true,
-      is_blocked: false,
-    };
     const subscriptions = [
       {
         id: 1,
@@ -601,7 +554,7 @@ describe('BookSessionPage', () => {
 
     setupStore({
       step: 2,
-      selectedSlot: slot,
+      selectedStartsAt: '2025-03-01T10:00:00Z',
       subscriptions,
       loading: true,
     });

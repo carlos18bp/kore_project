@@ -8,7 +8,7 @@ import pytest
 from django.core.management import call_command
 from django.utils import timezone
 
-from core_app.models import AvailabilitySlot, Booking, Package, Subscription, User
+from core_app.models import Booking, Package, Subscription, User
 from core_app.services.subscription_cleanup import CANCEL_REASON
 
 EXPIRED_REFERENCE = timezone.make_aware(datetime(2025, 2, 1, 9, 0, 0), timezone.get_current_timezone())
@@ -45,21 +45,15 @@ def _create_subscription(
     )
 
 
-def _create_confirmed_booking(subscription: Subscription, *, starts_at: datetime) -> tuple[Booking, AvailabilitySlot]:
-    slot = AvailabilitySlot.objects.create(
-        starts_at=starts_at,
-        ends_at=starts_at + timedelta(hours=1),
-        is_active=True,
-        is_blocked=True,
-    )
-    booking = Booking.objects.create(
+def _create_confirmed_booking(subscription: Subscription, *, starts_at: datetime) -> Booking:
+    return Booking.objects.create(
         customer=subscription.customer,
         package=subscription.package,
-        slot=slot,
+        starts_at=starts_at,
+        ends_at=starts_at + timedelta(hours=1),
         subscription=subscription,
         status=Booking.Status.CONFIRMED,
     )
-    return booking, slot
 
 
 @pytest.mark.django_db
@@ -85,24 +79,22 @@ def test_expires_subscription_and_sets_usage_to_total():
 
 
 @pytest.mark.django_db
-def test_cancels_future_booking_and_unblocks_slot_for_expired_subscription():
-    """Cancels future confirmed bookings for expired subscriptions and frees their slots."""
+def test_cancels_future_booking_for_expired_subscription():
+    """Cancels future confirmed bookings for expired subscriptions."""
     subscription = _create_subscription(
         email='future-booking@example.com',
         starts_at=EXPIRED_REFERENCE - timedelta(days=5),
         expires_at=EXPIRED_REFERENCE - timedelta(days=1),
         next_billing_date=EXPIRED_REFERENCE.date(),
     )
-    future_booking, future_slot = _create_confirmed_booking(subscription, starts_at=FUTURE_SLOT_START)
+    future_booking = _create_confirmed_booking(subscription, starts_at=FUTURE_SLOT_START)
 
     out = StringIO()
     call_command('expire_subscriptions', stdout=out)
 
     future_booking.refresh_from_db()
-    future_slot.refresh_from_db()
     assert future_booking.status == Booking.Status.CANCELED
     assert future_booking.canceled_reason == CANCEL_REASON
-    assert future_slot.is_blocked is False
     assert 'bookings_canceled: 1' in out.getvalue()
 
 
@@ -115,15 +107,13 @@ def test_keeps_past_booking_unchanged_for_expired_subscription():
         expires_at=EXPIRED_REFERENCE - timedelta(days=1),
         next_billing_date=EXPIRED_REFERENCE.date(),
     )
-    past_booking, past_slot = _create_confirmed_booking(subscription, starts_at=PAST_SLOT_START)
+    past_booking = _create_confirmed_booking(subscription, starts_at=PAST_SLOT_START)
 
     out = StringIO()
     call_command('expire_subscriptions', stdout=out)
 
     past_booking.refresh_from_db()
-    past_slot.refresh_from_db()
     assert past_booking.status == Booking.Status.CONFIRMED
-    assert past_slot.is_blocked is True
     assert 'bookings_canceled: 0' in out.getvalue()
 
 

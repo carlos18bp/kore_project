@@ -51,12 +51,30 @@ class MealEntry(TimestampedModel):
         upload_to='nutrition/%Y/%m/',
         null=True, blank=True,
     )
-    trainer_comment = models.TextField(blank=True)
-    trainer_comment_at = models.DateTimeField(null=True, blank=True)
-    flagged_for_session = models.BooleanField(default=False, db_index=True)
 
     class Meta:
         unique_together = [('daily_log', 'meal_block')]
 
     def __str__(self):
         return f'{self.get_meal_block_display()} — {self.status}'
+
+
+class WaterGlassLog(TimestampedModel):
+    """Photo evidence for a single glass of water logged by a customer.
+
+    Each row represents one glass registered. The count of glasses per day
+    is derived from the number of rows linked to the day's NutritionDailyLog.
+    """
+
+    daily_log = models.ForeignKey(
+        NutritionDailyLog,
+        on_delete=models.CASCADE,
+        related_name='water_glasses',
+    )
+    photo = models.ImageField(upload_to='nutrition/water/%Y/%m/')
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f'{self.daily_log.customer} — water glass at {self.created_at:%H:%M}'

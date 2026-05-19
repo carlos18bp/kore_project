@@ -1,21 +1,16 @@
-from datetime import datetime, time, timedelta
-from zoneinfo import ZoneInfo
+from datetime import timedelta
 
 from django.db import models as db_models, transaction
 from django.utils import timezone
-from rest_framework import status, viewsets
+from rest_framework import serializers as drf_serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from core_app.models import AvailabilitySlot, Booking, Subscription, SubscriptionGuest
+from core_app.models import Booking, Subscription, SubscriptionGuest, TrainerProfile
 from core_app.permissions import IsAdminRole, IsTrainerRole, is_admin_user
 from core_app.serializers.booking_serializers import BookingSerializer
-from core_app.services.booking_rules import (
-    TRAVEL_BUFFER_MINUTES,
-    has_trainer_travel_buffer_conflict,
-)
-from core_app.services.slot_schedule import BOOKING_HORIZON_DAYS
+from core_app.services.slot_schedule import is_start_time_available, session_window
 from core_app.services.email_service import (
     send_booking_cancellation,
     send_booking_confirmation,
@@ -23,7 +18,6 @@ from core_app.services.email_service import (
 )
 
 CANCEL_RESCHEDULE_HOURS = 24
-BUSINESS_TIMEZONE = ZoneInfo('America/Bogota')
 
 
 def _maybe_create_guest_booking(host_booking):
@@ -37,7 +31,8 @@ def _maybe_create_guest_booking(host_booking):
     guest_booking = Booking.objects.create(
         customer=gl.guest,
         package=host_booking.package,
-        slot=host_booking.slot,
+        starts_at=host_booking.starts_at,
+        ends_at=host_booking.ends_at,
         trainer=host_booking.trainer,
         subscription=None,
         status=Booking.Status.PENDING,
@@ -46,7 +41,7 @@ def _maybe_create_guest_booking(host_booking):
 
 
 def _cancel_guest_booking_for_slot(host_booking):
-    """Cancel the guest's booking in the same slot when the host cancels or reschedules."""
+    """Cancel the guest's booking at the same trainer+time when the host cancels/reschedules."""
     try:
         gl = host_booking.subscription.guest_link
     except (AttributeError, Exception):
@@ -55,7 +50,8 @@ def _cancel_guest_booking_for_slot(host_booking):
         return
     guest_booking = (
         Booking.objects.filter(
-            slot=host_booking.slot,
+            trainer=host_booking.trainer,
+            starts_at=host_booking.starts_at,
             customer=gl.guest,
         )
         .exclude(status=Booking.Status.CANCELED)
@@ -66,12 +62,6 @@ def _cancel_guest_booking_for_slot(host_booking):
         guest_booking.canceled_reason = 'Sesión cancelada por el anfitrión.'
         guest_booking.save(update_fields=['status', 'canceled_reason', 'updated_at'])
         send_booking_cancellation(guest_booking)
-
-
-def _local_day_bounds(day):
-    day_start = datetime.combine(day, time.min, tzinfo=BUSINESS_TIMEZONE)
-    day_end = day_start + timedelta(days=1)
-    return day_start, day_end
 
 
 class BookingViewSet(viewsets.ModelViewSet):
@@ -87,38 +77,24 @@ class BookingViewSet(viewsets.ModelViewSet):
 
     Custom actions:
         - ``POST /api/bookings/{id}/cancel/``
-        - ``POST /api/bookings/{id}/reschedule/``  (body: ``{"new_slot_id": <int>}``)
+        - ``POST /api/bookings/{id}/reschedule/``  (body: ``{"new_starts_at": "<iso>"}``).
         - ``GET  /api/bookings/upcoming-reminder/``
     """
 
     serializer_class = BookingSerializer
 
     def get_permissions(self):
-        """Return appropriate permissions per action.
-
-        Returns:
-            list: Permission instances.
-        """
         if self.action in ('update', 'partial_update', 'destroy'):
             return [IsAdminRole()]
         return [IsAuthenticated()]
 
     def get_queryset(self):
-        """Return bookings with optional subscription filtering.
-
-        Admin users receive the full queryset.  Customers receive only
-        their own bookings.  Both can filter by ``subscription`` query param.
-
-        Returns:
-            QuerySet: Booking instances with related objects pre-loaded.
-        """
         qs = Booking.objects.select_related(
-            'customer', 'package', 'slot', 'trainer__user', 'subscription',
+            'customer', 'package', 'trainer__user', 'subscription',
         )
         if not is_admin_user(self.request.user):
             qs = qs.filter(customer=self.request.user)
 
-        # Filter by subscription
         subscription_param = self.request.query_params.get('subscription')
         if subscription_param:
             qs = qs.filter(subscription_id=subscription_param)
@@ -138,7 +114,6 @@ class BookingViewSet(viewsets.ModelViewSet):
         return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer):
-        """Save booking, send confirmation, and auto-create guest booking if duo plan."""
         booking = serializer.save()
         send_booking_confirmation(booking)
         _maybe_create_guest_booking(booking)
@@ -154,14 +129,10 @@ class BookingViewSet(viewsets.ModelViewSet):
         Business rules:
         - Only the booking owner (or an admin) can cancel.
         - The session must be ≥24 hours in the future.
-        - On success: booking status → canceled, slot unblocked,
-          subscription sessions_used decremented (if applicable).
+        - On success: booking status → canceled, subscription sessions_used decremented.
 
         Request body (optional):
             ``{"canceled_reason": "string"}``
-
-        Returns:
-            Response: Updated booking data or error detail.
         """
         booking = self.get_object()
 
@@ -171,7 +142,7 @@ class BookingViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        time_until = booking.slot.starts_at - timezone.now()
+        time_until = booking.starts_at - timezone.now()
         if time_until < timedelta(hours=CANCEL_RESCHEDULE_HOURS):
             return Response(
                 {'detail': f'No puedes cancelar con menos de {CANCEL_RESCHEDULE_HOURS} horas de anticipación.'},
@@ -183,18 +154,11 @@ class BookingViewSet(viewsets.ModelViewSet):
             booking.canceled_reason = request.data.get('canceled_reason', '')
             booking.save(update_fields=['status', 'canceled_reason', 'updated_at'])
 
-            # Unblock the slot
-            slot = AvailabilitySlot.objects.select_for_update().get(pk=booking.slot_id)
-            slot.is_blocked = False
-            slot.save(update_fields=['is_blocked', 'updated_at'])
-
-            # Restore subscription session
             if booking.subscription_id:
                 sub = Subscription.objects.select_for_update().get(pk=booking.subscription_id)
                 sub.sessions_used = db_models.F('sessions_used') - 1
                 sub.save(update_fields=['sessions_used', 'updated_at'])
 
-            # Cascade cancel to guest booking if duo plan
             _cancel_guest_booking_for_slot(booking)
 
         booking.refresh_from_db()
@@ -204,22 +168,18 @@ class BookingViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='reschedule')
     def reschedule(self, request, pk=None):
-        """Reschedule a booking to a new slot.
+        """Reschedule a booking to a new start time.
 
-        Cancels the current booking and creates a new one in the new slot,
+        Cancels the current booking and creates a new one at ``new_starts_at``,
         all within a single atomic transaction.
 
         Business rules:
         - Only the booking owner (or an admin) can reschedule.
         - The **current** session must be ≥24 hours in the future.
-        - The new slot must be valid (active, unblocked, future, not booked).
-        - The new slot must fall between the previous and next sessions in the same program.
+        - The new start time must be a valid bookable start for the trainer.
 
         Request body:
-            ``{"new_slot_id": <int>}``
-
-        Returns:
-            Response: Newly created booking data or error detail.
+            ``{"new_starts_at": "<ISO 8601>"}``
         """
         booking = self.get_object()
 
@@ -229,84 +189,50 @@ class BookingViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        time_until = booking.slot.starts_at - timezone.now()
+        time_until = booking.starts_at - timezone.now()
         if time_until < timedelta(hours=CANCEL_RESCHEDULE_HOURS):
             return Response(
                 {'detail': f'No puedes reprogramar con menos de {CANCEL_RESCHEDULE_HOURS} horas de anticipación.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        new_slot_id = request.data.get('new_slot_id')
-        if not new_slot_id:
+        raw = request.data.get('new_starts_at')
+        if not raw:
             return Response(
-                {'detail': 'El campo new_slot_id es obligatorio.'},
+                {'detail': 'El campo new_starts_at es obligatorio.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
         try:
-            new_slot = AvailabilitySlot.objects.get(pk=new_slot_id)
-        except AvailabilitySlot.DoesNotExist:
+            new_starts_at = drf_serializers.DateTimeField().to_internal_value(raw)
+        except Exception:
             return Response(
-                {'detail': 'No se encontró el nuevo horario.'},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        horizon = timezone.now() + timedelta(days=BOOKING_HORIZON_DAYS)
-        if new_slot.starts_at >= horizon:
-            return Response(
-                {'detail': 'No se puede agendar con más de 30 días de anticipación.'},
+                {'detail': 'Formato de fecha inválido para new_starts_at.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         with transaction.atomic():
-            # Cancel current booking
-            booking.status = Booking.Status.CANCELED
-            booking.canceled_reason = 'Reprogramada por el usuario.'
-            booking.save(update_fields=['status', 'canceled_reason', 'updated_at'])
-
-            # Unblock old slot
-            old_slot = AvailabilitySlot.objects.select_for_update().get(pk=booking.slot_id)
-            old_slot.is_blocked = False
-            old_slot.save(update_fields=['is_blocked', 'updated_at'])
-
-            # Lock and validate new slot
-            new_slot = AvailabilitySlot.objects.select_for_update().get(pk=new_slot.pk)
-            if (
-                not new_slot.is_active
-                or new_slot.is_blocked
-                or new_slot.ends_at <= timezone.now()
-                or Booking.objects.filter(slot=new_slot).exclude(status=Booking.Status.CANCELED).exists()
-            ):
+            TrainerProfile.objects.select_for_update().get(pk=booking.trainer_id)
+            if not is_start_time_available(booking.trainer, new_starts_at, now=timezone.now()):
                 return Response(
                     {'detail': 'El nuevo horario no está disponible.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            if has_trainer_travel_buffer_conflict(new_slot, trainer=booking.trainer):
-                return Response(
-                    {
-                        'detail': (
-                            f'Debe existir una ventana libre de {TRAVEL_BUFFER_MINUTES} minutos '
-                            'antes y después de cada sesión del mismo entrenador.'
-                        )
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            booking.status = Booking.Status.CANCELED
+            booking.canceled_reason = 'Reprogramada por el usuario.'
+            booking.save(update_fields=['status', 'canceled_reason', 'updated_at'])
 
-            new_slot.is_blocked = True
-            new_slot.save(update_fields=['is_blocked', 'updated_at'])
-
-            # Create new booking (subscription stays the same, no session count change)
+            _, new_end = session_window(booking.trainer, new_starts_at)
             new_booking = Booking.objects.create(
                 customer=booking.customer,
                 package=booking.package,
-                slot=new_slot,
                 trainer=booking.trainer,
                 subscription=booking.subscription,
                 status=Booking.Status.PENDING,
+                starts_at=new_starts_at,
+                ends_at=new_end,
             )
 
-            # Cascade reschedule to guest if duo plan
             _cancel_guest_booking_for_slot(booking)
             _maybe_create_guest_booking(new_booking)
 
@@ -316,16 +242,19 @@ class BookingViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['patch'], url_path='session-prep', permission_classes=[IsTrainerRole])
     def session_prep(self, request, pk=None):
-        """Allow a trainer to set session objective and notes before a session.
+        """Allow a trainer to set session objective and notes before a session."""
+        # Bypass the customer-only get_queryset filter: a trainer must be able
+        # to edit a booking that belongs to their client, not to themselves.
+        try:
+            booking = Booking.objects.select_related('trainer').get(pk=pk)
+        except Booking.DoesNotExist:
+            return Response({'detail': 'Sesión no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
 
-        Body fields (both optional):
-            - ``session_objective`` (str)
-            - ``session_notes_for_customer`` (str)
+        trainer_profile = getattr(request.user, 'trainer_profile', None)
+        if not is_admin_user(request.user):
+            if not trainer_profile or (booking.trainer_id and booking.trainer_id != trainer_profile.pk):
+                return Response({'detail': 'No autorizado.'}, status=status.HTTP_403_FORBIDDEN)
 
-        Returns:
-            Response: Updated booking data or 400/403.
-        """
-        booking = self.get_object()
         allowed = {'session_objective', 'session_notes_for_customer'}
         data = {k: v for k, v in request.data.items() if k in allowed}
         if not data:
@@ -336,31 +265,22 @@ class BookingViewSet(viewsets.ModelViewSet):
         for field, value in data.items():
             setattr(booking, field, value)
         booking.save(update_fields=list(data.keys()))
+        import logging
+        logging.getLogger(__name__).warning('[session_prep] booking=%s payload=%s saved_obj=%r', pk, dict(data), booking.session_objective)
         serializer = self.get_serializer(booking)
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'], url_path='upcoming-reminder')
     def upcoming_reminder(self, request):
-        """Return the user's next upcoming booking for dashboard reminders.
-
-        Looks for the soonest active (non-canceled) booking whose slot starts
-        in the future.  Bookings are ``pending`` while upcoming and become
-        ``confirmed`` automatically once the slot has passed (see the
-        ``auto_complete_past_bookings`` task), so both states are accepted —
-        in practice only ``pending`` ones have a future slot.  The frontend
-        uses this for the "próxima sesión" card and the login reminder modal.
-
-        Returns:
-            Response: Booking data if found, or ``{"detail": null}`` with 204.
-        """
+        """Return the user's next upcoming booking for dashboard reminders."""
         next_booking = (
             Booking.objects.filter(
                 customer=request.user,
                 status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
-                slot__starts_at__gt=timezone.now(),
+                starts_at__gt=timezone.now(),
             )
-            .select_related('customer', 'package', 'slot', 'trainer__user', 'subscription')
-            .order_by('slot__starts_at')
+            .select_related('customer', 'package', 'trainer__user', 'subscription')
+            .order_by('starts_at')
             .first()
         )
 
@@ -369,72 +289,3 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(next_booking)
         return Response(serializer.data)
-
-    @action(detail=False, methods=['get'], url_path='occupied-day')
-    def occupied_day(self, request):
-        """Return booked trainer sessions for a specific day.
-
-        Query parameters:
-            - ``trainer`` (int, required): Trainer profile id.
-            - ``date`` (YYYY-MM-DD, required): Day to inspect.
-
-        Returns:
-            Response: List of minimal booked-slot payloads used by frontend
-            day-level availability calculations.
-        """
-        trainer_param = request.query_params.get('trainer')
-        date_param = request.query_params.get('date')
-
-        if not trainer_param:
-            return Response(
-                {'detail': 'El parámetro trainer es obligatorio.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if not date_param:
-            return Response(
-                {'detail': 'El parámetro date es obligatorio.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            trainer_id = int(trainer_param)
-        except (TypeError, ValueError):
-            return Response(
-                {'detail': 'El parámetro trainer debe ser un entero válido.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            day = datetime.strptime(date_param, '%Y-%m-%d').date()
-        except ValueError:
-            return Response(
-                {'detail': 'El parámetro date debe tener formato YYYY-MM-DD.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        day_start, day_end = _local_day_bounds(day)
-
-        bookings = (
-            Booking.objects.filter(
-                status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
-                slot__starts_at__gte=day_start,
-                slot__starts_at__lt=day_end,
-            )
-            .filter(
-                db_models.Q(slot__trainer_id=trainer_id) | db_models.Q(trainer_id=trainer_id),
-            )
-            .select_related('slot')
-            .order_by('slot__starts_at')
-        )
-
-        payload = [
-            {
-                'slot_id': booking.slot_id,
-                'trainer_id': booking.slot.trainer_id or booking.trainer_id,
-                'starts_at': booking.slot.starts_at,
-                'ends_at': booking.slot.ends_at,
-            }
-            for booking in bookings
-        ]
-        return Response(payload)

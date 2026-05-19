@@ -15,7 +15,7 @@ class Command(BaseCommand):
     help = 'Create fake trainer user(s) with TrainerProfile'
 
     def add_arguments(self, parser):
-        parser.add_argument('--password', type=str, default='ogthsv25')
+        parser.add_argument('--password', type=str, default='password')
 
     def handle(self, *args, **options):
         password = options['password']
@@ -47,9 +47,9 @@ class Command(BaseCommand):
                     'role': User.Role.TRAINER,
                 },
             )
+            user.set_password(password)
+            user.save(update_fields=['password'])
             if user_created:
-                user.set_password(password)
-                user.save(update_fields=['password'])
                 created_users += 1
             elif user.role != User.Role.TRAINER:
                 user.role = User.Role.TRAINER

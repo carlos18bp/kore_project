@@ -1045,13 +1045,6 @@ export default function EvalPosturTab({ clientId }: { clientId: number }) {
             </div>
           </div>
 
-          <NotesField
-            label="Notas generales del entrenador"
-            placeholder="Observaciones globales, sugerencias de movilidad o derivaciones…"
-            value={form.notes}
-            onChange={v => setForm(f => ({ ...f, notes: v }))}
-          />
-
           <StickyFooter
             lastSaved={editMode === 'edit' && latest ? new Date(latest.created_at).toLocaleDateString('es-CO') : undefined}
             onSave={handleSave}

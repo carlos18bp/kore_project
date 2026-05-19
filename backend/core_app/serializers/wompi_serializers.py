@@ -142,6 +142,62 @@ class SubscriptionPurchaseAlternativeSerializer(serializers.Serializer):
         return attrs
 
 
+class SubscriptionNequiStartSerializer(serializers.Serializer):
+    """Validates input for starting a NEQUI subscription purchase.
+
+    The customer's phone number is sent to Wompi via POST /tokens/nequi.
+    Wompi returns a token in PENDING status that the customer must approve
+    from their Nequi app; the confirm endpoint then polls and proceeds.
+    """
+
+    package_id = serializers.PrimaryKeyRelatedField(
+        queryset=Package.objects.filter(is_active=True),
+    )
+    phone_number = serializers.CharField(
+        max_length=30,
+        help_text='10-digit Colombian mobile number registered with Nequi.',
+    )
+    registration_token = serializers.CharField(
+        max_length=2000,
+        required=False,
+        allow_blank=True,
+        help_text='Signed pre-registration token for guest checkout flow.',
+    )
+
+
+class SubscriptionBancolombiaStartSerializer(serializers.Serializer):
+    """Validates input for starting a BANCOLOMBIA_TRANSFER subscription purchase.
+
+    redirect_url is the page where Bancolombia returns the customer after
+    they authorize the recurring debit.
+    """
+
+    package_id = serializers.PrimaryKeyRelatedField(
+        queryset=Package.objects.filter(is_active=True),
+    )
+    redirect_url = serializers.URLField(
+        max_length=2000,
+        help_text='Frontend URL Bancolombia will redirect the customer to after authorization.',
+    )
+    registration_token = serializers.CharField(
+        max_length=2000,
+        required=False,
+        allow_blank=True,
+        help_text='Signed pre-registration token for guest checkout flow.',
+    )
+
+
+class SubscriptionTokenizedConfirmSerializer(serializers.Serializer):
+    """Validates input for confirming a NEQUI/BANCOLOMBIA tokenized purchase.
+
+    Used after the customer has approved the token (Nequi app or Bancolombia
+    redirect). The backend polls the token status, creates a payment_source
+    and a recurring transaction.
+    """
+
+    reference = serializers.CharField(max_length=255)
+
+
 class PaymentIntentStatusSerializer(serializers.ModelSerializer):
     """Read-only serializer for polling a PaymentIntent status.
 

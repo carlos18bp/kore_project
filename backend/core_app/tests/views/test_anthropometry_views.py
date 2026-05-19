@@ -12,7 +12,6 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from core_app.models import (
-    AvailabilitySlot,
     Booking,
     Package,
     TrainerProfile,
@@ -80,13 +79,11 @@ def package(db):
 def booking_link(trainer, customer_with_profile, package):
     """Create a booking linking trainer and customer."""
     future = FIXED_NOW + timedelta(days=3)
-    slot = AvailabilitySlot.objects.create(
-        starts_at=future, ends_at=future + timedelta(hours=1),
-        is_active=True, is_blocked=True,
-    )
     return Booking.objects.create(
         customer=customer_with_profile, trainer=trainer,
-        package=package, slot=slot, status=Booking.Status.CONFIRMED,
+        package=package,
+        starts_at=future, ends_at=future + timedelta(hours=1),
+        status=Booking.Status.CONFIRMED,
     )
 
 
@@ -142,13 +139,11 @@ class TestTrainerAnthropometryListCreate:
     def test_create_returns_400_when_profile_incomplete(self, api_client, trainer, customer_no_profile, package):
         """Return 400 when client profile missing sex/dob."""
         future = FIXED_NOW + timedelta(days=3)
-        slot = AvailabilitySlot.objects.create(
-            starts_at=future, ends_at=future + timedelta(hours=1),
-            is_active=True, is_blocked=True,
-        )
         Booking.objects.create(
             customer=customer_no_profile, trainer=trainer,
-            package=package, slot=slot, status=Booking.Status.CONFIRMED,
+            package=package,
+            starts_at=future, ends_at=future + timedelta(hours=1),
+            status=Booking.Status.CONFIRMED,
         )
 
         api_client.force_authenticate(user=trainer.user)
@@ -326,13 +321,11 @@ class TestAnthropometryCustomerDoesNotExist:
             email='anthro-noncust@test.com', password='pass', role=User.Role.TRAINER,
         )
         future = FIXED_NOW + timedelta(days=3)
-        slot = AvailabilitySlot.objects.create(
-            starts_at=future, ends_at=future + timedelta(hours=1),
-            is_active=True, is_blocked=True,
-        )
         Booking.objects.create(
             customer=non_customer, trainer=trainer,
-            package=package, slot=slot, status=Booking.Status.CONFIRMED,
+            package=package,
+            starts_at=future, ends_at=future + timedelta(hours=1),
+            status=Booking.Status.CONFIRMED,
         )
         api_client.force_authenticate(user=trainer.user)
         url = reverse('trainer-anthropometry-list-create', args=[non_customer.id])
