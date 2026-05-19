@@ -397,27 +397,50 @@ class Command(BaseCommand):
         """Remove Exercise rows polluted by the pre-fix import.
 
         Targets records whose muscle fields contain URLs or oversized text.
-        These rows were created when CharField(255) was widened to TextField
-        without filtering malformed CSV rows.
+        Skips rows referenced by ProgramExercise (PROTECT FK) and reports
+        them as a warning so a human can decide what to do.
         """
         from django.db.models import Q
 
-        qs = Exercise.objects.filter(
+        url_qs = Exercise.objects.filter(
             Q(primary_muscles__icontains='http')
             | Q(secondary_muscles__icontains='http')
         )
-        url_count = qs.count()
-        url_count and qs.delete()
+        url_protected = list(
+            url_qs.filter(program_entries__isnull=False)
+            .distinct()
+            .values_list('id', 'name')
+        )
+        url_deletable = url_qs.exclude(program_entries__isnull=False)
+        url_count = url_deletable.count()
+        if url_count:
+            url_deletable.delete()
 
-        # Records with absurdly long muscle text but no URL leak.
-        long_qs = []
-        for ex in Exercise.objects.only('id', 'primary_muscles', 'secondary_muscles'):
-            if len(ex.primary_muscles) > _MAX_MUSCLE_LEN or len(ex.secondary_muscles) > _MAX_MUSCLE_LEN:
-                long_qs.append(ex.id)
-        long_count = len(long_qs)
+        long_ids = [
+            ex.id
+            for ex in Exercise.objects.only('id', 'primary_muscles', 'secondary_muscles')
+            if len(ex.primary_muscles) > _MAX_MUSCLE_LEN
+            or len(ex.secondary_muscles) > _MAX_MUSCLE_LEN
+        ]
+        long_qs = Exercise.objects.filter(id__in=long_ids)
+        long_protected = list(
+            long_qs.filter(program_entries__isnull=False)
+            .distinct()
+            .values_list('id', 'name')
+        )
+        long_deletable = long_qs.exclude(program_entries__isnull=False)
+        long_count = long_deletable.count()
         if long_count:
-            Exercise.objects.filter(id__in=long_qs).delete()
+            long_deletable.delete()
 
         self.stdout.write(self.style.SUCCESS(
             f'Cleanup — deleted: {url_count} with URL leak, {long_count} with oversized muscles'
         ))
+
+        skipped = {ex_id: name for ex_id, name in url_protected + long_protected}
+        if skipped:
+            self.stdout.write(self.style.WARNING(
+                f'Cleanup — skipped {len(skipped)} corrupt exercise(s) referenced by ProgramExercise (PROTECT FK):'
+            ))
+            for ex_id, name in sorted(skipped.items()):
+                self.stdout.write(self.style.WARNING(f'  id={ex_id} name={name!r}'))
