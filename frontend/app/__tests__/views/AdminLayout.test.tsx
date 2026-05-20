@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
 import AdminLayout from '@/app/admin-platform/layout';
 import { useAuthStore, SPLASH_SHOWN_KEY } from '@/lib/stores/authStore';
 
@@ -66,5 +67,16 @@ describe('AdminLayout — mobile nav wiring', () => {
     expect(screen.getByTestId('admin-child')).toBeInTheDocument();
     expect(screen.getByText('Panel')).toBeInTheDocument();
     expect(screen.getByText('Suscrip.')).toBeInTheDocument();
+  });
+
+  it('server-renders the splash, not the content, even for an authenticated admin', () => {
+    // The first render (server + client hydration) must not depend on the
+    // cookie-derived auth state, or React reports a hydration mismatch.
+    const html = renderToString(
+      <AdminLayout>
+        <div data-testid="admin-child">contenido</div>
+      </AdminLayout>,
+    );
+    expect(html).not.toContain('admin-child');
   });
 });

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/stores/authStore';
+import { useMounted } from '@/lib/hooks/useMounted';
 
 const navLinks = [
   { href: '/', label: 'Inicio' },
@@ -30,11 +31,10 @@ function NavbarInner() {
   // (hydration) render, so both produce the logged-out CTA and match. The
   // auth store reads cookies synchronously at module init, so `isAuthenticated`
   // would otherwise differ between server and client on that first render.
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
   const { isAuthenticated, hydrate } = useAuthStore();
 
   useEffect(() => {
-    setMounted(true);
     hydrate();
   }, [hydrate]);
 
