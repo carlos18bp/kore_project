@@ -31,7 +31,7 @@ type Props = {
 
 export default function SubscriptionCategoryTabs({ active, counts, onChange }: Props) {
   return (
-    <div className="flex gap-2.5 mb-5 flex-wrap">
+    <div className="grid grid-cols-1 gap-2.5 mb-5 sm:grid-cols-3">
       {TABS.map((tc) => {
         const sel = active === tc.k;
         const p = PALETTE[tc.tone];
