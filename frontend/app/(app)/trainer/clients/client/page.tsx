@@ -19,6 +19,7 @@ import EvalPosturTab from '@/app/components/trainer/evals/EvalPosturTab';
 import EvalFisicaTab from '@/app/components/trainer/evals/EvalFisicaTab';
 import EvalParqTab from '@/app/components/trainer/evals/EvalParqTab';
 import NotesTab from '@/app/components/trainer/NotesTab';
+import ResponsiveSheet from '@/app/components/trainer/ResponsiveSheet';
 import ClientNutritionTab from '@/app/components/trainer/ClientNutritionTab';
 
 type TabId =
@@ -444,13 +445,8 @@ function TrainerClientDetailPage() {
 
       {/* ── Resolve Alert Sheet ── */}
       {resolveSheet !== null && (
-        <>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" onClick={() => setResolveSheet(null)} />
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl">
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full" style={{ background: 'rgba(103,15,34,0.15)' }} />
-            </div>
-            <div className="px-4 pt-2 pb-8 space-y-4">
+        <ResponsiveSheet onClose={() => setResolveSheet(null)}>
+            <div className="px-4 pt-2 pb-8 xl:pt-5 space-y-4">
               <p className="font-heading text-[16px] font-semibold text-kore-wine-dark">Resolver alerta</p>
               <div className="flex gap-2 overflow-x-auto scrollbar-hide">
                 {(['mark_reviewed', 'private_note', 'public_note', 'schedule_eval'] as const).map(t => (
@@ -477,19 +473,13 @@ function TrainerClientDetailPage() {
                 </button>
               </div>
             </div>
-          </div>
-        </>
+        </ResponsiveSheet>
       )}
 
       {/* ── Pause Sheet ── */}
       {showPauseSheet && (
-        <>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50" onClick={() => setShowPauseSheet(false)} />
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl">
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full" style={{ background: 'rgba(103,15,34,0.15)' }} />
-            </div>
-            <div className="px-4 pt-2 pb-8 space-y-4">
+        <ResponsiveSheet onClose={() => setShowPauseSheet(false)}>
+            <div className="px-4 pt-2 pb-8 xl:pt-5 space-y-4">
               <p className="font-heading text-[16px] font-semibold text-kore-wine-dark">Pausar programa</p>
               <textarea value={pauseReason} onChange={e => setPauseReason(e.target.value)} rows={3}
                 placeholder="Motivo de la pausa..."
@@ -513,8 +503,7 @@ function TrainerClientDetailPage() {
                 </button>
               </div>
             </div>
-          </div>
-        </>
+        </ResponsiveSheet>
       )}
 
       {/* ── Post-Session Sheet ── */}
