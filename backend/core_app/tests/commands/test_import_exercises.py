@@ -1,12 +1,15 @@
 """Tests for import_exercises --csv corruption filtering and cleanup."""
 
 import textwrap
+from datetime import date
 from io import StringIO
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.core.management import call_command
 
 from core_app.models.exercise import Exercise
+from core_app.models.monthly_program import MonthlyProgram, ProgramDay, ProgramExercise
 
 
 CSV_HEADER = (
@@ -93,3 +96,58 @@ def test_cleanup_corrupt_flag_removes_polluted_records(tmp_path):
     assert not Exercise.objects.filter(name='Legacy Bad').exists()
     assert not Exercise.objects.filter(name='Legacy Long').exists()
     assert Exercise.objects.filter(name='Legacy Good').exists()
+
+
+@pytest.mark.django_db
+def test_cleanup_corrupt_skips_program_exercise_referenced_rows(tmp_path):
+    """Corrupt rows referenced by ProgramExercise (PROTECT FK) survive and warn.
+
+    Regression for the production bug where blanket Exercise.delete() raised
+    ProtectedError atomically, leaving the entire cleanup as a no-op.
+    """
+    User = get_user_model()
+    customer = User.objects.create_user(email='c@test.local', password='x', role='customer')
+
+    protected = Exercise.objects.create(
+        name='Protected Bad',
+        primary_muscles='Tríceps https://youtu.be/abc Abdominales',
+        youtube_url='https://www.youtube.com/watch?v=protect1',
+    )
+    Exercise.objects.create(
+        name='Orphan Bad',
+        primary_muscles='Pectorales https://youtu.be/xyz Tríceps',
+        youtube_url='https://www.youtube.com/watch?v=orphan11',
+    )
+    Exercise.objects.create(
+        name='Clean Exercise',
+        primary_muscles='Pectorales',
+        youtube_url='https://www.youtube.com/watch?v=cleanrow',
+    )
+
+    program = MonthlyProgram.objects.create(
+        customer=customer,
+        fitness_level=2,
+        goal='general_health',
+        start_date=date(2026, 1, 1),
+        end_date=date(2026, 1, 28),
+    )
+    day = ProgramDay.objects.create(
+        program=program,
+        day_number=1,
+        date=date(2026, 1, 1),
+        day_type='training',
+    )
+    ProgramExercise.objects.create(program_day=day, exercise=protected, reps=10)
+
+    out = StringIO()
+    csv_path = _write_csv(tmp_path, '')
+    call_command('import_exercises', '--csv', csv_path, '--cleanup-corrupt', stdout=out)
+
+    assert Exercise.objects.filter(name='Protected Bad').exists()
+    assert not Exercise.objects.filter(name='Orphan Bad').exists()
+    assert Exercise.objects.filter(name='Clean Exercise').exists()
+
+    output = out.getvalue()
+    assert 'skipped 1 corrupt exercise(s) referenced by ProgramExercise' in output
+    assert f'id={protected.id}' in output
+    assert "name='Protected Bad'" in output
