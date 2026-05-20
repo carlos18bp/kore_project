@@ -25,6 +25,8 @@ export interface MobileNavMoreItem {
   href?: string;
   external?: boolean;
   onClick?: () => void;
+  /** Si es true, el ítem se muestra inerte con un tag "Pronto" (no navega ni dispara onClick). */
+  disabled?: boolean;
 }
 
 export interface AppMobileBottomNavProps {
@@ -152,12 +154,19 @@ export default function AppMobileBottomNav({
             </div>
             <div className="px-2 pb-3 space-y-0.5">
               {moreItems?.map((item) => {
-                const className =
-                  'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-kore-ivory/70 hover:bg-kore-ivory/5 hover:text-kore-ivory transition-all duration-150 font-medium';
+                const base =
+                  'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-150';
+                const interactive = `${base} text-kore-ivory/70 hover:bg-kore-ivory/5 hover:text-kore-ivory`;
+                const disabledCls = `${base} text-kore-ivory/40 cursor-not-allowed`;
                 const body = (
                   <>
                     <span className="text-kore-gold/55">{item.icon}</span>
                     <span className="flex-1 text-left">{item.label}</span>
+                    {item.disabled && (
+                      <span className="text-[8px] font-bold uppercase tracking-[0.18em] text-kore-gold/50">
+                        Pronto
+                      </span>
+                    )}
                     {item.badge === 'dot' && (
                       <span
                         className="w-2 h-2 rounded-full bg-kore-crimson animate-pulse"
@@ -171,6 +180,13 @@ export default function AppMobileBottomNav({
                     )}
                   </>
                 );
+                if (item.disabled) {
+                  return (
+                    <div key={item.key} aria-disabled="true" className={disabledCls}>
+                      {body}
+                    </div>
+                  );
+                }
                 if (item.href) {
                   return item.external ? (
                     <a
@@ -178,7 +194,7 @@ export default function AppMobileBottomNav({
                       href={item.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={className}
+                      className={interactive}
                     >
                       {body}
                     </a>
@@ -187,7 +203,7 @@ export default function AppMobileBottomNav({
                       key={item.key}
                       href={item.href}
                       prefetch={false}
-                      className={className}
+                      className={interactive}
                     >
                       {body}
                     </Link>
@@ -198,7 +214,7 @@ export default function AppMobileBottomNav({
                     key={item.key}
                     type="button"
                     onClick={item.onClick}
-                    className={className}
+                    className={interactive}
                   >
                     {body}
                   </button>
