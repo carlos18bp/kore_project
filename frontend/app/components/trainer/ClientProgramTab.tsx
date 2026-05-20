@@ -76,24 +76,8 @@ function DayTypeChip({ type }: { type: string }) {
   );
 }
 
-// ─── Adherence dot ─────────────────────────────────────────────
+// ─── Adherence status ──────────────────────────────────────────
 type AdhStatus = 'done' | 'skipped' | 'pending' | 'rest';
-const ADH_CFG: Record<AdhStatus, { bg: string; fg: string; icon: string }> = {
-  done:    { bg: '#669959',                fg: '#fff',     icon: '✓' },
-  skipped: { bg: 'rgba(154,5,38,0.16)',    fg: '#9A0526',  icon: '✕' },
-  pending: { bg: 'rgba(103,15,34,0.06)',   fg: T.textSoft, icon: '·' },
-  rest:    { bg: 'rgba(168,194,156,0.18)', fg: T.sageDark, icon: '◇' },
-};
-
-function AdhDot({ status, label }: { status: AdhStatus; label: string }) {
-  const cfg = ADH_CFG[status];
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-      <div style={{ width: 26, height: 26, borderRadius: 7, background: cfg.bg, color: cfg.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Cinzel', fontSize: 12, fontWeight: 700 }}>{cfg.icon}</div>
-      <div style={{ fontFamily: 'Montserrat', fontSize: 7, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: T.textSoft, whiteSpace: 'nowrap' }}>{label}</div>
-    </div>
-  );
-}
 
 function LegendDot({ color, label }: { color: string; label: string }) {
   return (
@@ -450,60 +434,104 @@ function WeekCard({
 }
 
 // ─── Adherence card ────────────────────────────────────────────
+const ADH_CELL: Record<AdhStatus, string> = {
+  done:    'bg-[#669959] text-white',
+  skipped: 'bg-[#9A0526]/15 text-[#9A0526]',
+  rest:    'bg-[#A8C29C]/25 text-[#3F6B36]',
+  pending: 'bg-kore-wine-dark/5 text-kore-wine-dark/40',
+};
+
+const WEEKDAY_HEADERS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+
 function AdherenceCard({ logs }: { logs: DailyLogDay[] }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const todayTime = today.getTime();
 
-  const dots = logs.map(d => {
+  const cells = logs.map((d) => {
     const logDate = new Date(d.date + 'T12:00:00');
     logDate.setHours(0, 0, 0, 0);
-    const isPast = logDate <= today;
-    const label  = new Date(d.date + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }).replace(' ', '\n');
-
-    if (d.day_type === 'rest' || d.day_type === 'active_rest') return { status: 'rest' as AdhStatus, label };
-    if (!isPast) return { status: 'pending' as AdhStatus, label };
-    return d.training_adherence >= 0.5 ? { status: 'done' as AdhStatus, label } : { status: 'skipped' as AdhStatus, label };
+    const isPast = logDate.getTime() <= todayTime;
+    const dayNum = logDate.getDate();
+    let status: AdhStatus;
+    if (d.day_type === 'rest' || d.day_type === 'active_rest') status = 'rest';
+    else if (!isPast) status = 'pending';
+    else status = d.training_adherence >= 0.5 ? 'done' : 'skipped';
+    return { dayNum, status, isToday: logDate.getTime() === todayTime };
   });
 
-  const countable = dots.filter(d => d.status === 'done' || d.status === 'skipped');
-  const done      = dots.filter(d => d.status === 'done').length;
-  const pct       = countable.length > 0 ? Math.round((done / countable.length) * 100) : 0;
+  const countable = cells.filter((c) => c.status === 'done' || c.status === 'skipped');
+  const done = cells.filter((c) => c.status === 'done').length;
+  const pct = countable.length > 0 ? Math.round((done / countable.length) * 100) : 0;
   const dasharray = 2 * Math.PI * 46;
 
+  // Celdas vacías al inicio para alinear el primer día a su día de semana (L=0).
+  const leadingBlanks = logs.length
+    ? (new Date(logs[0].date + 'T12:00:00').getDay() + 6) % 7
+    : 0;
+
   return (
-    <div style={{ borderRadius: 22, background: 'rgba(255,255,255,0.65)', border: `1px solid ${T.borderSoft}`, boxShadow: '0 2px 12px -8px rgba(45,15,26,0.10)', padding: 26, marginBottom: 18 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 28, flexWrap: 'wrap' }}>
-        <div style={{ flexShrink: 0, position: 'relative' }}>
-          <svg width="112" height="112" viewBox="0 0 120 120">
-            <circle cx="60" cy="60" r="46" fill="none" stroke="rgba(103,15,34,0.08)" strokeWidth="10"/>
-            <circle cx="60" cy="60" r="46" fill="none" stroke="url(#adhGrad)" strokeWidth="10"
-              strokeDasharray={`${(pct / 100) * dasharray} ${dasharray}`}
-              strokeLinecap="round" transform="rotate(-90 60 60)" style={{ transition: 'stroke-dasharray 0.7s ease-out' }}/>
-            <defs>
-              <linearGradient id="adhGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#A8C29C"/>
-                <stop offset="100%" stopColor="#3F6B36"/>
-              </linearGradient>
-            </defs>
-          </svg>
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ fontFamily: 'Cinzel', fontSize: 30, fontWeight: 600, color: T.wine, lineHeight: 1 }}>{pct}%</div>
-            <div style={{ fontFamily: 'Montserrat', fontSize: 8, fontWeight: 700, letterSpacing: '0.20em', textTransform: 'uppercase', color: T.textSoft, marginTop: 4 }}>Adherencia</div>
+    <div className="mb-[18px] flex flex-col gap-6 rounded-[22px] border border-kore-wine-dark/8 bg-white/65 p-6 shadow-[0_2px_12px_-8px_rgba(45,15,26,0.10)] sm:flex-row sm:items-start sm:gap-7">
+      {/* Anillo de adherencia */}
+      <div className="relative flex-shrink-0 self-center sm:self-start">
+        <svg width="112" height="112" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="46" fill="none" stroke="rgba(103,15,34,0.08)" strokeWidth="10" />
+          <circle
+            cx="60" cy="60" r="46" fill="none" stroke="url(#adhGrad)" strokeWidth="10"
+            strokeDasharray={`${(pct / 100) * dasharray} ${dasharray}`}
+            strokeLinecap="round" transform="rotate(-90 60 60)"
+            style={{ transition: 'stroke-dasharray 0.7s ease-out' }}
+          />
+          <defs>
+            <linearGradient id="adhGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#A8C29C" />
+              <stop offset="100%" stopColor="#3F6B36" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <div className="font-heading text-[30px] font-semibold leading-none text-kore-wine-dark">
+            {pct}%
+          </div>
+          <div className="mt-1 font-body text-[8px] font-bold uppercase tracking-[0.20em] text-kore-wine-dark/55">
+            Adherencia
           </div>
         </div>
-        <div style={{ flex: 1, minWidth: 180 }}>
-          <div style={{ fontFamily: 'Montserrat', fontSize: 9, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: T.textSoft, marginBottom: 12 }}>
-            Bitácora · {logs.length} días
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(logs.length, 7)}, 1fr)`, gap: 6 }}>
-            {dots.map((d, i) => <AdhDot key={i} status={d.status} label={d.label} />)}
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 14, paddingTop: 14, borderTop: `1px solid ${T.borderSoft}` }}>
-            <LegendDot color="#669959" label="Completado"/>
-            <LegendDot color="rgba(154,5,38,0.40)" label="Saltado"/>
-            <LegendDot color="rgba(168,194,156,0.45)" label="Descanso"/>
-            <LegendDot color="rgba(103,15,34,0.20)" label="Pendiente"/>
-          </div>
+      </div>
+
+      {/* Minicalendario */}
+      <div className="min-w-0 flex-1">
+        <div className="mb-3 font-body text-[9px] font-bold uppercase tracking-[0.22em] text-kore-wine-dark/55">
+          Bitácora · {logs.length} días
+        </div>
+        <div className="grid grid-cols-7 gap-1.5">
+          {WEEKDAY_HEADERS.map((h, i) => (
+            <div
+              key={`h-${i}`}
+              className="text-center font-body text-[9px] font-bold uppercase text-kore-wine-dark/40"
+            >
+              {h}
+            </div>
+          ))}
+          {Array.from({ length: leadingBlanks }, (_, i) => (
+            <div key={`b-${i}`} />
+          ))}
+          {cells.map((c, i) => (
+            <div
+              key={i}
+              className={`flex aspect-square items-center justify-center rounded-lg font-heading text-[13px] font-semibold ${ADH_CELL[c.status]} ${
+                c.isToday ? 'ring-2 ring-[#9A0526]/40' : ''
+              }`}
+            >
+              {c.dayNum}
+            </div>
+          ))}
+        </div>
+        <div className="mt-3.5 flex flex-wrap gap-3 border-t border-kore-wine-dark/8 pt-3.5">
+          <LegendDot color="#669959" label="Completado" />
+          <LegendDot color="rgba(154,5,38,0.40)" label="Saltado" />
+          <LegendDot color="rgba(168,194,156,0.45)" label="Descanso" />
+          <LegendDot color="rgba(103,15,34,0.20)" label="Pendiente" />
         </div>
       </div>
     </div>
