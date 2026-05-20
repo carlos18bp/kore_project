@@ -351,30 +351,39 @@ function ExerciseRow({
 // ─── Day row ───────────────────────────────────────────────────
 function DayRow({ day, programId, onExSaved }: { day: ProgramDay; programId: number; onExSaved: OnExSaved }) {
   const [open, setOpen] = useState(false);
-  const isRest  = day.day_type === 'rest';
+  const isRest = day.day_type === 'rest';
   const weekday = new Date(day.date + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'short' });
   const dateStr = fmtDay(day.date);
 
   return (
-    <div style={{ borderTop: `1px solid ${T.borderSoft}` }}>
+    <div className="border-t border-kore-wine-dark/8">
       <button
-        onClick={() => !isRest && setOpen(o => !o)}
-        style={{ width: '100%', padding: '14px 22px', background: open ? 'rgba(154,5,38,0.03)' : 'transparent', border: 'none', cursor: isRest ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left' }}
+        onClick={() => !isRest && setOpen((o) => !o)}
+        className={`flex w-full flex-wrap items-center gap-x-3.5 gap-y-2 px-4 py-3.5 text-left sm:px-[22px] ${
+          open ? 'bg-[#9A0526]/3' : 'bg-transparent'
+        } ${isRest ? 'cursor-default' : 'cursor-pointer'}`}
       >
-        <div style={{ minWidth: 54 }}>
-          <div style={{ fontFamily: 'Cinzel', fontSize: 12, fontWeight: 600, color: T.wine, textTransform: 'capitalize' }}>{weekday}</div>
-          <div style={{ fontFamily: 'Montserrat', fontSize: 10, color: T.textMed }}>{dateStr}</div>
+        <div className="min-w-[54px]">
+          <div className="font-heading text-[12px] font-semibold capitalize text-kore-wine-dark">
+            {weekday}
+          </div>
+          <div className="font-body text-[10px] text-kore-wine-dark/65">{dateStr}</div>
         </div>
         <DayTypeChip type={day.day_type} />
-        <div style={{ flex: 1, fontFamily: 'Montserrat', fontSize: 12, color: T.textMed }}>
+        <div className="min-w-0 flex-1 font-body text-[12px] text-kore-wine-dark/65">
           {isRest ? 'Recuperación · sin ejercicios' : `${day.exercises.length} ejercicios`}
         </div>
         {!isRest && (
-          <span style={{ fontFamily: 'Montserrat', fontSize: 16, color: T.textMed, display: 'inline-block', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 140ms', lineHeight: 1 }}>⌄</span>
+          <span
+            className="inline-block font-body text-[16px] leading-none text-kore-wine-dark/65 transition-transform duration-150"
+            style={{ transform: open ? 'rotate(180deg)' : 'none' }}
+          >
+            ⌄
+          </span>
         )}
       </button>
       {open && !isRest && day.exercises.length > 0 && (
-        <div style={{ background: 'rgba(255,255,255,0.55)', borderTop: `1px solid ${T.borderSoft}` }}>
+        <div className="border-t border-kore-wine-dark/8 bg-white/55">
           {day.exercises.map((ex, i) => (
             <ExerciseRow
               key={ex.id}
@@ -402,29 +411,42 @@ function WeekCard({
   onExSaved: OnExSaved;
 }) {
   const [open, setOpen] = useState(defaultOpen);
-  const trainCount  = days.filter(d => d.day_type === 'training').length;
-  const activeCount = days.filter(d => d.day_type === 'active_rest').length;
+  const trainCount = days.filter((d) => d.day_type === 'training').length;
+  const activeCount = days.filter((d) => d.day_type === 'active_rest').length;
   const range = weekRange(days);
 
   return (
-    <div style={{ borderRadius: 22, overflow: 'hidden', background: 'rgba(255,255,255,0.65)', border: `1px solid ${T.borderSoft}`, boxShadow: '0 2px 12px -8px rgba(45,15,26,0.10)', marginBottom: 14 }}>
+    <div className="mb-3.5 overflow-hidden rounded-[22px] border border-kore-wine-dark/8 bg-white/65 shadow-[0_2px_12px_-8px_rgba(45,15,26,0.10)]">
       <button
-        onClick={() => setOpen(o => !o)}
-        style={{ width: '100%', padding: '18px 24px', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 18, textAlign: 'left' }}
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-4 px-5 py-4 text-left sm:gap-[18px] sm:px-6"
       >
-        <div style={{ width: 48, height: 48, borderRadius: 14, background: open ? 'linear-gradient(135deg, #9A0526, #5C2030)' : 'rgba(154,5,38,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 140ms' }}>
-          <div style={{ fontFamily: 'Cinzel', fontSize: 18, fontWeight: 600, color: open ? '#fff' : T.wine }}>{weekNum}</div>
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            <div style={{ fontFamily: 'Cinzel', fontSize: 18, fontWeight: 600, color: T.wine }}>Semana {weekNum}</div>
-            <div style={{ fontFamily: 'Montserrat', fontSize: 11, color: T.textMed }}>{range}</div>
+        <div
+          className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[14px] transition-all duration-150 ${
+            open ? 'bg-gradient-to-br from-[#9A0526] to-[#5C2030]' : 'bg-[#9A0526]/6'
+          }`}
+        >
+          <div className={`font-heading text-[18px] font-semibold ${open ? 'text-white' : 'text-kore-wine-dark'}`}>
+            {weekNum}
           </div>
-          <div style={{ fontFamily: 'Montserrat', fontSize: 11, color: T.textSoft, marginTop: 3 }}>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+            <div className="font-heading text-[18px] font-semibold text-kore-wine-dark">
+              Semana {weekNum}
+            </div>
+            <div className="font-body text-[11px] text-kore-wine-dark/65">{range}</div>
+          </div>
+          <div className="mt-0.5 font-body text-[11px] text-kore-wine-dark/55">
             {trainCount} entrenamientos{activeCount > 0 ? ` · ${activeCount} activos` : ''}
           </div>
         </div>
-        <span style={{ fontFamily: 'Montserrat', fontSize: 18, color: T.textMed, display: 'inline-block', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 140ms', lineHeight: 1 }}>⌄</span>
+        <span
+          className="inline-block flex-shrink-0 font-body text-[18px] leading-none text-kore-wine-dark/65 transition-transform duration-150"
+          style={{ transform: open ? 'rotate(180deg)' : 'none' }}
+        >
+          ⌄
+        </span>
       </button>
       {open && days.map((d, i) => (
         <DayRow key={d.id ?? i} day={d} programId={programId} onExSaved={onExSaved} />
