@@ -156,10 +156,10 @@ function AgendaTimeline({ sessions }: { sessions: UpcomingSession[] }) {
       style={{ border: '1px solid rgba(103,15,34,0.08)', boxShadow: '0 2px 12px -8px rgba(45,15,26,0.10)' }}
     >
       <div
-        className="flex items-center justify-between px-6 py-5"
+        className="flex items-center justify-between gap-4 px-6 py-5"
         style={{ borderBottom: '1px solid rgba(103,15,34,0.08)' }}
       >
-        <div>
+        <div className="min-w-0">
           <p className="font-body text-[10px] font-bold tracking-[0.22em] uppercase" style={{ color: 'rgba(103,15,34,0.55)' }}>
             Agenda · Hoy
           </p>
@@ -170,7 +170,7 @@ function AgendaTimeline({ sessions }: { sessions: UpcomingSession[] }) {
         <Link
           href="/trainer/clients"
           prefetch={false}
-          className="font-body text-[11px] font-semibold text-kore-wine-dark hover:opacity-70 transition-opacity"
+          className="font-body text-[11px] font-semibold text-kore-wine-dark hover:opacity-70 transition-opacity whitespace-nowrap flex-shrink-0"
         >
           Ver semana →
         </Link>

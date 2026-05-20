@@ -92,8 +92,13 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 600;
   line-height: 1.2;
 }
-:where(h1, h2, h3, h4, h5, h6) {
-  color: var(--color-kore-wine-dark);
+/* Color por defecto de los headings, dentro de @layer base para que cualquier
+   utilidad `text-*` de Tailwind (en @layer utilities) lo pueda sobrescribir —
+   imprescindible para títulos sobre heroes oscuros (text-kore-ivory). */
+@layer base {
+  :where(h1, h2, h3, h4, h5, h6) {
+    color: var(--color-kore-wine-dark);
+  }
 }
 
 /* ============================================
