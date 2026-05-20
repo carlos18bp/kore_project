@@ -53,85 +53,117 @@ export default function UserRow({ user }: { user: AdminUserRowData }) {
       : 0;
   const time = relativeTime(user.last_login);
 
+  const avatarEl = (
+    <div className="relative">
+      <Avatar name={user.full_name} size={42} tone={tone} />
+      {user.must_change_password && (
+        <span
+          title="Debe cambiar contraseña"
+          className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-kore-amber border-2 border-kore-ivory flex items-center justify-center text-[9px] font-bold text-kore-wine-deep"
+        >
+          !
+        </span>
+      )}
+    </div>
+  );
+
+  const identityEl = (
+    <div className="min-w-0">
+      <div className="text-sm font-semibold text-kore-burgundy truncate">{user.full_name}</div>
+      <div className="text-[11px] text-kore-burgundy/60 mt-0.5 truncate">{user.email}</div>
+    </div>
+  );
+
+  const rolePill = isTrainer ? (
+    <Pill tone="sage" size="sm" dot>
+      Entrenador
+    </Pill>
+  ) : (
+    <Pill tone="sakura" size="sm" dot>
+      Cliente
+    </Pill>
+  );
+
+  const sessionsEl =
+    user.sessions_total_total > 0 ? (
+      <div>
+        <div className="flex items-baseline gap-1.5 mb-1">
+          <span className="font-heading text-sm font-semibold text-kore-burgundy">
+            {user.sessions_used_total}
+          </span>
+          <span className="text-[10px] text-kore-burgundy/55">/ {user.sessions_total_total}</span>
+        </div>
+        <div className="h-1 rounded-[3px] bg-kore-burgundy/8 overflow-hidden">
+          <div
+            className={`h-full rounded-[3px] transition-all duration-700 ${
+              sessionsPct >= 80
+                ? 'bg-gradient-to-r from-kore-amber to-kore-amber-deep'
+                : 'bg-gradient-to-r from-kore-petal to-kore-red'
+            }`}
+            style={{ width: `${sessionsPct}%` }}
+          />
+        </div>
+      </div>
+    ) : (
+      <span className="text-[11px] italic text-kore-burgundy/55">Sin plan</span>
+    );
+
+  const lastLoginEl = (
+    <div>
+      <div className="text-xs font-medium text-kore-gray-dark">{time.rel}</div>
+      {time.abs && <div className="text-[10px] text-kore-burgundy/55 mt-0.5">{time.abs}</div>}
+    </div>
+  );
+
+  const statusPill = user.is_active ? (
+    <Pill tone="sage" size="sm" dot>
+      Activo
+    </Pill>
+  ) : (
+    <Pill tone="neutral" size="sm">
+      Inactivo
+    </Pill>
+  );
+
+  const chevron = (
+    <div className="text-base text-kore-burgundy/55 group-hover:text-kore-red group-hover:translate-x-0.5 transition-all">
+      ›
+    </div>
+  );
+
   return (
     <Link
       href={`/admin-platform/users/detail?id=${user.id}`}
       prefetch={false}
-      className="grid grid-cols-[52px_2.2fr_1fr_1.4fr_1.2fr_0.8fr_28px] gap-4 items-center px-5 py-4 rounded-2xl bg-white/65 border border-kore-burgundy/8 hover:bg-white/95 hover:border-kore-red/20 hover:-translate-y-px hover:shadow-[0_6px_18px_-10px_rgba(45,15,26,0.18)] transition-all duration-150 group"
+      className="block px-5 py-4 rounded-2xl bg-white/65 border border-kore-burgundy/8 hover:bg-white/95 hover:border-kore-red/20 hover:-translate-y-px hover:shadow-[0_6px_18px_-10px_rgba(45,15,26,0.18)] transition-all duration-150 group"
     >
-      <div className="relative">
-        <Avatar name={user.full_name} size={42} tone={tone} />
-        {user.must_change_password && (
-          <span
-            title="Debe cambiar contraseña"
-            className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-kore-amber border-2 border-kore-ivory flex items-center justify-center text-[9px] font-bold text-kore-wine-deep"
-          >
-            !
-          </span>
-        )}
+      {/* Desktop — grid de 7 columnas (igual que antes) */}
+      <div
+        data-testid="userrow-desktop"
+        className="hidden xl:grid xl:grid-cols-[52px_2.2fr_1fr_1.4fr_1.2fr_0.8fr_28px] xl:gap-4 xl:items-center"
+      >
+        {avatarEl}
+        {identityEl}
+        <div>{rolePill}</div>
+        {sessionsEl}
+        {lastLoginEl}
+        <div>{statusPill}</div>
+        {chevron}
       </div>
 
-      <div className="min-w-0">
-        <div className="text-sm font-semibold text-kore-burgundy truncate">{user.full_name}</div>
-        <div className="text-[11px] text-kore-burgundy/60 mt-0.5 truncate">{user.email}</div>
-      </div>
-
-      <div>
-        {isTrainer ? (
-          <Pill tone="sage" size="sm" dot>
-            Entrenador
-          </Pill>
-        ) : (
-          <Pill tone="sakura" size="sm" dot>
-            Cliente
-          </Pill>
-        )}
-      </div>
-
-      <div>
-        {user.sessions_total_total > 0 ? (
-          <div>
-            <div className="flex items-baseline gap-1.5 mb-1">
-              <span className="font-heading text-sm font-semibold text-kore-burgundy">
-                {user.sessions_used_total}
-              </span>
-              <span className="text-[10px] text-kore-burgundy/55">/ {user.sessions_total_total}</span>
-            </div>
-            <div className="h-1 rounded-[3px] bg-kore-burgundy/8 overflow-hidden">
-              <div
-                className={`h-full rounded-[3px] transition-all duration-700 ${
-                  sessionsPct >= 80
-                    ? 'bg-gradient-to-r from-kore-amber to-kore-amber-deep'
-                    : 'bg-gradient-to-r from-kore-petal to-kore-red'
-                }`}
-                style={{ width: `${sessionsPct}%` }}
-              />
-            </div>
-          </div>
-        ) : (
-          <span className="text-[11px] italic text-kore-burgundy/55">Sin plan</span>
-        )}
-      </div>
-
-      <div>
-        <div className="text-xs font-medium text-kore-gray-dark">{time.rel}</div>
-        {time.abs && <div className="text-[10px] text-kore-burgundy/55 mt-0.5">{time.abs}</div>}
-      </div>
-
-      <div>
-        {user.is_active ? (
-          <Pill tone="sage" size="sm" dot>
-            Activo
-          </Pill>
-        ) : (
-          <Pill tone="neutral" size="sm">
-            Inactivo
-          </Pill>
-        )}
-      </div>
-
-      <div className="text-base text-kore-burgundy/55 group-hover:text-kore-red group-hover:translate-x-0.5 transition-all">
-        ›
+      {/* Móvil/tablet — card apilada */}
+      <div data-testid="userrow-card" className="flex flex-col gap-3 xl:hidden">
+        <div className="flex items-center gap-3">
+          {avatarEl}
+          <div className="flex-1 min-w-0">{identityEl}</div>
+          {chevron}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pt-3 border-t border-kore-burgundy/8">
+          {rolePill}
+          {statusPill}
+          <div className="min-w-[96px]">{sessionsEl}</div>
+          {lastLoginEl}
+        </div>
       </div>
     </Link>
   );

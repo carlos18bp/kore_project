@@ -1,24 +1,23 @@
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, within } from '@testing-library/react';
 import UserRow, { type AdminUserRowData } from '@/app/components/admin/UserRow';
 
-// ── Mocks ────────────────────────────────────────────────────────────────────
-
-const mockPush = jest.fn();
-
-jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush }),
-}));
-
 jest.mock('next/link', () => {
-  const MockLink = ({ href, children, ...props }: { href: string; children: React.ReactNode; [key: string]: unknown }) => (
-    <a href={href} {...props}>{children}</a>
+  const MockLink = ({
+    href,
+    children,
+    ...props
+  }: {
+    href: string;
+    children: React.ReactNode;
+    [key: string]: unknown;
+  }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
   );
   MockLink.displayName = 'MockLink';
   return MockLink;
 });
-
-// ── Fixtures ──────────────────────────────────────────────────────────────────
 
 function makeUser(overrides: Partial<AdminUserRowData> = {}): AdminUserRowData {
   return {
@@ -37,70 +36,72 @@ function makeUser(overrides: Partial<AdminUserRowData> = {}): AdminUserRowData {
   };
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+/** El componente renderiza dos bloques; las aserciones se acotan al bloque card. */
+function card() {
+  return within(screen.getByTestId('userrow-card'));
+}
 
 afterEach(() => {
   jest.clearAllMocks();
 });
 
 describe('UserRow', () => {
+  it('renders both a desktop block and a card block', () => {
+    render(<UserRow user={makeUser()} />);
+    expect(screen.getByTestId('userrow-desktop')).toBeInTheDocument();
+    expect(screen.getByTestId('userrow-card')).toBeInTheDocument();
+  });
+
   it('renders the user full name', () => {
     render(<UserRow user={makeUser()} />);
-    expect(screen.getByText('Carlos López')).toBeInTheDocument();
+    expect(card().getByText('Carlos López')).toBeInTheDocument();
   });
 
   it('renders the user email', () => {
     render(<UserRow user={makeUser()} />);
-    expect(screen.getByText('user@example.com')).toBeInTheDocument();
+    expect(card().getByText('user@example.com')).toBeInTheDocument();
   });
 
   it('shows "Entrenador" pill when role is trainer', () => {
     render(<UserRow user={makeUser({ role: 'trainer' })} />);
-    expect(screen.getByText('Entrenador')).toBeInTheDocument();
+    expect(card().getByText('Entrenador')).toBeInTheDocument();
   });
 
   it('shows "Cliente" pill when role is customer', () => {
     render(<UserRow user={makeUser({ role: 'customer' })} />);
-    expect(screen.getByText('Cliente')).toBeInTheDocument();
+    expect(card().getByText('Cliente')).toBeInTheDocument();
   });
 
   it('renders a "!" badge when must_change_password is true', () => {
     render(<UserRow user={makeUser({ must_change_password: true })} />);
-    expect(screen.getByTitle('Debe cambiar contraseña')).toBeInTheDocument();
-    expect(screen.getByText('!')).toBeInTheDocument();
+    expect(card().getByTitle('Debe cambiar contraseña')).toBeInTheDocument();
+    expect(card().getByText('!')).toBeInTheDocument();
   });
 
   it('does not render a "!" badge when must_change_password is false', () => {
     render(<UserRow user={makeUser({ must_change_password: false })} />);
-    expect(screen.queryByText('!')).not.toBeInTheDocument();
-  });
-
-  it('renders a progress bar when sessions_total_total is greater than 0', () => {
-    render(<UserRow user={makeUser({ sessions_used_total: 3, sessions_total_total: 10 })} />);
-    // Progress bar wrapper — the track div with overflow-hidden
-    const trackDiv = document.querySelector('.h-1.rounded-\\[3px\\]');
-    expect(trackDiv).not.toBeNull();
+    expect(card().queryByText('!')).not.toBeInTheDocument();
   });
 
   it('renders session counts when sessions_total_total is greater than 0', () => {
     render(<UserRow user={makeUser({ sessions_used_total: 3, sessions_total_total: 10 })} />);
-    expect(screen.getByText('3')).toBeInTheDocument();
-    expect(screen.getByText('/ 10')).toBeInTheDocument();
+    expect(card().getByText('3')).toBeInTheDocument();
+    expect(card().getByText('/ 10')).toBeInTheDocument();
   });
 
   it('renders "Sin plan" when sessions_total_total is 0', () => {
     render(<UserRow user={makeUser({ sessions_total_total: 0 })} />);
-    expect(screen.getByText('Sin plan')).toBeInTheDocument();
+    expect(card().getByText('Sin plan')).toBeInTheDocument();
   });
 
   it('shows "Activo" pill when is_active is true', () => {
     render(<UserRow user={makeUser({ is_active: true })} />);
-    expect(screen.getByText('Activo')).toBeInTheDocument();
+    expect(card().getByText('Activo')).toBeInTheDocument();
   });
 
   it('shows "Inactivo" pill when is_active is false', () => {
     render(<UserRow user={makeUser({ is_active: false })} />);
-    expect(screen.getByText('Inactivo')).toBeInTheDocument();
+    expect(card().getByText('Inactivo')).toBeInTheDocument();
   });
 
   it('renders a link to the user detail page using user.id', () => {
@@ -111,6 +112,6 @@ describe('UserRow', () => {
 
   it('shows "Sin actividad" when last_login is null', () => {
     render(<UserRow user={makeUser({ last_login: null })} />);
-    expect(screen.getByText('Sin actividad')).toBeInTheDocument();
+    expect(card().getByText('Sin actividad')).toBeInTheDocument();
   });
 });

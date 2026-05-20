@@ -202,7 +202,7 @@ export default function UsersListClient() {
         </div>
       ) : (
         <div className="flex flex-col gap-2.5">
-          <div className="grid grid-cols-[52px_2.2fr_1fr_1.4fr_1.2fr_0.8fr_28px] gap-4 px-5 text-[9px] font-bold uppercase tracking-[0.20em] text-kore-burgundy/55">
+          <div className="hidden xl:grid grid-cols-[52px_2.2fr_1fr_1.4fr_1.2fr_0.8fr_28px] gap-4 px-5 text-[9px] font-bold uppercase tracking-[0.20em] text-kore-burgundy/55">
             <div></div>
             <div>Usuario</div>
             <div>Rol</div>
