@@ -21,7 +21,8 @@ from core_app.models.weekly_nutrition_plan import WeeklyNutritionPlan, WeeklyPla
 # Helpers
 # ---------------------------------------------------------------------------
 
-TODAY = date.today()
+def _today():
+    return date.today()
 
 
 def _make_customer(email='nutrdaily@test.com'):
@@ -69,7 +70,7 @@ class TestTodayNutritionViewFirstCall:
 
         resp = client.get('/api/my-nutrition-daily/today/')
         assert resp.status_code == 200
-        assert NutritionDailyLog.objects.filter(customer=customer, date=TODAY).count() == 1
+        assert NutritionDailyLog.objects.filter(customer=customer, date=_today()).count() == 1
         assert MealEntry.objects.filter(daily_log__customer=customer).count() == 5
 
     @patch('core_app.views.nutrition_daily_views.get_daily_suggestions')
@@ -82,7 +83,7 @@ class TestTodayNutritionViewFirstCall:
         client.get('/api/my-nutrition-daily/today/')
         client.get('/api/my-nutrition-daily/today/')
 
-        assert NutritionDailyLog.objects.filter(customer=customer, date=TODAY).count() == 1
+        assert NutritionDailyLog.objects.filter(customer=customer, date=_today()).count() == 1
         assert MealEntry.objects.filter(daily_log__customer=customer).count() == 5
 
     @patch('core_app.views.nutrition_daily_views.get_daily_suggestions')
@@ -111,11 +112,11 @@ class TestTodayNutritionViewWithPlan:
             customer=customer,
             goal='fat_loss',
             fitness_level=2,
-            week_start=TODAY - timedelta(days=TODAY.weekday()),
-            week_end=TODAY + timedelta(days=6 - TODAY.weekday()),
+            week_start=_today() - timedelta(days=_today().weekday()),
+            week_end=_today() + timedelta(days=6 - _today().weekday()),
             status=WeeklyNutritionPlan.Status.PUBLISHED,
         )
-        plan_day = WeeklyPlanDay.objects.create(plan=plan, day_number=1, date=TODAY)
+        plan_day = WeeklyPlanDay.objects.create(plan=plan, day_number=1, date=_today())
         # No meals added to plan_day — that's fine; suggestions dict will be empty
 
         # get_daily_suggestions should NOT be called because plan exists
@@ -124,7 +125,7 @@ class TestTodayNutritionViewWithPlan:
             assert resp.status_code == 200
             mock_suggest.assert_not_called()
 
-        assert NutritionDailyLog.objects.filter(customer=customer, date=TODAY).count() == 1
+        assert NutritionDailyLog.objects.filter(customer=customer, date=_today()).count() == 1
 
 
 # ---------------------------------------------------------------------------
@@ -140,7 +141,7 @@ class TestUpdateMealEntryView:
         client = APIClient()
         _auth(client, customer)
 
-        log = NutritionDailyLog.objects.create(customer=customer, date=TODAY)
+        log = NutritionDailyLog.objects.create(customer=customer, date=_today())
         entry = MealEntry.objects.create(daily_log=log, meal_block=MealEntry.MealBlock.BREAKFAST)
         return customer, client, log, entry
 
@@ -148,7 +149,7 @@ class TestUpdateMealEntryView:
         customer = _make_customer('upd404@test.com')
         client = APIClient()
         _auth(client, customer)
-        log = NutritionDailyLog.objects.create(customer=customer, date=TODAY)
+        log = NutritionDailyLog.objects.create(customer=customer, date=_today())
 
         resp = client.patch(f'/api/my-nutrition-daily/{log.pk}/meals/99999/', {'status': 'completed'}, format='json')
         assert resp.status_code == 404
@@ -158,7 +159,7 @@ class TestUpdateMealEntryView:
         client = APIClient()
         _auth(client, customer)
 
-        log = NutritionDailyLog.objects.create(customer=customer, date=TODAY, is_closed=True)
+        log = NutritionDailyLog.objects.create(customer=customer, date=_today(), is_closed=True)
         entry = MealEntry.objects.create(daily_log=log, meal_block=MealEntry.MealBlock.BREAKFAST)
 
         resp = client.patch(
@@ -174,7 +175,7 @@ class TestUpdateMealEntryView:
         client = APIClient()
         _auth(client, customer)
 
-        log = NutritionDailyLog.objects.create(customer=customer, date=TODAY)
+        log = NutritionDailyLog.objects.create(customer=customer, date=_today())
         entry = MealEntry.objects.create(daily_log=log, meal_block=MealEntry.MealBlock.BREAKFAST)
 
         resp = client.patch(
@@ -191,7 +192,7 @@ class TestUpdateMealEntryView:
         client = APIClient()
         _auth(client, customer)
 
-        log = NutritionDailyLog.objects.create(customer=customer, date=TODAY)
+        log = NutritionDailyLog.objects.create(customer=customer, date=_today())
         entry = MealEntry.objects.create(daily_log=log, meal_block=MealEntry.MealBlock.BREAKFAST)
 
         resp = client.patch(
@@ -208,7 +209,7 @@ class TestUpdateMealEntryView:
         customer_a = _make_customer('upd_a@test.com')
         customer_b = _make_customer('upd_b@test.com')
 
-        log_b = NutritionDailyLog.objects.create(customer=customer_b, date=TODAY)
+        log_b = NutritionDailyLog.objects.create(customer=customer_b, date=_today())
         entry_b = MealEntry.objects.create(daily_log=log_b, meal_block=MealEntry.MealBlock.LUNCH)
 
         client = APIClient()
@@ -232,7 +233,7 @@ class TestMealEntryPhotoView:
         customer = _make_customer('photo404@test.com')
         client = APIClient()
         _auth(client, customer)
-        log = NutritionDailyLog.objects.create(customer=customer, date=TODAY)
+        log = NutritionDailyLog.objects.create(customer=customer, date=_today())
 
         resp = client.post(
             f'/api/my-nutrition-daily/{log.pk}/meals/99999/photo/',
@@ -246,7 +247,7 @@ class TestMealEntryPhotoView:
         client = APIClient()
         _auth(client, customer)
 
-        log = NutritionDailyLog.objects.create(customer=customer, date=TODAY, is_closed=True)
+        log = NutritionDailyLog.objects.create(customer=customer, date=_today(), is_closed=True)
         entry = MealEntry.objects.create(daily_log=log, meal_block=MealEntry.MealBlock.BREAKFAST)
 
         resp = client.post(
@@ -262,7 +263,7 @@ class TestMealEntryPhotoView:
         client = APIClient()
         _auth(client, customer)
 
-        log = NutritionDailyLog.objects.create(customer=customer, date=TODAY)
+        log = NutritionDailyLog.objects.create(customer=customer, date=_today())
         entry = MealEntry.objects.create(daily_log=log, meal_block=MealEntry.MealBlock.BREAKFAST)
 
         resp = client.post(
@@ -286,7 +287,7 @@ class TestNutritionHistoryView:
         client = APIClient()
         _auth(client, customer)
 
-        recent_date = TODAY - timedelta(days=10)
+        recent_date = _today() - timedelta(days=10)
         NutritionDailyLog.objects.create(customer=customer, date=recent_date)
 
         resp = client.get('/api/my-nutrition-daily/history/')
@@ -299,7 +300,7 @@ class TestNutritionHistoryView:
         client = APIClient()
         _auth(client, customer)
 
-        old_date = TODAY - timedelta(days=31)
+        old_date = _today() - timedelta(days=31)
         NutritionDailyLog.objects.create(customer=customer, date=old_date)
 
         resp = client.get('/api/my-nutrition-daily/history/')
@@ -312,8 +313,8 @@ class TestNutritionHistoryView:
         client = APIClient()
         _auth(client, customer)
 
-        older = TODAY - timedelta(days=5)
-        newer = TODAY - timedelta(days=2)
+        older = _today() - timedelta(days=5)
+        newer = _today() - timedelta(days=2)
         NutritionDailyLog.objects.create(customer=customer, date=older)
         NutritionDailyLog.objects.create(customer=customer, date=newer)
 
