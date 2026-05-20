@@ -99,38 +99,6 @@ function HoyGreeting({ name, sessionsHoy, alertasCriticas }: { name: string; ses
   );
 }
 
-// ── KPI Strip ─────────────────────────────────────────────────────────────────
-
-type KpiItem = { label: string; value: string | number; sub: string; delta?: string; deltaColor?: string };
-
-function KpiStrip({ items, loading }: { items: KpiItem[]; loading: boolean }) {
-  return (
-    <div
-      className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 overflow-hidden rounded-[18px]"
-      style={{ gap: 1, background: 'rgba(103,15,34,0.10)', border: '1px solid rgba(103,15,34,0.08)' }}
-    >
-      {items.map((it, i) => (
-        <div key={i} className="flex flex-col gap-2 px-5 py-5" style={{ background: 'rgba(255,255,255,0.70)' }}>
-          <p className="font-body text-[9px] font-bold tracking-[0.22em] uppercase" style={{ color: 'rgba(103,15,34,0.55)' }}>
-            {it.label}
-          </p>
-          <p className="font-heading text-[30px] font-semibold text-kore-wine-dark leading-none">
-            {loading ? <span className="opacity-30">—</span> : it.value}
-          </p>
-          <div className="flex flex-col gap-0.5">
-            <p className="font-body text-[11px]" style={{ color: 'rgba(103,15,34,0.65)' }}>{it.sub}</p>
-            {it.delta && (
-              <p className="font-body text-[10px] font-semibold" style={{ color: it.deltaColor ?? '#669959' }}>
-                {it.delta}
-              </p>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ── Top Risk List ─────────────────────────────────────────────────────────────
 
 function TopRiskList({ clients }: { clients: ClientRiskScore[] }) {
@@ -336,9 +304,9 @@ function EvalsVencidas({ evals }: { evals: ExpiredEval[] }) {
 export default function TrainerDashboardPage() {
   const { user } = useAuthStore();
   const {
-    dashboardStats, statsLoading, fetchDashboardStats,
-    riskDashboard, riskDashboardLoading, fetchRiskDashboard,
-    comparativeMetrics, comparativeLoading, fetchComparativeMetrics,
+    dashboardStats, fetchDashboardStats,
+    riskDashboard, fetchRiskDashboard,
+    comparativeMetrics, fetchComparativeMetrics,
   } = useTrainerStore();
 
   useEffect(() => {
@@ -355,18 +323,6 @@ export default function TrainerDashboardPage() {
   );
 
   const criticalCount = riskDashboard?.risk_summary?.alto ?? 0;
-  const openAlerts = (riskDashboard?.risk_summary?.alto ?? 0) + (riskDashboard?.risk_summary?.medio ?? 0);
-
-  const avgAdherence = useMemo(() => {
-    const val = comparativeMetrics?.global_patterns?.avg_training_adherence;
-    return val != null ? Math.round(val * 100) : null;
-  }, [comparativeMetrics]);
-
-  const avgKore = useMemo(() => {
-    const withScore = (riskDashboard?.clients_by_risk ?? []).filter(c => c.kore_score !== null);
-    if (!withScore.length) return null;
-    return Math.round(withScore.reduce((s, c) => s + (c.kore_score ?? 0), 0) / withScore.length);
-  }, [riskDashboard]);
 
   const flatAlerts: FlatAlert[] = useMemo(() => {
     const ord: Record<string, number> = { alto: 0, medio: 1, bajo: 2 };
@@ -381,19 +337,6 @@ export default function TrainerDashboardPage() {
     }
     return out.sort((a, b) => (ord[a.severity] ?? 2) - (ord[b.severity] ?? 2));
   }, [riskDashboard]);
-
-  const evalPending = comparativeMetrics?.expired_evaluations?.length ?? 0;
-
-  const kpiItems: KpiItem[] = [
-    { label: 'Clientes activos', value: dashboardStats?.total_clients ?? 0, sub: `${todaySessions.length} activos hoy` },
-    { label: 'Sesiones hoy', value: dashboardStats?.today_sessions ?? todaySessions.length, sub: `${dashboardStats?.upcoming_sessions?.length ?? 0} próximas` },
-    { label: 'Alertas abiertas', value: openAlerts, sub: `${criticalCount} críticas`, delta: criticalCount > 0 ? `${criticalCount} requieren atención` : undefined, deltaColor: '#9A0526' },
-    { label: 'Adherencia media', value: avgAdherence != null ? `${avgAdherence}%` : '—', sub: `${riskDashboard?.clients_by_risk?.length ?? 0} clientes` },
-    { label: 'KÓRE Score medio', value: avgKore ?? '—', sub: 'sobre 100' },
-    { label: 'Evals pendientes', value: evalPending, sub: 'incluye vencidas', delta: evalPending > 0 ? `${evalPending} por agendar` : undefined, deltaColor: '#A88A2E' },
-  ];
-
-  const allLoading = statsLoading || riskDashboardLoading || comparativeLoading;
 
   if (!user) {
     return (
@@ -412,8 +355,6 @@ export default function TrainerDashboardPage() {
           sessionsHoy={dashboardStats?.today_sessions ?? todaySessions.length}
           alertasCriticas={criticalCount}
         />
-
-        <KpiStrip items={kpiItems} loading={allLoading} />
 
         <div className="grid xl:grid-cols-[3fr_2fr] gap-5">
           <AgendaCard />

@@ -3,7 +3,7 @@ import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
  * E2E tests for the Trainer Dashboard page (/trainer/dashboard).
- * Covers the greeting hero, KPI strip, agenda timeline, top-risk list and alerts preview.
+ * Covers the greeting hero, agenda card, top-risk list and alerts preview.
  */
 test.describe('Trainer Dashboard Page', { tag: [...FlowTags.TRAINER_DASHBOARD, RoleTags.TRAINER] }, () => {
 
@@ -114,24 +114,6 @@ test.describe('Trainer Dashboard Page', { tag: [...FlowTags.TRAINER_DASHBOARD, R
     await expect(page.getByText(/programadas/i).first()).toBeVisible();
   });
 
-  test('renders active clients KPI card', async ({ page }) => {
-    await injectTrainerAuthCookies(page);
-    await setupDashboardMocks(page);
-    await page.goto('/trainer/dashboard');
-
-    await expect(page.getByText('Clientes activos', { exact: true })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText('8', { exact: true })).toBeVisible();
-  });
-
-  test('renders sessions-today KPI card', async ({ page }) => {
-    await injectTrainerAuthCookies(page);
-    await setupDashboardMocks(page);
-    await page.goto('/trainer/dashboard');
-
-    await expect(page.getByText('Sesiones hoy')).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText('3', { exact: true }).first()).toBeVisible();
-  });
-
   test('renders quick action link to clients page', async ({ page }) => {
     await injectTrainerAuthCookies(page);
     await setupDashboardMocks(page);
@@ -173,25 +155,5 @@ test.describe('Trainer Dashboard Page', { tag: [...FlowTags.TRAINER_DASHBOARD, R
     await expect(page.getByText('Agenda', { exact: true })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Sin sesiones programadas hoy.')).toBeVisible();
     await expect(page.getByText('Sin clientes activos')).toBeVisible();
-  });
-
-  test('loading state shows dashes in the KPI strip', async ({ page }) => {
-    await injectTrainerAuthCookies(page);
-    await page.route('**/api/trainer/dashboard-stats/', async (route) => {
-      await new Promise((r) => setTimeout(r, 3000));
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(fakeStats) });
-    });
-    await page.route('**/api/trainer/risk-dashboard/', async (route) => {
-      await new Promise((r) => setTimeout(r, 3000));
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(fakeRiskDashboard) });
-    });
-    await page.route('**/api/trainer/comparative-metrics/', async (route) => {
-      await new Promise((r) => setTimeout(r, 3000));
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(fakeComparativeMetrics) });
-    });
-    await page.goto('/trainer/dashboard');
-
-    await expect(page.getByText('Clientes activos', { exact: true })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText('—').first()).toBeVisible();
   });
 });
