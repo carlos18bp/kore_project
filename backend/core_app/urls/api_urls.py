@@ -63,6 +63,7 @@ from core_app.views.monthly_program_views import (
 )
 from core_app.views.trainer_client_views import (
     TrainerClientDetailView,
+    TrainerAgendaView,
     TrainerClientFitnessLevelView,
     TrainerClientListView,
     TrainerClientSessionsView,
@@ -135,6 +136,7 @@ urlpatterns = [
     path('trainer/my-clients/<int:customer_id>/sessions/', TrainerClientSessionsView.as_view(), name='trainer-client-sessions'),
     path('trainer/my-clients/<int:customer_id>/fitness-level/', TrainerClientFitnessLevelView.as_view(), name='trainer-client-fitness-level'),
     path('trainer/dashboard-stats/', TrainerDashboardStatsView.as_view(), name='trainer-dashboard-stats'),
+    path('trainer/agenda/', TrainerAgendaView.as_view(), name='trainer-agenda'),
     path('trainer/my-clients/<int:customer_id>/anthropometry/', TrainerAnthropometryListCreateView.as_view(), name='trainer-anthropometry-list-create'),
     path('trainer/my-clients/<int:customer_id>/anthropometry/<int:eval_id>/', TrainerAnthropometryDetailView.as_view(), name='trainer-anthropometry-detail'),
     path('my-anthropometry/', ClientAnthropometryListView.as_view(), name='client-anthropometry-list'),
