@@ -185,12 +185,17 @@ export default function PlansListClient() {
       ]}
       title="Gestión de planes"
     >
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex flex-col gap-3 mb-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-[12px] text-kore-burgundy/55">
           Define los planes de entrenamiento que los clientes pueden contratar. Activa o desactiva
           un plan para controlar si aparece en checkout.
         </p>
-        <Btn variant="primary" size="sm" onClick={openCreate}>
+        <Btn
+          variant="primary"
+          size="sm"
+          onClick={openCreate}
+          className="w-full whitespace-nowrap sm:w-auto sm:flex-shrink-0"
+        >
           ＋ Crear plan
         </Btn>
       </div>
