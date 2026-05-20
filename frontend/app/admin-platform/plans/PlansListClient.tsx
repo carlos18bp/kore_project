@@ -32,13 +32,18 @@ type ModalState =
   | { mode: 'create' }
   | { mode: 'edit'; pkg: AdminPackage };
 
+/**
+ * Los campos numéricos del form se editan como string crudo para que el
+ * usuario pueda borrarlos y reescribirlos. La validación se hace al guardar,
+ * no en cada `onChange`.
+ */
 type FormState = {
   title: string;
   category: PackageCategory;
-  sessions_count: number;
-  session_duration_minutes: number;
+  sessions_count: string;
+  session_duration_minutes: string;
   price: string;
-  validity_days: number;
+  validity_days: string;
   short_description: string;
   is_active: boolean;
 };
@@ -47,10 +52,10 @@ function emptyForm(): FormState {
   return {
     title: '',
     category: 'personalizado',
-    sessions_count: 1,
-    session_duration_minutes: 60,
-    price: '0',
-    validity_days: 30,
+    sessions_count: '1',
+    session_duration_minutes: '60',
+    price: '',
+    validity_days: '30',
     short_description: '',
     is_active: true,
   };
@@ -60,13 +65,23 @@ function formFromPackage(pkg: AdminPackage): FormState {
   return {
     title: pkg.title,
     category: pkg.category,
-    sessions_count: pkg.sessions_count,
-    session_duration_minutes: pkg.session_duration_minutes,
-    price: String(pkg.price),
-    validity_days: pkg.validity_days,
+    sessions_count: String(pkg.sessions_count),
+    session_duration_minutes: String(pkg.session_duration_minutes),
+    price: String(Math.trunc(Number(pkg.price) || 0)),
+    validity_days: String(pkg.validity_days),
     short_description: pkg.short_description,
     is_active: pkg.is_active,
   };
+}
+
+/** Quita todo lo que no sea dígito — COP se maneja en enteros, sin decimales. */
+function onlyDigits(value: string): string {
+  return value.replace(/\D/g, '');
+}
+
+/** Separador de miles con punto: "1000000" → "1.000.000". */
+function formatThousands(digits: string): string {
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
 function formatPrice(value: string, currency: string) {
@@ -132,19 +147,24 @@ export default function PlansListClient() {
       setFormError('El título es obligatorio.');
       return;
     }
-    if (form.sessions_count < 1) {
+
+    const sessions = Number(form.sessions_count);
+    if (!form.sessions_count || !Number.isInteger(sessions) || sessions < 1) {
       setFormError('Debe tener al menos 1 sesión.');
       return;
     }
-    if (form.session_duration_minutes < 1) {
+    const duration = Number(form.session_duration_minutes);
+    if (!form.session_duration_minutes || !Number.isInteger(duration) || duration < 1) {
       setFormError('La duración por sesión debe ser mayor a 0.');
       return;
     }
-    if (parseFloat(form.price) < 0 || Number.isNaN(parseFloat(form.price))) {
+    const priceValue = Number(form.price);
+    if (!form.price || !Number.isFinite(priceValue) || priceValue < 0) {
       setFormError('El precio no es válido.');
       return;
     }
-    if (form.validity_days < 1) {
+    const validity = Number(form.validity_days);
+    if (!form.validity_days || !Number.isInteger(validity) || validity < 1) {
       setFormError('La vigencia debe ser de al menos 1 día.');
       return;
     }
@@ -153,10 +173,10 @@ export default function PlansListClient() {
       title: trimmedTitle,
       short_description: form.short_description.trim(),
       category: form.category,
-      sessions_count: form.sessions_count,
-      session_duration_minutes: form.session_duration_minutes,
+      sessions_count: sessions,
+      session_duration_minutes: duration,
       price: form.price,
-      validity_days: form.validity_days,
+      validity_days: validity,
       is_active: form.is_active,
     };
 
@@ -314,7 +334,7 @@ export default function PlansListClient() {
               </Field>
 
               <Field label="Categoría" required>
-                <div className="flex gap-1.5 p-1 bg-kore-burgundy/6 rounded-xl border border-kore-burgundy/8">
+                <div className="grid grid-cols-1 gap-1.5 p-1 bg-kore-burgundy/6 rounded-xl border border-kore-burgundy/8 sm:grid-cols-3">
                   {CATEGORY_OPTIONS.map((opt) => {
                     const sel = form.category === opt.value;
                     return (
@@ -322,7 +342,7 @@ export default function PlansListClient() {
                         key={opt.value}
                         type="button"
                         onClick={() => setForm({ ...form, category: opt.value })}
-                        className={`flex-1 px-3 py-2 rounded-lg text-[12px] font-semibold tracking-wide transition-all ${
+                        className={`px-3 py-2 rounded-lg text-[12px] font-semibold tracking-wide transition-all ${
                           sel
                             ? 'bg-white text-kore-burgundy shadow-sm'
                             : 'text-kore-burgundy/65 hover:text-kore-burgundy'
@@ -338,27 +358,21 @@ export default function PlansListClient() {
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Número de sesiones" required>
                   <Input
-                    type="number"
-                    min={1}
+                    type="text"
+                    inputMode="numeric"
                     value={form.sessions_count}
                     onChange={(e) =>
-                      setForm({
-                        ...form,
-                        sessions_count: Math.max(1, Number(e.target.value) || 1),
-                      })
+                      setForm({ ...form, sessions_count: onlyDigits(e.target.value) })
                     }
                   />
                 </Field>
                 <Field label="Duración por sesión (min)" required>
                   <Input
-                    type="number"
-                    min={1}
+                    type="text"
+                    inputMode="numeric"
                     value={form.session_duration_minutes}
                     onChange={(e) =>
-                      setForm({
-                        ...form,
-                        session_duration_minutes: Math.max(1, Number(e.target.value) || 60),
-                      })
+                      setForm({ ...form, session_duration_minutes: onlyDigits(e.target.value) })
                     }
                   />
                 </Field>
@@ -367,23 +381,20 @@ export default function PlansListClient() {
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Precio (COP)" required>
                   <Input
-                    type="number"
-                    min={0}
-                    step="1000"
-                    value={form.price}
-                    onChange={(e) => setForm({ ...form, price: e.target.value })}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="0"
+                    value={form.price ? formatThousands(form.price) : ''}
+                    onChange={(e) => setForm({ ...form, price: onlyDigits(e.target.value) })}
                   />
                 </Field>
                 <Field label="Vigencia (días)" required>
                   <Input
-                    type="number"
-                    min={1}
+                    type="text"
+                    inputMode="numeric"
                     value={form.validity_days}
                     onChange={(e) =>
-                      setForm({
-                        ...form,
-                        validity_days: Math.max(1, Number(e.target.value) || 30),
-                      })
+                      setForm({ ...form, validity_days: onlyDigits(e.target.value) })
                     }
                   />
                 </Field>
