@@ -86,6 +86,14 @@ test.describe('Trainer Dashboard Page', { tag: [...FlowTags.TRAINER_DASHBOARD, R
     await page.route('**/api/trainer/comparative-metrics/', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(comparative) });
     });
+    // La card de agenda (vista Día) pide /trainer/agenda/?from=&to=.
+    await page.route(/\/api\/trainer\/agenda\//, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ sessions: stats.upcoming_sessions }),
+      });
+    });
   }
 
   test('renders greeting with trainer first name', async ({ page }) => {
@@ -139,7 +147,7 @@ test.describe('Trainer Dashboard Page', { tag: [...FlowTags.TRAINER_DASHBOARD, R
     await setupDashboardMocks(page);
     await page.goto('/trainer/dashboard');
 
-    await expect(page.getByText('Agenda · Hoy')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Agenda', { exact: true })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('María López').first()).toBeVisible();
     await expect(page.getByText('Carlos Gómez')).toBeVisible();
   });
@@ -162,8 +170,8 @@ test.describe('Trainer Dashboard Page', { tag: [...FlowTags.TRAINER_DASHBOARD, R
     await setupDashboardMocks(page, { stats: emptyStats, risk: emptyRisk, comparative: emptyComparative });
     await page.goto('/trainer/dashboard');
 
-    await expect(page.getByText('Agenda · Hoy')).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText('0 sesiones programadas', { exact: true })).toBeVisible();
+    await expect(page.getByText('Agenda', { exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Sin sesiones programadas hoy.')).toBeVisible();
     await expect(page.getByText('Sin clientes activos')).toBeVisible();
   });
 
