@@ -4,8 +4,9 @@ import { useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useTrainerStore } from '@/lib/stores/trainerStore';
-import type { UpcomingSession, ClientRiskScore } from '@/lib/stores/trainerStore';
+import type { ClientRiskScore } from '@/lib/stores/trainerStore';
 import RiskBadge from '@/app/components/trainer/RiskBadge';
+import AgendaCard from '@/app/components/trainer/AgendaCard';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -14,10 +15,6 @@ function getGreeting() {
   if (h < 12) return 'Buenos días';
   if (h < 19) return 'Buenas tardes';
   return 'Buenas noches';
-}
-
-function fmtTime24(iso: string) {
-  return new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 function daysAgoText(iso: string) {
@@ -130,108 +127,6 @@ function KpiStrip({ items, loading }: { items: KpiItem[]; loading: boolean }) {
           </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-// ── Agenda Timeline ───────────────────────────────────────────────────────────
-
-function AgendaTimeline({ sessions }: { sessions: UpcomingSession[] }) {
-  const hours = Array.from({ length: 15 }, (_, i) => 7 + i);
-  const now = new Date();
-  const curHour = now.getHours() + now.getMinutes() / 60;
-
-  const byHour = useMemo(() => {
-    const map: Record<number, UpcomingSession[]> = {};
-    sessions.forEach(s => {
-      const h = new Date(s.starts_at).getHours();
-      (map[h] ??= []).push(s);
-    });
-    return map;
-  }, [sessions]);
-
-  return (
-    <div
-      className="bg-white/65 rounded-[22px] overflow-hidden"
-      style={{ border: '1px solid rgba(103,15,34,0.08)', boxShadow: '0 2px 12px -8px rgba(45,15,26,0.10)' }}
-    >
-      <div
-        className="flex items-center justify-between gap-4 px-6 py-5"
-        style={{ borderBottom: '1px solid rgba(103,15,34,0.08)' }}
-      >
-        <div className="min-w-0">
-          <p className="font-body text-[10px] font-bold tracking-[0.22em] uppercase" style={{ color: 'rgba(103,15,34,0.55)' }}>
-            Agenda · Hoy
-          </p>
-          <p className="font-heading text-[22px] font-semibold text-kore-wine-dark mt-1">
-            {sessions.length} {sessions.length === 1 ? 'sesión' : 'sesiones'} programadas
-          </p>
-        </div>
-        <Link
-          href="/trainer/clients"
-          prefetch={false}
-          className="font-body text-[11px] font-semibold text-kore-wine-dark hover:opacity-70 transition-opacity whitespace-nowrap flex-shrink-0"
-        >
-          Ver semana →
-        </Link>
-      </div>
-
-      <div className="overflow-y-auto px-5 py-4" style={{ maxHeight: 400 }}>
-        {hours.map(h => {
-          const slots = byHour[h] ?? [];
-          const isCurrent = curHour >= h && curHour < h + 1;
-          const progress = isCurrent ? curHour - h : 0;
-
-          return (
-            <div key={h} className="grid" style={{ gridTemplateColumns: '48px 1fr', minHeight: 40 }}>
-              <div className="flex items-start justify-end pr-3.5 pt-2.5">
-                <span
-                  className="font-body text-[11px] font-semibold relative"
-                  style={{ color: isCurrent ? '#670F22' : 'rgba(103,15,34,0.40)' }}
-                >
-                  {String(h).padStart(2, '0')}:00
-                  {isCurrent && (
-                    <span className="absolute -right-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-kore-crimson" />
-                  )}
-                </span>
-              </div>
-
-              <div className="relative border-l pb-3 pl-4" style={{ borderColor: 'rgba(103,15,34,0.12)' }}>
-                {isCurrent && (
-                  <div className="absolute left-0 right-0 pointer-events-none" style={{ top: `${progress * 100}%` }}>
-                    <div className="h-px bg-kore-crimson" style={{ boxShadow: '0 0 8px rgba(154,5,38,0.4)' }}>
-                      <span className="absolute -left-1.5 -top-1.5 w-3 h-3 rounded-full bg-kore-crimson" />
-                    </div>
-                  </div>
-                )}
-                <div className="flex flex-col gap-2 pt-1">
-                  {slots.map(s => (
-                    <Link
-                      key={s.id}
-                      href={`/trainer/clients/client?id=${s.customer_id}`}
-                      prefetch={false}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-[14px] transition-colors hover:opacity-90 active:scale-[0.98]"
-                      style={{ background: 'rgba(255,255,255,0.65)', border: '1px solid rgba(103,15,34,0.08)' }}
-                    >
-                      <span className="font-heading text-sm font-semibold text-kore-wine-dark w-11 flex-shrink-0">
-                        {fmtTime24(s.starts_at)}
-                      </span>
-                      <TAvatar name={s.customer_name} size={28} tone="sage" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-body text-[13px] font-semibold text-kore-gray-dark truncate">{s.customer_name}</p>
-                        <p className="font-body text-[11px] truncate" style={{ color: 'rgba(103,15,34,0.55)' }}>{s.package_title}</p>
-                      </div>
-                      <svg className="w-4 h-4 flex-shrink-0" style={{ color: 'rgba(103,15,34,0.30)' }} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
@@ -521,7 +416,7 @@ export default function TrainerDashboardPage() {
         <KpiStrip items={kpiItems} loading={allLoading} />
 
         <div className="grid xl:grid-cols-[3fr_2fr] gap-5">
-          <AgendaTimeline sessions={todaySessions} />
+          <AgendaCard />
           <TopRiskList clients={riskDashboard?.clients_by_risk ?? []} />
         </div>
 
