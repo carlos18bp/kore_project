@@ -13,7 +13,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from django.db.models import ProtectedError, Q
+from django.db.models import Count, ProtectedError, Q
 
 from core_app.models import Package, Payment, PaymentIntent, Subscription, SubscriptionGuest, User
 from core_app.permissions import is_admin_user
@@ -439,6 +439,28 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
             Q(customer=self.request.user) |
             Q(guest_link__guest=self.request.user, guest_link__status=SubscriptionGuest.STATUS_ACCEPTED)
         ).distinct()
+
+    @action(detail=False, methods=['get'], url_path='category-counts')
+    def category_counts(self, request):
+        """Return total subscription counts per package category (admin only).
+
+        Lets the admin subscriptions screen show real totals on the category
+        tabs upfront, instead of only the count for the active filter.
+        """
+        if not is_admin_user(request.user):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        counts = {'semi_personalizado': 0, 'personalizado': 0, 'terapeutico': 0}
+        rows = (
+            Subscription.objects
+            .values('package__category')
+            .annotate(total=Count('id'))
+        )
+        for row in rows:
+            category = row['package__category']
+            if category in counts:
+                counts[category] = row['total']
+        return Response(counts)
 
     def create(self, request, *args, **kwargs):
         """Disallow direct subscription creation via the collection endpoint.

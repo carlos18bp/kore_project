@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AdminShell from '@/app/components/admin/AdminShell';
 import Btn from '@/app/components/admin/Btn';
@@ -34,8 +34,16 @@ const STATUS_OPTIONS: Array<{ k: '' | 'active' | 'expired' | 'canceled'; label: 
 ];
 
 export default function AdminSubscriptionsPage() {
-  const { subscriptions, totalCount, filters, loading, fetchSubscriptions, setFilters } =
-    useAdminSubscriptionStore();
+  const {
+    subscriptions,
+    totalCount,
+    categoryCounts,
+    filters,
+    loading,
+    fetchSubscriptions,
+    fetchCategoryCounts,
+    setFilters,
+  } = useAdminSubscriptionStore();
   const [searchInput, setSearchInput] = useState(filters.search);
 
   // Default tab — `semi_personalizado` if not set yet.
@@ -44,23 +52,9 @@ export default function AdminSubscriptionsPage() {
 
   useEffect(() => {
     fetchSubscriptions({ page: 1, category: activeCategory });
+    fetchCategoryCounts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const counts = useMemo(() => {
-    const acc: Record<Category, number> = {
-      semi_personalizado: 0,
-      personalizado: 0,
-      terapeutico: 0,
-    };
-    // Counts derived from current page only — backend total comes from totalCount per active filter.
-    // We surface the *current* filter count as the active tab count and approximate others to "—".
-    // Better UX would be a dedicated counts endpoint; for MVP we show what we have.
-    if (filters.category) {
-      acc[filters.category as Category] = totalCount;
-    }
-    return acc;
-  }, [filters.category, totalCount]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
@@ -97,7 +91,7 @@ export default function AdminSubscriptionsPage() {
         </Link>
       </div>
 
-      <SubscriptionCategoryTabs active={activeCategory} counts={counts} onChange={handleCategory} />
+      <SubscriptionCategoryTabs active={activeCategory} counts={categoryCounts} onChange={handleCategory} />
 
       <Card className="p-4 mb-5">
         <div className="flex items-center gap-3 flex-wrap">
