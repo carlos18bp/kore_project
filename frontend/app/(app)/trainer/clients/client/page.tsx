@@ -168,7 +168,7 @@ function TrainerClientDetailPage() {
 
   return (
     <section ref={sectionRef} className="min-h-screen bg-kore-cream">
-      <div className="px-5 xl:px-10 pt-20 xl:pt-8 pb-24 space-y-4">
+      <div className="px-5 xl:px-10 pt-20 xl:pt-8 pb-24 space-y-4 xl:max-w-[1080px] xl:mx-auto">
 
         {/* Back */}
         <Link href="/trainer/clients"
@@ -241,11 +241,15 @@ function TrainerClientDetailPage() {
           </div>
         )}
 
-        {/* ── Tab bar ── */}
-        <TabBar tabs={TABS} activeTab={activeTab} onChange={id => setActiveTab(id as TabId)} />
+        {/* ── Tabs + contenido ── */}
+        <div className="xl:grid xl:grid-cols-[220px_1fr] xl:gap-8">
+          {/* ── Tab bar / rail ── */}
+          <div className="xl:sticky xl:top-8 xl:self-start">
+            <TabBar tabs={TABS} activeTab={activeTab} onChange={id => setActiveTab(id as TabId)} />
+          </div>
 
-        {/* ── Tab content ── */}
-        <div className="space-y-4 pt-5">
+          {/* ── Tab content ── */}
+          <div className="min-w-0 space-y-4 pt-5 xl:pt-0">
 
           {/* ── RESUMEN ── */}
           {activeTab === 'resumen' && (
@@ -434,6 +438,7 @@ function TrainerClientDetailPage() {
             />
           )}
 
+          </div>
         </div>
       </div>
 
