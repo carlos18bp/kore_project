@@ -145,7 +145,7 @@ export default function AdminSubscriptionsPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-2.5">
-          <div className="grid grid-cols-[2fr_1.6fr_1.4fr_1fr_0.9fr_28px] gap-4 px-5 text-[9px] font-bold uppercase tracking-[0.20em] text-kore-burgundy/55">
+          <div className="hidden xl:grid grid-cols-[2fr_1.6fr_1.4fr_1fr_0.9fr_28px] gap-4 px-5 text-[9px] font-bold uppercase tracking-[0.20em] text-kore-burgundy/55">
             <div>Cliente</div>
             <div>Paquete</div>
             <div>Sesiones</div>
