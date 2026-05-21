@@ -533,10 +533,10 @@ export function StickyFooter({
 }) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" style={{
-      position: 'sticky', bottom: 20, marginTop: 24,
+      marginTop: 24, marginBottom: 16,
       padding: '13px 20px', borderRadius: 16,
-      background: 'rgba(45,15,26,0.96)', backdropFilter: 'blur(14px)',
-      boxShadow: '0 14px 40px -10px rgba(45,15,26,0.40)',
+      background: 'rgba(45,15,26,0.96)',
+      boxShadow: '0 8px 24px -14px rgba(45,15,26,0.35)',
     }}>
       <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 11, color: 'rgba(231,200,160,0.70)' }}>
         {lastSaved
