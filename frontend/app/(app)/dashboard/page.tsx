@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -35,8 +35,64 @@ import { usePhysicalEvaluationStore } from '@/lib/stores/physicalEvaluationStore
 import { useNutritionStore } from '@/lib/stores/nutritionStore';
 import { useParqStore } from '@/lib/stores/parqStore';
 import TrainerMessageBanner from '@/app/components/dashboard/TrainerMessageBanner';
+import InfoModal from '@/app/components/dashboard/InfoModal';
 
 // ── Helpers ───────────────────────────────────────────────────
+
+// Explicaciones de los badges del header (racha · récord · índice KÓRE).
+type HeaderInfoKey = 'streak' | 'record' | 'kore';
+const HEADER_INFO: Record<HeaderInfoKey, { title: string; body: ReactNode }> = {
+  streak: {
+    title: 'Racha actual',
+    body: (
+      <p>
+        Los días seguidos en que cumpliste tu rutina. Cada día que entrenas suma; si fallas
+        un día, vuelve a cero. Mantenerla es la clave del progreso.
+      </p>
+    ),
+  },
+  record: {
+    title: 'Récord de racha',
+    body: <p>Tu racha más larga hasta hoy. Es tu marca personal a superar.</p>,
+  },
+  kore: {
+    title: 'Tu Índice KÓRE',
+    body: (
+      <div className="space-y-2.5">
+        <p>
+          Resume tu estado general en un puntaje de 0 a 100. Es el promedio ponderado de
+          6 áreas:
+        </p>
+        <ul className="space-y-1">
+          {([
+            ['Antropometría', '20%'],
+            ['Condición física', '20%'],
+            ['Postura', '20%'],
+            ['Riesgo metabólico', '15%'],
+            ['Nutrición', '15%'],
+            ['Bienestar', '10%'],
+          ] as const).map(([area, weight]) => (
+            <li key={area} className="flex justify-between gap-3">
+              <span>{area}</span>
+              <span className="font-semibold text-kore-wine-dark tabular-nums">{weight}</span>
+            </li>
+          ))}
+        </ul>
+        <p>Solo se promedian las áreas con evaluación registrada.</p>
+        <p>
+          <strong>75+</strong> buen estado · <strong>60–74</strong> en progreso ·{' '}
+          <strong>menos de 60</strong> requiere atención.
+        </p>
+        <Link
+          href="/my-diagnosis"
+          className="inline-flex items-center gap-1 font-semibold text-kore-red active:scale-95"
+        >
+          Ver mi diagnóstico completo →
+        </Link>
+      </div>
+    ),
+  },
+};
 
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -1316,6 +1372,7 @@ export default function DashboardPage() {
   const [progressExpanded, setProgressExpanded] = useState(false);
   const [showUpcoming, setShowUpcoming] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<BookingData | null>(null);
+  const [infoModal, setInfoModal] = useState<HeaderInfoKey | null>(null);
 
   // Staggered fetch waves to stay below nginx's per-IP `limit_req` burst.
   // Without this the dashboard fired ~13 parallel requests on mount and the
@@ -1535,8 +1592,10 @@ export default function DashboardPage() {
 
           <div className="flex flex-col gap-1.5 w-[150px]">
             {/* Fila 1 — Racha */}
-            <div
-              className="rounded-2xl px-2.5 py-1.5"
+            <button
+              type="button"
+              onClick={() => setInfoModal('streak')}
+              className="block w-full cursor-pointer rounded-2xl px-2.5 py-1.5 text-left transition-transform active:scale-95"
               style={{ background: 'rgba(255,255,255,0.55)', border: '1px solid rgba(229,229,229,0.5)' }}
             >
               <div className="flex items-center justify-between mb-1">
@@ -1559,12 +1618,14 @@ export default function DashboardPage() {
                   }}
                 />
               </div>
-            </div>
+            </button>
 
             {/* Fila 2 — Récord + KÓRE */}
             <div className="flex gap-1.5">
-              <div
-                className="flex-1 flex items-center justify-center gap-1 rounded-2xl px-2 py-1.5"
+              <button
+                type="button"
+                onClick={() => setInfoModal('record')}
+                className="flex-1 flex items-center justify-center gap-1 cursor-pointer rounded-2xl px-2 py-1.5 transition-transform active:scale-95"
                 style={{ background: 'rgba(255,255,255,0.55)', border: '1px solid rgba(229,229,229,0.5)' }}
                 aria-label="Récord de racha"
               >
@@ -1572,11 +1633,12 @@ export default function DashboardPage() {
                 <span className="text-[12.5px] font-bold text-kore-gray-dark tabular-nums">
                   {longestStreak || '—'}
                 </span>
-              </div>
+              </button>
               {koreIndex?.kore_score !== null && koreIndex?.kore_score !== undefined && (
-                <Link
-                  href="/my-diagnosis"
-                  className="flex-1 flex items-center justify-center gap-1 rounded-2xl px-2 py-1.5 hover:bg-white/70 transition-colors active:scale-95"
+                <button
+                  type="button"
+                  onClick={() => setInfoModal('kore')}
+                  className="flex-1 flex items-center justify-center gap-1 cursor-pointer rounded-2xl px-2 py-1.5 transition-transform active:scale-95"
                   style={{ background: 'rgba(255,255,255,0.55)', border: '1px solid rgba(229,229,229,0.5)' }}
                   aria-label="Tu calificación KÓRE"
                 >
@@ -1584,7 +1646,7 @@ export default function DashboardPage() {
                   <span className={`text-[12.5px] font-bold tabular-nums ${scoreColorClass}`}>
                     {koreIndex.kore_score}
                   </span>
-                </Link>
+                </button>
               )}
             </div>
           </div>
@@ -1738,8 +1800,10 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex items-stretch gap-2 shrink-0">
-            <div
-              className="rounded-xl px-3.5 py-2 min-w-[180px]"
+            <button
+              type="button"
+              onClick={() => setInfoModal('streak')}
+              className="block min-w-[180px] cursor-pointer rounded-xl px-3.5 py-2 text-left transition-transform active:scale-95"
               style={{ background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(229,229,229,0.6)' }}
             >
               <div className="flex items-center justify-between mb-1.5">
@@ -1760,9 +1824,11 @@ export default function DashboardPage() {
                   }}
                 />
               </div>
-            </div>
-            <div
-              className="flex items-center gap-1.5 rounded-xl px-3"
+            </button>
+            <button
+              type="button"
+              onClick={() => setInfoModal('record')}
+              className="flex items-center gap-1.5 cursor-pointer rounded-xl px-3 transition-transform active:scale-95"
               style={{ background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(229,229,229,0.6)' }}
               aria-label="Récord de racha"
             >
@@ -1770,11 +1836,12 @@ export default function DashboardPage() {
               <span className="text-[14px] font-bold text-kore-gray-dark tabular-nums">
                 {longestStreak || '—'}
               </span>
-            </div>
+            </button>
             {koreIndex?.kore_score !== null && koreIndex?.kore_score !== undefined && (
-              <Link
-                href="/my-diagnosis"
-                className="flex items-center gap-1.5 rounded-xl px-3 hover:bg-white/70 transition-colors active:scale-95"
+              <button
+                type="button"
+                onClick={() => setInfoModal('kore')}
+                className="flex items-center gap-1.5 cursor-pointer rounded-xl px-3 transition-transform active:scale-95"
                 style={{ background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(229,229,229,0.6)' }}
                 aria-label="Tu calificación KÓRE"
               >
@@ -1782,7 +1849,7 @@ export default function DashboardPage() {
                 <span className={`text-[14px] font-bold tabular-nums ${scoreColorClass}`}>
                   {koreIndex.kore_score}
                 </span>
-              </Link>
+              </button>
             )}
           </div>
         </div>
@@ -1934,6 +2001,13 @@ export default function DashboardPage() {
 
       {/* Mensaje del entrenador — mini-card anclada abajo */}
       <TrainerMessageBanner />
+
+      {/* Modal informativo de los badges del header */}
+      {infoModal && (
+        <InfoModal title={HEADER_INFO[infoModal].title} onClose={() => setInfoModal(null)}>
+          {HEADER_INFO[infoModal].body}
+        </InfoModal>
+      )}
     </section>
   );
 }
