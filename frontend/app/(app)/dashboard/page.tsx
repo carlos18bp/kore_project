@@ -1198,7 +1198,7 @@ function SessionCard({
     <div
       className={`relative overflow-hidden rounded-[22px] text-white flex flex-col ${mobile ? 'p-4' : 'p-5'} ${className}`}
       style={{
-        background: 'linear-gradient(135deg, #670F22 0%, #9A0526 55%, #AB0D2F 100%)',
+        background: 'linear-gradient(135deg, #2D0F1A 0%, #5C2030 55%, #670F22 100%)',
         boxShadow: '0 14px 36px -14px rgba(103,15,34,0.55)',
       }}
     >
@@ -1210,7 +1210,7 @@ function SessionCard({
         className="absolute pointer-events-none"
         style={{
           top: '-12%', right: '-8%', width: 220, height: 220, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(96,165,250,0.45) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(244,199,199,0.30) 0%, transparent 70%)',
           filter: 'blur(48px)', animation: 'session-orb-a 11s ease-in-out infinite',
         }}
       />
@@ -1218,7 +1218,7 @@ function SessionCard({
         className="absolute pointer-events-none"
         style={{
           bottom: '-15%', left: '-6%', width: 180, height: 180, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(30,64,175,0.42) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(231,200,160,0.22) 0%, transparent 70%)',
           filter: 'blur(50px)', animation: 'session-orb-b 13s ease-in-out infinite',
         }}
       />
@@ -1719,7 +1719,8 @@ export default function DashboardPage() {
               <div className="mt-4 space-y-2">
                 <Link
                   href="/mi-programa/hoy?start=1"
-                  className="w-full h-12 bg-kore-red rounded-xl flex items-center justify-center gap-2 font-semibold text-[14px] text-white hover:bg-[#C20000] transition-colors active:scale-95"
+                  className="w-full h-12 rounded-xl flex items-center justify-center gap-2 font-semibold text-[14px] text-white transition-transform active:scale-95"
+                  style={{ background: 'linear-gradient(135deg, #9A0526, #AB0D2F)' }}
                 >
                   Iniciar rutina <ArrowRight className="w-4 h-4" strokeWidth={2} />
                 </Link>
@@ -1876,8 +1877,8 @@ export default function DashboardPage() {
                     <div className="flex gap-2.5">
                       <Link
                         href="/mi-programa/hoy?start=1"
-                        className="h-[50px] px-6 bg-kore-red text-white rounded-xl font-semibold text-[14px] flex items-center gap-2 hover:bg-[#C20000] transition-colors active:scale-95"
-                        style={{ boxShadow: '0 6px 16px rgba(224,0,0,0.4)' }}
+                        className="h-[50px] px-6 text-white rounded-xl font-semibold text-[14px] flex items-center gap-2 transition-transform active:scale-95"
+                        style={{ background: 'linear-gradient(135deg, #9A0526, #AB0D2F)', boxShadow: '0 6px 16px -4px rgba(154,5,38,0.45)' }}
                       >
                         <Play className="w-4 h-4" fill="white" strokeWidth={0} /> Iniciar rutina
                       </Link>
