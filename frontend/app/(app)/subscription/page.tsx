@@ -189,7 +189,7 @@ function Hero({ sub }: { sub: Subscription }) {
               : <>Plan {statusLabel.toLowerCase()} desde el <strong style={{ color: KORE.gold, fontWeight: 600 }}>{formatDateLong(sub.expires_at)}</strong>.</>}
           </p>
 
-          <div className="grid grid-cols-3 gap-3 mt-7">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-7">
             <div style={{ padding: '14px 18px', borderRadius: 14, background: 'rgba(20,5,12,0.30)', border: '1px solid rgba(231,200,160,0.20)' }}>
               <p className="text-[9px] font-bold uppercase" style={{ letterSpacing: '0.20em', color: KORE.gold }}>Precio</p>
               <p className="font-heading text-[22px] font-semibold mt-1.5" style={{ color: KORE.ivory, letterSpacing: '-0.005em' }}>
@@ -724,11 +724,8 @@ function PaymentsCard({ payments }: { payments: { id: number; amount: string; cu
           return (
             <div
               key={p.id}
-              className="grid items-center gap-4 py-4 flex-wrap"
-              style={{
-                gridTemplateColumns: 'minmax(140px, 160px) 1fr auto',
-                borderTop: i === 0 ? 'none' : '1px solid rgba(103,15,34,0.08)',
-              }}
+              className="flex flex-col gap-2.5 py-4 sm:grid sm:grid-cols-[minmax(140px,160px)_1fr_auto] sm:items-center sm:gap-4"
+              style={{ borderTop: i === 0 ? 'none' : '1px solid rgba(103,15,34,0.08)' }}
             >
               <div>
                 <p className="font-heading text-[14px] font-semibold" style={{ color: KORE.wineDark }}>{formatDateLong(p.created_at)}</p>
@@ -736,22 +733,24 @@ function PaymentsCard({ payments }: { payments: { id: number; amount: string; cu
                   {p.status === 'confirmed' ? 'Pago confirmado' : p.status === 'pending' ? 'Procesándose' : 'Falló el cobro'}
                 </p>
               </div>
-              <span className="font-heading text-[16px] font-semibold tabular-nums" style={{ color: KORE.wineDark }}>
-                {formatPrice(p.amount, p.currency)}
-              </span>
-              <span
-                className="text-[10px] font-bold uppercase shrink-0"
-                style={{
-                  padding: '4px 12px',
-                  borderRadius: 999,
-                  background: statusBg,
-                  color: statusColor,
-                  border: `1px solid ${statusBorder}`,
-                  letterSpacing: '0.10em',
-                }}
-              >
-                ● {statusLabel}
-              </span>
+              <div className="flex items-center justify-between gap-3 sm:contents">
+                <span className="font-heading text-[16px] font-semibold tabular-nums" style={{ color: KORE.wineDark }}>
+                  {formatPrice(p.amount, p.currency)}
+                </span>
+                <span
+                  className="text-[10px] font-bold uppercase shrink-0"
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: 999,
+                    background: statusBg,
+                    color: statusColor,
+                    border: `1px solid ${statusBorder}`,
+                    letterSpacing: '0.10em',
+                  }}
+                >
+                  ● {statusLabel}
+                </span>
+              </div>
             </div>
           );
         })}
