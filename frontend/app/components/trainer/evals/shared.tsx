@@ -117,14 +117,22 @@ export function FormHero({
 }
 
 // ─── FormSection ──────────────────────────────────────────────
-const COLS_CLASS: Record<number, string> = {
-  1: 'grid-cols-1',
-  2: 'grid-cols-1 sm:grid-cols-2',
-  4: 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4',
+// `dense`: para secciones de celdas chicas (ComputedCards, campos cortos)
+// que entran de a 2 en móvil — evita la columna única innecesaria.
+const COLS_CLASS: Record<string, string> = {
+  '1':       'grid-cols-1',
+  '2':       'grid-cols-1 sm:grid-cols-2',
+  '3':       'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+  '4':       'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4',
+  '5':       'grid-cols-1 sm:grid-cols-2 xl:grid-cols-5',
+  '2-dense': 'grid-cols-2',
+  '3-dense': 'grid-cols-2 lg:grid-cols-3',
+  '4-dense': 'grid-cols-2 sm:grid-cols-4',
+  '5-dense': 'grid-cols-2 sm:grid-cols-5',
 };
 
 export function FormSection({
-  title, hint, required, children, columns = 2, gap = 16,
+  title, hint, required, children, columns = 2, gap = 16, dense = false,
 }: {
   title: string;
   hint?: string;
@@ -132,6 +140,7 @@ export function FormSection({
   children: React.ReactNode;
   columns?: number;
   gap?: number;
+  dense?: boolean;
 }) {
   return (
     <div style={{
@@ -156,7 +165,7 @@ export function FormSection({
           )}
         </div>
       </div>
-      <div className={`grid ${COLS_CLASS[columns] ?? COLS_CLASS[2]}`} style={{ gap }}>
+      <div className={`grid ${COLS_CLASS[`${columns}${dense ? '-dense' : ''}`] ?? COLS_CLASS['2']}`} style={{ gap }}>
         {children}
       </div>
     </div>

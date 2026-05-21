@@ -947,7 +947,7 @@ export default function EvalPosturTab({ clientId }: { clientId: number }) {
       {!loading && tabMode === 'form' && !isEditing && evaluations.length > 0 && (
         <>
           <EvalSectionHeader title="Última evaluación" hint={lastEvalLabel ?? ''} onNew={enterCreate} />
-          <FormSection title="Resultados auto-calculados" columns={4} gap={12}>
+          <FormSection title="Resultados auto-calculados" columns={4} gap={12} dense>
             <ComputedCard label="Índice global" value={latest!.global_index} sub={latest!.global_category} tone={posturColor(latest!.global_color)} />
             <ComputedCard label="Superior" value={latest!.upper_index} sub={latest!.upper_category} tone={posturColor(latest!.upper_color)} />
             <ComputedCard label="Central"  value={latest!.central_index} sub={latest!.central_category} tone={posturColor(latest!.central_color)} />

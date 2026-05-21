@@ -110,16 +110,16 @@ type MetricCell = {
 
 function MetricStrip({ cells }: { cells: MetricCell[] }) {
   return (
-    <div style={{
-      display: 'flex', gap: 0, overflowX: 'auto', marginBottom: 20,
-      background: 'rgba(255,255,255,0.78)', borderRadius: 20,
+    <div className="grid grid-cols-2 sm:grid-cols-4" style={{
+      gap: 1, marginBottom: 20, overflow: 'hidden',
+      background: 'rgba(103,15,34,0.10)', borderRadius: 20,
       border: '1px solid rgba(103,15,34,0.08)',
       boxShadow: '0 4px 16px -10px rgba(45,15,26,0.18)',
     }}>
       {cells.map((c, i) => (
         <div key={i} style={{
-          flex: 1, minWidth: 92, padding: '18px 14px',
-          borderRight: i < cells.length - 1 ? '1px solid rgba(103,15,34,0.07)' : 'none',
+          padding: '18px 14px',
+          background: 'rgba(255,255,255,0.92)',
         }}>
           <div style={{
             fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700,
@@ -658,7 +658,7 @@ export default function EvalAntropTab({ clientId }: { clientId: number }) {
       {!loading && tabMode === 'form' && !isEditing && evaluations.length > 0 && (
         <>
           <EvalSectionHeader title="Última evaluación" hint={lastEvalLabel ?? ''} onNew={enterCreate} />
-          <FormSection title="Resultados auto-calculados" columns={4} gap={12}>
+          <FormSection title="Resultados auto-calculados" columns={4} gap={12} dense>
             <ComputedCard label="IMC" value={latest!.bmi} sub={latest!.bmi_category} tone={bmiColor(latest!.bmi_color)} />
             <ComputedCard label="% Grasa" value={`${latest!.body_fat_pct}%`} sub={latest!.bf_category} tone={bmiColor(latest!.bf_color)} />
             <ComputedCard label="Masa grasa" value={`${latest!.fat_mass_kg} kg`} tone="wine" />
@@ -666,7 +666,7 @@ export default function EvalAntropTab({ clientId }: { clientId: number }) {
             {latest!.waist_hip_ratio && <ComputedCard label="ICC" value={latest!.waist_hip_ratio} sub={latest!.whr_risk} tone={bmiColor(latest!.whr_color)} />}
             {latest!.waist_height_ratio && <ComputedCard label="IC / Talla" value={latest!.waist_height_ratio} sub={latest!.whe_risk} tone={bmiColor(latest!.whe_color)} />}
           </FormSection>
-          <FormSection title="Medidas básicas" columns={2} gap={16}>
+          <FormSection title="Medidas básicas" columns={2} gap={16} dense>
             <Field label="Peso" suffix="kg" value={latest!.weight_kg} readonly />
             <Field label="Talla" suffix="cm" value={latest!.height_cm} readonly />
             <Field label="Cintura" suffix="cm" value={latest!.waist_cm ?? ''} readonly />
@@ -693,7 +693,7 @@ export default function EvalAntropTab({ clientId }: { clientId: number }) {
             }}>{error}</div>
           )}
 
-          <FormSection title="Medidas básicas" required hint="Necesarias para el cálculo de IMC y composición corporal." columns={2} gap={16}>
+          <FormSection title="Medidas básicas" required hint="Necesarias para el cálculo de IMC y composición corporal." columns={2} gap={16} dense>
             <Field label="Fecha" value={form.evaluation_date} onChange={v => setForm(f => ({ ...f, evaluation_date: v }))} />
             <Field label="Peso" suffix="kg" value={form.weight_kg} placeholder="75.0" onChange={v => setForm(f => ({ ...f, weight_kg: v }))} />
             <Field label="Talla" suffix="cm" value={form.height_cm} placeholder="175" onChange={v => setForm(f => ({ ...f, height_cm: v }))} />
