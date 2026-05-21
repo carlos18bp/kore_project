@@ -118,7 +118,7 @@ function MetricStrip({ cells }: { cells: MetricCell[] }) {
     }}>
       {cells.map((c, i) => (
         <div key={i} style={{
-          flex: 1, minWidth: 110, padding: '18px 16px',
+          flex: 1, minWidth: 92, padding: '18px 14px',
           borderRight: i < cells.length - 1 ? '1px solid rgba(103,15,34,0.07)' : 'none',
         }}>
           <div style={{
@@ -266,7 +266,7 @@ function MeasurementsTable({
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+    <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 16, marginBottom: 20 }}>
       {/* Perímetros */}
       <div style={{
         borderRadius: 18, overflow: 'hidden',
@@ -274,7 +274,7 @@ function MeasurementsTable({
         background: 'rgba(255,255,255,0.78)',
       }}>
         <div style={{ padding: '14px 16px 0', fontFamily: 'Cinzel, serif', fontSize: 14, fontWeight: 600, color: T.wine }}>Perímetros</div>
-        <div style={{ padding: '8px 0' }}>
+        <div className="overflow-x-auto" style={{ padding: '8px 0' }}>
           <table style={tableStyle}>
             <thead>
               <tr>
@@ -310,7 +310,7 @@ function MeasurementsTable({
         background: 'rgba(255,255,255,0.78)',
       }}>
         <div style={{ padding: '14px 16px 0', fontFamily: 'Cinzel, serif', fontSize: 14, fontWeight: 600, color: T.wine }}>Pliegues</div>
-        <div style={{ padding: '8px 0' }}>
+        <div className="overflow-x-auto" style={{ padding: '8px 0' }}>
           <table style={tableStyle}>
             <thead>
               <tr>
