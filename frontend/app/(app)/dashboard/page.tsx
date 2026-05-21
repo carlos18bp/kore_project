@@ -1588,8 +1588,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <TrainerMessageBanner />
-
         {/* Hero */}
         {hasRoutine ? (
           <AnimatedHero>
@@ -1787,8 +1785,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <TrainerMessageBanner />
-
         {/* Row 1: Hero (8) + Sesión (4) */}
         <div className="grid grid-cols-12 gap-5 mb-5">
           <div className="col-span-8">
@@ -1933,6 +1929,9 @@ export default function DashboardPage() {
         )}
 
       </div>
+
+      {/* Mensaje del entrenador — mini-card anclada abajo */}
+      <TrainerMessageBanner />
     </section>
   );
 }
