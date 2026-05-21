@@ -225,20 +225,6 @@ function TrainerClientDetailPage() {
               </div>
             </div>
 
-            {/* Stats strip */}
-            <div style={{ display: 'flex', gap: 1, marginTop: 20, borderRadius: 14, overflow: 'hidden', background: 'rgba(103,15,34,0.06)' }}>
-              {[
-                { label: 'Completadas', value: client.stats.completed },
-                { label: 'Sesiones',    value: client.subscription?.sessions_remaining ?? 0 },
-                { label: 'Canceladas',  value: client.stats.canceled },
-                { label: 'Total',       value: client.stats.total },
-              ].map(s => (
-                <div key={s.label} style={{ flex: 1, padding: '10px 4px', textAlign: 'center', background: '#F5EFE3' }}>
-                  <p style={{ fontFamily: 'Cinzel, serif', fontSize: 18, fontWeight: 600, color: '#670F22', lineHeight: 1, margin: 0 }}>{s.value}</p>
-                  <p style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.16em', color: 'rgba(103,15,34,0.45)', marginTop: 4, marginBottom: 0 }}>{s.label}</p>
-                </div>
-              ))}
-            </div>
           </div>
         )}
 
@@ -316,6 +302,7 @@ function TrainerClientDetailPage() {
                       { label: 'Racha récord',   value: kpi.behavioral.streak_longest,   unit: 'días' },
                       { label: 'Sesiones comp.', value: kpi.behavioral.sessions_completed },
                       { label: 'Sesiones rest.', value: kpi.behavioral.sessions_remaining },
+                      { label: 'Canceladas',     value: client?.stats.canceled ?? 0 },
                     ]} />
                   </div>
 
