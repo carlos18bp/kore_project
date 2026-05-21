@@ -384,10 +384,10 @@ export default function MiProgramaPage() {
                 { label: 'Recuperación', count: activeRestCount, dot: 'bg-teal-500' },
                 { label: 'Descanso', count: restCount, dot: 'bg-gray-300' },
               ].map(({ label, count, dot }) => (
-                <div key={label} className="bg-white/70 backdrop-blur-sm rounded-2xl p-3.5 border border-white/60 shadow-sm text-center">
+                <div key={label} className="bg-white/70 backdrop-blur-sm rounded-2xl px-2 py-3.5 border border-white/60 shadow-sm text-center">
                   <div className={`w-1.5 h-1.5 rounded-full ${dot} mx-auto mb-1.5`} />
                   <p className="font-heading text-[20px] font-bold text-kore-wine-dark leading-none">{count}</p>
-                  <p className="text-[10px] text-kore-gray-dark/45 uppercase tracking-[0.12em] font-semibold mt-1">{label}</p>
+                  <p className="text-[9px] text-kore-gray-dark/45 uppercase tracking-[0.04em] font-semibold mt-1">{label}</p>
                 </div>
               ))}
             </div>
