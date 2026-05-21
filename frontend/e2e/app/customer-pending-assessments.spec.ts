@@ -102,7 +102,7 @@ test.describe('Customer Pending Assessments (Dashboard)', { tag: [...FlowTags.CU
   test('renders the KÓRE score badge with the computed score', async ({ page }) => {
     await goToDashboard(page);
 
-    const badge = page.getByRole('link', { name: 'Tu calificación KÓRE' }).first();
+    const badge = page.getByRole('button', { name: 'Tu calificación KÓRE' }).first();
     await expect(badge).toBeVisible();
     await expect(badge).toContainText('72');
   });
