@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import Cookies from 'js-cookie';
-import { api } from '@/lib/services/http';
+import { api, getWithRetry } from '@/lib/services/http';
 
 export type PhysicalEvaluation = {
   id: number;
@@ -88,6 +88,7 @@ export type PhysicalEvalFormData = {
 type PhysicalEvalState = {
   evaluations: PhysicalEvaluation[];
   loading: boolean;
+  loaded: boolean;
   submitting: boolean;
   error: string;
   fetchEvaluations: (clientId: number) => Promise<void>;
@@ -105,6 +106,7 @@ function authHeaders() {
 export const usePhysicalEvaluationStore = create<PhysicalEvalState>((set) => ({
   evaluations: [],
   loading: false,
+  loaded: false,
   submitting: false,
   error: '',
 
@@ -180,10 +182,10 @@ export const usePhysicalEvaluationStore = create<PhysicalEvalState>((set) => ({
   fetchMyEvaluations: async () => {
     set({ loading: true, error: '' });
     try {
-      const { data } = await api.get('/my-physical-evaluation/', {
+      const { data } = await getWithRetry<PhysicalEvaluation[]>('/my-physical-evaluation/', {
         headers: authHeaders(),
       });
-      set({ evaluations: data, loading: false });
+      set({ evaluations: data, loading: false, loaded: true });
     } catch {
       set({ error: 'No se pudieron cargar tus evaluaciones físicas.', loading: false });
     }

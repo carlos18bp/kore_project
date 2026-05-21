@@ -1304,11 +1304,11 @@ export default function DashboardPage() {
   const { todayLog: nutritionTodayLog, fetchTodayLog: fetchNutritionToday } = useNutritionDailyStore();
   const { activeProgram, fetchActiveProgram } = useProgramStore();
   const { weeklySummary, fetchWeeklySummary } = useProgressStore();
-  const { evaluations: anthroEvals, fetchMyEvaluations: fetchMyAnthrometry } = useAnthropometryStore();
-  const { evaluations: posturoEvals, fetchMyEvaluations: fetchMyPosturo } = usePosturometryStore();
-  const { evaluations: physicalEvals, fetchMyEvaluations: fetchMyPhysical } = usePhysicalEvaluationStore();
+  const { evaluations: anthroEvals, loaded: anthroLoaded, fetchMyEvaluations: fetchMyAnthrometry } = useAnthropometryStore();
+  const { evaluations: posturoEvals, loaded: posturoLoaded, fetchMyEvaluations: fetchMyPosturo } = usePosturometryStore();
+  const { evaluations: physicalEvals, loaded: physicalLoaded, fetchMyEvaluations: fetchMyPhysical } = usePhysicalEvaluationStore();
   const { entries: nutritionEntries, fetchMyEntries: fetchMyNutrition } = useNutritionStore();
-  const { assessments: parqAssessments, fetchMyAssessments: fetchMyParq } = useParqStore();
+  const { assessments: parqAssessments, loaded: parqLoaded, fetchMyAssessments: fetchMyParq } = useParqStore();
   const profileFetchedRef = useRef(false);
 
   // Mobile accordion states
@@ -1325,11 +1325,13 @@ export default function DashboardPage() {
   // (e.g. fast tab switches) are no-ops.
   useEffect(() => {
     let cancelled = false;
-    const skipAnthro = anthroEvals.length > 0;
-    const skipPosturo = posturoEvals.length > 0;
-    const skipPhysical = physicalEvals.length > 0;
+    // Skip si el store ya cargó (éxito previo) — evita re-fetchear en cada
+    // revisita y la presión de rate-limit que vaciaba cards de evaluación.
+    const skipAnthro = anthroLoaded;
+    const skipPosturo = posturoLoaded;
+    const skipPhysical = physicalLoaded;
     const skipNutrition = nutritionEntries.length > 0;
-    const skipParq = parqAssessments.length > 0;
+    const skipParq = parqLoaded;
 
     (async () => {
       // Wave 1 — identity + primary signals (gates the page).

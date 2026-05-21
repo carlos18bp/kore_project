@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import Cookies from 'js-cookie';
-import { api } from '@/lib/services/http';
+import { api, getWithRetry } from '@/lib/services/http';
 
 export type SegmentEntry = {
   is_normal: boolean;
@@ -73,6 +73,7 @@ export type PosturometryFormData = {
 type PosturometryState = {
   evaluations: PosturometryEvaluation[];
   loading: boolean;
+  loaded: boolean;
   submitting: boolean;
   error: string;
   fetchEvaluations: (clientId: number) => Promise<void>;
@@ -91,6 +92,7 @@ function authHeaders() {
 export const usePosturometryStore = create<PosturometryState>((set) => ({
   evaluations: [],
   loading: false,
+  loaded: false,
   submitting: false,
   error: '',
 
@@ -215,10 +217,10 @@ export const usePosturometryStore = create<PosturometryState>((set) => ({
   fetchMyEvaluations: async () => {
     set({ loading: true, error: '' });
     try {
-      const { data } = await api.get('/my-posturometry/', {
+      const { data } = await getWithRetry<PosturometryEvaluation[]>('/my-posturometry/', {
         headers: authHeaders(),
       });
-      set({ evaluations: data, loading: false });
+      set({ evaluations: data, loading: false, loaded: true });
     } catch {
       set({ error: 'No se pudieron cargar tus evaluaciones posturales.', loading: false });
     }

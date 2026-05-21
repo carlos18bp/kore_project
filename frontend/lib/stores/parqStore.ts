@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import Cookies from 'js-cookie';
-import { api } from '@/lib/services/http';
+import { api, getWithRetry } from '@/lib/services/http';
 
 export type ParqAssessment = {
   id: number;
@@ -34,6 +34,7 @@ export type ParqFormData = {
 type ParqState = {
   assessments: ParqAssessment[];
   loading: boolean;
+  loaded: boolean;
   submitting: boolean;
   error: string;
   fetchMyAssessments: () => Promise<void>;
@@ -50,16 +51,17 @@ function authHeaders() {
 export const useParqStore = create<ParqState>((set) => ({
   assessments: [],
   loading: false,
+  loaded: false,
   submitting: false,
   error: '',
 
   fetchMyAssessments: async () => {
     set({ loading: true, error: '' });
     try {
-      const { data } = await api.get('/my-parq/', {
+      const { data } = await getWithRetry<ParqAssessment[]>('/my-parq/', {
         headers: authHeaders(),
       });
-      set({ assessments: data, loading: false });
+      set({ assessments: data, loading: false, loaded: true });
     } catch {
       set({ error: 'No se pudieron cargar tus evaluaciones PAR-Q.', loading: false });
     }

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import Cookies from 'js-cookie';
-import { api } from '@/lib/services/http';
+import { api, getWithRetry } from '@/lib/services/http';
 
 export type AnthropometryEvaluation = {
   id: number;
@@ -52,6 +52,7 @@ export type AnthropometryFormData = {
 type AnthropometryState = {
   evaluations: AnthropometryEvaluation[];
   loading: boolean;
+  loaded: boolean;
   submitting: boolean;
   error: string;
   fetchEvaluations: (clientId: number) => Promise<void>;
@@ -70,6 +71,7 @@ function authHeaders() {
 export const useAnthropometryStore = create<AnthropometryState>((set) => ({
   evaluations: [],
   loading: false,
+  loaded: false,
   submitting: false,
   error: '',
 
@@ -207,10 +209,10 @@ export const useAnthropometryStore = create<AnthropometryState>((set) => ({
   fetchMyEvaluations: async () => {
     set({ loading: true, error: '' });
     try {
-      const { data } = await api.get('/my-anthropometry/', {
+      const { data } = await getWithRetry<AnthropometryEvaluation[]>('/my-anthropometry/', {
         headers: authHeaders(),
       });
-      set({ evaluations: data, loading: false });
+      set({ evaluations: data, loading: false, loaded: true });
     } catch {
       set({ error: 'No se pudieron cargar tus evaluaciones.', loading: false });
     }
