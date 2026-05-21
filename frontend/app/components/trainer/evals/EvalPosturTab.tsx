@@ -114,7 +114,7 @@ function RadarChart({
     }).join(' ');
 
   return (
-    <svg width={size} height={size}>
+    <svg viewBox={`0 0 ${size} ${size}`} width="100%" height="auto" style={{ maxWidth: size }}>
       <defs>
         <radialGradient id={`radar-p-${id}`}>
           <stop offset="0%" stopColor={KORE.cream} stopOpacity="0.55" />
@@ -301,7 +301,7 @@ function RegionCard({ regionKey, latest, first }: {
       </div>
 
       {/* Description + Importance */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 16 }}>
         <div>
           <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.20em', textTransform: 'uppercase', color: 'rgba(103,15,34,0.45)', marginBottom: 5 }}>Qué evaluamos</div>
           <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 12, lineHeight: 1.6, color: '#3A2128' }}>{REGION_DESCRIPTIONS[regionKey]}</div>
@@ -396,7 +396,7 @@ function ViewCard({ viewKey, latest, first }: {
       )}
 
       {/* Photos + findings */}
-      <div style={{ display: 'grid', gridTemplateColumns: first ? '1fr 1fr 1fr' : '1fr 1fr', gap: 14 }}>
+      <div className={first ? 'grid grid-cols-1 sm:grid-cols-3' : 'grid grid-cols-1 sm:grid-cols-2'} style={{ gap: 14 }}>
         {first && (
           <div>
             <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(103,15,34,0.55)', marginBottom: 6 }}>
@@ -499,9 +499,9 @@ function ResultsHero({ latest, first }: { latest: PosturometryEvaluation; first:
         background: 'radial-gradient(circle, rgba(255,233,220,0.20) 0%, rgba(244,199,199,0.10) 40%, transparent 65%)',
         filter: 'blur(60px)', pointerEvents: 'none',
       }} />
-      <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'center' }}>
+      <div className="relative flex flex-col gap-6 xl:flex-row xl:items-center">
         {/* LEFT: index + radar */}
-        <div>
+        <div className="min-w-0 xl:flex-1">
           <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: KORE.gold }}>
             Índice postural global
           </div>
@@ -544,7 +544,7 @@ function ResultsHero({ latest, first }: { latest: PosturometryEvaluation; first:
         </div>
 
         {/* RIGHT: before/after anterior photos */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 200 }}>
+        <div className="flex w-full flex-col gap-3 xl:w-[240px] xl:shrink-0">
           <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: KORE.gold }}>
             Vista anterior
           </div>
@@ -597,10 +597,8 @@ function PosturTimeline({ evaluations }: { evaluations: PosturometryEvaluation[]
           const isLatest = i === 0;
           const photo = e.anterior_photo;
           return (
-            <div key={e.id} style={{
-              position: 'relative',
-              display: 'grid', gridTemplateColumns: '120px 1fr',
-              gap: 16, paddingBottom: i < evaluations.length - 1 ? 20 : 0,
+            <div key={e.id} className="relative flex flex-col gap-4 sm:flex-row" style={{
+              paddingBottom: i < evaluations.length - 1 ? 20 : 0,
             }}>
               <span style={{
                 position: 'absolute', left: -23, top: 16,
@@ -634,7 +632,7 @@ function PosturTimeline({ evaluations }: { evaluations: PosturometryEvaluation[]
                     }}>● Reciente</span>
                   )}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6 }}>
+                <div className="grid grid-cols-2 sm:grid-cols-4" style={{ gap: 6 }}>
                   {([
                     { k: 'global_index'  as const, label: 'Global' },
                     { k: 'upper_index'   as const, label: 'Superior' },
@@ -690,7 +688,7 @@ function PosturResults({ evaluations, onEdit, onNew }: {
         <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(103,15,34,0.55)', marginBottom: 4 }}>Tu cuerpo en 4 lecturas</div>
         <div style={{ fontFamily: 'Cinzel, serif', fontSize: 17, fontWeight: 600, color: T.wine, marginBottom: 16 }}>Por región</div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 14, marginBottom: 20 }}>
         {REGION_KEYS.map(rk => (
           <RegionCard key={rk} regionKey={rk} latest={latest} first={first} />
         ))}
@@ -989,7 +987,7 @@ export default function EvalPosturTab({ clientId }: { clientId: number }) {
               <div style={{ fontFamily: 'Cinzel, serif', fontSize: 17, fontWeight: 600, color: T.wine, marginBottom: 14 }}>
                 Observaciones por vista
               </div>
-              <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid ${T.border}` }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 0, borderBottom: `1px solid ${T.border}` }}>
                 {FORM_VIEWS.map(v => {
                   const sel = v.key === activeView;
                   return (
@@ -1006,7 +1004,7 @@ export default function EvalPosturTab({ clientId }: { clientId: number }) {
               </div>
             </div>
             <div style={{ padding: '20px 22px 22px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 20 }}>
+              <div className="grid grid-cols-1 sm:grid-cols-[220px_1fr]" style={{ gap: 20 }}>
                 <PhotoSlot
                   label={`Foto vista ${cur.label.toLowerCase()}`}
                   onFile={f => setForm(p => ({ ...p, [cur.photoKey]: f }))}
