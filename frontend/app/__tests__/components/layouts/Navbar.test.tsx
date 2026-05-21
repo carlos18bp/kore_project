@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
 import userEvent from '@testing-library/user-event';
 import Navbar from '@/app/components/layouts/Navbar';
 import { useAuthStore } from '@/lib/stores/authStore';
@@ -66,6 +67,23 @@ describe('Navbar', () => {
     render(<Navbar />);
     const ctaLink = screen.getAllByText('Mi sesión')[0].closest('a');
     expect(ctaLink).toHaveAttribute('href', '/dashboard');
+  });
+
+  it('server-renders the logged-out CTA even when the store is authenticated, to avoid a hydration mismatch', () => {
+    // The auth store reads cookies synchronously at module init, so on the
+    // client its initial state is authenticated while the server render is not.
+    // The first render (server + client hydration) must show the same CTA.
+    useAuthStore.setState({
+      user: { id: '1', email: 'auth@kore.com', first_name: 'Auth', last_name: 'User', phone: '', role: 'customer', name: 'Auth User' },
+      accessToken: 'token',
+      isAuthenticated: true,
+      hydrated: true,
+      justLoggedIn: false,
+    });
+    const html = renderToString(<Navbar />);
+    expect(html).toContain('Iniciar sesión');
+    expect(html).not.toContain('Mi sesión');
+    expect(html).not.toContain('href="/dashboard"');
   });
 
   it('toggles mobile menu on button click', async () => {

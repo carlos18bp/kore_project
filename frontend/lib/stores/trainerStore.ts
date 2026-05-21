@@ -265,11 +265,14 @@ type TrainerState = {
   sessionsLoading: boolean;
   dashboardStats: TrainerDashboardStats | null;
   statsLoading: boolean;
+  agendaSessions: UpcomingSession[];
+  agendaLoading: boolean;
   error: string;
   fetchClients: () => Promise<void>;
   fetchClientDetail: (id: number) => Promise<void>;
   fetchClientSessions: (id: number) => Promise<void>;
   fetchDashboardStats: () => Promise<void>;
+  fetchAgendaSessions: (from: string, to: string) => Promise<void>;
 
   // Intelligence Center
   riskDashboard: RiskDashboard | null;
@@ -365,6 +368,8 @@ export const useTrainerStore = create<TrainerState>((set, get) => ({
   sessionsLoading: false,
   dashboardStats: null,
   statsLoading: false,
+  agendaSessions: [],
+  agendaLoading: false,
   error: '',
 
   // Intelligence Center state
@@ -431,6 +436,19 @@ export const useTrainerStore = create<TrainerState>((set, get) => ({
       set({ dashboardStats: data, statsLoading: false });
     } catch {
       set({ error: 'No se pudieron cargar las estadísticas.', statsLoading: false });
+    }
+  },
+
+  fetchAgendaSessions: async (from: string, to: string) => {
+    set({ agendaLoading: true });
+    try {
+      const { data } = await api.get('/trainer/agenda/', {
+        headers: authHeaders(),
+        params: { from, to },
+      });
+      set({ agendaSessions: data.sessions ?? [], agendaLoading: false });
+    } catch {
+      set({ agendaSessions: [], agendaLoading: false });
     }
   },
 

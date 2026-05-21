@@ -201,11 +201,16 @@ export default function NewUserClient() {
             chips={['📧 Email automático', '🔒 Cambio forzado al ingresar', '🛡 Contraseña no visible']}
           />
 
-          <div className="flex justify-end gap-2.5 mt-6">
-            <Btn variant="ghost" type="button" onClick={() => router.push('/admin-platform/users')}>
+          <div className="flex flex-col-reverse gap-2.5 mt-6 sm:flex-row sm:justify-end">
+            <Btn
+              variant="ghost"
+              type="button"
+              className="w-full sm:w-auto"
+              onClick={() => router.push('/admin-platform/users')}
+            >
               Cancelar
             </Btn>
-            <Btn variant="primary" type="submit" disabled={actionLoading}>
+            <Btn variant="primary" type="submit" className="w-full sm:w-auto" disabled={actionLoading}>
               {actionLoading ? 'Enviando…' : 'Crear y enviar credenciales'}
             </Btn>
           </div>

@@ -57,7 +57,7 @@ export function FormHero({
         borderRadius: '50%', background: `radial-gradient(circle, ${toneFg}22, transparent 70%)`,
         filter: 'blur(20px)',
       }} />
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 24 }}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6" style={{ position: 'relative' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span style={{
@@ -97,7 +97,7 @@ export function FormHero({
           )}
         </div>
         {score != null && (
-          <div style={{ flexShrink: 0, textAlign: 'right' }}>
+          <div className="text-left sm:text-right" style={{ flexShrink: 0 }}>
             <div style={{
               fontFamily: 'Cinzel, serif', fontSize: 44, fontWeight: 600,
               color: toneFg, lineHeight: 1,
@@ -117,8 +117,22 @@ export function FormHero({
 }
 
 // ─── FormSection ──────────────────────────────────────────────
+// `dense`: para secciones de celdas chicas (ComputedCards, campos cortos)
+// que entran de a 2 en móvil — evita la columna única innecesaria.
+const COLS_CLASS: Record<string, string> = {
+  '1':       'grid-cols-1',
+  '2':       'grid-cols-1 sm:grid-cols-2',
+  '3':       'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+  '4':       'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4',
+  '5':       'grid-cols-1 sm:grid-cols-2 xl:grid-cols-5',
+  '2-dense': 'grid-cols-2',
+  '3-dense': 'grid-cols-2 lg:grid-cols-3',
+  '4-dense': 'grid-cols-2 sm:grid-cols-4',
+  '5-dense': 'grid-cols-2 sm:grid-cols-5',
+};
+
 export function FormSection({
-  title, hint, required, children, columns = 2, gap = 16,
+  title, hint, required, children, columns = 2, gap = 16, dense = false,
 }: {
   title: string;
   hint?: string;
@@ -126,6 +140,7 @@ export function FormSection({
   children: React.ReactNode;
   columns?: number;
   gap?: number;
+  dense?: boolean;
 }) {
   return (
     <div style={{
@@ -150,7 +165,7 @@ export function FormSection({
           )}
         </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${columns}, 1fr)`, gap }}>
+      <div className={`grid ${COLS_CLASS[`${columns}${dense ? '-dense' : ''}`] ?? COLS_CLASS['2']}`} style={{ gap }}>
         {children}
       </div>
     </div>
@@ -171,7 +186,7 @@ export function Field({
   onChange?: (v: string) => void;
 }) {
   return (
-    <div style={{ gridColumn: `span ${span}` }}>
+    <div className={span >= 2 ? 'col-span-1 sm:col-span-2' : 'col-span-1'}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
         <label style={{
           fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700,
@@ -220,7 +235,7 @@ export function BilateralPair({
   onChangeL?: (v: string) => void;
 }) {
   return (
-    <div style={{ gridColumn: 'span 2' }}>
+    <div className="col-span-1 sm:col-span-2">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
         <label style={{
           fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700,
@@ -228,7 +243,7 @@ export function BilateralPair({
         }}>{label}</label>
         {hint && <span style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 10, color: T.textSoft }}>{hint}</span>}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+      <div className="grid grid-cols-2" style={{ gap: 8 }}>
         {[{ k: 'D', v: dR, cb: onChangeR }, { k: 'I', v: dL, cb: onChangeL }].map(s => (
           <div key={s.k} style={{
             display: 'flex', alignItems: 'center', padding: '9px 11px',
@@ -270,7 +285,7 @@ export function ChipSelect({
   onChange?: (v: string) => void;
 }) {
   return (
-    <div style={{ gridColumn: `span ${span}` }}>
+    <div className={span >= 2 ? 'col-span-1 sm:col-span-2' : 'col-span-1'}>
       <label style={{
         display: 'block', fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700,
         letterSpacing: '0.18em', textTransform: 'uppercase', color: T.textSoft, marginBottom: 7,
@@ -311,7 +326,7 @@ export function RatingScale({
   onChange?: (v: number) => void;
 }) {
   return (
-    <div style={{ gridColumn: 'span 2' }}>
+    <div className="col-span-1 sm:col-span-2">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
         <label style={{
           fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700,
@@ -517,20 +532,18 @@ export function StickyFooter({
   saveLabel?: string;
 }) {
   return (
-    <div style={{
-      position: 'sticky', bottom: 20, marginTop: 24,
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" style={{
+      marginTop: 24, marginBottom: 16,
       padding: '13px 20px', borderRadius: 16,
-      background: 'rgba(45,15,26,0.96)', backdropFilter: 'blur(14px)',
-      boxShadow: '0 14px 40px -10px rgba(45,15,26,0.40)',
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      gap: 16,
+      background: 'rgba(45,15,26,0.96)',
+      boxShadow: '0 8px 24px -14px rgba(45,15,26,0.35)',
     }}>
       <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 11, color: 'rgba(231,200,160,0.70)' }}>
         {lastSaved
           ? <><strong style={{ color: T.ivory, fontWeight: 600 }}>Último guardado:</strong> {lastSaved}</>
           : <strong style={{ color: T.ivory, fontWeight: 600 }}>Nueva evaluación</strong>}
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div className="flex w-full gap-2 sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none">
         <button
           onClick={onCancel}
           type="button"
@@ -565,10 +578,7 @@ export function EvalSectionHeader({
   onNew?: () => void;
 }) {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-      gap: 12, marginBottom: 16,
-    }}>
+    <div className="flex flex-wrap items-start justify-between gap-3" style={{ marginBottom: 16 }}>
       <div>
         <div style={{ fontFamily: 'Cinzel, serif', fontSize: 17, fontWeight: 600, color: T.wine }}>{title}</div>
         {hint && <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 12, color: T.textMed, marginTop: 3 }}>{hint}</div>}

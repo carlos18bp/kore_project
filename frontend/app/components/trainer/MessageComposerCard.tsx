@@ -36,7 +36,7 @@ export default function MessageComposerCard({ onSubmit }: Props) {
   return (
     <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm p-4 space-y-3">
       <SectionLabel>Nuevo mensaje</SectionLabel>
-      <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+      <div className="flex flex-wrap gap-2">
         {OPTIONS.map((opt) => {
           const Icon = opt.icon;
           const active = triggerType === opt.id;

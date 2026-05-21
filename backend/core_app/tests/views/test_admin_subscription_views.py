@@ -312,3 +312,48 @@ def test_admin_serializer_includes_is_duo_and_guest_info(api_client, admin_user,
     assert resp.data['is_duo'] is True
     assert resp.data['guest_info']['status'] == 'pending'
     assert resp.data['guest_info']['invited_email'] == 'guest@example.com'
+
+
+# ── Category counts ─────────────────────────────────────────────────────────
+
+@pytest.mark.django_db
+def test_category_counts_returns_totals_per_category(api_client, admin_user, customer):
+    pkg_pareja = Package.objects.create(
+        title='Pareja', category='semi_personalizado',
+        sessions_count=8, validity_days=30, price='200000', currency='COP',
+    )
+    pkg_personal = Package.objects.create(
+        title='Personalizada', category='personalizado',
+        sessions_count=12, validity_days=30, price='400000', currency='COP',
+    )
+    now = FIXED_NOW
+    for _ in range(2):
+        Subscription.objects.create(
+            customer=customer, package=pkg_pareja,
+            sessions_total=8, sessions_used=0,
+            status=Subscription.Status.ACTIVE,
+            starts_at=now, expires_at=now + timedelta(days=30),
+        )
+    Subscription.objects.create(
+        customer=customer, package=pkg_personal,
+        sessions_total=12, sessions_used=0,
+        status=Subscription.Status.ACTIVE,
+        starts_at=now, expires_at=now + timedelta(days=30),
+    )
+
+    api_client.force_authenticate(user=admin_user)
+    resp = api_client.get(reverse('subscription-category-counts'))
+
+    assert resp.status_code == status.HTTP_200_OK
+    assert resp.data == {
+        'semi_personalizado': 2,
+        'personalizado': 1,
+        'terapeutico': 0,
+    }
+
+
+@pytest.mark.django_db
+def test_category_counts_forbidden_for_non_admin(api_client, customer):
+    api_client.force_authenticate(user=customer)
+    resp = api_client.get(reverse('subscription-category-counts'))
+    assert resp.status_code == status.HTTP_403_FORBIDDEN

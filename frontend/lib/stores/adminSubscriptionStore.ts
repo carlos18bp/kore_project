@@ -74,9 +74,16 @@ export type AdminSubscriptionFilters = {
   page: number;
 };
 
+export type AdminCategoryCounts = {
+  personalizado: number;
+  semi_personalizado: number;
+  terapeutico: number;
+};
+
 type AdminSubscriptionState = {
   subscriptions: AdminSubscription[];
   totalCount: number;
+  categoryCounts: AdminCategoryCounts;
   selected: AdminSubscription | null;
   filters: AdminSubscriptionFilters;
   loading: boolean;
@@ -84,6 +91,7 @@ type AdminSubscriptionState = {
   error: string;
 
   fetchSubscriptions: (filters?: Partial<AdminSubscriptionFilters>) => Promise<void>;
+  fetchCategoryCounts: () => Promise<void>;
   fetchById: (id: number) => Promise<void>;
   patchSubscription: (id: number, payload: PatchSubscriptionPayload) => Promise<boolean>;
   renewSubscription: (id: number) => Promise<AdminSubscription | null>;
@@ -100,9 +108,16 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+const EMPTY_CATEGORY_COUNTS: AdminCategoryCounts = {
+  personalizado: 0,
+  semi_personalizado: 0,
+  terapeutico: 0,
+};
+
 export const useAdminSubscriptionStore = create<AdminSubscriptionState>((set, get) => ({
   subscriptions: [],
   totalCount: 0,
+  categoryCounts: { ...EMPTY_CATEGORY_COUNTS },
   selected: null,
   filters: { search: '', status: '', category: '', page: 1 },
   loading: false,
@@ -116,6 +131,7 @@ export const useAdminSubscriptionStore = create<AdminSubscriptionState>((set, ge
   reset: () => set({
     subscriptions: [],
     totalCount: 0,
+    categoryCounts: { ...EMPTY_CATEGORY_COUNTS },
     selected: null,
     filters: { search: '', status: '', category: '', page: 1 },
     error: '',
@@ -139,6 +155,23 @@ export const useAdminSubscriptionStore = create<AdminSubscriptionState>((set, ge
       set({ subscriptions: list, totalCount: data.count ?? list.length, loading: false });
     } catch {
       set({ error: 'No se pudieron cargar las suscripciones.', loading: false });
+    }
+  },
+
+  fetchCategoryCounts: async () => {
+    try {
+      const { data } = await api.get('/subscriptions/category-counts/', {
+        headers: authHeaders(),
+      });
+      set({
+        categoryCounts: {
+          personalizado: data.personalizado ?? 0,
+          semi_personalizado: data.semi_personalizado ?? 0,
+          terapeutico: data.terapeutico ?? 0,
+        },
+      });
+    } catch {
+      // Silencioso — las pestañas conservan el último conteo conocido.
     }
   },
 

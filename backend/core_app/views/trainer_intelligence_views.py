@@ -233,15 +233,15 @@ class TrainerClientKPIView(APIView):
         if latest_anthro or latest_posturo or latest_physical:
             from core_app.services.kore_index_calculator import compute_kore_index
             kore_result = compute_kore_index(
-                anthropometry=latest_anthro,
-                posturometry=latest_posturo,
-                physical=latest_physical,
+                anthro_eval=latest_anthro,
+                posturo_eval=latest_posturo,
+                physical_eval=latest_physical,
                 mood_score=last_mood,
-                nutrition_habit_score=float(latest_nutrition.habit_score) if latest_nutrition else None,
+                nutrition_habit_score=float(latest_nutrition.habit_score) if latest_nutrition and latest_nutrition.habit_score is not None else None,
             )
-            kore_score = kore_result.get('score')
-            kore_color = kore_result.get('color', 'gray')
-            kore_category = kore_result.get('category', 'Sin datos')
+            kore_score = kore_result.get('kore_score')
+            kore_color = kore_result.get('kore_color', 'gray')
+            kore_category = kore_result.get('kore_category', 'Sin datos')
 
         from core_app.models import ParqAssessment
         last_eval_dates = {

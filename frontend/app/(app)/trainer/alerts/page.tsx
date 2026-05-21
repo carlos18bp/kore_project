@@ -8,6 +8,11 @@ import HeroOrbsCard from '@/app/components/shared/HeroOrbsCard';
 import SectionLabel from '@/app/components/shared/SectionLabel';
 import EmptyState from '@/app/components/shared/EmptyState';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
+import ComingSoon from '@/app/components/shared/ComingSoon';
+
+// Fase 3 — el Centro de Alertas no está listo para este release. La lógica
+// queda intacta; para reactivarla, poner PHASE_3_READY = true.
+const PHASE_3_READY: boolean = false;
 
 type FilterLevel = 'all' | RiskLevel;
 
@@ -38,6 +43,8 @@ export default function TrainerAlertsPage() {
   useEffect(() => {
     fetchAlerts();
   }, [fetchAlerts]);
+
+  if (!PHASE_3_READY) return <ComingSoon section="Alertas" />;
 
   const filtered = filter === 'all'
     ? alerts

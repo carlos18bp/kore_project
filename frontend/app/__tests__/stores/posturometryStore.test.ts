@@ -8,15 +8,16 @@ jest.mock('js-cookie', () => ({
   remove: jest.fn(),
 }));
 
-jest.mock('@/lib/services/http', () => ({
-  api: {
+jest.mock('@/lib/services/http', () => {
+  const api = {
     get: jest.fn(),
     post: jest.fn(),
     patch: jest.fn(),
     put: jest.fn(),
     delete: jest.fn(),
-  },
-}));
+  };
+  return { api, getWithRetry: (...args: unknown[]) => api.get(...args) };
+});
 
 const mockedApi = api as jest.Mocked<typeof api>;
 
@@ -24,6 +25,7 @@ function resetStore() {
   usePosturometryStore.setState({
     evaluations: [],
     loading: false,
+    loaded: false,
     submitting: false,
     error: '',
   });

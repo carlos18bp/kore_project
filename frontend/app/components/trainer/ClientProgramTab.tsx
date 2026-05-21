@@ -76,29 +76,13 @@ function DayTypeChip({ type }: { type: string }) {
   );
 }
 
-// ─── Adherence dot ─────────────────────────────────────────────
+// ─── Adherence status ──────────────────────────────────────────
 type AdhStatus = 'done' | 'skipped' | 'pending' | 'rest';
-const ADH_CFG: Record<AdhStatus, { bg: string; fg: string; icon: string }> = {
-  done:    { bg: '#669959',                fg: '#fff',     icon: '✓' },
-  skipped: { bg: 'rgba(154,5,38,0.16)',    fg: '#9A0526',  icon: '✕' },
-  pending: { bg: 'rgba(103,15,34,0.06)',   fg: T.textSoft, icon: '·' },
-  rest:    { bg: 'rgba(168,194,156,0.18)', fg: T.sageDark, icon: '◇' },
-};
 
-function AdhDot({ status, label }: { status: AdhStatus; label: string }) {
-  const cfg = ADH_CFG[status];
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-      <div style={{ width: 26, height: 26, borderRadius: 7, background: cfg.bg, color: cfg.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Cinzel', fontSize: 12, fontWeight: 700 }}>{cfg.icon}</div>
-      <div style={{ fontFamily: 'Montserrat', fontSize: 7, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: T.textSoft, whiteSpace: 'nowrap' }}>{label}</div>
-    </div>
-  );
-}
-
-function LegendDot({ color, label }: { color: string; label: string }) {
+function LegendDot({ color, label, outline }: { color: string; label: string; outline?: boolean }) {
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: 'Montserrat', fontSize: 10, color: T.textMed }}>
-      <span style={{ width: 10, height: 10, borderRadius: 3, background: color }}/>
+      <span style={{ width: 10, height: 10, borderRadius: 3, background: outline ? 'transparent' : color, border: outline ? `1.5px dashed ${color}` : 'none' }}/>
       {label}
     </div>
   );
@@ -202,159 +186,247 @@ function ExerciseRow({
   };
 
   return (
-    <div style={{ borderBottom: last ? 'none' : `1px solid ${T.borderSoft}` }}>
-      {/* View row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 0.6fr 0.7fr 0.7fr auto auto', gap: 10, alignItems: 'center', padding: '12px 18px' }}>
-        <div>
-          <div style={{ fontFamily: 'Montserrat', fontSize: 13, fontWeight: 600, color: T.textDark }}>{ex.exercise.name}</div>
+    <div className={last ? '' : 'border-b border-kore-wine-dark/8'}>
+      {/* Fila de vista — grid de 6 col en sm+, card apilada en móvil */}
+      <div className="flex flex-col gap-3 px-4 py-3 sm:grid sm:grid-cols-[2fr_0.6fr_0.7fr_0.7fr_auto_auto] sm:items-center sm:gap-2.5 sm:px-[18px]">
+        <div className="min-w-0">
+          <div className="font-body text-[13px] font-semibold text-[#2A1A1F]">{ex.exercise.name}</div>
           {(ex.notes || ex.exercise.pattern) && (
-            <div style={{ fontFamily: 'Montserrat', fontSize: 10, color: T.textMed, marginTop: 2, fontStyle: 'italic' }}>
+            <div className="mt-0.5 font-body text-[10px] italic text-kore-wine-dark/65">
               {ex.notes || ex.exercise.pattern}
             </div>
           )}
         </div>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontFamily: 'Cinzel', fontSize: 14, fontWeight: 600, color: T.wine }}>{ex.sets}</div>
-          <div style={{ fontFamily: 'Montserrat', fontSize: 7, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.textSoft, marginTop: 1 }}>Series</div>
+
+        {/* Métricas — fila de 3 en móvil, celdas sueltas del grid en sm+ */}
+        <div className="flex gap-2.5 sm:contents">
+          <div className="flex-1 text-center sm:flex-none">
+            <div className="font-heading text-[14px] font-semibold text-kore-wine-dark">{ex.sets}</div>
+            <div className="mt-px font-body text-[7px] font-bold uppercase tracking-[0.18em] text-kore-wine-dark/55">
+              Series
+            </div>
+          </div>
+          <div className="flex-1 text-center sm:flex-none">
+            <div className="font-heading text-[14px] font-semibold text-kore-wine-dark">{repsVal}</div>
+            <div className="mt-px font-body text-[7px] font-bold uppercase tracking-[0.18em] text-kore-wine-dark/55">
+              {repsUnit}
+            </div>
+          </div>
+          <div className="flex-1 text-center sm:flex-none">
+            <div className="font-heading text-[14px] font-semibold text-kore-wine-dark">{ex.rest_seconds}s</div>
+            <div className="mt-px font-body text-[7px] font-bold uppercase tracking-[0.18em] text-kore-wine-dark/55">
+              Descanso
+            </div>
+          </div>
         </div>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontFamily: 'Cinzel', fontSize: 14, fontWeight: 600, color: T.wine }}>{repsVal}</div>
-          <div style={{ fontFamily: 'Montserrat', fontSize: 7, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.textSoft, marginTop: 1 }}>{repsUnit}</div>
+
+        {/* Acciones — fila en móvil, celdas del grid en sm+ */}
+        <div className="flex gap-2 sm:contents">
+          {ex.exercise.youtube_url ? (
+            <a
+              href={ex.exercise.youtube_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Ver demo"
+              className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-lg border border-kore-wine-dark/10 bg-[#9A0526]/6 text-kore-wine-dark"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M23 12s0-3.7-.5-5.5c-.3-1-1-1.7-2-2C18.7 4 12 4 12 4s-6.7 0-8.5.5c-1 .3-1.7 1-2 2C1 8.3 1 12 1 12s0 3.7.5 5.5c.3 1 1 1.7 2 2C5.3 20 12 20 12 20s6.7 0 8.5-.5c1-.3 1.7-1 2-2 .5-1.8.5-5.5.5-5.5zM10 15.5v-7l6 3.5z" />
+              </svg>
+            </a>
+          ) : (
+            <div className="hidden w-[30px] sm:block" />
+          )}
+          <button
+            onClick={() => (editing ? handleCancel() : setEditing(true))}
+            title={editing ? 'Cancelar edición' : 'Editar ejercicio'}
+            className={`flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-lg border ${
+              editing
+                ? 'border-[#9A0526]/25 bg-[#9A0526]/10 text-[#9A0526]'
+                : 'border-kore-wine-dark/8 bg-kore-wine-dark/4 text-kore-wine-dark/55'
+            }`}
+          >
+            {editing ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            )}
+          </button>
         </div>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontFamily: 'Cinzel', fontSize: 14, fontWeight: 600, color: T.wine }}>{ex.rest_seconds}s</div>
-          <div style={{ fontFamily: 'Montserrat', fontSize: 7, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.textSoft, marginTop: 1 }}>Descanso</div>
-        </div>
-        {ex.exercise.youtube_url ? (
-          <a href={ex.exercise.youtube_url} target="_blank" rel="noopener noreferrer" title="Ver demo"
-            style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(154,5,38,0.06)', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.wine, textDecoration: 'none', flexShrink: 0 }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M23 12s0-3.7-.5-5.5c-.3-1-1-1.7-2-2C18.7 4 12 4 12 4s-6.7 0-8.5.5c-1 .3-1.7 1-2 2C1 8.3 1 12 1 12s0 3.7.5 5.5c.3 1 1 1.7 2 2C5.3 20 12 20 12 20s6.7 0 8.5-.5c1-.3 1.7-1 2-2 .5-1.8.5-5.5.5-5.5zM10 15.5v-7l6 3.5z"/>
-            </svg>
-          </a>
-        ) : <div style={{ width: 30 }}/>}
-        {/* Edit toggle */}
-        <button
-          onClick={() => editing ? handleCancel() : setEditing(true)}
-          title={editing ? 'Cancelar edición' : 'Editar ejercicio'}
-          style={{ width: 30, height: 30, borderRadius: 8, background: editing ? 'rgba(154,5,38,0.10)' : 'rgba(103,15,34,0.04)', border: `1px solid ${editing ? 'rgba(154,5,38,0.25)' : T.borderSoft}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: editing ? '#9A0526' : T.textSoft, cursor: 'pointer', flexShrink: 0 }}>
-          {editing
-            ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-            : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>}
-        </button>
       </div>
 
-      {/* Edit form */}
+      {/* Formulario de edición */}
       {editing && (
-        <div style={{ padding: '0 18px 16px', background: 'rgba(103,15,34,0.02)' }}>
-
-          {/* Reps / Time mode toggle */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-            <div style={{ fontFamily: 'Montserrat', fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.textSoft }}>Modo</div>
-            <div style={{ display: 'flex', padding: 2, background: 'rgba(103,15,34,0.06)', borderRadius: 8 }}>
-              {(['reps', 'time'] as const).map(m => (
-                <button key={m} onClick={() => setMode(m)}
-                  style={{ padding: '5px 14px', borderRadius: 6, border: 'none', background: mode === m ? T.wine : 'transparent', color: mode === m ? '#fff' : T.textMed, fontFamily: 'Montserrat', fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 120ms' }}>
+        <div className="bg-kore-wine-dark/2 px-4 pb-4 sm:px-[18px]">
+          {/* Toggle reps / tiempo */}
+          <div className="mb-3.5 flex items-center gap-2.5">
+            <div className="font-body text-[9px] font-bold uppercase tracking-[0.18em] text-kore-wine-dark/55">
+              Modo
+            </div>
+            <div className="flex rounded-lg bg-kore-wine-dark/6 p-0.5">
+              {(['reps', 'time'] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  className={`rounded-md px-3.5 py-1.5 font-body text-[10px] font-bold uppercase tracking-[0.12em] transition-all duration-150 ${
+                    mode === m ? 'bg-kore-wine-dark text-white' : 'bg-transparent text-kore-wine-dark/65'
+                  }`}
+                >
                   {m === 'reps' ? 'Repeticiones' : 'Tiempo'}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Numeric fields */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 2fr', gap: 10, marginBottom: 14 }}>
+          {/* Campos numéricos — apilados en móvil, grid en sm+ */}
+          <div className="mb-3.5 grid grid-cols-1 gap-2.5 sm:grid-cols-[1fr_1fr_1fr_2fr]">
             <div>
-              <div style={{ fontFamily: 'Montserrat', fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.textSoft, marginBottom: 5 }}>Series</div>
-              <input type="number" min={1} value={sets} onChange={e => setSets(Number(e.target.value))}
-                style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 9, border: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.85)', fontFamily: 'Cinzel', fontSize: 15, fontWeight: 600, color: T.wine, outline: 'none' }}/>
+              <div className="mb-1.5 font-body text-[9px] font-bold uppercase tracking-[0.18em] text-kore-wine-dark/55">
+                Series
+              </div>
+              <input
+                type="number" min={1} value={sets}
+                onChange={(e) => setSets(Number(e.target.value))}
+                className="box-border w-full rounded-[9px] border border-kore-wine-dark/10 bg-white/85 px-2.5 py-2 font-heading text-[15px] font-semibold text-kore-wine-dark outline-none"
+              />
             </div>
             {mode === 'reps' ? (
               <div>
-                <div style={{ fontFamily: 'Montserrat', fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.textSoft, marginBottom: 5 }}>Reps</div>
-                <input type="number" min={1} value={reps ?? ''} onChange={e => { setReps(e.target.value === '' ? null : Number(e.target.value)); setDur(null); }}
-                  style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 9, border: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.85)', fontFamily: 'Cinzel', fontSize: 15, fontWeight: 600, color: T.wine, outline: 'none' }}/>
+                <div className="mb-1.5 font-body text-[9px] font-bold uppercase tracking-[0.18em] text-kore-wine-dark/55">
+                  Reps
+                </div>
+                <input
+                  type="number" min={1} value={reps ?? ''}
+                  onChange={(e) => { setReps(e.target.value === '' ? null : Number(e.target.value)); setDur(null); }}
+                  className="box-border w-full rounded-[9px] border border-kore-wine-dark/10 bg-white/85 px-2.5 py-2 font-heading text-[15px] font-semibold text-kore-wine-dark outline-none"
+                />
               </div>
             ) : (
               <div>
-                <div style={{ fontFamily: 'Montserrat', fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.textSoft, marginBottom: 5 }}>Tiempo (s)</div>
-                <input type="number" min={1} value={dur ?? ''} onChange={e => { setDur(e.target.value === '' ? null : Number(e.target.value)); setReps(null); }}
-                  style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 9, border: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.85)', fontFamily: 'Cinzel', fontSize: 15, fontWeight: 600, color: T.wine, outline: 'none' }}/>
+                <div className="mb-1.5 font-body text-[9px] font-bold uppercase tracking-[0.18em] text-kore-wine-dark/55">
+                  Tiempo (s)
+                </div>
+                <input
+                  type="number" min={1} value={dur ?? ''}
+                  onChange={(e) => { setDur(e.target.value === '' ? null : Number(e.target.value)); setReps(null); }}
+                  className="box-border w-full rounded-[9px] border border-kore-wine-dark/10 bg-white/85 px-2.5 py-2 font-heading text-[15px] font-semibold text-kore-wine-dark outline-none"
+                />
               </div>
             )}
             <div>
-              <div style={{ fontFamily: 'Montserrat', fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.textSoft, marginBottom: 5 }}>Descanso (s)</div>
-              <input type="number" min={0} value={rest} onChange={e => setRest(Number(e.target.value))}
-                style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 9, border: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.85)', fontFamily: 'Cinzel', fontSize: 15, fontWeight: 600, color: T.wine, outline: 'none' }}/>
+              <div className="mb-1.5 font-body text-[9px] font-bold uppercase tracking-[0.18em] text-kore-wine-dark/55">
+                Descanso (s)
+              </div>
+              <input
+                type="number" min={0} value={rest}
+                onChange={(e) => setRest(Number(e.target.value))}
+                className="box-border w-full rounded-[9px] border border-kore-wine-dark/10 bg-white/85 px-2.5 py-2 font-heading text-[15px] font-semibold text-kore-wine-dark outline-none"
+              />
             </div>
             <div>
-              <div style={{ fontFamily: 'Montserrat', fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: T.textSoft, marginBottom: 5 }}>Indicación (cue)</div>
-              <input type="text" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Indicación técnica para el cliente…"
-                style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 9, border: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.85)', fontFamily: 'Montserrat', fontSize: 12, color: T.textDark, outline: 'none' }}/>
+              <div className="mb-1.5 font-body text-[9px] font-bold uppercase tracking-[0.18em] text-kore-wine-dark/55">
+                Indicación (cue)
+              </div>
+              <input
+                type="text" value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Indicación técnica para el cliente…"
+                className="box-border w-full rounded-[9px] border border-kore-wine-dark/10 bg-white/85 px-2.5 py-2 font-body text-[12px] text-[#2A1A1F] outline-none"
+              />
             </div>
           </div>
 
-          {/* Exercise catalog picker */}
-          <div style={{ borderTop: `1px solid ${T.borderSoft}`, paddingTop: 12, marginBottom: 14 }}>
+          {/* Buscador de catálogo */}
+          <div className="mb-3.5 border-t border-kore-wine-dark/8 pt-3">
             <button
               onClick={() => {
                 const next = !showPicker;
                 setShowPicker(next);
                 if (next) { setSearch(''); fetchExercises(''); }
               }}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 14px', borderRadius: 8, background: showPicker ? 'rgba(103,15,34,0.08)' : 'rgba(103,15,34,0.04)', border: `1px solid ${T.borderSoft}`, fontFamily: 'Montserrat', fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: picked ? T.wine : T.textMed, cursor: 'pointer' }}>
+              className={`inline-flex items-center gap-1.5 rounded-lg border border-kore-wine-dark/8 px-3.5 py-1.5 font-body text-[10px] font-bold uppercase tracking-[0.12em] ${
+                showPicker ? 'bg-kore-wine-dark/8' : 'bg-kore-wine-dark/4'
+              } ${picked ? 'text-kore-wine-dark' : 'text-kore-wine-dark/65'}`}
+            >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.35-4.35" />
               </svg>
               {picked ? `→ ${picked.name}` : 'Cambiar ejercicio del catálogo'}
             </button>
 
             {showPicker && (
-              <div style={{ marginTop: 10 }}>
+              <div className="mt-2.5">
                 <input
                   autoFocus
                   type="text"
                   value={search}
-                  onChange={e => { setSearch(e.target.value); fetchExercises(e.target.value); }}
+                  onChange={(e) => { setSearch(e.target.value); fetchExercises(e.target.value); }}
                   placeholder="Buscar por nombre… (por defecto muestra ejercicios similares)"
-                  style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', borderRadius: 9, border: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.90)', fontFamily: 'Montserrat', fontSize: 12, color: T.textDark, outline: 'none', marginBottom: 8 }}
+                  className="mb-2 box-border w-full rounded-[9px] border border-kore-wine-dark/10 bg-white/90 px-3 py-2 font-body text-[12px] text-[#2A1A1F] outline-none"
                 />
                 {catalogLoading ? (
-                  <div style={{ padding: '14px 0', textAlign: 'center', fontFamily: 'Montserrat', fontSize: 11, color: T.textSoft }}>Cargando catálogo…</div>
+                  <div className="py-3.5 text-center font-body text-[11px] text-kore-wine-dark/55">
+                    Cargando catálogo…
+                  </div>
                 ) : (
-                  <div style={{ maxHeight: 200, overflowY: 'auto', borderRadius: 10, border: `1px solid ${T.borderSoft}`, background: 'rgba(255,255,255,0.80)' }}>
+                  <div className="max-h-[200px] overflow-y-auto rounded-[10px] border border-kore-wine-dark/8 bg-white/80">
                     {filtered.length === 0 ? (
-                      <div style={{ padding: '14px', textAlign: 'center', fontFamily: 'Montserrat', fontSize: 11, color: T.textSoft }}>Sin resultados</div>
-                    ) : filtered.map((item, i) => (
-                      <button key={item.id}
-                        onClick={() => { setPicked(item); setShowPicker(false); setSearch(''); }}
-                        style={{ width: '100%', padding: '10px 14px', background: picked?.id === item.id ? 'rgba(103,15,34,0.06)' : 'transparent', border: 'none', borderBottom: i < filtered.length - 1 ? `1px solid ${T.borderSoft}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, textAlign: 'left', cursor: 'pointer' }}>
-                        <div>
-                          <div style={{ fontFamily: 'Montserrat', fontSize: 12, fontWeight: 600, color: T.textDark }}>{item.name}</div>
-                          {item.pattern && <div style={{ fontFamily: 'Montserrat', fontSize: 10, color: T.textSoft, marginTop: 2 }}>{item.pattern}</div>}
-                        </div>
-                        {item.youtube_url && (
-                          <span style={{ flexShrink: 0, width: 20, height: 20, borderRadius: 4, background: 'rgba(154,5,38,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.wine }}>
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M23 12s0-3.7-.5-5.5c-.3-1-1-1.7-2-2C18.7 4 12 4 12 4s-6.7 0-8.5.5c-1 .3-1.7 1-2 2C1 8.3 1 12 1 12s0 3.7.5 5.5c.3 1 1 1.7 2 2C5.3 20 12 20 12 20s6.7 0 8.5-.5c1-.3 1.7-1 2-2 .5-1.8.5-5.5.5-5.5zM10 15.5v-7l6 3.5z"/>
-                            </svg>
-                          </span>
-                        )}
-                      </button>
-                    ))}
+                      <div className="p-3.5 text-center font-body text-[11px] text-kore-wine-dark/55">
+                        Sin resultados
+                      </div>
+                    ) : (
+                      filtered.map((item, i) => (
+                        <button
+                          key={item.id}
+                          onClick={() => { setPicked(item); setShowPicker(false); setSearch(''); }}
+                          className={`flex w-full items-center justify-between gap-2.5 px-3.5 py-2.5 text-left ${
+                            picked?.id === item.id ? 'bg-kore-wine-dark/6' : 'bg-transparent'
+                          } ${i < filtered.length - 1 ? 'border-b border-kore-wine-dark/8' : ''}`}
+                        >
+                          <div className="min-w-0">
+                            <div className="font-body text-[12px] font-semibold text-[#2A1A1F]">{item.name}</div>
+                            {item.pattern && (
+                              <div className="mt-0.5 font-body text-[10px] text-kore-wine-dark/55">{item.pattern}</div>
+                            )}
+                          </div>
+                          {item.youtube_url && (
+                            <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-[#9A0526]/10 text-kore-wine-dark">
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M23 12s0-3.7-.5-5.5c-.3-1-1-1.7-2-2C18.7 4 12 4 12 4s-6.7 0-8.5.5c-1 .3-1.7 1-2 2C1 8.3 1 12 1 12s0 3.7.5 5.5c.3 1 1 1.7 2 2C5.3 20 12 20 12 20s6.7 0 8.5-.5c1-.3 1.7-1 2-2 .5-1.8.5-5.5.5-5.5zM10 15.5v-7l6 3.5z" />
+                              </svg>
+                            </span>
+                          )}
+                        </button>
+                      ))
+                    )}
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={handleCancel}
-              style={{ padding: '7px 16px', borderRadius: 9, background: 'transparent', border: `1px solid ${T.border}`, fontFamily: 'Montserrat', fontSize: 11, fontWeight: 600, color: T.textMed, cursor: 'pointer' }}>
+          {/* Acciones del form */}
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={handleCancel}
+              className="rounded-[9px] border border-kore-wine-dark/10 bg-transparent px-4 py-1.5 font-body text-[11px] font-semibold text-kore-wine-dark/65"
+            >
               Cancelar
             </button>
-            <button onClick={handleSave} disabled={saving}
-              style={{ padding: '7px 18px', borderRadius: 9, background: 'linear-gradient(135deg, #9A0526, #AB0D2F)', border: 'none', fontFamily: 'Montserrat', fontSize: 11, fontWeight: 700, color: '#fff', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="inline-flex items-center gap-1.5 rounded-[9px] border-none bg-gradient-to-br from-[#9A0526] to-[#AB0D2F] px-[18px] py-1.5 font-body text-[11px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
               {saving ? 'Guardando…' : 'Guardar'}
             </button>
           </div>
@@ -367,30 +439,39 @@ function ExerciseRow({
 // ─── Day row ───────────────────────────────────────────────────
 function DayRow({ day, programId, onExSaved }: { day: ProgramDay; programId: number; onExSaved: OnExSaved }) {
   const [open, setOpen] = useState(false);
-  const isRest  = day.day_type === 'rest';
+  const isRest = day.day_type === 'rest';
   const weekday = new Date(day.date + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'short' });
   const dateStr = fmtDay(day.date);
 
   return (
-    <div style={{ borderTop: `1px solid ${T.borderSoft}` }}>
+    <div className="border-t border-kore-wine-dark/8">
       <button
-        onClick={() => !isRest && setOpen(o => !o)}
-        style={{ width: '100%', padding: '14px 22px', background: open ? 'rgba(154,5,38,0.03)' : 'transparent', border: 'none', cursor: isRest ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left' }}
+        onClick={() => !isRest && setOpen((o) => !o)}
+        className={`flex w-full flex-wrap items-center gap-x-3.5 gap-y-2 px-4 py-3.5 text-left sm:px-[22px] ${
+          open ? 'bg-[#9A0526]/3' : 'bg-transparent'
+        } ${isRest ? 'cursor-default' : 'cursor-pointer'}`}
       >
-        <div style={{ minWidth: 54 }}>
-          <div style={{ fontFamily: 'Cinzel', fontSize: 12, fontWeight: 600, color: T.wine, textTransform: 'capitalize' }}>{weekday}</div>
-          <div style={{ fontFamily: 'Montserrat', fontSize: 10, color: T.textMed }}>{dateStr}</div>
+        <div className="min-w-[54px]">
+          <div className="font-heading text-[12px] font-semibold capitalize text-kore-wine-dark">
+            {weekday}
+          </div>
+          <div className="font-body text-[10px] text-kore-wine-dark/65">{dateStr}</div>
         </div>
         <DayTypeChip type={day.day_type} />
-        <div style={{ flex: 1, fontFamily: 'Montserrat', fontSize: 12, color: T.textMed }}>
+        <div className="min-w-0 flex-1 font-body text-[12px] text-kore-wine-dark/65">
           {isRest ? 'Recuperación · sin ejercicios' : `${day.exercises.length} ejercicios`}
         </div>
         {!isRest && (
-          <span style={{ fontFamily: 'Montserrat', fontSize: 16, color: T.textMed, display: 'inline-block', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 140ms', lineHeight: 1 }}>⌄</span>
+          <span
+            className="inline-block font-body text-[16px] leading-none text-kore-wine-dark/65 transition-transform duration-150"
+            style={{ transform: open ? 'rotate(180deg)' : 'none' }}
+          >
+            ⌄
+          </span>
         )}
       </button>
       {open && !isRest && day.exercises.length > 0 && (
-        <div style={{ background: 'rgba(255,255,255,0.55)', borderTop: `1px solid ${T.borderSoft}` }}>
+        <div className="border-t border-kore-wine-dark/8 bg-white/55">
           {day.exercises.map((ex, i) => (
             <ExerciseRow
               key={ex.id}
@@ -418,29 +499,42 @@ function WeekCard({
   onExSaved: OnExSaved;
 }) {
   const [open, setOpen] = useState(defaultOpen);
-  const trainCount  = days.filter(d => d.day_type === 'training').length;
-  const activeCount = days.filter(d => d.day_type === 'active_rest').length;
+  const trainCount = days.filter((d) => d.day_type === 'training').length;
+  const activeCount = days.filter((d) => d.day_type === 'active_rest').length;
   const range = weekRange(days);
 
   return (
-    <div style={{ borderRadius: 22, overflow: 'hidden', background: 'rgba(255,255,255,0.65)', border: `1px solid ${T.borderSoft}`, boxShadow: '0 2px 12px -8px rgba(45,15,26,0.10)', marginBottom: 14 }}>
+    <div className="mb-3.5 overflow-hidden rounded-[22px] border border-kore-wine-dark/8 bg-white/65 shadow-[0_2px_12px_-8px_rgba(45,15,26,0.10)]">
       <button
-        onClick={() => setOpen(o => !o)}
-        style={{ width: '100%', padding: '18px 24px', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 18, textAlign: 'left' }}
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-4 px-5 py-4 text-left sm:gap-[18px] sm:px-6"
       >
-        <div style={{ width: 48, height: 48, borderRadius: 14, background: open ? 'linear-gradient(135deg, #9A0526, #5C2030)' : 'rgba(154,5,38,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 140ms' }}>
-          <div style={{ fontFamily: 'Cinzel', fontSize: 18, fontWeight: 600, color: open ? '#fff' : T.wine }}>{weekNum}</div>
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            <div style={{ fontFamily: 'Cinzel', fontSize: 18, fontWeight: 600, color: T.wine }}>Semana {weekNum}</div>
-            <div style={{ fontFamily: 'Montserrat', fontSize: 11, color: T.textMed }}>{range}</div>
+        <div
+          className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[14px] transition-all duration-150 ${
+            open ? 'bg-gradient-to-br from-[#9A0526] to-[#5C2030]' : 'bg-[#9A0526]/6'
+          }`}
+        >
+          <div className={`font-heading text-[18px] font-semibold ${open ? 'text-white' : 'text-kore-wine-dark'}`}>
+            {weekNum}
           </div>
-          <div style={{ fontFamily: 'Montserrat', fontSize: 11, color: T.textSoft, marginTop: 3 }}>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+            <div className="font-heading text-[18px] font-semibold text-kore-wine-dark">
+              Semana {weekNum}
+            </div>
+            <div className="font-body text-[11px] text-kore-wine-dark/65">{range}</div>
+          </div>
+          <div className="mt-0.5 font-body text-[11px] text-kore-wine-dark/55">
             {trainCount} entrenamientos{activeCount > 0 ? ` · ${activeCount} activos` : ''}
           </div>
         </div>
-        <span style={{ fontFamily: 'Montserrat', fontSize: 18, color: T.textMed, display: 'inline-block', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 140ms', lineHeight: 1 }}>⌄</span>
+        <span
+          className="inline-block flex-shrink-0 font-body text-[18px] leading-none text-kore-wine-dark/65 transition-transform duration-150"
+          style={{ transform: open ? 'rotate(180deg)' : 'none' }}
+        >
+          ⌄
+        </span>
       </button>
       {open && days.map((d, i) => (
         <DayRow key={d.id ?? i} day={d} programId={programId} onExSaved={onExSaved} />
@@ -450,60 +544,104 @@ function WeekCard({
 }
 
 // ─── Adherence card ────────────────────────────────────────────
+const ADH_CELL: Record<AdhStatus, string> = {
+  done:    'bg-[#669959] text-white',
+  skipped: 'bg-[#9A0526] text-white',
+  rest:    'bg-kore-wine-dark/12 text-kore-wine-dark/55',
+  pending: 'border border-dashed border-kore-wine-dark/30 text-kore-wine-dark/35',
+};
+
+const WEEKDAY_HEADERS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+
 function AdherenceCard({ logs }: { logs: DailyLogDay[] }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const todayTime = today.getTime();
 
-  const dots = logs.map(d => {
+  const cells = logs.map((d) => {
     const logDate = new Date(d.date + 'T12:00:00');
     logDate.setHours(0, 0, 0, 0);
-    const isPast = logDate <= today;
-    const label  = new Date(d.date + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }).replace(' ', '\n');
-
-    if (d.day_type === 'rest' || d.day_type === 'active_rest') return { status: 'rest' as AdhStatus, label };
-    if (!isPast) return { status: 'pending' as AdhStatus, label };
-    return d.training_adherence >= 0.5 ? { status: 'done' as AdhStatus, label } : { status: 'skipped' as AdhStatus, label };
+    const isPast = logDate.getTime() <= todayTime;
+    const dayNum = logDate.getDate();
+    let status: AdhStatus;
+    if (d.day_type === 'rest' || d.day_type === 'active_rest') status = 'rest';
+    else if (!isPast) status = 'pending';
+    else status = d.training_adherence >= 0.5 ? 'done' : 'skipped';
+    return { dayNum, status, isToday: logDate.getTime() === todayTime };
   });
 
-  const countable = dots.filter(d => d.status === 'done' || d.status === 'skipped');
-  const done      = dots.filter(d => d.status === 'done').length;
-  const pct       = countable.length > 0 ? Math.round((done / countable.length) * 100) : 0;
+  const countable = cells.filter((c) => c.status === 'done' || c.status === 'skipped');
+  const done = cells.filter((c) => c.status === 'done').length;
+  const pct = countable.length > 0 ? Math.round((done / countable.length) * 100) : 0;
   const dasharray = 2 * Math.PI * 46;
 
+  // Celdas vacías al inicio para alinear el primer día a su día de semana (L=0).
+  const leadingBlanks = logs.length
+    ? (new Date(logs[0].date + 'T12:00:00').getDay() + 6) % 7
+    : 0;
+
   return (
-    <div style={{ borderRadius: 22, background: 'rgba(255,255,255,0.65)', border: `1px solid ${T.borderSoft}`, boxShadow: '0 2px 12px -8px rgba(45,15,26,0.10)', padding: 26, marginBottom: 18 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 28, flexWrap: 'wrap' }}>
-        <div style={{ flexShrink: 0, position: 'relative' }}>
-          <svg width="112" height="112" viewBox="0 0 120 120">
-            <circle cx="60" cy="60" r="46" fill="none" stroke="rgba(103,15,34,0.08)" strokeWidth="10"/>
-            <circle cx="60" cy="60" r="46" fill="none" stroke="url(#adhGrad)" strokeWidth="10"
-              strokeDasharray={`${(pct / 100) * dasharray} ${dasharray}`}
-              strokeLinecap="round" transform="rotate(-90 60 60)" style={{ transition: 'stroke-dasharray 0.7s ease-out' }}/>
-            <defs>
-              <linearGradient id="adhGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#A8C29C"/>
-                <stop offset="100%" stopColor="#3F6B36"/>
-              </linearGradient>
-            </defs>
-          </svg>
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ fontFamily: 'Cinzel', fontSize: 30, fontWeight: 600, color: T.wine, lineHeight: 1 }}>{pct}%</div>
-            <div style={{ fontFamily: 'Montserrat', fontSize: 8, fontWeight: 700, letterSpacing: '0.20em', textTransform: 'uppercase', color: T.textSoft, marginTop: 4 }}>Adherencia</div>
+    <div className="mb-[18px] flex flex-col gap-6 rounded-[22px] border border-kore-wine-dark/8 bg-white/65 p-6 shadow-[0_2px_12px_-8px_rgba(45,15,26,0.10)] sm:flex-row sm:items-start sm:gap-7">
+      {/* Anillo de adherencia */}
+      <div className="relative flex-shrink-0 self-center sm:self-start">
+        <svg width="112" height="112" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="46" fill="none" stroke="rgba(103,15,34,0.08)" strokeWidth="10" />
+          <circle
+            cx="60" cy="60" r="46" fill="none" stroke="url(#adhGrad)" strokeWidth="10"
+            strokeDasharray={`${(pct / 100) * dasharray} ${dasharray}`}
+            strokeLinecap="round" transform="rotate(-90 60 60)"
+            style={{ transition: 'stroke-dasharray 0.7s ease-out' }}
+          />
+          <defs>
+            <linearGradient id="adhGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#A8C29C" />
+              <stop offset="100%" stopColor="#3F6B36" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <div className="font-heading text-[30px] font-semibold leading-none text-kore-wine-dark">
+            {pct}%
+          </div>
+          <div className="mt-1 font-body text-[8px] font-bold uppercase tracking-[0.20em] text-kore-wine-dark/55">
+            Adherencia
           </div>
         </div>
-        <div style={{ flex: 1, minWidth: 180 }}>
-          <div style={{ fontFamily: 'Montserrat', fontSize: 9, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: T.textSoft, marginBottom: 12 }}>
-            Bitácora · {logs.length} días
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(logs.length, 7)}, 1fr)`, gap: 6 }}>
-            {dots.map((d, i) => <AdhDot key={i} status={d.status} label={d.label} />)}
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 14, paddingTop: 14, borderTop: `1px solid ${T.borderSoft}` }}>
-            <LegendDot color="#669959" label="Completado"/>
-            <LegendDot color="rgba(154,5,38,0.40)" label="Saltado"/>
-            <LegendDot color="rgba(168,194,156,0.45)" label="Descanso"/>
-            <LegendDot color="rgba(103,15,34,0.20)" label="Pendiente"/>
-          </div>
+      </div>
+
+      {/* Minicalendario */}
+      <div className="min-w-0 flex-1">
+        <div className="mb-3 font-body text-[9px] font-bold uppercase tracking-[0.22em] text-kore-wine-dark/55">
+          Bitácora · {logs.length} días
+        </div>
+        <div className="grid grid-cols-7 gap-1.5">
+          {WEEKDAY_HEADERS.map((h, i) => (
+            <div
+              key={`h-${i}`}
+              className="text-center font-body text-[9px] font-bold uppercase text-kore-wine-dark/40"
+            >
+              {h}
+            </div>
+          ))}
+          {Array.from({ length: leadingBlanks }, (_, i) => (
+            <div key={`b-${i}`} />
+          ))}
+          {cells.map((c, i) => (
+            <div
+              key={i}
+              className={`flex aspect-square items-center justify-center rounded-lg font-heading text-[13px] font-semibold ${ADH_CELL[c.status]} ${
+                c.isToday ? 'ring-2 ring-[#9A0526]/40' : ''
+              }`}
+            >
+              {c.dayNum}
+            </div>
+          ))}
+        </div>
+        <div className="mt-3.5 flex flex-wrap gap-3 border-t border-kore-wine-dark/8 pt-3.5">
+          <LegendDot color="#669959" label="Completado" />
+          <LegendDot color="#9A0526" label="Saltado" />
+          <LegendDot color="rgba(103,15,34,0.30)" label="Descanso" />
+          <LegendDot color="rgba(103,15,34,0.45)" label="Pendiente" outline />
         </div>
       </div>
     </div>

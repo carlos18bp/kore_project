@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/authStore';
 import AppSplash from '@/app/components/layouts/AppSplash';
 import { useSplashGate } from '@/lib/hooks/useSplashGate';
+import { useMounted } from '@/lib/hooks/useMounted';
+import AdminMobileBottomNav from '@/app/components/layouts/AdminMobileBottomNav';
 
 export default function AdminLayout({
   children,
@@ -15,6 +17,7 @@ export default function AdminLayout({
   const hydrated = useAuthStore((s) => s.hydrated);
   const hydrate = useAuthStore((s) => s.hydrate);
   const { splashDone, handleSplashDone } = useSplashGate();
+  const mounted = useMounted();
 
   useEffect(() => {
     hydrate();
@@ -37,6 +40,7 @@ export default function AdminLayout({
   }, [hydrated, isAuthenticated, user, router]);
 
   if (
+    !mounted ||
     !splashDone ||
     !hydrated ||
     !isAuthenticated ||
@@ -47,5 +51,10 @@ export default function AdminLayout({
     return <AppSplash onEntranceComplete={handleSplashDone} />;
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <AdminMobileBottomNav />
+    </>
+  );
 }
