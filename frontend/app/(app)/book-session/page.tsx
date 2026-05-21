@@ -3,7 +3,7 @@
 import { Suspense, useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { X, ArrowRight, Calendar, CalendarPlus } from 'lucide-react';
+import { X, ArrowRight, ArrowDown, Calendar, CalendarPlus } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useBookingStore } from '@/lib/stores/bookingStore';
 import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
@@ -510,6 +510,20 @@ function BookSessionContent() {
                     }
                   }}
                 />
+              )}
+
+              {/* Leyenda del puntico + hint hacia las próximas sesiones */}
+              {bookedDates.size > 0 && (
+                <div className="mt-4 border-t border-kore-gray-light/30 pt-3.5">
+                  <div className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-kore-red" />
+                    <span className="text-[11.5px] text-kore-gray-dark/55">Día con sesión ya agendada</span>
+                  </div>
+                  <p className="mt-1.5 flex items-center gap-1.5 text-[11.5px] font-semibold text-kore-red">
+                    <ArrowDown className="h-3.5 w-3.5 flex-shrink-0" strokeWidth={2.2} />
+                    Desliza abajo para ver tus próximas sesiones
+                  </p>
+                </div>
               )}
             </div>
             <div className="p-5 md:p-6">
