@@ -243,7 +243,7 @@ export function BilateralPair({
         }}>{label}</label>
         {hint && <span style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 10, color: T.textSoft }}>{hint}</span>}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+      <div className="grid grid-cols-2" style={{ gap: 8 }}>
         {[{ k: 'D', v: dR, cb: onChangeR }, { k: 'I', v: dL, cb: onChangeL }].map(s => (
           <div key={s.k} style={{
             display: 'flex', alignItems: 'center', padding: '9px 11px',

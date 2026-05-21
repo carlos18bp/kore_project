@@ -115,7 +115,7 @@ function RadarChart({
     }).join(' ');
 
   return (
-    <svg width={size} height={size}>
+    <svg viewBox={`0 0 ${size} ${size}`} width="100%" height="auto" style={{ maxWidth: size }}>
       <defs>
         <radialGradient id={`radar-f-${id}`}>
           <stop offset="0%" stopColor={KORE.cream} stopOpacity="0.55" />
@@ -372,7 +372,7 @@ function MobilitySection({ latest, prev }: { latest: PhysicalEvaluation; prev: P
         </div>
         <span style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 10, fontStyle: 'italic', color: 'rgba(103,15,34,0.50)' }}>Escala 1–5 · valoración del trainer</span>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+      <div className="grid grid-cols-3" style={{ gap: 12 }}>
         {items.map(m => {
           const mb = physBand(m.value);
           return (
@@ -442,9 +442,9 @@ function ResultsHero({ latest, first }: { latest: PhysicalEvaluation; first: Phy
         background: 'radial-gradient(circle, rgba(255,233,220,0.20) 0%, rgba(244,199,199,0.10) 40%, transparent 65%)',
         filter: 'blur(60px)', pointerEvents: 'none',
       }} />
-      <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'center' }}>
+      <div className="relative flex flex-col gap-6 xl:flex-row xl:items-center">
         {/* LEFT */}
-        <div>
+        <div className="min-w-0 xl:flex-1">
           <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: KORE.gold }}>
             Índice general de condición
           </div>
@@ -466,7 +466,7 @@ function ResultsHero({ latest, first }: { latest: PhysicalEvaluation; first: Phy
             {gFirst !== null && <Delta now={g} prev={gFirst} higherBetter big dark decimals={2} />}
           </div>
           {/* Sub-index cells */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginTop: 16 }}>
+          <div className="grid grid-cols-2 sm:grid-cols-4" style={{ gap: 8, marginTop: 16 }}>
             {subAxes.map(ax => {
               const v = dataLatest[ax.key];
               const sb = physBand(v);
@@ -486,7 +486,7 @@ function ResultsHero({ latest, first }: { latest: PhysicalEvaluation; first: Phy
           </div>
         </div>
         {/* RIGHT: Radar */}
-        <div style={{
+        <div className="w-full xl:w-[320px] xl:shrink-0" style={{
           padding: 16, borderRadius: 18,
           background: 'rgba(20,5,12,0.30)', border: '1px solid rgba(231,200,160,0.15)',
           backdropFilter: 'blur(6px)',
@@ -531,10 +531,8 @@ function PhysTimeline({ evaluations }: { evaluations: PhysicalEvaluation[] }) {
           const b = physBand(v);
           const isLatest = i === 0;
           return (
-            <div key={e.id} style={{
-              position: 'relative',
-              display: 'grid', gridTemplateColumns: 'minmax(120px,160px) 1fr',
-              gap: 16, paddingBottom: i < evaluations.length - 1 ? 20 : 0,
+            <div key={e.id} className="relative flex flex-col gap-4 sm:flex-row" style={{
+              paddingBottom: i < evaluations.length - 1 ? 20 : 0,
             }}>
               <span style={{
                 position: 'absolute', left: -23, top: 12,
@@ -554,7 +552,7 @@ function PhysTimeline({ evaluations }: { evaluations: PhysicalEvaluation[] }) {
                   }}>● Reciente</span>
                 )}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 6 }}>
+              <div className="grid grid-cols-3 sm:grid-cols-5 sm:flex-1" style={{ gap: 6 }}>
                 {([
                   { k: 'general_index' as const,   label: 'General' },
                   { k: 'strength_index' as const,  label: 'Fuerza' },
@@ -609,7 +607,7 @@ function FisicaResults({ evaluations, onEdit, onNew }: {
         <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(103,15,34,0.55)', marginBottom: 4 }}>Las 5 pruebas</div>
         <div style={{ fontFamily: 'Cinzel, serif', fontSize: 17, fontWeight: 600, color: T.wine, marginBottom: 16 }}>Por capacidad</div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 14, marginBottom: 20 }}>
         {TEST_KEYS.map(tk => (
           <TestCard key={tk} testKey={tk} latest={latest} prev={prev} />
         ))}
@@ -707,10 +705,10 @@ function TestRow({
 }) {
   return (
     <div style={{ padding: '16px 0', borderBottom: `1px solid ${T.borderSoft}` }}>
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: showInterrupted ? '1.4fr 1fr 0.9fr 0.9fr' : '1.4fr 1fr 0.9fr 1fr',
-        gap: 14, alignItems: 'flex-end',
+      <div className="flex flex-col gap-3.5 sm:grid sm:items-end" style={{
+        gridTemplateColumns: showInterrupted
+          ? 'minmax(0,1.4fr) minmax(0,1fr) minmax(0,0.9fr) minmax(0,0.9fr)'
+          : 'minmax(0,1.4fr) minmax(0,1fr) minmax(0,0.9fr) minmax(0,1fr)',
       }}>
         <div>
           <div style={{ fontFamily: 'Cinzel, serif', fontSize: 15, fontWeight: 600, color: T.wine }}>{name}</div>
@@ -929,7 +927,7 @@ export default function EvalFisicaTab({ clientId }: { clientId: number }) {
               onValue={v => set('walk_meters', v)}
               onObservation={v => set('walk_notes', v)}
               extra={
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div className="grid grid-cols-2" style={{ gap: 8 }}>
                   <Field label="FC post" suffix="ppm"
                     value={form.walk_heart_rate != null ? String(form.walk_heart_rate) : ''}
                     onChange={v => set('walk_heart_rate', v === '' ? null : Number(v))} />

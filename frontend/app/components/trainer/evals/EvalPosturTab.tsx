@@ -548,7 +548,7 @@ function ResultsHero({ latest, first }: { latest: PosturometryEvaluation; first:
           <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: KORE.gold }}>
             Vista anterior
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="grid grid-cols-2" style={{ gap: 10 }}>
             {[
               { photo: first?.anterior_photo ?? null, label: 'Inicial', dim: true },
               { photo: latest.anterior_photo ?? null, label: 'Última', dim: false },
