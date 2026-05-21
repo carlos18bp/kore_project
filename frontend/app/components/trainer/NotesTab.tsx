@@ -1041,12 +1041,13 @@ export default function NotesTab({
 
   return (
     <div className="space-y-4">
-      {/* Sub-tab nav */}
-      <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+      {/* Sub-tab nav — 2×2 en móvil (sin scroll horizontal), fila en sm+ */}
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         {SUB_TABS.map(t => {
           const isActive = t.id === active;
           return (
             <button key={t.id} onClick={() => setActive(t.id)}
+              className="active:scale-95"
               style={{
                 flexShrink: 0,
                 padding: '9px 18px', borderRadius: 999, border: 'none', cursor: 'pointer',
