@@ -79,10 +79,10 @@ function DayTypeChip({ type }: { type: string }) {
 // ─── Adherence status ──────────────────────────────────────────
 type AdhStatus = 'done' | 'skipped' | 'pending' | 'rest';
 
-function LegendDot({ color, label }: { color: string; label: string }) {
+function LegendDot({ color, label, outline }: { color: string; label: string; outline?: boolean }) {
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: 'Montserrat', fontSize: 10, color: T.textMed }}>
-      <span style={{ width: 10, height: 10, borderRadius: 3, background: color }}/>
+      <span style={{ width: 10, height: 10, borderRadius: 3, background: outline ? 'transparent' : color, border: outline ? `1.5px dashed ${color}` : 'none' }}/>
       {label}
     </div>
   );
@@ -546,9 +546,9 @@ function WeekCard({
 // ─── Adherence card ────────────────────────────────────────────
 const ADH_CELL: Record<AdhStatus, string> = {
   done:    'bg-[#669959] text-white',
-  skipped: 'bg-[#9A0526]/15 text-[#9A0526]',
-  rest:    'bg-[#A8C29C]/25 text-[#3F6B36]',
-  pending: 'bg-kore-wine-dark/5 text-kore-wine-dark/40',
+  skipped: 'bg-[#9A0526] text-white',
+  rest:    'bg-kore-wine-dark/12 text-kore-wine-dark/55',
+  pending: 'border border-dashed border-kore-wine-dark/30 text-kore-wine-dark/35',
 };
 
 const WEEKDAY_HEADERS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
@@ -639,9 +639,9 @@ function AdherenceCard({ logs }: { logs: DailyLogDay[] }) {
         </div>
         <div className="mt-3.5 flex flex-wrap gap-3 border-t border-kore-wine-dark/8 pt-3.5">
           <LegendDot color="#669959" label="Completado" />
-          <LegendDot color="rgba(154,5,38,0.40)" label="Saltado" />
-          <LegendDot color="rgba(168,194,156,0.45)" label="Descanso" />
-          <LegendDot color="rgba(103,15,34,0.20)" label="Pendiente" />
+          <LegendDot color="#9A0526" label="Saltado" />
+          <LegendDot color="rgba(103,15,34,0.30)" label="Descanso" />
+          <LegendDot color="rgba(103,15,34,0.45)" label="Pendiente" outline />
         </div>
       </div>
     </div>
