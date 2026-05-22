@@ -23,6 +23,7 @@ from .registration_verification_code import RegistrationVerificationCode
 from .subscription_guest import SubscriptionGuest
 from .exercise import Exercise
 from .monthly_program import MonthlyProgram, ProgramDay, ProgramExercise, DailyLog, ExerciseLog
+from .program_week_note import ProgramWeekNote
 from .food import Food
 from .meal_suggestion import MealSuggestion
 from .nutrition_daily_log import NutritionDailyLog, MealEntry, WaterGlassLog
@@ -30,6 +31,7 @@ from .trainer_alert import ClientRiskScore
 from .trainer_alert_resolution import TrainerAlertResolution
 from .trainer_message import TrainerMessage
 from .weekly_nutrition_plan import WeeklyNutritionPlan, WeeklyPlanDay, WeeklyPlanMeal
+from .nutrition_week_note import NutritionWeekNote
 
 __all__ = [
     'User',
@@ -64,6 +66,7 @@ __all__ = [
     'ProgramExercise',
     'DailyLog',
     'ExerciseLog',
+    'ProgramWeekNote',
     'Food',
     'MealSuggestion',
     'NutritionDailyLog',
@@ -75,4 +78,5 @@ __all__ = [
     'WeeklyNutritionPlan',
     'WeeklyPlanDay',
     'WeeklyPlanMeal',
+    'NutritionWeekNote',
 ]

@@ -281,6 +281,7 @@ describe('ClientNutritionTab', () => {
         meals: [
           { meal_entry_id: 1, meal_block: 'desayuno', status: 'completed', notes: '', photo_url: null, trainer_comment: '', flagged_for_session: false },
         ],
+        water_glasses: [],
       },
     ];
     setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
@@ -304,6 +305,7 @@ describe('ClientNutritionTab', () => {
         meals: [
           { meal_entry_id: 2, meal_block: 'desayuno', status: 'skipped', notes: '', photo_url: null, trainer_comment: '', flagged_for_session: false },
         ],
+        water_glasses: [],
       },
     ];
     setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
@@ -327,6 +329,7 @@ describe('ClientNutritionTab', () => {
         meals: [
           { meal_entry_id: 3, meal_block: 'desayuno', status: 'not_done', notes: '', photo_url: null, trainer_comment: '', flagged_for_session: false },
         ],
+        water_glasses: [],
       },
     ];
     setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });

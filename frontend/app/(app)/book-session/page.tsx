@@ -125,6 +125,9 @@ function BookingShell({
   );
 }
 
+// Ventana de agendamiento: el backend permite reservar hasta 30 días (BOOKING_HORIZON_DAYS).
+const BOOKING_HORIZON_DAYS = 30;
+
 function toDateKey(date: Date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -275,9 +278,14 @@ function BookSessionContent() {
   }, [isReschedule, bookingToReschedule?.trainer]);
 
   // Fetch availability from the backend whenever trainer is known.
+  // Pedimos la ventana completa de 30 días; sin date_from/date_to el backend
+  // sólo devuelve 7 días por defecto.
   useEffect(() => {
     if (trainer?.id) {
-      fetchAvailability(undefined, undefined, trainer.id);
+      const today = new Date();
+      const horizon = new Date(today);
+      horizon.setDate(horizon.getDate() + BOOKING_HORIZON_DAYS - 1);
+      fetchAvailability(toDateKey(today), toDateKey(horizon), trainer.id);
     }
   }, [trainer?.id, fetchAvailability]);
 

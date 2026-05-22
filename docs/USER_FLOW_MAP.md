@@ -1247,6 +1247,26 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Form covers multiple body regions (head, shoulders, spine, pelvis, lower limbs).
 - API failure shows error message.
 
+### trainer-client-notes: Trainer Client Notes Tab
+- Module: trainer
+- Priority: P2
+- Route: /trainer/clients/client?id=X (pestaña "Notas")
+- Roles: trainer
+- Description: Desde la pestaña Notas del detalle del cliente, el entrenador deja notas semanales por ciclo de 28 días en los subtabs Programa y Nutrición, con desbloqueo progresivo.
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-client-week-notes.spec.ts)
+
+**Steps**
+1. Navegar a /trainer/clients/client?id=X y abrir la pestaña "Notas".
+2. En el subtab "Programa", seleccionar un ciclo de 28 días.
+3. Escribir la nota de la semana 1 y guardar; se desbloquea la semana 2.
+4. Repetir para las semanas 2–4; las semanas guardadas se apilan como historial.
+5. En el subtab "Nutrición", repetir el flujo por ciclo de nutrición, usando "Nuevo ciclo" para iniciar otro.
+
+**Branches / Variations**
+- Las semanas futuras aparecen bloqueadas hasta guardar la semana anterior.
+- Una semana ya guardada se puede reabrir y editar.
+- El cliente ve la nota de la semana vigente en /mi-programa y en la vista de nutrición.
+
 ## Route inventory note (2026-04-01)
 
 Customer subscription and session management live at **`/subscription`** (`frontend/app/(app)/subscription/page.tsx`). Legacy paths such as `/my-programs` may still appear in `robots.txt` or old links; the SPA route used by E2E and the sidebar is `/subscription`.
@@ -1332,6 +1352,7 @@ These elements are present across multiple routes and affect the user experience
 | trainer-client-parq | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-parq.spec.ts |
 | trainer-client-physical-eval | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-physical-eval.spec.ts |
 | trainer-client-posturometry | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-posturometry.spec.ts |
+| trainer-client-notes | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-week-notes.spec.ts |
 | profile-completion-cta | user | P2 | Covered | frontend/e2e/app/profile-completion-cta.spec.ts |
 | subscription-gated-routes | user | P2 | Covered | frontend/e2e/app/subscription-gated-routes.spec.ts |
 | customer-mi-programa | user | P1 | **Missing** | — |

@@ -43,6 +43,7 @@ export type MonthlyProgram = {
   end_date: string;
   status: 'draft' | 'published' | 'completed';
   trainer_notes: string;
+  current_week_note: string | null;
   approved_at: string | null;
   created_at: string;
   days: ProgramDay[];
