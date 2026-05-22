@@ -204,6 +204,41 @@ class UpdateProgramNoteView(APIView):
         return Response({'id': program.pk, 'trainer_notes': program.trainer_notes})
 
 
+class UpdateProgramWeekNoteView(APIView):
+    """PATCH — el entrenador hace upsert de una nota semanal (semana 1–4) de un MonthlyProgram."""
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, program_id, week_number):
+        if not (is_admin_user(request.user) or request.user.role == 'trainer'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if week_number < 1 or week_number > 4:
+            return Response(
+                {'detail': 'week_number must be between 1 and 4.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            program = MonthlyProgram.objects.get(pk=program_id)
+        except MonthlyProgram.DoesNotExist:
+            return Response({'detail': 'Program not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        from core_app.models.program_week_note import ProgramWeekNote
+        note, _ = ProgramWeekNote.objects.update_or_create(
+            program=program,
+            week_number=week_number,
+            defaults={'notes': request.data.get('notes', '') or ''},
+        )
+        return Response({
+            'id': note.pk,
+            'program_id': program.pk,
+            'week_number': note.week_number,
+            'notes': note.notes,
+            'updated_at': note.updated_at.isoformat(),
+        })
+
+
 class ApproveProgramView(APIView):
     """PATCH — trainer publishes a draft program."""
 

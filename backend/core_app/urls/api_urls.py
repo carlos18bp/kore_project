@@ -60,6 +60,7 @@ from core_app.views.monthly_program_views import (
     TodayProgramView,
     UpdateExerciseLogView,
     UpdateProgramNoteView,
+    UpdateProgramWeekNoteView,
 )
 from core_app.views.trainer_client_views import (
     TrainerClientDetailView,
@@ -164,6 +165,7 @@ urlpatterns = [
     path('monthly-programs/<int:program_id>/', ProgramDetailView.as_view(), name='monthly-program-detail'),
     path('monthly-programs/<int:program_id>/approve/', ApproveProgramView.as_view(), name='monthly-program-approve'),
     path('monthly-programs/<int:program_id>/note/', UpdateProgramNoteView.as_view(), name='monthly-program-note'),
+    path('monthly-programs/<int:program_id>/week-notes/<int:week_number>/', UpdateProgramWeekNoteView.as_view(), name='monthly-program-week-note'),
     path('monthly-programs/<int:program_id>/delete/', DeleteProgramView.as_view(), name='monthly-program-delete'),
     path('monthly-programs/<int:program_id>/days/<int:day_id>/exercises/<int:ex_id>/', EditProgramExerciseView.as_view(), name='monthly-program-edit-exercise'),
     path('my-program/', MyProgramView.as_view(), name='my-program'),
