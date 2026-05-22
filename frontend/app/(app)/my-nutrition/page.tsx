@@ -8,6 +8,7 @@ import { useNutritionStore, type NutritionFormData, type NutritionHabit } from '
 import { useNutritionDailyStore, type MealEntry } from '@/lib/stores/nutritionDailyStore';
 import { compressImage } from '@/lib/utils/compressImage';
 import { useIsMobileDevice } from '@/lib/utils/isMobileDevice';
+import { MEAL_BLOCKS, MEAL_BLOCK_ORDER } from '@/lib/constants';
 import CameraCapture from '@/app/components/nutrition-daily/CameraCapture';
 
 type CameraTarget =
@@ -24,26 +25,20 @@ const MACRO_RATIOS: Record<string, [number, number, number]> = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const BLOCK_LABEL: Record<string, string> = {
-  desayuno: 'Desayuno',
-  media_manana: 'Media mañana',
-  almuerzo: 'Almuerzo',
-  merienda: 'Merienda',
-  cena: 'Cena',
-};
+// Etiqueta y hora por bloque — derivadas de la fuente única MEAL_BLOCKS
+// para no desincronizarse de la vista del entrenador.
+const BLOCK_LABEL: Record<string, string> = Object.fromEntries(
+  MEAL_BLOCKS.map((b) => [b.key, b.label]),
+);
+
+const BLOCK_TIME: Record<string, string> = Object.fromEntries(
+  MEAL_BLOCKS.map((b) => [b.key, b.time]),
+);
 
 // Converts TACO format "Leche, de vaca, integral" → "Leche de vaca integral"
 function formatFoodName(name: string): string {
   return name.replace(/,\s*/g, ' ').trim();
 }
-
-const BLOCK_TIME: Record<string, string> = {
-  desayuno: '7:30',
-  media_manana: '10:30',
-  almuerzo: '1:00',
-  merienda: '4:30',
-  cena: '7:30',
-};
 
 // ─── Orb CSS animations ───────────────────────────────────────────────────────
 
@@ -860,7 +855,11 @@ export default function MyNutritionPage() {
       note: e.trainer_notes,
     }));
 
-  const meals = todayLog?.meal_entries ?? [];
+  // Orden cronológico del día (desayuno → cena); el API podría devolverlas
+  // en orden indefinido.
+  const meals = [...(todayLog?.meal_entries ?? [])].sort(
+    (a, b) => (MEAL_BLOCK_ORDER[a.meal_block] ?? 99) - (MEAL_BLOCK_ORDER[b.meal_block] ?? 99),
+  );
   const completedMeals = meals.filter(m => m.status === 'completed');
   const eatenKcal = completedMeals.reduce((acc, m) => acc + (m.suggestion?.calories_estimate ?? 0), 0);
   const totalKcal = meals.reduce((acc, m) => acc + (m.suggestion?.calories_estimate ?? 0), 0);

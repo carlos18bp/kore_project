@@ -5,6 +5,7 @@ import Cookies from 'js-cookie';
 import { api } from '@/lib/services/http';
 import EmptyState from '@/app/components/shared/EmptyState';
 import EvalNutriTab from '@/app/components/trainer/evals/EvalNutriTab';
+import { MEAL_BLOCKS } from '@/lib/constants';
 
 // ─── Design tokens ─────────────────────────────────────────────────────────
 const T = {
@@ -25,14 +26,6 @@ const T = {
   border:     'rgba(103,15,34,0.10)',
   borderSoft: 'rgba(103,15,34,0.08)',
 };
-
-const MEAL_BLOCKS = [
-  { key: 'desayuno',     label: 'Desayuno',     time: '07:00' },
-  { key: 'media_manana', label: 'Media mañana', time: '10:30' },
-  { key: 'almuerzo',     label: 'Almuerzo',     time: '13:00' },
-  { key: 'merienda',     label: 'Merienda',     time: '16:30' },
-  { key: 'cena',         label: 'Cena',         time: '20:00' },
-];
 
 const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const DAY_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -474,19 +467,24 @@ function DayCard({
 
       {open && (
         <div style={{ borderTop: `1px solid ${T.borderSoft}` }}>
-          {day.meals.map((meal, i) => (
-            <MealBlockRow
-              key={meal.id}
-              meal={meal}
-              dayId={day.id}
-              planId={planId}
-              planStatus={planStatus}
-              logStatus={logStatuses[i]}
-              hasPhoto={logPhotos[i]}
-              isLast={i === day.meals.length - 1}
-              onMealUpdated={updateMeal}
-            />
-          ))}
+          {day.meals.map((meal, i) => {
+            // Emparejar el estado por meal_block, nunca por índice: day.meals
+            // y el log diario pueden venir en orden o longitud distintos.
+            const logMeal = logDay?.meals.find((m) => m.meal_block === meal.meal_block);
+            return (
+              <MealBlockRow
+                key={meal.id}
+                meal={meal}
+                dayId={day.id}
+                planId={planId}
+                planStatus={planStatus}
+                logStatus={logMeal?.status ?? 'pending'}
+                hasPhoto={!!logMeal?.photo_url}
+                isLast={i === day.meals.length - 1}
+                onMealUpdated={updateMeal}
+              />
+            );
+          })}
         </div>
       )}
     </div>
