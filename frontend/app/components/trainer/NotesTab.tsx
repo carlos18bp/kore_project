@@ -9,7 +9,7 @@ import { usePosturometryStore } from '@/lib/stores/posturometryStore';
 import { usePhysicalEvaluationStore } from '@/lib/stores/physicalEvaluationStore';
 import { useParqStore } from '@/lib/stores/parqStore';
 import { useNutritionStore } from '@/lib/stores/nutritionStore';
-import { useTrainerStore, type ClientSession, type ClientMonthlyProgram, type ClientWeeklyPlan, type TrainerMessageItem } from '@/lib/stores/trainerStore';
+import { useTrainerStore } from '@/lib/stores/trainerStore';
 import type { NutritionHabit } from '@/lib/stores/nutritionStore';
 import MessageComposerCard from '@/app/components/trainer/MessageComposerCard';
 import SessionMiniCalendar from '@/app/components/trainer/SessionMiniCalendar';
@@ -930,49 +930,92 @@ function ProgramaSection({ clientId }: { clientId: number }) {
 
 // ─── Nutrición ───────────────────────────────────────────────
 function NutricionSection({ clientId }: { clientId: number }) {
-  const { clientWeeklyPlans, weeklyPlansLoading, fetchClientWeeklyPlans, updateWeeklyPlanNote } = useTrainerStore();
+  const { clientNutritionWeekNotes, nutritionWeekNotesLoading, fetchClientNutritionWeekNotes, updateNutritionWeekNote } = useTrainerStore();
   const { entries: habits, fetchClientEntries: fetchHabits, approveEntry } = useNutritionStore();
-  const plans = clientWeeklyPlans[clientId] ?? [];
+  const allNotes = clientNutritionWeekNotes[clientId] ?? [];
+  const [selectedCycle, setSelectedCycle] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!clientWeeklyPlans[clientId] && !weeklyPlansLoading) fetchClientWeeklyPlans(clientId);
+    if (!clientNutritionWeekNotes[clientId] && !nutritionWeekNotesLoading) fetchClientNutritionWeekNotes(clientId);
     fetchHabits(clientId);
   }, [clientId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const savedCycles = Array.from(new Set(allNotes.map(n => n.cycle_number))).sort((a, b) => b - a);
+  const maxCycle = savedCycles.length ? savedCycles[0] : 0;
+
+  useEffect(() => {
+    if (selectedCycle === null) setSelectedCycle(maxCycle >= 1 ? maxCycle : 1);
+  }, [maxCycle, selectedCycle]);
+
+  const cycle = selectedCycle ?? 1;
+  const cycleNotes = allNotes.filter(n => n.cycle_number === cycle);
+  const notesByWeek: Record<number, string> = {};
+  cycleNotes.forEach(n => { notesByWeek[n.week_number] = n.notes; });
+  const cycleStartISO = cycleNotes[0]?.cycle_start ?? null;
+
+  // "Nuevo ciclo" se habilita cuando el ciclo más reciente tiene las 4 semanas con contenido.
+  const latestCycleNotes = allNotes.filter(n => n.cycle_number === maxCycle);
+  const latestComplete = maxCycle >= 1 && [1, 2, 3, 4].every(w =>
+    latestCycleNotes.some(n => n.week_number === w && n.notes.trim()));
+
+  // Pills a mostrar: ciclos guardados + el ciclo seleccionado aunque sea nuevo (sin notas todavía).
+  const displayCycles = Array.from(new Set([...savedCycles, cycle])).sort((a, b) => b - a);
+  const todayISO = new Date().toISOString().slice(0, 10);
+
   return (
     <div className="space-y-6">
-      {weeklyPlansLoading && plans.length === 0 ? (
-        <Spinner />
-      ) : (
-        <PaginatedSection<ClientWeeklyPlan>
-          sectionLabel="Planes semanales (ciclo 28 días = 4 semanas)"
-          items={plans}
-          renderComposer={(p) => (
-            <Composer
-              kicker={`Semana · ${p.status}`}
-              title={`Plan ${formatDate(p.week_start)}`}
-              meta={formatDateRange(p.week_start, p.week_end)}
-              notes={p.trainer_notes ?? ''}
-              placeholder="Observaciones sobre esta semana nutricional…"
-              rows={5}
-              onSave={async (notes) => { await updateWeeklyPlanNote(clientId, p.id, notes); }}
+      <div className="space-y-3">
+        <p style={labelStyle}>Notas por semana · ciclo de 28 días</p>
+
+        {nutritionWeekNotesLoading && allNotes.length === 0 ? (
+          <Spinner />
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-2 items-center">
+              {displayCycles.map(c => {
+                const isActive = c === cycle;
+                const cStart = allNotes.find(n => n.cycle_number === c)?.cycle_start ?? null;
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setSelectedCycle(c)}
+                    style={{
+                      padding: '8px 14px', borderRadius: 14, cursor: 'pointer',
+                      border: `1px solid ${isActive ? T.borderMed : T.border}`,
+                      background: isActive ? 'rgba(103,15,34,0.06)' : 'rgba(255,255,255,0.55)',
+                      fontFamily: 'Montserrat, sans-serif', fontSize: 11, fontWeight: 700,
+                      letterSpacing: '0.08em', color: T.wine,
+                    }}
+                  >
+                    Ciclo {c}{cStart ? ` · ${formatDateShort(cStart)}` : ''}
+                  </button>
+                );
+              })}
+              {latestComplete && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedCycle(maxCycle + 1)}
+                  style={{
+                    padding: '8px 14px', borderRadius: 14, cursor: 'pointer',
+                    border: `1px dashed ${T.borderMed}`, background: 'transparent',
+                    fontFamily: 'Montserrat, sans-serif', fontSize: 11, fontWeight: 700,
+                    letterSpacing: '0.08em', color: T.textMed,
+                  }}
+                >
+                  + Nuevo ciclo
+                </button>
+              )}
+            </div>
+
+            <WeekNotesPanel
+              notesByWeek={notesByWeek}
+              cycleStartISO={cycleStartISO}
+              onSave={(week, notes) => updateNutritionWeekNote(clientId, cycle, week, notes, cycleStartISO ?? todayISO)}
             />
-          )}
-          renderHistory={(p, onSelect) => (
-            <HistoryCard
-              key={p.id}
-              kicker={p.status}
-              title={formatDateRange(p.week_start, p.week_end)}
-              meta={`Objetivo: ${p.goal}`}
-              snippet={p.trainer_notes ?? ''}
-              onClick={onSelect}
-              onDelete={async () => { await updateWeeklyPlanNote(clientId, p.id, ''); }}
-            />
-          )}
-          emptyTitle="Sin planes nutricionales"
-          emptyDescription="Cuando se generen los planes semanales del cliente, aparecerán aquí."
-        />
-      )}
+          </>
+        )}
+      </div>
 
       <PaginatedSection<NutritionHabit>
         sectionLabel="Evaluación de hábitos nutricionales"
