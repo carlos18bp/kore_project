@@ -5,6 +5,7 @@ import Cookies from 'js-cookie';
 import { api } from '@/lib/services/http';
 import EmptyState from '@/app/components/shared/EmptyState';
 import EvalNutriTab from '@/app/components/trainer/evals/EvalNutriTab';
+import PhotoViewer from '@/app/components/shared/PhotoViewer';
 import { MEAL_BLOCKS } from '@/lib/constants';
 
 // ─── Design tokens ─────────────────────────────────────────────────────────
@@ -89,11 +90,17 @@ interface NutritionLogMeal {
   photo_url: string | null;
 }
 
+interface NutritionLogWaterGlass {
+  id: number;
+  photo_url: string | null;
+}
+
 interface NutritionLogDay {
   date: string;
   adherence: number;
   is_closed: boolean;
   meals: NutritionLogMeal[];
+  water_glasses: NutritionLogWaterGlass[];
 }
 
 function authHeaders() {
@@ -242,7 +249,8 @@ function MealBlockRow({
   planId,
   planStatus,
   logStatus,
-  hasPhoto,
+  photoUrl,
+  onViewPhoto,
   isLast,
   onMealUpdated,
 }: {
@@ -251,7 +259,8 @@ function MealBlockRow({
   planId: number;
   planStatus: string;
   logStatus?: string;
-  hasPhoto?: boolean;
+  photoUrl?: string | null;
+  onViewPhoto: (url: string) => void;
   isLast: boolean;
   onMealUpdated: (updated: PlanMeal) => void;
 }) {
@@ -327,13 +336,17 @@ function MealBlockRow({
         {/* Status chip + photo + swap — fila propia en móvil, celdas del grid en sm+ */}
         <div className="flex items-center justify-between gap-2 sm:contents">
           <div className="flex items-center gap-2">
-            {hasPhoto && (
-              <div title="El cliente subió foto" className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-kore-wine-dark/10 text-kore-wine-dark" style={{ background: 'rgba(154,5,38,0.06)' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                  <rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.5"/>
-                  <path d="M8 5l2-2h4l2 2"/>
-                </svg>
-              </div>
+            {photoUrl && (
+              <button
+                type="button"
+                onClick={() => onViewPhoto(photoUrl)}
+                title="Ver foto que subió el cliente"
+                aria-label="Ver foto que subió el cliente"
+                className="h-9 w-9 flex-shrink-0 overflow-hidden rounded-lg border border-kore-wine-dark/10 cursor-pointer active:scale-95 transition-transform"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photoUrl} alt="Foto de la comida" className="h-full w-full object-cover" />
+              </button>
             )}
             <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-[5px] font-body text-[9px] font-bold uppercase tracking-[0.16em]"
               style={{ background: cfg.bg, color: cfg.fg }}>
@@ -385,6 +398,7 @@ function DayCard({
   onPlanUpdated: (updatedDay: PlanDay) => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const [viewerPhoto, setViewerPhoto] = useState<string | null>(null);
   const dayIndex = new Date(day.date + 'T12:00:00').getDay(); // 0=Sun
   const adjustedDayIndex = dayIndex === 0 ? 6 : dayIndex - 1; // Mon=0..Sun=6
 
@@ -397,11 +411,6 @@ function DayCard({
     const logMeal = logDay?.meals.find(m => m.meal_block === b.key);
     if (!logMeal) return 'pending';
     return logMeal.status;
-  });
-
-  const logPhotos = MEAL_BLOCKS.map(b => {
-    const logMeal = logDay?.meals.find(m => m.meal_block === b.key);
-    return !!logMeal?.photo_url;
   });
 
   const completed = logStatuses.filter(s => s === 'completed').length;
@@ -479,14 +488,45 @@ function DayCard({
                 planId={planId}
                 planStatus={planStatus}
                 logStatus={logMeal?.status ?? 'pending'}
-                hasPhoto={!!logMeal?.photo_url}
+                photoUrl={logMeal?.photo_url ?? null}
+                onViewPhoto={setViewerPhoto}
                 isLast={i === day.meals.length - 1}
                 onMealUpdated={updateMeal}
               />
             );
           })}
+
+          {/* Hidratación del día — fotos de los vasos que subió el cliente */}
+          {logDay && logDay.water_glasses.length > 0 && (
+            <div className="px-4 py-3.5 sm:px-[22px]" style={{ borderTop: `1px solid ${T.borderSoft}` }}>
+              <div className="font-body text-[9px] font-bold uppercase tracking-[0.20em] mb-2.5" style={{ color: T.textSoft }}>
+                Hidratación · {logDay.water_glasses.length} {logDay.water_glasses.length === 1 ? 'vaso' : 'vasos'}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {logDay.water_glasses.map((wg) => {
+                  const wgPhoto = wg.photo_url;
+                  return wgPhoto ? (
+                    <button
+                      key={wg.id}
+                      type="button"
+                      onClick={() => setViewerPhoto(wgPhoto)}
+                      aria-label="Ver foto del vaso de agua"
+                      className="h-11 w-11 overflow-hidden rounded-lg border border-kore-wine-dark/10 cursor-pointer active:scale-95 transition-transform"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={wgPhoto} alt="Vaso de agua" className="h-full w-full object-cover" />
+                    </button>
+                  ) : (
+                    <div key={wg.id} className="h-11 w-11 rounded-lg" style={{ background: 'linear-gradient(180deg, #4DA3FF, #0B6BC4)' }} />
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
+
+      <PhotoViewer url={viewerPhoto} onClose={() => setViewerPhoto(null)} />
     </div>
   );
 }

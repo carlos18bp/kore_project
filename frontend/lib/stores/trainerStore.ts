@@ -251,6 +251,10 @@ export type NutritionLogDay = {
     notes: string;
     photo_url: string | null;
   }>;
+  water_glasses: Array<{
+    id: number;
+    photo_url: string | null;
+  }>;
 };
 
 // ── Store state + actions ─────────────────────────────────────────────────────

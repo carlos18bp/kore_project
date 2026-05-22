@@ -3,13 +3,14 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Camera, Check, X, Plus, Minus, MessageCircle } from 'lucide-react';
+import { Sparkles, Camera, Check, X, Plus, Minus } from 'lucide-react';
 import { useNutritionStore, type NutritionFormData, type NutritionHabit } from '@/lib/stores/nutritionStore';
 import { useNutritionDailyStore, type MealEntry } from '@/lib/stores/nutritionDailyStore';
 import { compressImage } from '@/lib/utils/compressImage';
 import { useIsMobileDevice } from '@/lib/utils/isMobileDevice';
 import { MEAL_BLOCKS, MEAL_BLOCK_ORDER } from '@/lib/constants';
 import CameraCapture from '@/app/components/nutrition-daily/CameraCapture';
+import PhotoViewer from '@/app/components/shared/PhotoViewer';
 
 type CameraTarget =
   | { kind: 'meal'; mealId: number; facing: 'environment' }
@@ -706,110 +707,6 @@ type TrainerNoteItem = {
   rangeLabel?: string;
   note: string;
 };
-function TrainerNoteSection({
-  label, items,
-}: {
-  label: string;
-  items: TrainerNoteItem[];
-}) {
-  const [extraRows, setExtraRows] = useState(0);
-  if (items.length === 0) return null;
-
-  const [current, ...history] = items;
-  const FIRST_ROW = 3;
-  const EXTRA_ROW = 4;
-
-  const firstRowHistory = history.slice(0, FIRST_ROW);
-  const additionalRows: TrainerNoteItem[][] = [];
-  let cursor = FIRST_ROW;
-  for (let r = 0; r < extraRows; r++) {
-    additionalRows.push(history.slice(cursor, cursor + EXTRA_ROW));
-    cursor += EXTRA_ROW;
-  }
-  const remaining = Math.max(0, history.length - cursor);
-
-  return (
-    <div className="mt-6 space-y-3">
-      <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-kore-gray-dark/45">
-        {label}
-      </p>
-
-      <div className="grid gap-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
-        {/* Card vigente (col 1) */}
-        <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-7 h-7 rounded-full bg-kore-red/10 flex items-center justify-center">
-              <MessageCircle className="w-3.5 h-3.5 text-kore-red" strokeWidth={2} />
-            </div>
-            <p className="text-[10.5px] font-semibold text-kore-gray-dark/50 uppercase tracking-[0.14em]">
-              Nota actual
-            </p>
-          </div>
-          <p className="text-[11px] text-kore-gray-dark/45 mb-2">
-            {current.rangeLabel ?? current.dateLabel}
-          </p>
-          <p className="text-sm text-kore-gray-dark/75 leading-relaxed whitespace-pre-wrap">
-            {current.note}
-          </p>
-        </div>
-
-        {/* Historial (cols 2-4 fila 1) */}
-        {firstRowHistory.map((h) => (
-          <div
-            key={h.id}
-            className="bg-white/55 backdrop-blur-sm rounded-2xl p-4 border border-white/50"
-          >
-            <p className="text-[10px] text-kore-gray-dark/45 uppercase tracking-wide mb-1">
-              {h.rangeLabel ?? h.dateLabel}
-            </p>
-            <p className="text-[13px] text-kore-gray-dark/75 leading-relaxed whitespace-pre-wrap line-clamp-4">
-              {h.note}
-            </p>
-          </div>
-        ))}
-      </div>
-
-      <AnimatePresence initial={false}>
-        {additionalRows.map((row, idx) => (
-          <motion.div
-            key={idx}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="grid gap-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
-          >
-            {row.map((h) => (
-              <div
-                key={h.id}
-                className="bg-white/55 backdrop-blur-sm rounded-2xl p-4 border border-white/50"
-              >
-                <p className="text-[10px] text-kore-gray-dark/45 uppercase tracking-wide mb-1">
-                  {h.rangeLabel ?? h.dateLabel}
-                </p>
-                <p className="text-[13px] text-kore-gray-dark/75 leading-relaxed whitespace-pre-wrap line-clamp-4">
-                  {h.note}
-                </p>
-              </div>
-            ))}
-          </motion.div>
-        ))}
-      </AnimatePresence>
-
-      {remaining > 0 && (
-        <div className="flex justify-center pt-1">
-          <button
-            type="button"
-            onClick={() => setExtraRows((n) => n + 1)}
-            className="px-4 py-2 rounded-full bg-white/70 border border-white/60 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-kore-wine-dark hover:bg-white/90 transition-colors"
-          >
-            Ver historial anterior ({remaining})
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
 
 function formatPlanRange(start: string, end: string): string {
   const a = new Date(start + 'T12:00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
@@ -824,6 +721,9 @@ export default function MyNutritionPage() {
   const [habitsOpen, setHabitsOpen] = useState(false);
   const [showHabitsModal, setShowHabitsModal] = useState(false);
   const [cameraTarget, setCameraTarget] = useState<CameraTarget | null>(null);
+  const [coachNoteOpen, setCoachNoteOpen] = useState(false);
+  const [hydrationOpen, setHydrationOpen] = useState(true);
+  const [viewerPhoto, setViewerPhoto] = useState<string | null>(null);
   const { entries, fetchMyEntries, weeklyPlans, fetchMyWeeklyPlans } = useNutritionStore();
   const { todayLog, loading: dailyLoading, fetchTodayLog, updateMealEntry, uploadMealPhoto, logWaterGlass } = useNutritionDailyStore();
   const isMobile = useIsMobileDevice();
@@ -1013,33 +913,182 @@ export default function MyNutritionPage() {
                 </div>
               </div>
             </div>
+
+            {/* Nota de tu coach — colapsable, embebida en la card principal */}
+            {(todayLog.trainer_nutrition_note || planNoteItems.length > 0 || habitNoteItems.length > 0) && (
+              <div className="relative z-10" style={{ borderTop: '1px solid rgba(255,255,255,0.10)' }}>
+                <button
+                  type="button"
+                  onClick={() => setCoachNoteOpen((v) => !v)}
+                  className="w-full flex items-center gap-2.5 px-7 xl:px-9 py-4 text-left hover:bg-white/[0.03] transition-colors"
+                >
+                  <span className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(231,200,160,0.15)' }}>
+                    <Sparkles className="w-3.5 h-3.5" style={{ color: '#E7C8A0' }} strokeWidth={2} />
+                  </span>
+                  <span className="flex-1 text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: '#E7C8A0' }}>
+                    Nota de tu coach
+                  </span>
+                  <span
+                    className="grid place-items-center w-6 h-6 transition-transform"
+                    style={{ color: 'rgba(255,233,220,0.6)', transform: coachNoteOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                    aria-hidden
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </span>
+                </button>
+                {coachNoteOpen && (
+                  <div className="px-7 xl:px-9 pb-6 flex flex-col gap-2.5">
+                    {todayLog.trainer_nutrition_note && (
+                      <div className="rounded-xl p-3.5" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: '#E7C8A0' }}>Recomendación de hoy</p>
+                        <p className="text-[13px] mt-1 leading-relaxed" style={{ color: '#FFE9DC' }}>{todayLog.trainer_nutrition_note}</p>
+                      </div>
+                    )}
+                    {planNoteItems[0] && (
+                      <div className="rounded-xl p-3.5" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: '#E7C8A0' }}>
+                          Plan nutricional · {planNoteItems[0].rangeLabel ?? planNoteItems[0].dateLabel}
+                        </p>
+                        <p className="text-[13px] mt-1 leading-relaxed whitespace-pre-wrap" style={{ color: '#FFE9DC' }}>{planNoteItems[0].note}</p>
+                      </div>
+                    )}
+                    {habitNoteItems[0] && (
+                      <div className="rounded-xl p-3.5" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: '#E7C8A0' }}>Hábitos · {habitNoteItems[0].dateLabel}</p>
+                        <p className="text-[13px] mt-1 leading-relaxed whitespace-pre-wrap" style={{ color: '#FFE9DC' }}>{habitNoteItems[0].note}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
-        {/* ── Coach tip strip — only shown when trainer set a note on the program ── */}
-        {todayLog?.trainer_nutrition_note && (
-          <div className="mt-4 flex items-center gap-3.5 bg-white rounded-2xl border border-kore-gray-light/60 px-5 py-3.5 shadow-sm">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'linear-gradient(135deg, #9A0526, #AB0D2F)' }}>
-              <Sparkles className="w-4 h-4 text-white" strokeWidth={2} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-kore-red">Tu coach te recomienda</p>
-              <p className="text-[13px] font-medium text-kore-gray-dark mt-0.5 leading-snug">
-                {todayLog.trainer_nutrition_note}
-              </p>
-            </div>
+        {/* ── Hidratación — 2ª card, colapsable ───────────────────────────── */}
+        {todayLog && (
+          <div
+            className="mt-4 relative overflow-hidden rounded-[22px]"
+            style={{ background: 'linear-gradient(135deg, #2D0F1A 0%, #5C2030 100%)', boxShadow: '0 8px 24px -12px rgba(45,15,26,0.5)' }}
+          >
+            <div
+              className="absolute pointer-events-none"
+              style={{ top: -40, right: -40, width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(circle, rgba(64,156,255,0.30) 0%, transparent 70%)', filter: 'blur(20px)' }}
+            />
+            <button
+              type="button"
+              onClick={() => setHydrationOpen((v) => !v)}
+              className="relative w-full flex items-center gap-4 px-6 py-5 text-left"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/55">Hidratación</p>
+                <div className="flex items-baseline gap-1.5 mt-1">
+                  <span className="font-heading text-[28px] font-bold text-white leading-none">{waterDrank}</span>
+                  <span className="text-sm text-white/55">/ {waterGoalGlasses} vasos</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <div className="w-20 sm:w-28 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.12)' }}>
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${waterGoalGlasses > 0 ? Math.min(100, (waterDrank / waterGoalGlasses) * 100) : 0}%`,
+                      background: 'linear-gradient(90deg, #4DA3FF, #0B6BC4)',
+                      transition: 'width 500ms ease-out',
+                    }}
+                  />
+                </div>
+                <span
+                  className="grid place-items-center w-7 h-7 rounded-lg transition-transform"
+                  style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', transform: hydrationOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                  aria-hidden
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </span>
+              </div>
+            </button>
+
+            {hydrationOpen && (
+              <div className="relative px-6 pb-6">
+                <div className="flex gap-1.5">
+                  {Array.from({ length: waterGoalGlasses }, (_, i) => {
+                    const filled = i < waterDrank;
+                    const isNext = !filled && i === waterDrank;
+                    const canTrigger = isMobile && isNext && !todayLog?.is_closed && !waterUploading;
+                    const glassPhoto = filled ? (todayLog.water_glasses?.[i]?.photo_url ?? null) : null;
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => {
+                          if (glassPhoto) setViewerPhoto(glassPhoto);
+                          else if (canTrigger) setCameraTarget({ kind: 'water', facing: 'user' });
+                        }}
+                        aria-label={
+                          filled
+                            ? `Ver foto del vaso ${i + 1}`
+                            : isNext
+                              ? `Registrar vaso ${i + 1} con selfie`
+                              : `Vaso ${i + 1} pendiente`
+                        }
+                        disabled={!canTrigger && !glassPhoto}
+                        className={`relative flex-1 rounded-lg overflow-hidden transition-all duration-200 active:scale-95 ${(canTrigger || glassPhoto) ? 'cursor-pointer hover:brightness-110' : 'cursor-not-allowed'}`}
+                        style={{
+                          height: 38,
+                          background: filled
+                            ? 'linear-gradient(180deg, #4DA3FF, #0B6BC4)'
+                            : isNext
+                              ? 'rgba(77,163,255,0.16)'
+                              : 'rgba(255,255,255,0.06)',
+                          border: filled
+                            ? 'none'
+                            : isNext
+                              ? '1.5px dashed rgba(77,163,255,0.65)'
+                              : '1px solid rgba(255,255,255,0.10)',
+                          boxShadow: filled ? '0 0 12px rgba(77,163,255,0.4)' : 'none',
+                        }}
+                      >
+                        {glassPhoto && (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img src={glassPhoto} alt={`Vaso ${i + 1}`} className="absolute inset-0 w-full h-full object-cover" />
+                        )}
+                        {isNext && (
+                          <span
+                            className="absolute inset-0 grid place-items-center"
+                            style={{ color: canTrigger ? '#9FD0FF' : 'rgba(159,208,255,0.45)' }}
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                              <line x1="12" y1="5" x2="12" y2="19" />
+                              <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {waterUploading ? (
+                  <p className="text-[12px] mt-3 leading-relaxed flex items-center gap-2 text-white/75">
+                    <span className="animate-spin inline-block w-3 h-3 border-2 border-white/60 border-t-transparent rounded-full" />
+                    Subiendo selfie…
+                  </p>
+                ) : !isMobile ? (
+                  <p className="text-[12px] mt-3 leading-relaxed text-white/55">
+                    📱 Disponible solo desde el teléfono. Toca el vaso marcado con “+” para registrarlo con una selfie.
+                  </p>
+                ) : (
+                  <p className="text-[12px] mt-3 leading-relaxed text-white/65">
+                    Toca el vaso marcado con “+” para registrarlo con una selfie. Te quedan {Math.max(0, waterGoalGlasses - waterDrank)} para cerrar el día.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
-
-        {/* ── Trainer notes — plan & habits (customer view) ───────────────── */}
-        <TrainerNoteSection
-          label="Nota del entrenador · Plan nutricional"
-          items={planNoteItems}
-        />
-        <TrainerNoteSection
-          label="Nota del entrenador · Hábitos nutricionales"
-          items={habitNoteItems}
-        />
 
         {/* ── Main grid: meals (left 7) + sidebar (right 5) ──────────────────── */}
         {todayLog && meals.length > 0 && (
@@ -1080,51 +1129,68 @@ export default function MyNutritionPage() {
                       >
                         {/* ── Collapsed header row ── */}
                         <div className="flex items-center gap-3.5">
-                          {/* Time / check circle */}
+                          {/* Time / check / photo circle */}
                           <div
-                            className="flex-shrink-0 flex items-center justify-center relative z-10"
+                            className="flex-shrink-0 relative z-10 overflow-hidden"
                             style={{
                               width: 56, height: 56, borderRadius: 14,
-                              background: isDone
-                                ? 'linear-gradient(135deg, #10B981, #047857)'
-                                : isSkipped
-                                  ? 'rgba(245,158,11,0.12)'
-                                  : 'linear-gradient(135deg, rgba(102,15,34,0.08), rgba(154,5,38,0.04))',
                               border: '3px solid #EDE8DC',
+                              background: meal.photo_url
+                                ? '#1a0c12'
+                                : isDone
+                                  ? 'linear-gradient(135deg, #10B981, #047857)'
+                                  : isSkipped
+                                    ? 'rgba(245,158,11,0.12)'
+                                    : 'linear-gradient(135deg, rgba(102,15,34,0.08), rgba(154,5,38,0.04))',
                             }}
                           >
-                            {isDone ? (
-                              <Check className="w-5 h-5 text-white" strokeWidth={2.5} />
+                            {meal.photo_url ? (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setViewerPhoto(meal.photo_url); }}
+                                className="absolute inset-0 cursor-pointer active:scale-95 transition-transform"
+                                aria-label="Ver foto de la comida"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={meal.photo_url} alt="Foto de la comida" className="w-full h-full object-cover" />
+                                {isDone && (
+                                  <span className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full grid place-items-center" style={{ background: '#10B981' }}>
+                                    <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                                  </span>
+                                )}
+                              </button>
                             ) : (
-                              <span className="text-[11px] font-bold tabular-nums" style={{ color: '#670F22', letterSpacing: '0.05em' }}>{mealTime}</span>
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                {isDone ? (
+                                  <Check className="w-5 h-5 text-white" strokeWidth={2.5} />
+                                ) : (
+                                  <span className="text-[11px] font-bold tabular-nums" style={{ color: '#670F22', letterSpacing: '0.05em' }}>{mealTime}</span>
+                                )}
+                              </div>
                             )}
                           </div>
 
-                          {/* Meal info: raw foods (primary) + recipe name (secondary) */}
+                          {/* Meal info: meta line (one row) + recipe name as 2-line title */}
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-kore-gray-dark/50">
+                            <div className="flex items-center gap-2 flex-nowrap">
+                              <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-kore-gray-dark/50 whitespace-nowrap">
                                 {BLOCK_LABEL[meal.meal_block] ?? meal.meal_block}
                               </span>
                               {meal.suggestion && (
                                 <>
                                   <span className="w-[3px] h-[3px] rounded-full bg-kore-gray-dark/30 flex-shrink-0" />
-                                  <span className="text-[11px] font-semibold text-kore-gray-dark/50">{meal.suggestion.calories_estimate} kcal</span>
+                                  <span className="text-[11px] font-semibold text-kore-gray-dark/50 whitespace-nowrap">{meal.suggestion.calories_estimate} kcal</span>
                                 </>
                               )}
                             </div>
-                            {/* Primary: food names from catalog, or description fallback */}
-                            <p className="text-sm font-semibold text-kore-gray-dark mt-0.5 truncate">
-                              {meal.suggestion?.foods?.length
-                                ? meal.suggestion.foods.map(f => formatFoodName(f.name)).join(' · ')
-                                : (meal.suggestion?.description ?? 'Sin descripción')}
+                            {/* Recipe name as title — wraps up to 2 lines; ingredients live in the expanded panel */}
+                            <p className="text-sm font-semibold text-kore-gray-dark mt-0.5 leading-snug line-clamp-2">
+                              {meal.suggestion?.title
+                                ? meal.suggestion.title
+                                : meal.suggestion?.foods?.length
+                                  ? meal.suggestion.foods.map(f => formatFoodName(f.name)).join(' · ')
+                                  : (meal.suggestion?.description ?? 'Sin descripción')}
                             </p>
-                            {/* Secondary: recipe title — only when ingredients are shown */}
-                            {meal.suggestion?.title && !!meal.suggestion.foods?.length && (
-                              <p className="text-[11px] mt-0.5 truncate" style={{ color: 'rgba(102,15,34,0.5)' }}>
-                                Receta: {meal.suggestion.title}
-                              </p>
-                            )}
                           </div>
 
                           {/* Right action — photo required to complete */}
@@ -1154,6 +1220,23 @@ export default function MyNutritionPage() {
                                 Foto
                               </button>
                             )
+                          )}
+
+                          {/* Expand chevron — affordance de que la card se despliega */}
+                          {!todayLog.is_closed && (
+                            <span
+                              className="flex-shrink-0 grid place-items-center w-7 h-7 rounded-lg transition-transform duration-200"
+                              style={{
+                                background: 'rgba(102,15,34,0.05)',
+                                color: 'rgba(102,15,34,0.55)',
+                                transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                              }}
+                              aria-hidden
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="6 9 12 15 18 9" />
+                              </svg>
+                            </span>
                           )}
                         </div>
 
@@ -1401,66 +1484,6 @@ export default function MyNutritionPage() {
 
             {/* ── Right sidebar (5 cols) ──────────────────────────────────────── */}
             <div className="xl:col-span-5 flex flex-col gap-4">
-
-              {/* Water tracker */}
-              <div className="relative overflow-hidden rounded-[18px]" style={{ background: 'linear-gradient(135deg, #2D0F1A 0%, #5C2030 100%)', padding: 24, boxShadow: '0 8px 24px -10px rgba(45,15,26,0.5)' }}>
-                <div className="absolute pointer-events-none" style={{ top: -40, right: -40, width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(circle, rgba(64,156,255,0.35) 0%, transparent 70%)', filter: 'blur(20px)', animation: 'water-wave 6s ease-in-out infinite' }} />
-
-                <div className="relative">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/55">Hidratación</p>
-                  <div className="flex items-baseline gap-1.5 mt-2">
-                    <span className="font-heading text-[36px] font-bold text-white leading-none">{waterDrank}</span>
-                    <span className="text-sm text-white/55">/ {waterGoalGlasses} vasos</span>
-                  </div>
-                  <div className="mt-4 flex gap-1.5">
-                    {Array.from({ length: waterGoalGlasses }, (_, i) => {
-                      const filled = i < waterDrank;
-                      const isNext = !filled && i === waterDrank;
-                      const canTrigger = isMobile && isNext && !todayLog?.is_closed && !waterUploading;
-                      return (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => {
-                            if (canTrigger) setCameraTarget({ kind: 'water', facing: 'user' });
-                          }}
-                          aria-label={
-                            filled
-                              ? `Vaso ${i + 1} registrado`
-                              : isNext
-                                ? `Registrar vaso ${i + 1} con selfie`
-                                : `Vaso ${i + 1} pendiente`
-                          }
-                          disabled={!canTrigger && !filled}
-                          className="flex-1 rounded-lg transition-all duration-200 active:scale-95 disabled:cursor-not-allowed"
-                          style={{
-                            height: 34,
-                            background: filled ? 'linear-gradient(180deg, #4DA3FF, #0B6BC4)' : 'rgba(255,255,255,0.08)',
-                            border: filled ? 'none' : '1px solid rgba(255,255,255,0.12)',
-                            boxShadow: filled ? '0 0 12px rgba(77,163,255,0.4)' : 'none',
-                            opacity: canTrigger || filled ? 1 : 0.6,
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-
-                  {waterUploading ? (
-                    <p className="text-[12px] mt-3 leading-relaxed flex items-center gap-2" style={{ color: 'rgba(255,255,255,0.75)' }}>
-                      <span className="animate-spin inline-block w-3 h-3 border-2 border-white/60 border-t-transparent rounded-full" />
-                      Subiendo selfie…
-                    </p>
-                  ) : !isMobile ? (
-                    <p className="text-[12px] mt-3 leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                      📱 Disponible solo desde el teléfono. Abre la app en tu móvil para registrar vasos con selfie.
-                    </p>
-                  ) : (
-                    <p className="text-[12px] mt-3 leading-relaxed" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                      +1 vaso = selfie. Te quedan {Math.max(0, waterGoalGlasses - waterDrank)} para cerrar el día.
-                    </p>
-                  )}
-                </div>
-              </div>
 
               {/* Score card — solo visible si el entrenador aprobó */}
               {latest && !isNutritionApproved && (
@@ -1784,6 +1807,8 @@ export default function MyNutritionPage() {
           onClose={() => setCameraTarget(null)}
         />
       )}
+
+      <PhotoViewer url={viewerPhoto} onClose={() => setViewerPhoto(null)} />
     </section>
   );
 }
