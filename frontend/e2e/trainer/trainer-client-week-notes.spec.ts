@@ -1,4 +1,5 @@
 import { test, expect, injectTrainerAuthCookies } from '../fixtures';
+import { FlowTags, RoleTags } from '../helpers/flow-tags';
 import type { Page } from '@playwright/test';
 
 /**
@@ -6,7 +7,7 @@ import type { Page } from '@playwright/test';
  * Verifica el desbloqueo progresivo: la semana 1 es editable, la 2 está bloqueada,
  * y tras guardar la semana 1 la 2 se desbloquea.
  */
-test.describe('Trainer Client — Notas semanales del programa', () => {
+test.describe('Trainer Client — Notas semanales del programa', { tag: [...FlowTags.TRAINER_CLIENT_NOTES, RoleTags.TRAINER] }, () => {
 
   const baseProgram = {
     id: 7,
