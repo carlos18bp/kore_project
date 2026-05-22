@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import gsap from 'gsap';
+import { Lock } from 'lucide-react';
+import { computeWeekStates } from '@/lib/weekNotes';
 import { useAnthropometryStore } from '@/lib/stores/anthropometryStore';
 import { usePosturometryStore } from '@/lib/stores/posturometryStore';
 import { usePhysicalEvaluationStore } from '@/lib/stores/physicalEvaluationStore';
@@ -340,6 +342,126 @@ function HistoryCard({ kicker, title, meta, snippet, onClick, onDelete, active }
           ×
         </button>
       )}
+    </div>
+  );
+}
+
+// ─── Locked week card ───────────────────────────────────────
+function LockedWeekCard({ week, range }: { week: number; range: string }) {
+  return (
+    <div style={{
+      background: 'rgba(103,15,34,0.03)',
+      borderRadius: 18,
+      border: `1px dashed ${T.borderMed}`,
+      padding: '14px 16px',
+      minHeight: 120,
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      gap: 8,
+    }}>
+      <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: T.textSoft }}>
+        Semana {week}{range ? ` · ${range}` : ''}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Lock size={13} color={T.textSoft} strokeWidth={2} />
+        <span style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 11, color: T.textSoft, fontStyle: 'italic' }}>
+          Se desbloquea al guardar la semana anterior.
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Panel de 4 semanas (compartido programa/nutrición) ──────
+function WeekNotesPanel({ notesByWeek, cycleStartISO, onSave }: {
+  notesByWeek: Record<number, string>;
+  cycleStartISO: string | null;
+  onSave: (week: number, notes: string) => Promise<void>;
+}) {
+  const [editingWeek, setEditingWeek] = useState<number | null>(null);
+  const states = computeWeekStates(notesByWeek);
+  const activeWeek = states.find(s => s.state === 'active')?.week ?? null;
+  const composerWeek = editingWeek ?? activeWeek;
+
+  function weekRange(week: number): string {
+    if (!cycleStartISO) return '';
+    const start = new Date(cycleStartISO + 'T12:00:00');
+    start.setDate(start.getDate() + (week - 1) * 7);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+    const fmt = (d: Date) => d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+    return `${fmt(start)} → ${fmt(end)}`;
+  }
+
+  return (
+    <div className={GRID_CLASS}>
+      {[1, 2, 3, 4].map(w => {
+        const slot = states.find(s => s.week === w)!;
+        const range = weekRange(w);
+
+        if (w === composerWeek) {
+          return (
+            <Composer
+              key={w}
+              kicker={`Semana ${w} de 4`}
+              title={`Nota de la semana ${w}`}
+              meta={range}
+              notes={notesByWeek[w] ?? ''}
+              placeholder={`Observaciones del entrenador para la semana ${w}…`}
+              rows={6}
+              onSave={async (notes) => { await onSave(w, notes); setEditingWeek(null); }}
+            />
+          );
+        }
+        if (slot.state === 'done' || slot.state === 'active') {
+          return (
+            <HistoryCard
+              key={w}
+              kicker={`Semana ${w}`}
+              title={range || `Semana ${w}`}
+              snippet={notesByWeek[w] ?? ''}
+              onClick={() => setEditingWeek(w)}
+            />
+          );
+        }
+        return <LockedWeekCard key={w} week={w} range={range} />;
+      })}
+    </div>
+  );
+}
+
+// ─── Selector de ciclo (lista de pills) ──────────────────────
+function CycleSelector({ items, selectedId, onSelect }: {
+  items: { id: number; label: string; sub: string }[];
+  selectedId: number;
+  onSelect: (id: number) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map(it => {
+        const isActive = it.id === selectedId;
+        return (
+          <button
+            key={it.id}
+            type="button"
+            onClick={() => onSelect(it.id)}
+            style={{
+              padding: '8px 14px', borderRadius: 14, cursor: 'pointer',
+              border: `1px solid ${isActive ? T.borderMed : T.border}`,
+              background: isActive ? 'rgba(103,15,34,0.06)' : 'rgba(255,255,255,0.55)',
+              textAlign: 'left',
+            }}
+          >
+            <div style={{ fontFamily: 'Cinzel, serif', fontSize: 12, fontWeight: 600, color: T.wine }}>
+              {it.label}
+            </div>
+            <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 9, color: T.textSoft, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 2 }}>
+              {it.sub}
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }
