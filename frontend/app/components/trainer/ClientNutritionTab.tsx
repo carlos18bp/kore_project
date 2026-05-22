@@ -661,15 +661,19 @@ function PlanHeader({
   onPublish,
   onRegenerate,
   onDelete,
+  onRelaunch,
   publishing,
   deleting,
+  relaunching,
 }: {
   plan: WeeklyNutritionPlan;
   onPublish: () => void;
   onRegenerate: () => void;
   onDelete: () => void;
+  onRelaunch: () => void;
   publishing: boolean;
   deleting: boolean;
+  relaunching: boolean;
 }) {
   const isDraft = plan.status === 'draft';
   const weekNum = Math.ceil(new Date(plan.week_start).getDate() / 7);
@@ -747,8 +751,13 @@ function PlanHeader({
               </button>
             </>
           ) : (
-            <button onClick={onRegenerate} style={{ padding: '10px 18px', borderRadius: 11, background: 'transparent', color: 'rgba(231,200,160,0.85)', border: '1px solid rgba(231,200,160,0.32)', fontFamily: 'Montserrat, sans-serif', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-              Crear próxima semana
+            <button
+              onClick={onRelaunch}
+              disabled={relaunching}
+              title="Eliminar el plan actual y generar un borrador nuevo desde cero"
+              style={{ padding: '10px 18px', borderRadius: 11, background: 'rgba(244,199,199,0.10)', color: '#F4C7C7', border: '1px solid rgba(244,199,199,0.35)', fontFamily: 'Montserrat, sans-serif', fontSize: 12, fontWeight: 600, cursor: relaunching ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, letterSpacing: '0.04em', opacity: relaunching ? 0.6 : 1 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+              {relaunching ? 'Relanzando…' : 'Relanzar plan'}
             </button>
           )}
         </div>
@@ -936,6 +945,7 @@ export default function ClientNutritionTab({
   const [generating, setGenerating] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [relaunching, setRelaunching] = useState(false);
   const [trainerNotes, setTrainerNotes] = useState('');
   const [selectedWeek, setSelectedWeek] = useState(1);
 
@@ -1040,6 +1050,32 @@ export default function ClientNutritionTab({
     handleGenerate();
   };
 
+  // Relanzar: borra el plan publicado y genera un borrador nuevo en un paso.
+  // Los registros diarios del cliente (NutritionDailyLog) son independientes
+  // del plan y se conservan tras el borrado.
+  const handleRelaunch = async () => {
+    if (!activePlan) return;
+    if (!window.confirm(
+      '¿Relanzar el plan? Se eliminará el plan publicado actual y se generará un borrador nuevo de 28 días.\n\nEl historial de comidas registradas por el cliente se conserva.'
+    )) return;
+    setRelaunching(true);
+    try {
+      await api.delete(`/nutrition-plans/${activePlan.id}/delete/`, { headers: authHeaders() });
+      const { data } = await api.post<WeeklyNutritionPlan & { days: PlanDay[] }>(
+        '/nutrition-plans/generate/',
+        { customer_id: clientId },
+        { headers: authHeaders() }
+      );
+      setActivePlan(data);
+      setTrainerNotes(data.trainer_notes ?? '');
+      await fetchPlans();
+    } catch {
+      // ignore — UI ya refleja el estado tras fetchPlans (o queda sin plan)
+    } finally {
+      setRelaunching(false);
+    }
+  };
+
   const handleDayUpdated = (updatedDay: PlanDay) => {
     if (!activePlan) return;
     setActivePlan({
@@ -1083,8 +1119,10 @@ export default function ClientNutritionTab({
           onPublish={handlePublish}
           onRegenerate={handleRegenerate}
           onDelete={handleDelete}
+          onRelaunch={handleRelaunch}
           publishing={publishing}
           deleting={deleting}
+          relaunching={relaunching}
         />
       )}
 

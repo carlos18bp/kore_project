@@ -208,7 +208,11 @@ class ApproveNutritionPlanView(APIView):
 
 
 class DeleteNutritionPlanView(APIView):
-    """DELETE — delete a draft plan.
+    """DELETE — delete a nutrition plan (any status).
+
+    Used both to discard a draft and to "relaunch" a published plan from the
+    trainer's client detail view. NutritionDailyLog rows are keyed by
+    (customer, date) and survive the deletion.
 
     DELETE /api/nutrition-plans/<plan_id>/delete/
     """
@@ -217,9 +221,9 @@ class DeleteNutritionPlanView(APIView):
 
     def delete(self, request, plan_id):
         try:
-            plan = WeeklyNutritionPlan.objects.get(pk=plan_id, status=WeeklyNutritionPlan.Status.DRAFT)
+            plan = WeeklyNutritionPlan.objects.get(pk=plan_id)
         except WeeklyNutritionPlan.DoesNotExist:
-            return Response({'detail': 'Borrador no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'Plan no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
         plan.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

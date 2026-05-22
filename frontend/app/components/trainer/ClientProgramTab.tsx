@@ -650,16 +650,16 @@ function AdherenceCard({ logs }: { logs: DailyLogDay[] }) {
 
 // ─── Program header ────────────────────────────────────────────
 function ProgramHeader({
-  program, onPublish, onGenerate, onRegenerate, onDelete, publishing, generating, hasNextDraft,
+  program, onPublish, onRegenerate, onDelete, onRelaunch, publishing, generating, relaunching,
 }: {
   program: MonthlyProgram;
   onPublish: () => void;
-  onGenerate: () => void;
   onRegenerate: () => void;
   onDelete: () => void;
+  onRelaunch: () => void;
   publishing: boolean;
   generating: boolean;
-  hasNextDraft: boolean;
+  relaunching: boolean;
 }) {
   const isDraft     = program.status === 'draft';
   const goalLabel   = GOAL_LABEL[program.goal] ?? program.goal;
@@ -721,16 +721,15 @@ function ProgramHeader({
                 {publishing ? 'Publicando…' : 'Publicar'}
               </button>
             </>
-          ) : !hasNextDraft ? (
-            <button onClick={onGenerate} disabled={generating}
-              style={{ padding: '10px 16px', borderRadius: 11, background: 'transparent', color: 'rgba(231,200,160,0.85)', border: '1px solid rgba(231,200,160,0.32)', fontFamily: 'Montserrat', fontSize: 11, fontWeight: 600, cursor: generating ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, opacity: generating ? 0.6 : 1 }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 5v14M5 12h14"/>
-              </svg>
-              {generating ? 'Generando…' : 'Preparar siguiente mes'}
-            </button>
           ) : (
-            <span style={{ fontFamily: 'Montserrat', fontSize: 10, color: 'rgba(231,200,160,0.55)', padding: '10px 0' }}>Borrador del siguiente mes listo ↑</span>
+            <button onClick={onRelaunch} disabled={relaunching}
+              title="Eliminar el programa actual (incluido el historial de entrenos) y generar un borrador nuevo"
+              style={{ padding: '10px 16px', borderRadius: 11, background: 'rgba(244,199,199,0.10)', color: '#F4C7C7', border: '1px solid rgba(244,199,199,0.35)', fontFamily: 'Montserrat', fontSize: 11, fontWeight: 600, cursor: relaunching ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, letterSpacing: '0.04em', opacity: relaunching ? 0.6 : 1 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 4v6h-6M1 20v-6h6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+              </svg>
+              {relaunching ? 'Relanzando…' : 'Relanzar programa'}
+            </button>
           )}
         </div>
       </div>
@@ -873,6 +872,7 @@ export default function ClientProgramTab({ clientId }: { clientId: number }) {
   const [loading, setLoading]               = useState(true);
   const [generating, setGenerating]         = useState(false);
   const [approving, setApproving]           = useState(false);
+  const [relaunching, setRelaunching]       = useState(false);
   const [error, setError]                   = useState('');
   const [levelComputed, setLevelComputed]   = useState(1);
   const [levelOverride, setLevelOverride]   = useState<number | null>(null);
@@ -931,18 +931,25 @@ export default function ClientProgramTab({ clientId }: { clientId: number }) {
     }
   };
 
-  // Generate next month's program — backend derives start_date from latest published end_date + 1
-  const handleGenerateNext = async () => {
-    setGenerating(true);
+  // Relanzar: borra el programa actual (cualquier estado) y genera un borrador
+  // nuevo en un paso. El cascade a DailyLog/ExerciseLog limpia el historial
+  // de entrenos del cliente — comportamiento esperado para un reinicio limpio.
+  const handleRelaunch = async () => {
+    if (!activeProgram) return;
+    if (!window.confirm(
+      '¿Relanzar el programa? Se eliminará el programa actual junto con el historial de entrenos que el cliente ya registró, y se generará un borrador nuevo de 28 días.\n\nEsta acción no se puede deshacer.'
+    )) return;
+    setRelaunching(true);
     setError('');
     try {
+      await api.delete(`/monthly-programs/${activeProgram.id}/delete/`, { headers: authHeaders() });
       await api.post('/monthly-programs/generate/', { customer_id: clientId }, { headers: authHeaders() });
       await fetchPrograms();
       setSelectedIdx(0);
     } catch {
-      setError('No se pudo generar el programa del siguiente mes.');
+      setError('No se pudo relanzar el programa.');
     } finally {
-      setGenerating(false);
+      setRelaunching(false);
     }
   };
 
@@ -1032,8 +1039,6 @@ export default function ClientProgramTab({ clientId }: { clientId: number }) {
     return `Activo · ${range}`;
   };
 
-  const hasNextDraft = programs.length > 1 && programs[0].status === 'draft' && selectedIdx !== 0;
-
   return (
     <div>
       {error && (
@@ -1067,12 +1072,12 @@ export default function ClientProgramTab({ clientId }: { clientId: number }) {
       <ProgramHeader
         program={activeProgram}
         onPublish={handleApprove}
-        onGenerate={handleGenerateNext}
         onRegenerate={handleRegenerateDraft}
         onDelete={handleDeleteDraft}
+        onRelaunch={handleRelaunch}
         publishing={approving}
         generating={generating}
-        hasNextDraft={hasNextDraft}
+        relaunching={relaunching}
       />
 
       {/* Draft warning banner */}

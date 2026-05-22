@@ -286,7 +286,13 @@ class ApproveProgramView(APIView):
 
 
 class DeleteProgramView(APIView):
-    """DELETE — discard a draft program (drafts only; published programs cannot be deleted)."""
+    """DELETE — delete a program (any status).
+
+    Used both to discard a draft and to "relaunch" a published program from
+    the trainer's client detail view. Cascading to DailyLog/ExerciseLog wipes
+    the customer's logged workout history for that program — this is the
+    intended behaviour for a clean relaunch.
+    """
 
     permission_classes = [IsAuthenticated]
 
@@ -295,9 +301,9 @@ class DeleteProgramView(APIView):
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
 
         try:
-            program = MonthlyProgram.objects.get(pk=program_id, status=MonthlyProgram.Status.DRAFT)
+            program = MonthlyProgram.objects.get(pk=program_id)
         except MonthlyProgram.DoesNotExist:
-            return Response({'detail': 'Draft program not found.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'Program not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         program.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
