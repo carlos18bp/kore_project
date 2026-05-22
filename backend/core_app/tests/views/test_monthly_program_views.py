@@ -287,10 +287,13 @@ class TestDeleteProgramView:
         assert resp.status_code == status.HTTP_204_NO_CONTENT
         assert not MonthlyProgram.objects.filter(pk=draft_program.pk).exists()
 
-    def test_cannot_delete_published_program(self, api_client, trainer_user, published_program):
+    def test_trainer_can_delete_published_program_for_relaunch(self, api_client, trainer_user, published_program):
+        # El trainer puede borrar un programa publicado para relanzarlo desde cero.
+        # El cascade a DailyLog/ExerciseLog se documenta en DeleteProgramView.
         api_client.force_authenticate(user=trainer_user)
         resp = api_client.delete(reverse('monthly-program-delete', args=[published_program.pk]))
-        assert resp.status_code == status.HTTP_404_NOT_FOUND
+        assert resp.status_code == status.HTTP_204_NO_CONTENT
+        assert not MonthlyProgram.objects.filter(pk=published_program.pk).exists()
 
     def test_non_trainer_returns_403(self, api_client, other_user, draft_program):
         api_client.force_authenticate(user=other_user)

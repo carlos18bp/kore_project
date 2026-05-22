@@ -297,13 +297,15 @@ class TestDeleteNutritionPlan:
         assert resp.status_code == status.HTTP_204_NO_CONTENT
         assert not WeeklyNutritionPlan.objects.filter(pk=plan.id).exists()
 
-    def test_returns_404_for_published_plan(self, api_client, customer, trainer):
+    def test_deletes_published_plan_for_relaunch(self, api_client, customer, trainer):
+        # El trainer puede borrar un plan publicado para relanzarlo desde cero.
         plan = _plan(customer, status=WeeklyNutritionPlan.Status.PUBLISHED)
         api_client.force_authenticate(user=trainer)
 
         resp = api_client.delete(reverse('nutrition-plan-delete', args=[plan.id]))
 
-        assert resp.status_code == status.HTTP_404_NOT_FOUND
+        assert resp.status_code == status.HTTP_204_NO_CONTENT
+        assert not WeeklyNutritionPlan.objects.filter(pk=plan.id).exists()
 
 
 @pytest.mark.django_db
