@@ -2,7 +2,7 @@
 from datetime import date
 
 import pytest
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 
 from core_app.models import NutritionWeekNote, User
 
@@ -29,11 +29,14 @@ def test_nutrition_week_note_unique_per_cycle_week(customer):
         customer=customer, cycle_number=1, cycle_start=date(2026, 5, 1),
         week_number=1, notes='a',
     )
-    with pytest.raises(IntegrityError):
+    with pytest.raises(IntegrityError), transaction.atomic():
         NutritionWeekNote.objects.create(
             customer=customer, cycle_number=1, cycle_start=date(2026, 5, 1),
             week_number=1, notes='b',
         )
+    assert NutritionWeekNote.objects.filter(
+        customer=customer, cycle_number=1, week_number=1,
+    ).count() == 1
 
 
 def test_nutrition_week_note_ordering(customer):

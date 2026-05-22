@@ -25,7 +25,6 @@ from core_app.serializers.nutrition_daily_serializers import (
     NutritionDailyLogSerializer,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -66,7 +65,10 @@ class TestMealPhotoSerializerValidatePhoto:
         passing a mock file whose content_type is 'image/gif'.
         """
         from unittest.mock import MagicMock
-        from core_app.serializers.nutrition_daily_serializers import MealPhotoSerializer as _S
+
+        from core_app.serializers.nutrition_daily_serializers import (
+            MealPhotoSerializer as _S,
+        )
 
         serializer = _S()
         # Simulate a file that already passed DRF ImageField but has unsupported content_type
@@ -123,7 +125,9 @@ class TestMealPhotoSerializerValidatePhoto:
         We call validate_photo() directly (bypassing DRF ImageField validation)
         to isolate the except branch in our custom method.
         """
-        from core_app.serializers.nutrition_daily_serializers import MealPhotoSerializer as _S
+        from core_app.serializers.nutrition_daily_serializers import (
+            MealPhotoSerializer as _S,
+        )
 
         serializer = _S()
         jpeg_file = _make_image_file(width=100, height=100, content_type='image/jpeg')
@@ -277,8 +281,7 @@ class TestNutritionDailyLogSerializerMethods:
             status=MonthlyProgram.Status.PUBLISHED,
         )
         s = NutritionDailyLogSerializer(log)
-        # Access both fields — second call should use _cached_program
+        # program_goal dispara _active_program(), que cachea el resultado en el log.
         goal = s.data['program_goal']
-        note = s.data['trainer_nutrition_note']
         assert goal == 'endurance'
         assert hasattr(log, '_cached_program')

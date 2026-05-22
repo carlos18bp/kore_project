@@ -2,7 +2,7 @@
 from datetime import date
 
 import pytest
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 
 from core_app.models import MonthlyProgram, ProgramWeekNote, User
 
@@ -32,8 +32,9 @@ def test_create_program_week_note(program):
 
 def test_program_week_note_unique_per_week(program):
     ProgramWeekNote.objects.create(program=program, week_number=1, notes='a')
-    with pytest.raises(IntegrityError):
+    with pytest.raises(IntegrityError), transaction.atomic():
         ProgramWeekNote.objects.create(program=program, week_number=1, notes='b')
+    assert ProgramWeekNote.objects.filter(program=program, week_number=1).count() == 1
 
 
 def test_program_week_notes_related_name(program):
