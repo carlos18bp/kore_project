@@ -137,15 +137,20 @@ test.describe('Customer Nutrition Page', { tag: [...FlowTags.CUSTOMER_NUTRITION,
     await goToNutrition(page);
 
     await expect(page.getByText('Tu día · timeline')).toBeVisible();
-    await expect(page.getByText(/Avena cocida con banano/)).toBeVisible();
-    await expect(page.getByText(/Pechuga de pollo a la plancha/)).toBeVisible();
+    // El rediseño muestra el nombre de la receta como título de la card
+    // (los ingredientes/descripción quedan en el panel expandido).
+    await expect(page.getByText(/Avena con frutas/)).toBeVisible();
+    await expect(page.getByText(/Pollo con arroz integral/)).toBeVisible();
   });
 
-  test('renders the trainer note strip when the program has a nutrition note', async ({ page }) => {
+  test('renders the collapsible trainer note when the program has a nutrition note', async ({ page }) => {
     await mockNutrition(page, { daily: { ...todayLog, trainer_nutrition_note: 'Sube la proteína en el almuerzo.' } });
     await goToNutrition(page);
 
-    await expect(page.getByText('Tu coach te recomienda')).toBeVisible();
+    // La nota del coach es ahora una franja colapsable dentro de la card principal.
+    const coachNote = page.getByRole('button', { name: /Nota de tu coach/ });
+    await expect(coachNote).toBeVisible();
+    await coachNote.click();
     await expect(page.getByText(/Sube la proteína en el almuerzo/)).toBeVisible();
   });
 
