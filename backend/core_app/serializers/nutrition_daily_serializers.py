@@ -99,8 +99,24 @@ class NutritionDailyLogSerializer(serializers.ModelSerializer):
         return program.goal if program else None
 
     def get_trainer_nutrition_note(self, obj):
-        program = self._active_program(obj)
-        return program.trainer_notes or None if program else None
+        from core_app.models.nutrition_week_note import NutritionWeekNote
+        from core_app.utils.program_weeks import current_week_number
+
+        latest = (
+            NutritionWeekNote.objects
+            .filter(customer=obj.customer)
+            .order_by('-cycle_number')
+            .first()
+        )
+        if latest is None:
+            return None
+        week = current_week_number(latest.cycle_start)
+        note = NutritionWeekNote.objects.filter(
+            customer=obj.customer,
+            cycle_number=latest.cycle_number,
+            week_number=week,
+        ).first()
+        return note.notes or None if note else None
 
 
 class MealEntryUpdateSerializer(serializers.Serializer):

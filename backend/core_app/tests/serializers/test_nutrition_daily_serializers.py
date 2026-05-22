@@ -4,7 +4,7 @@ Targets uncovered branches:
   - MealPhotoSerializer.validate_photo(): size, content_type, PIL resize, PIL error, valid JPEG/PNG
   - MealEntrySerializer.get_photo_url(): no photo, with request context
   - NutritionDailyLogSerializer.get_program_goal(): with/without published program
-  - NutritionDailyLogSerializer.get_trainer_nutrition_note(): with/without published program
+  - NutritionDailyLogSerializer.get_trainer_nutrition_note(): con/sin nota semanal de nutrición
 """
 import io
 from datetime import date, timedelta
@@ -18,6 +18,7 @@ from rest_framework.exceptions import ValidationError
 from core_app.models import User
 from core_app.models.monthly_program import MonthlyProgram
 from core_app.models.nutrition_daily_log import MealEntry, NutritionDailyLog
+from core_app.models.nutrition_week_note import NutritionWeekNote
 from core_app.serializers.nutrition_daily_serializers import (
     MealEntrySerializer,
     MealPhotoSerializer,
@@ -232,31 +233,40 @@ class TestNutritionDailyLogSerializerMethods:
         s = NutritionDailyLogSerializer(log)
         assert s.data['program_goal'] == 'weight_loss'
 
-    def test_get_trainer_nutrition_note_no_active_program_returns_none(self, log):
+    def test_get_trainer_nutrition_note_no_cycle_returns_none(self, log):
         s = NutritionDailyLogSerializer(log)
         assert s.data['trainer_nutrition_note'] is None
 
-    def test_get_trainer_nutrition_note_with_program_and_notes_returns_notes(self, log, customer):
+    def test_get_trainer_nutrition_note_returns_current_week_note(self, log, customer):
         today = date.today()
-        program = MonthlyProgram.objects.create(
-            customer=customer, fitness_level=2, goal='muscle_gain',
-            start_date=today, end_date=today + timedelta(days=27),
-            status=MonthlyProgram.Status.PUBLISHED,
-            trainer_notes='Come más proteína.',
+        NutritionWeekNote.objects.create(
+            customer=customer, cycle_number=1, cycle_start=today,
+            week_number=1, notes='Come más proteína.',
         )
         s = NutritionDailyLogSerializer(log)
         assert s.data['trainer_nutrition_note'] == 'Come más proteína.'
 
     def test_get_trainer_nutrition_note_with_empty_notes_returns_none(self, log, customer):
         today = date.today()
-        MonthlyProgram.objects.create(
-            customer=customer, fitness_level=1, goal='general_health',
-            start_date=today, end_date=today + timedelta(days=27),
-            status=MonthlyProgram.Status.PUBLISHED,
-            trainer_notes='',  # empty → should return None
+        NutritionWeekNote.objects.create(
+            customer=customer, cycle_number=1, cycle_start=today,
+            week_number=1, notes='',  # vacío → None
         )
         s = NutritionDailyLogSerializer(log)
         assert s.data['trainer_nutrition_note'] is None
+
+    def test_trainer_nutrition_note_uses_current_nutrition_week(self, log, customer):
+        """get_trainer_nutrition_note devuelve la nota de la semana de nutrición vigente."""
+        today = date.today()
+        cycle_start = today - timedelta(days=8)  # día 9 → semana 2
+        NutritionWeekNote.objects.create(
+            customer=customer, cycle_number=1, cycle_start=cycle_start,
+            week_number=1, notes='Semana 1 nutrición')
+        NutritionWeekNote.objects.create(
+            customer=customer, cycle_number=1, cycle_start=cycle_start,
+            week_number=2, notes='Semana 2 nutrición')
+        s = NutritionDailyLogSerializer(log)
+        assert s.data['trainer_nutrition_note'] == 'Semana 2 nutrición'
 
     def test_active_program_cache_is_reused(self, log, customer):
         """_active_program() caches result on obj to avoid double queries."""
