@@ -23,6 +23,7 @@ from .registration_verification_code import RegistrationVerificationCode
 from .subscription_guest import SubscriptionGuest
 from .exercise import Exercise
 from .monthly_program import MonthlyProgram, ProgramDay, ProgramExercise, DailyLog, ExerciseLog
+from .program_week_note import ProgramWeekNote
 from .food import Food
 from .meal_suggestion import MealSuggestion
 from .nutrition_daily_log import NutritionDailyLog, MealEntry, WaterGlassLog
@@ -64,6 +65,7 @@ __all__ = [
     'ProgramExercise',
     'DailyLog',
     'ExerciseLog',
+    'ProgramWeekNote',
     'Food',
     'MealSuggestion',
     'NutritionDailyLog',
