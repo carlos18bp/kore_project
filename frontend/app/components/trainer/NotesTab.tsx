@@ -877,44 +877,54 @@ function MessagesSection({
 
 // ─── Programa ────────────────────────────────────────────────
 function ProgramaSection({ clientId }: { clientId: number }) {
-  const { clientMonthlyPrograms, monthlyProgramsLoading, fetchClientMonthlyPrograms, updateMonthlyProgramNote } = useTrainerStore();
+  const { clientMonthlyPrograms, monthlyProgramsLoading, fetchClientMonthlyPrograms, updateProgramWeekNote } = useTrainerStore();
   const programs = clientMonthlyPrograms[clientId] ?? [];
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!clientMonthlyPrograms[clientId] && !monthlyProgramsLoading) fetchClientMonthlyPrograms(clientId);
   }, [clientId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (programs.length > 0 && selectedId === null) setSelectedId(programs[0].id);
+  }, [programs, selectedId]);
+
   if (monthlyProgramsLoading && programs.length === 0) return <Spinner />;
 
+  if (programs.length === 0) {
+    return (
+      <div className="space-y-2">
+        <p style={labelStyle}>Ciclos de 28 días</p>
+        <EmptyState
+          title="Sin programas de entrenamiento"
+          description="Cuando se genere el primer programa de 28 días, aparecerá aquí."
+        />
+      </div>
+    );
+  }
+
+  const selected = programs.find(p => p.id === selectedId) ?? programs[0];
+  const notesByWeek: Record<number, string> = {};
+  (selected.week_notes ?? []).forEach(n => { notesByWeek[n.week_number] = n.notes; });
+
   return (
-    <PaginatedSection<ClientMonthlyProgram>
-      sectionLabel="Ciclos de 28 días"
-      items={programs}
-      renderComposer={(p) => (
-        <Composer
-          kicker={`Estado: ${p.status}${p.is_paused ? ' · pausado' : ''}`}
-          title="Notas del programa"
-          meta={`${formatDateRange(p.start_date, p.end_date)} · objetivo: ${p.goal}`}
-          notes={p.trainer_notes ?? ''}
-          placeholder="Observaciones del entrenador para este ciclo de 28 días…"
-          rows={6}
-          onSave={async (notes) => { await updateMonthlyProgramNote(clientId, p.id, notes); }}
-        />
-      )}
-      renderHistory={(p, onSelect) => (
-        <HistoryCard
-          key={p.id}
-          kicker={p.status}
-          title={formatDateRange(p.start_date, p.end_date)}
-          meta={`Objetivo: ${p.goal}`}
-          snippet={p.trainer_notes ?? ''}
-          onClick={onSelect}
-          onDelete={async () => { await updateMonthlyProgramNote(clientId, p.id, ''); }}
-        />
-      )}
-      emptyTitle="Sin programas de entrenamiento"
-      emptyDescription="Cuando se genere el primer programa de 28 días, aparecerá aquí."
-    />
+    <div className="space-y-3">
+      <p style={labelStyle}>Ciclos de 28 días</p>
+      <CycleSelector
+        items={programs.map(p => ({
+          id: p.id,
+          label: formatDateRange(p.start_date, p.end_date),
+          sub: `${p.status}${p.is_paused ? ' · pausado' : ''} · ${p.goal}`,
+        }))}
+        selectedId={selected.id}
+        onSelect={setSelectedId}
+      />
+      <WeekNotesPanel
+        notesByWeek={notesByWeek}
+        cycleStartISO={selected.start_date}
+        onSave={(week, notes) => updateProgramWeekNote(clientId, selected.id, week, notes)}
+      />
+    </div>
   );
 }
 
