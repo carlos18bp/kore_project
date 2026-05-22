@@ -26,6 +26,30 @@ test.describe('Trainer Client — Notas semanales del programa', { tag: [...Flow
     days: [],
   };
 
+  // Forma completa del cliente: la cabecera lee client.stats.* sin guarda.
+  const baseClient = {
+    id: 1,
+    first_name: 'Gustavo',
+    last_name: 'Perez',
+    email: 'gustavo@example.com',
+    phone: '3001234567',
+    avatar_url: null,
+    profile: {
+      sex: 'masculino', date_of_birth: '1990-01-15', city: 'Bogotá',
+      eps: 'Sura', primary_goal: 'muscle_gain', address: 'Calle 1 #2-3',
+      id_type: 'cc', id_number: '1234567890', kore_start_date: '2026-05-01',
+    },
+    subscription: {
+      package_title: 'Plan Elite', package_price: '300000', package_currency: 'COP',
+      sessions_total: 10, sessions_used: 8, sessions_remaining: 2,
+      starts_at: '2026-05-01', expires_at: '2026-06-01',
+      is_recurring: false, next_billing_date: null,
+    },
+    last_payment: { amount: '300000', currency: 'COP', created_at: '2026-05-01' },
+    next_session: null,
+    stats: { completed: 8, pending: 2, canceled: 0, total: 10 },
+  };
+
   async function setupMocks(page: Page, weekNotes = baseProgram.week_notes) {
     await page.route('**/api/trainer/dashboard-stats/', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json',
@@ -34,7 +58,7 @@ test.describe('Trainer Client — Notas semanales del programa', { tag: [...Flow
       route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
     await page.route('**/api/trainer/my-clients/1/', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json',
-        body: JSON.stringify({ id: 1, first_name: 'Gustavo', last_name: 'Perez', email: 'g@test.com', role: 'customer' }) }));
+        body: JSON.stringify(baseClient) }));
     await page.route('**/api/monthly-programs/customer/1/', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json',
         body: JSON.stringify([{ ...baseProgram, week_notes: weekNotes }]) }));
