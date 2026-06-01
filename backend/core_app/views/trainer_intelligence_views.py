@@ -233,15 +233,15 @@ class TrainerClientKPIView(APIView):
         if latest_anthro or latest_posturo or latest_physical:
             from core_app.services.kore_index_calculator import compute_kore_index
             kore_result = compute_kore_index(
-                anthropometry=latest_anthro,
-                posturometry=latest_posturo,
-                physical=latest_physical,
+                anthro_eval=latest_anthro,
+                posturo_eval=latest_posturo,
+                physical_eval=latest_physical,
                 mood_score=last_mood,
-                nutrition_habit_score=float(latest_nutrition.habit_score) if latest_nutrition else None,
+                nutrition_habit_score=float(latest_nutrition.habit_score) if latest_nutrition and latest_nutrition.habit_score is not None else None,
             )
-            kore_score = kore_result.get('score')
-            kore_color = kore_result.get('color', 'gray')
-            kore_category = kore_result.get('category', 'Sin datos')
+            kore_score = kore_result.get('kore_score')
+            kore_color = kore_result.get('kore_color', 'gray')
+            kore_category = kore_result.get('kore_category', 'Sin datos')
 
         from core_app.models import ParqAssessment
         last_eval_dates = {
@@ -1006,9 +1006,13 @@ class TrainerClientNutritionLogsView(APIView):
         nutrition_logs = (
             NutritionDailyLog.objects
             .filter(customer=customer, date__range=(start, today))
-            .prefetch_related('meal_entries__suggestion')
+            .prefetch_related('meal_entries__suggestion', 'water_glasses')
             .order_by('-date')
         )
+
+        def _abs(image_field):
+            # URL absoluta para que el frontend del trainer (otro origen) la cargue.
+            return request.build_absolute_uri(image_field.url) if image_field else None
 
         result = []
         for nlog in nutrition_logs:
@@ -1025,9 +1029,13 @@ class TrainerClientNutritionLogsView(APIView):
                         'status': me.status,
                         'suggestion': me.suggestion.description if me.suggestion else None,
                         'notes': me.notes,
-                        'photo_url': me.photo.url if me.photo else None,
+                        'photo_url': _abs(me.photo),
                     }
                     for me in entries
+                ],
+                'water_glasses': [
+                    {'id': wg.pk, 'photo_url': _abs(wg.photo)}
+                    for wg in nlog.water_glasses.all()
                 ],
             })
 

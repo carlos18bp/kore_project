@@ -65,15 +65,37 @@ class ProgramDaySerializer(serializers.ModelSerializer):
 
 class MonthlyProgramSerializer(serializers.ModelSerializer):
     days = ProgramDaySerializer(many=True, read_only=True)
+    week_notes = serializers.SerializerMethodField()
+    current_week_note = serializers.SerializerMethodField()
 
     class Meta:
         model = MonthlyProgram
         fields = (
             'id', 'customer_id', 'fitness_level', 'goal',
             'start_date', 'end_date', 'status', 'trainer_notes',
+            'week_notes', 'current_week_note',
             'approved_at', 'created_at', 'days',
         )
         read_only_fields = fields
+
+    def get_week_notes(self, obj):
+        return [
+            {
+                'week_number': n.week_number,
+                'notes': n.notes,
+                'updated_at': n.updated_at.isoformat(),
+            }
+            for n in obj.week_notes.all()
+        ]
+
+    def get_current_week_note(self, obj):
+        from core_app.utils.program_weeks import current_week_number
+        week = current_week_number(obj.start_date)
+        note = next(
+            (n for n in obj.week_notes.all() if n.week_number == week),
+            None,
+        )
+        return note.notes if note and note.notes else None
 
 
 class ExerciseLogSerializer(serializers.ModelSerializer):
@@ -177,7 +199,7 @@ class ProgramDetailView(APIView):
 
         try:
             program = MonthlyProgram.objects.prefetch_related(
-                'days__exercises__exercise'
+                'days__exercises__exercise', 'week_notes'
             ).get(pk=program_id)
         except MonthlyProgram.DoesNotExist:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -202,6 +224,41 @@ class UpdateProgramNoteView(APIView):
         program.trainer_notes = request.data.get('trainer_notes', '') or ''
         program.save(update_fields=['trainer_notes'])
         return Response({'id': program.pk, 'trainer_notes': program.trainer_notes})
+
+
+class UpdateProgramWeekNoteView(APIView):
+    """PATCH — el entrenador hace upsert de una nota semanal (semana 1–4) de un MonthlyProgram."""
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, program_id, week_number):
+        if not (is_admin_user(request.user) or request.user.role == 'trainer'):
+            return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if week_number < 1 or week_number > 4:
+            return Response(
+                {'detail': 'week_number must be between 1 and 4.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            program = MonthlyProgram.objects.get(pk=program_id)
+        except MonthlyProgram.DoesNotExist:
+            return Response({'detail': 'Program not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        from core_app.models.program_week_note import ProgramWeekNote
+        note, _ = ProgramWeekNote.objects.update_or_create(
+            program=program,
+            week_number=week_number,
+            defaults={'notes': request.data.get('notes', '') or ''},
+        )
+        return Response({
+            'id': note.pk,
+            'program_id': program.pk,
+            'week_number': note.week_number,
+            'notes': note.notes,
+            'updated_at': note.updated_at.isoformat(),
+        })
 
 
 class ApproveProgramView(APIView):
@@ -229,7 +286,13 @@ class ApproveProgramView(APIView):
 
 
 class DeleteProgramView(APIView):
-    """DELETE — discard a draft program (drafts only; published programs cannot be deleted)."""
+    """DELETE — delete a program (any status).
+
+    Used both to discard a draft and to "relaunch" a published program from
+    the trainer's client detail view. Cascading to DailyLog/ExerciseLog wipes
+    the customer's logged workout history for that program — this is the
+    intended behaviour for a clean relaunch.
+    """
 
     permission_classes = [IsAuthenticated]
 
@@ -238,9 +301,9 @@ class DeleteProgramView(APIView):
             return Response({'detail': 'Forbidden.'}, status=status.HTTP_403_FORBIDDEN)
 
         try:
-            program = MonthlyProgram.objects.get(pk=program_id, status=MonthlyProgram.Status.DRAFT)
+            program = MonthlyProgram.objects.get(pk=program_id)
         except MonthlyProgram.DoesNotExist:
-            return Response({'detail': 'Draft program not found.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'Program not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         program.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -291,7 +354,7 @@ class CustomerProgramListView(APIView):
         programs = (
             MonthlyProgram.objects
             .filter(customer_id=customer_id)
-            .prefetch_related('days__exercises__exercise')
+            .prefetch_related('days__exercises__exercise', 'week_notes')
             .order_by('-start_date')
         )
         return Response(MonthlyProgramSerializer(programs, many=True).data)
@@ -317,7 +380,7 @@ class MyProgramView(APIView):
         program = (
             MonthlyProgram.objects
             .filter(customer=request.user, status=MonthlyProgram.Status.PUBLISHED)
-            .prefetch_related('days__exercises__exercise')
+            .prefetch_related('days__exercises__exercise', 'week_notes')
             .order_by('-start_date')
             .first()
         )

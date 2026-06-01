@@ -57,64 +57,25 @@ async function setupAlertsMocks(page: Page, alerts = fakeAlerts) {
   });
 }
 
+// El Centro de Alertas quedó parqueado para la Fase 3: /trainer/alerts
+// renderiza el placeholder "Próximamente" (ver page.tsx, flag PHASE_3_READY).
+// Estos tests verifican ese placeholder. Cuando la Fase 3 reactive la vista,
+// restaurar la suite completa desde el historial de git.
 test.describe('Trainer Alerts Center', { tag: [...FlowTags.TRAINER_ALERTS, RoleTags.TRAINER] }, () => {
-  test('page loads and shows Centro de Alertas heading', async ({ page }) => {
+  test('renders the Próximamente placeholder for the Alertas section', async ({ page }) => {
     await injectTrainerAuthCookies(page);
     await setupAlertsMocks(page);
     await page.goto('/trainer/alerts');
 
-    await expect(page.getByRole('heading', { name: 'Centro de Alertas' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: 'Próximamente' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('main').getByText('Alertas', { exact: true })).toBeVisible();
   });
 
-  test('hero card shows active alerts count label', async ({ page }) => {
+  test('placeholder states the section ships in Fase 3', async ({ page }) => {
     await injectTrainerAuthCookies(page);
     await setupAlertsMocks(page);
     await page.goto('/trainer/alerts');
 
-    await expect(page.getByText('Alertas activas', { exact: true })).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('Resueltas hoy')).toBeVisible();
-  });
-
-  test('alert cards render customer names', async ({ page }) => {
-    await injectTrainerAuthCookies(page);
-    await setupAlertsMocks(page);
-    await page.goto('/trainer/alerts');
-
-    await expect(page.getByText('María López')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('Carlos García')).toBeVisible();
-  });
-
-  test('filter by Alto shows only alto-level alerts', async ({ page }) => {
-    await injectTrainerAuthCookies(page);
-    await setupAlertsMocks(page);
-    await page.goto('/trainer/alerts');
-
-    await expect(page.getByText('María López')).toBeVisible({ timeout: 10_000 });
-
-    await page.getByRole('button', { name: 'Alto' }).click();
-
-    await expect(page.getByText('María López')).toBeVisible();
-    await expect(page.getByText('Carlos García')).not.toBeVisible();
-    await expect(page.getByText('Ana Torres')).not.toBeVisible();
-  });
-
-  test('resolve sheet opens when Resolver alerta is clicked', async ({ page }) => {
-    await injectTrainerAuthCookies(page);
-    await setupAlertsMocks(page);
-    await page.goto('/trainer/alerts');
-
-    await expect(page.getByRole('button', { name: 'Resolver alerta' }).first()).toBeVisible({ timeout: 10_000 });
-    await page.getByRole('button', { name: 'Resolver alerta' }).first().click();
-
-    await expect(page.getByText('Resolver alerta').nth(1)).toBeVisible({ timeout: 8_000 });
-    await expect(page.getByRole('button', { name: 'Confirmar' })).toBeVisible();
-  });
-
-  test('empty state shown when no alerts', async ({ page }) => {
-    await injectTrainerAuthCookies(page);
-    await setupAlertsMocks(page, []);
-    await page.goto('/trainer/alerts');
-
-    await expect(page.getByText('No hay alertas activas')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/Esta sección está en construcción/)).toBeVisible({ timeout: 15_000 });
   });
 });

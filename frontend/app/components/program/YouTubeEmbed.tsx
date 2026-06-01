@@ -68,6 +68,10 @@ export default function YouTubeEmbed({ url, title = 'Ejercicio' }: Props) {
           src={embedUrl}
           title={title}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+          // El sitio sirve Referrer-Policy: same-origin, que omite el Referer en
+          // peticiones cross-origin; sin Referer el reproductor de YouTube falla.
+          // Forzamos el envío del origin sólo para este iframe.
+          referrerPolicy="strict-origin-when-cross-origin"
           allowFullScreen
           className="absolute inset-0 w-full h-full border-0"
         />

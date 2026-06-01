@@ -459,7 +459,10 @@ describe('BookSessionPage', () => {
     expect(mockFetchBookings).toHaveBeenCalled();
   });
 
-  it('calls fetchAvailability when trainer is set', () => {
+  it('calls fetchAvailability for the full 30-day window when trainer is set', () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(2026, 2, 2, 12, 0, 0));
+
     const trainerData = {
       id: 1, user_id: 10, first_name: 'G', last_name: 'F',
       email: 'g@k.com', specialty: '', bio: '', location: '',
@@ -467,7 +470,10 @@ describe('BookSessionPage', () => {
     };
     setupStore({ trainer: trainerData });
     render(<BookSessionPage />);
-    expect(mockFetchAvailability).toHaveBeenCalledWith(undefined, undefined, 1);
+    // 30-day inclusive window: 2026-03-02 .. 2026-03-31.
+    expect(mockFetchAvailability).toHaveBeenCalledWith('2026-03-02', '2026-03-31', 1);
+
+    jest.useRealTimers();
   });
 
   it('shows available dates from availability map', () => {

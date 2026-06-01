@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import gsap from 'gsap';
 import { useProgramStore } from '@/lib/stores/programStore';
 import type { ProgramDay } from '@/lib/stores/programStore';
@@ -39,14 +38,26 @@ const DAY_TYPE_COLOR: Record<string, string> = {
 };
 
 // ── Day detail panel ─────────────────────────────────────────
-function DayDetailPanel({ day, onClose }: { day: ProgramDay; onClose: () => void }) {
+function DayDetailPanel({ day, onClose, variant = 'panel' }: { day: ProgramDay; onClose: () => void; variant?: 'panel' | 'mobile' }) {
   const today = new Date().toISOString().slice(0, 10);
   const isToday = day.date === today;
+  const isMobile = variant === 'mobile';
   const dateLabel = new Date(day.date + 'T12:00:00').toLocaleDateString('es-CO', {
     weekday: 'long', day: 'numeric', month: 'long',
   });
   return (
-    <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm flex flex-col h-full">
+    <div className={`bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 shadow-sm flex flex-col ${isMobile ? '' : 'h-full'}`}>
+      {isMobile && (
+        <button
+          onClick={onClose}
+          className="flex items-center gap-1 px-4 pt-3.5 pb-1 self-start text-kore-red text-[13px] font-semibold active:scale-95 transition-transform"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+          Volver al calendario
+        </button>
+      )}
       <div className="flex items-start justify-between p-5 pb-4 border-b border-kore-gray-light/30">
         <div>
           <p className="text-[10.5px] text-kore-gray-dark/40 uppercase tracking-[0.14em] font-semibold mb-1">Día {day.day_number} de 28</p>
@@ -55,13 +66,15 @@ function DayDetailPanel({ day, onClose }: { day: ProgramDay; onClose: () => void
             {DAY_TYPE_LABEL[day.day_type]}
           </span>
         </div>
-        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-kore-cream transition-colors text-kore-gray-dark/40 hover:text-kore-gray-dark">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        {!isMobile && (
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-kore-cream transition-colors text-kore-gray-dark/40 hover:text-kore-gray-dark">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
-      <div className="flex-1 overflow-y-auto p-5 space-y-2">
+      <div className={`p-5 space-y-2 ${isMobile ? '' : 'flex-1 overflow-y-auto'}`}>
         {day.exercises.length === 0 ? (
           <div className="text-center py-10">
             <p className="text-4xl mb-3">{day.day_type === 'rest' ? '😴' : '🧘'}</p>
@@ -111,7 +124,6 @@ function DetailPlaceholder() {
 }
 
 export default function MiProgramaPage() {
-  const router = useRouter();
   const { activeProgram, loading, fetchActiveProgram } = useProgramStore();
   const detailPanelRef = useRef<HTMLDivElement>(null);
   const detailContentRef = useRef<HTMLDivElement>(null);
@@ -133,14 +145,6 @@ export default function MiProgramaPage() {
   }, [selectedDay]);
 
   const handleDaySelect = (day: ProgramDay | null, dateStr: string) => {
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-      if (dateStr === new Date().toISOString().slice(0, 10) && day?.day_type === 'training') {
-        router.push('/mi-programa/rutina');
-      } else {
-        router.push(`/mi-programa/dia/detail?date=${dateStr}`);
-      }
-      return;
-    }
     if (selectedDay?.date === dateStr) { setSelectedDay(null); return; }
     if (selectedDay && detailContentRef.current) {
       gsap.to(detailContentRef.current, { opacity: 0, x: 10, duration: 0.15, ease: 'power2.in', onComplete: () => setSelectedDay(day) });
@@ -234,12 +238,33 @@ export default function MiProgramaPage() {
 
           {/* ── LEFT: Calendar + trainer notes ── */}
           <div className="lg:w-[420px] lg:shrink-0 space-y-4">
-            <ProgramCalendar
-              program={activeProgram}
-              selectedDateStr={selectedDay?.date}
-              onSelectDay={handleDaySelect}
-            />
-            {activeProgram.trainer_notes && (
+            {/* Móvil: calendario ↔ detalle del día con slide. Desktop: solo el calendario
+                (el detalle vive en la 3ª columna con su animación propia). */}
+            <div className="relative overflow-hidden lg:overflow-visible">
+              <div
+                className={`flex items-start lg:block transition-transform duration-300 ease-out ${
+                  selectedDay ? '-translate-x-full lg:translate-x-0' : 'translate-x-0'
+                }`}
+              >
+                <div className="w-full shrink-0 lg:w-auto">
+                  <ProgramCalendar
+                    program={activeProgram}
+                    selectedDateStr={selectedDay?.date}
+                    onSelectDay={handleDaySelect}
+                  />
+                </div>
+                <div className="w-full shrink-0 lg:hidden" aria-hidden={!selectedDay}>
+                  {selectedDay && (
+                    <DayDetailPanel
+                      day={selectedDay}
+                      onClose={() => setSelectedDay(null)}
+                      variant="mobile"
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+            {activeProgram.current_week_note && (
               <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/60 shadow-sm">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-7 h-7 rounded-full bg-kore-red/10 flex items-center justify-center">
@@ -247,9 +272,9 @@ export default function MiProgramaPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
                     </svg>
                   </div>
-                  <p className="text-[10.5px] font-semibold text-kore-gray-dark/50 uppercase tracking-[0.14em]">Nota del entrenador</p>
+                  <p className="text-[10.5px] font-semibold text-kore-gray-dark/50 uppercase tracking-[0.14em]">Nota de la semana</p>
                 </div>
-                <p className="text-sm text-kore-gray-dark/70 leading-relaxed">{activeProgram.trainer_notes}</p>
+                <p className="text-sm text-kore-gray-dark/70 leading-relaxed">{activeProgram.current_week_note}</p>
               </div>
             )}
 
@@ -359,10 +384,10 @@ export default function MiProgramaPage() {
                 { label: 'Recuperación', count: activeRestCount, dot: 'bg-teal-500' },
                 { label: 'Descanso', count: restCount, dot: 'bg-gray-300' },
               ].map(({ label, count, dot }) => (
-                <div key={label} className="bg-white/70 backdrop-blur-sm rounded-2xl p-3.5 border border-white/60 shadow-sm text-center">
+                <div key={label} className="bg-white/70 backdrop-blur-sm rounded-2xl px-2 py-3.5 border border-white/60 shadow-sm text-center">
                   <div className={`w-1.5 h-1.5 rounded-full ${dot} mx-auto mb-1.5`} />
                   <p className="font-heading text-[20px] font-bold text-kore-wine-dark leading-none">{count}</p>
-                  <p className="text-[10px] text-kore-gray-dark/45 uppercase tracking-[0.12em] font-semibold mt-1">{label}</p>
+                  <p className="text-[9px] text-kore-gray-dark/45 uppercase tracking-[0.04em] font-semibold mt-1">{label}</p>
                 </div>
               ))}
             </div>

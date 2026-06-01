@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
 import { useSplashGate } from '@/lib/hooks/useSplashGate';
+import { useMounted } from '@/lib/hooks/useMounted';
 import Sidebar from '@/app/components/layouts/Sidebar';
 import TrainerSidebar from '@/app/components/layouts/TrainerSidebar';
 import MobileBottomNav from '@/app/components/layouts/MobileBottomNav';
@@ -26,6 +27,7 @@ export default function AppLayout({
   const { user, isAuthenticated, hydrate, hydrated } = useAuthStore();
   const { hasActiveSubscription, subscriptions, loading: subsLoading, fetchSubscriptions } = useSubscriptionStore();
   const { splashDone, handleSplashDone } = useSplashGate();
+  const mounted = useMounted();
 
   useEffect(() => {
     hydrate();
@@ -85,6 +87,7 @@ export default function AppLayout({
     !!user?.must_change_password && !isChangePasswordRoute;
 
   const ready =
+    mounted &&
     splashDone &&
     hydrated &&
     isAuthenticated &&

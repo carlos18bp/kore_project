@@ -124,7 +124,7 @@ export default function TrainerClientsPage() {
             />
           </div>
 
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-0.5">
+          <div className="flex flex-wrap gap-2">
             {FILTER_CHIPS.map(([id, label]) => (
               <button
                 key={id}

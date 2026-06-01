@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/stores/authStore';
+import { useMounted } from '@/lib/hooks/useMounted';
 
 const navLinks = [
   { href: '/', label: 'Inicio' },
@@ -26,6 +27,11 @@ function NavbarInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [mobileOpen, setMobileOpen] = useState(false);
+  // `mounted` stays false on the server render AND the client's first
+  // (hydration) render, so both produce the logged-out CTA and match. The
+  // auth store reads cookies synchronously at module init, so `isAuthenticated`
+  // would otherwise differ between server and client on that first render.
+  const mounted = useMounted();
   const { isAuthenticated, hydrate } = useAuthStore();
 
   useEffect(() => {
@@ -38,8 +44,9 @@ function NavbarInner() {
     return null;
   }
 
-  const desktopCtaHref = isAuthenticated ? '/dashboard' : '/login';
-  const desktopCtaLabel = isAuthenticated ? 'Mi sesión' : 'Iniciar sesión';
+  const showAuthed = mounted && isAuthenticated;
+  const desktopCtaHref = showAuthed ? '/dashboard' : '/login';
+  const desktopCtaLabel = showAuthed ? 'Mi sesión' : 'Iniciar sesión';
 
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href);

@@ -44,49 +44,25 @@ async function setupMetricsMocks(page: Page, metrics = fakeComparativeMetrics) {
   });
 }
 
+// Métricas quedó parqueada para la Fase 3: /trainer/metrics renderiza el
+// placeholder "Próximamente" (ver page.tsx, flag PHASE_3_READY). Estos tests
+// verifican ese placeholder. Cuando la Fase 3 reactive la vista, restaurar la
+// suite completa desde el historial de git.
 test.describe('Trainer Metrics', { tag: [...FlowTags.TRAINER_METRICS, RoleTags.TRAINER] }, () => {
-  test('page loads with Métricas Comparativas heading', async ({ page }) => {
+  test('renders the Próximamente placeholder for the Métricas section', async ({ page }) => {
     await injectTrainerAuthCookies(page);
     await setupMetricsMocks(page);
     await page.goto('/trainer/metrics');
 
-    await expect(page.getByRole('heading', { name: 'Métricas Comparativas' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: 'Próximamente' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('main').getByText('Métricas', { exact: true })).toBeVisible();
   });
 
-  test('adherence rings show Entreno and Nutrición labels', async ({ page }) => {
+  test('placeholder states the section ships in Fase 3', async ({ page }) => {
     await injectTrainerAuthCookies(page);
     await setupMetricsMocks(page);
     await page.goto('/trainer/metrics');
 
-    await expect(page.getByText('Entreno')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('Nutrición')).toBeVisible();
-  });
-
-  test('adherence ranking section renders client names', async ({ page }) => {
-    await injectTrainerAuthCookies(page);
-    await setupMetricsMocks(page);
-    await page.goto('/trainer/metrics');
-
-    await expect(page.getByText('Ranking de adherencia')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('María López')).toBeVisible();
-    await expect(page.getByText('Carlos García')).toBeVisible();
-  });
-
-  test('failed patterns section renders exercise names', async ({ page }) => {
-    await injectTrainerAuthCookies(page);
-    await setupMetricsMocks(page);
-    await page.goto('/trainer/metrics');
-
-    await expect(page.getByText('Ejercicios más saltados')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('Dominadas')).toBeVisible();
-  });
-
-  test('expired evaluations section renders', async ({ page }) => {
-    await injectTrainerAuthCookies(page);
-    await setupMetricsMocks(page);
-    await page.goto('/trainer/metrics');
-
-    await expect(page.getByText('Evaluaciones vencidas')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText('Ana Torres')).toBeVisible();
+    await expect(page.getByText(/Esta sección está en construcción/)).toBeVisible({ timeout: 15_000 });
   });
 });

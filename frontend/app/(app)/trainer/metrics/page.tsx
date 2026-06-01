@@ -8,6 +8,11 @@ import SectionLabel from '@/app/components/shared/SectionLabel';
 import EmptyState from '@/app/components/shared/EmptyState';
 import GlowRing from '@/app/components/shared/GlowRing';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
+import ComingSoon from '@/app/components/shared/ComingSoon';
+
+// Fase 3 — la vista de Métricas no está lista para este release. La lógica
+// queda intacta; para reactivarla, poner PHASE_3_READY = true.
+const PHASE_3_READY: boolean = false;
 
 const DAY_LABELS: Record<string, string> = {
   monday: 'Lunes', tuesday: 'Martes', wednesday: 'Miércoles',
@@ -46,6 +51,8 @@ export default function TrainerMetricsPage() {
   useEffect(() => {
     fetchComparativeMetrics();
   }, [fetchComparativeMetrics]);
+
+  if (!PHASE_3_READY) return <ComingSoon section="Métricas" />;
 
   const gp = comparativeMetrics?.global_patterns;
   const trainAdh = gp?.avg_training_adherence ?? 0;

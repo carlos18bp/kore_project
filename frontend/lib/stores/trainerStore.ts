@@ -251,6 +251,10 @@ export type NutritionLogDay = {
     notes: string;
     photo_url: string | null;
   }>;
+  water_glasses: Array<{
+    id: number;
+    photo_url: string | null;
+  }>;
 };
 
 // ── Store state + actions ─────────────────────────────────────────────────────
@@ -265,11 +269,14 @@ type TrainerState = {
   sessionsLoading: boolean;
   dashboardStats: TrainerDashboardStats | null;
   statsLoading: boolean;
+  agendaSessions: UpcomingSession[];
+  agendaLoading: boolean;
   error: string;
   fetchClients: () => Promise<void>;
   fetchClientDetail: (id: number) => Promise<void>;
   fetchClientSessions: (id: number) => Promise<void>;
   fetchDashboardStats: () => Promise<void>;
+  fetchAgendaSessions: (from: string, to: string) => Promise<void>;
 
   // Intelligence Center
   riskDashboard: RiskDashboard | null;
@@ -319,12 +326,25 @@ type TrainerState = {
   monthlyProgramsLoading: boolean;
   fetchClientMonthlyPrograms: (customerId: number) => Promise<void>;
   updateMonthlyProgramNote: (customerId: number, programId: number, notes: string) => Promise<void>;
+  updateProgramWeekNote: (customerId: number, programId: number, weekNumber: number, notes: string) => Promise<void>;
+
+  // ── Notes hub: nutrition week notes ──
+  clientNutritionWeekNotes: Record<number, ClientNutritionWeekNote[]>;
+  nutritionWeekNotesLoading: boolean;
+  fetchClientNutritionWeekNotes: (customerId: number) => Promise<void>;
+  updateNutritionWeekNote: (customerId: number, cycleNumber: number, weekNumber: number, notes: string, cycleStart?: string) => Promise<void>;
 
   // ── Notes hub: weekly nutrition plans ──
   clientWeeklyPlans: Record<number, ClientWeeklyPlan[]>;
   weeklyPlansLoading: boolean;
   fetchClientWeeklyPlans: (customerId: number) => Promise<void>;
   updateWeeklyPlanNote: (customerId: number, planId: number, notes: string) => Promise<void>;
+};
+
+export type ProgramWeekNote = {
+  week_number: number;
+  notes: string;
+  updated_at: string;
 };
 
 export type ClientMonthlyProgram = {
@@ -335,8 +355,18 @@ export type ClientMonthlyProgram = {
   goal: string;
   fitness_level: number;
   trainer_notes: string;
+  week_notes: ProgramWeekNote[];
   approved_at: string | null;
   is_paused: boolean;
+};
+
+export type ClientNutritionWeekNote = {
+  id: number;
+  cycle_number: number;
+  cycle_start: string;
+  week_number: number;
+  notes: string;
+  updated_at: string;
 };
 
 export type ClientWeeklyPlan = {
@@ -365,6 +395,8 @@ export const useTrainerStore = create<TrainerState>((set, get) => ({
   sessionsLoading: false,
   dashboardStats: null,
   statsLoading: false,
+  agendaSessions: [],
+  agendaLoading: false,
   error: '',
 
   // Intelligence Center state
@@ -391,6 +423,8 @@ export const useTrainerStore = create<TrainerState>((set, get) => ({
   monthlyProgramsLoading: false,
   clientWeeklyPlans: {},
   weeklyPlansLoading: false,
+  clientNutritionWeekNotes: {},
+  nutritionWeekNotesLoading: false,
 
   // ── Existing actions ──────────────────────────────────────────────────────
 
@@ -431,6 +465,19 @@ export const useTrainerStore = create<TrainerState>((set, get) => ({
       set({ dashboardStats: data, statsLoading: false });
     } catch {
       set({ error: 'No se pudieron cargar las estadísticas.', statsLoading: false });
+    }
+  },
+
+  fetchAgendaSessions: async (from: string, to: string) => {
+    set({ agendaLoading: true });
+    try {
+      const { data } = await api.get('/trainer/agenda/', {
+        headers: authHeaders(),
+        params: { from, to },
+      });
+      set({ agendaSessions: data.sessions ?? [], agendaLoading: false });
+    } catch {
+      set({ agendaSessions: [], agendaLoading: false });
     }
   },
 
@@ -640,6 +687,59 @@ export const useTrainerStore = create<TrainerState>((set, get) => ({
         ),
       },
     }));
+  },
+
+  updateProgramWeekNote: async (customerId, programId, weekNumber, notes) => {
+    await api.patch(
+      `/monthly-programs/${programId}/week-notes/${weekNumber}/`,
+      { notes },
+      { headers: authHeaders() },
+    );
+    set((s) => ({
+      clientMonthlyPrograms: {
+        ...s.clientMonthlyPrograms,
+        [customerId]: (s.clientMonthlyPrograms[customerId] ?? []).map((p) => {
+          if (p.id !== programId) return p;
+          const others = (p.week_notes ?? []).filter((w) => w.week_number !== weekNumber);
+          const next = [...others, { week_number: weekNumber, notes, updated_at: new Date().toISOString() }];
+          next.sort((a, b) => a.week_number - b.week_number);
+          return { ...p, week_notes: next };
+        }),
+      },
+    }));
+  },
+
+  fetchClientNutritionWeekNotes: async (customerId) => {
+    set({ nutritionWeekNotesLoading: true });
+    try {
+      const { data } = await api.get(`/nutrition-week-notes/customer/${customerId}/`, { headers: authHeaders() });
+      const notes = (data ?? []) as ClientNutritionWeekNote[];
+      set((s) => ({
+        clientNutritionWeekNotes: { ...s.clientNutritionWeekNotes, [customerId]: notes },
+        nutritionWeekNotesLoading: false,
+      }));
+    } catch {
+      set({ nutritionWeekNotesLoading: false });
+    }
+  },
+
+  updateNutritionWeekNote: async (customerId, cycleNumber, weekNumber, notes, cycleStart) => {
+    const { data } = await api.patch(
+      `/nutrition-week-notes/customer/${customerId}/${cycleNumber}/${weekNumber}/`,
+      { notes, ...(cycleStart ? { cycle_start: cycleStart } : {}) },
+      { headers: authHeaders() },
+    );
+    set((s) => {
+      const rest = (s.clientNutritionWeekNotes[customerId] ?? []).filter(
+        (n) => !(n.cycle_number === cycleNumber && n.week_number === weekNumber),
+      );
+      return {
+        clientNutritionWeekNotes: {
+          ...s.clientNutritionWeekNotes,
+          [customerId]: [...rest, data as ClientNutritionWeekNote],
+        },
+      };
+    });
   },
 
   fetchClientWeeklyPlans: async (customerId) => {

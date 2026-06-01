@@ -1,4 +1,13 @@
 import '@testing-library/jest-dom';
+import { MessageChannel } from 'node:worker_threads';
+
+/* ─── MessageChannel polyfill ───
+ * React 19's `react-dom/server` references MessageChannel at module load;
+ * the jsdom test environment doesn't provide it. Node's implementation works. */
+if (typeof (globalThis as { MessageChannel?: unknown }).MessageChannel === 'undefined') {
+  (globalThis as { MessageChannel?: unknown }).MessageChannel =
+    MessageChannel as unknown;
+}
 
 /* ─── Suppress known React DOM warnings from next/image boolean attrs ─── */
 const _origError = console.error.bind(console);

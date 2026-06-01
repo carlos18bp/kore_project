@@ -60,9 +60,11 @@ from core_app.views.monthly_program_views import (
     TodayProgramView,
     UpdateExerciseLogView,
     UpdateProgramNoteView,
+    UpdateProgramWeekNoteView,
 )
 from core_app.views.trainer_client_views import (
     TrainerClientDetailView,
+    TrainerAgendaView,
     TrainerClientFitnessLevelView,
     TrainerClientListView,
     TrainerClientSessionsView,
@@ -108,6 +110,10 @@ from core_app.views.nutrition_plan_views import (
     NutritionPlanDetailView,
     UpdateNutritionPlanNoteView,
 )
+from core_app.views.nutrition_week_note_views import (
+    CustomerNutritionWeekNoteListView,
+    UpdateNutritionWeekNoteView,
+)
 
 router = DefaultRouter()
 router.register('packages', PackageViewSet, basename='package')
@@ -135,6 +141,7 @@ urlpatterns = [
     path('trainer/my-clients/<int:customer_id>/sessions/', TrainerClientSessionsView.as_view(), name='trainer-client-sessions'),
     path('trainer/my-clients/<int:customer_id>/fitness-level/', TrainerClientFitnessLevelView.as_view(), name='trainer-client-fitness-level'),
     path('trainer/dashboard-stats/', TrainerDashboardStatsView.as_view(), name='trainer-dashboard-stats'),
+    path('trainer/agenda/', TrainerAgendaView.as_view(), name='trainer-agenda'),
     path('trainer/my-clients/<int:customer_id>/anthropometry/', TrainerAnthropometryListCreateView.as_view(), name='trainer-anthropometry-list-create'),
     path('trainer/my-clients/<int:customer_id>/anthropometry/<int:eval_id>/', TrainerAnthropometryDetailView.as_view(), name='trainer-anthropometry-detail'),
     path('my-anthropometry/', ClientAnthropometryListView.as_view(), name='client-anthropometry-list'),
@@ -162,6 +169,7 @@ urlpatterns = [
     path('monthly-programs/<int:program_id>/', ProgramDetailView.as_view(), name='monthly-program-detail'),
     path('monthly-programs/<int:program_id>/approve/', ApproveProgramView.as_view(), name='monthly-program-approve'),
     path('monthly-programs/<int:program_id>/note/', UpdateProgramNoteView.as_view(), name='monthly-program-note'),
+    path('monthly-programs/<int:program_id>/week-notes/<int:week_number>/', UpdateProgramWeekNoteView.as_view(), name='monthly-program-week-note'),
     path('monthly-programs/<int:program_id>/delete/', DeleteProgramView.as_view(), name='monthly-program-delete'),
     path('monthly-programs/<int:program_id>/days/<int:day_id>/exercises/<int:ex_id>/', EditProgramExerciseView.as_view(), name='monthly-program-edit-exercise'),
     path('my-program/', MyProgramView.as_view(), name='my-program'),
@@ -202,6 +210,8 @@ urlpatterns = [
     path('nutrition-plans/<int:plan_id>/note/', UpdateNutritionPlanNoteView.as_view(), name='nutrition-plan-note'),
     path('nutrition-plans/<int:plan_id>/delete/', DeleteNutritionPlanView.as_view(), name='nutrition-plan-delete'),
     path('nutrition-plans/<int:plan_id>/days/<int:day_id>/meals/<int:meal_id>/', EditPlanMealView.as_view(), name='nutrition-plan-edit-meal'),
+    path('nutrition-week-notes/customer/<int:customer_id>/', CustomerNutritionWeekNoteListView.as_view(), name='nutrition-week-note-list'),
+    path('nutrition-week-notes/customer/<int:customer_id>/<int:cycle_number>/<int:week_number>/', UpdateNutritionWeekNoteView.as_view(), name='nutrition-week-note-update'),
     path('meal-suggestions/', MealSuggestionCatalogView.as_view(), name='meal-suggestions'),
     path('my-nutrition-plan/', CustomerNutritionPlanWeekView.as_view(), name='my-nutrition-plan'),
     path('my-nutrition-plans/', CustomerNutritionPlanHistoryView.as_view(), name='my-nutrition-plans'),

@@ -5,6 +5,8 @@ import Cookies from 'js-cookie';
 import { api } from '@/lib/services/http';
 import EmptyState from '@/app/components/shared/EmptyState';
 import EvalNutriTab from '@/app/components/trainer/evals/EvalNutriTab';
+import PhotoViewer from '@/app/components/shared/PhotoViewer';
+import { MEAL_BLOCKS } from '@/lib/constants';
 
 // ─── Design tokens ─────────────────────────────────────────────────────────
 const T = {
@@ -25,14 +27,6 @@ const T = {
   border:     'rgba(103,15,34,0.10)',
   borderSoft: 'rgba(103,15,34,0.08)',
 };
-
-const MEAL_BLOCKS = [
-  { key: 'desayuno',     label: 'Desayuno',     time: '07:00' },
-  { key: 'media_manana', label: 'Media mañana', time: '10:30' },
-  { key: 'almuerzo',     label: 'Almuerzo',     time: '13:00' },
-  { key: 'merienda',     label: 'Merienda',     time: '16:30' },
-  { key: 'cena',         label: 'Cena',         time: '20:00' },
-];
 
 const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const DAY_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
@@ -96,11 +90,17 @@ interface NutritionLogMeal {
   photo_url: string | null;
 }
 
+interface NutritionLogWaterGlass {
+  id: number;
+  photo_url: string | null;
+}
+
 interface NutritionLogDay {
   date: string;
   adherence: number;
   is_closed: boolean;
   meals: NutritionLogMeal[];
+  water_glasses: NutritionLogWaterGlass[];
 }
 
 function authHeaders() {
@@ -249,7 +249,8 @@ function MealBlockRow({
   planId,
   planStatus,
   logStatus,
-  hasPhoto,
+  photoUrl,
+  onViewPhoto,
   isLast,
   onMealUpdated,
 }: {
@@ -258,7 +259,8 @@ function MealBlockRow({
   planId: number;
   planStatus: string;
   logStatus?: string;
-  hasPhoto?: boolean;
+  photoUrl?: string | null;
+  onViewPhoto: (url: string) => void;
   isLast: boolean;
   onMealUpdated: (updated: PlanMeal) => void;
 }) {
@@ -295,72 +297,77 @@ function MealBlockRow({
 
   return (
     <>
-      <div style={{
-        display: 'grid', gridTemplateColumns: '90px 1fr auto auto', gap: 14,
-        alignItems: 'center', padding: '14px 22px',
-        borderBottom: isLast ? 'none' : `1px solid ${T.borderSoft}`,
-        opacity: saving ? 0.6 : 1, transition: 'opacity 150ms',
-      }}>
+      <div
+        className={`flex flex-col gap-3 px-4 py-3.5 sm:grid sm:grid-cols-[88px_1fr_auto_auto] sm:items-center sm:gap-3.5 sm:px-[22px] ${isLast ? '' : 'border-b border-kore-wine-dark/8'}`}
+        style={{ opacity: saving ? 0.6 : 1, transition: 'opacity 150ms' }}
+      >
         {/* Time + Block label */}
-        <div>
-          <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.20em', textTransform: 'uppercase', color: T.textSoft }}>
+        <div className="flex items-baseline gap-2 sm:block">
+          <div className="font-body text-[9px] font-bold uppercase tracking-[0.20em] text-kore-wine-dark/55">
             {blockMeta?.time ?? ''}
           </div>
-          <div style={{ fontFamily: 'Cinzel, serif', fontSize: 13, fontWeight: 600, color: T.wine, marginTop: 3 }}>
+          <div className="font-heading text-[13px] font-semibold text-kore-wine-dark sm:mt-[3px]">
             {blockMeta?.label ?? meal.meal_block_label}
           </div>
         </div>
 
         {/* Suggestion details */}
-        <div style={{ minWidth: 0 }}>
+        <div className="min-w-0">
           {meal.suggestion ? (
             <>
-              <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 13, fontWeight: 600, color: T.textDark, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div className="truncate font-body text-[13px] font-semibold text-[#2A1A1F]">
                 {meal.suggestion.title}
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4, fontFamily: 'Montserrat, sans-serif', fontSize: 10, color: T.textSoft }}>
+              <div className="mt-1 flex flex-wrap items-center gap-1.5 font-body text-[10px] text-kore-wine-dark/55">
                 <span>{meal.suggestion.calories_estimate} kcal</span>
-                <span style={{ width: 2, height: 2, borderRadius: 1, background: T.textSoft, alignSelf: 'center' }} />
-                <span style={{ color: meal.suggestion.nova_max <= 2 ? T.sageDark : T.amberDeep, fontWeight: 600 }}>
+                <span className="h-[3px] w-[3px] rounded-full bg-kore-wine-dark/40" />
+                <span className="font-semibold" style={{ color: meal.suggestion.nova_max <= 2 ? T.sageDark : T.amberDeep }}>
                   NOVA {meal.suggestion.nova_max}
                 </span>
               </div>
             </>
           ) : (
-            <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 12, color: T.textSoft, fontStyle: 'italic' }}>
+            <div className="font-body text-[12px] italic text-kore-wine-dark/55">
               Sin sugerencia asignada
             </div>
           )}
         </div>
 
-        {/* Status chip + photo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {hasPhoto && (
-            <div title="El cliente subió foto" style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(154,5,38,0.06)', border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.wine }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                <rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.5"/>
-                <path d="M8 5l2-2h4l2 2"/>
-              </svg>
-            </div>
-          )}
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 999, background: cfg.bg, color: cfg.fg, fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase' }}>
-            <span style={{ width: 6, height: 6, borderRadius: 3, background: cfg.fg, flexShrink: 0 }} />
-            {cfg.label}
-          </span>
-        </div>
+        {/* Status chip + photo + swap — fila propia en móvil, celdas del grid en sm+ */}
+        <div className="flex items-center justify-between gap-2 sm:contents">
+          <div className="flex items-center gap-2">
+            {photoUrl && (
+              <button
+                type="button"
+                onClick={() => onViewPhoto(photoUrl)}
+                title="Ver foto que subió el cliente"
+                aria-label="Ver foto que subió el cliente"
+                className="h-9 w-9 flex-shrink-0 overflow-hidden rounded-lg border border-kore-wine-dark/10 cursor-pointer active:scale-95 transition-transform"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photoUrl} alt="Foto de la comida" className="h-full w-full object-cover" />
+              </button>
+            )}
+            <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-[5px] font-body text-[9px] font-bold uppercase tracking-[0.16em]"
+              style={{ background: cfg.bg, color: cfg.fg }}>
+              <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ background: cfg.fg }} />
+              {cfg.label}
+            </span>
+          </div>
 
-        {/* Swap button (only for draft or published plans; disabled once completed) */}
-        {planStatus !== 'completed' && (
-          <button
-            onClick={() => setShowPicker(true)}
-            disabled={saving}
-            style={{ padding: '8px 12px', borderRadius: 9, background: 'rgba(255,255,255,0.75)', border: `1px solid ${T.border}`, color: T.wine, fontFamily: 'Montserrat, sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M7 7h13M7 7l4-4M7 7l4 4M17 17H4M17 17l-4-4M17 17l-4 4"/>
-            </svg>
-            Cambiar
-          </button>
-        )}
+          {/* Swap button (only for draft or published plans; disabled once completed) */}
+          {planStatus !== 'completed' && (
+            <button
+              onClick={() => setShowPicker(true)}
+              disabled={saving}
+              className="inline-flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[9px] border border-kore-wine-dark/10 bg-white/75 px-3 py-2 font-body text-[10px] font-bold uppercase tracking-[0.14em] text-kore-wine-dark active:scale-95">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M7 7h13M7 7l4-4M7 7l4 4M17 17H4M17 17l-4-4M17 17l-4 4"/>
+              </svg>
+              Cambiar
+            </button>
+          )}
+        </div>
       </div>
 
       {showPicker && (
@@ -391,6 +398,7 @@ function DayCard({
   onPlanUpdated: (updatedDay: PlanDay) => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const [viewerPhoto, setViewerPhoto] = useState<string | null>(null);
   const dayIndex = new Date(day.date + 'T12:00:00').getDay(); // 0=Sun
   const adjustedDayIndex = dayIndex === 0 ? 6 : dayIndex - 1; // Mon=0..Sun=6
 
@@ -403,11 +411,6 @@ function DayCard({
     const logMeal = logDay?.meals.find(m => m.meal_block === b.key);
     if (!logMeal) return 'pending';
     return logMeal.status;
-  });
-
-  const logPhotos = MEAL_BLOCKS.map(b => {
-    const logMeal = logDay?.meals.find(m => m.meal_block === b.key);
-    return !!logMeal?.photo_url;
   });
 
   const completed = logStatuses.filter(s => s === 'completed').length;
@@ -429,7 +432,9 @@ function DayCard({
       background: '#fff', marginBottom: 12,
       boxShadow: '0 2px 12px -8px rgba(45,15,26,0.10)',
     }}>
-      <button onClick={() => setOpen(o => !o)} style={{ width: '100%', padding: '16px 22px', background: open ? 'rgba(154,5,38,0.03)' : 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 18, textAlign: 'left' }}>
+      <button onClick={() => setOpen(o => !o)}
+        className="flex w-full cursor-pointer items-center gap-3 border-none px-4 py-4 text-left sm:gap-[18px] sm:px-[22px]"
+        style={{ background: open ? 'rgba(154,5,38,0.03)' : 'transparent' }}>
         {/* Date badge */}
         <div style={{ width: 54, height: 54, borderRadius: 14, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: today ? 'linear-gradient(135deg, #9A0526, #5C2030)' : open ? 'rgba(154,5,38,0.10)' : 'rgba(154,5,38,0.04)' }}>
           <div style={{ fontFamily: 'Cinzel, serif', fontSize: 18, fontWeight: 600, color: today ? '#fff' : T.wine, lineHeight: 1 }}>{dayNum}</div>
@@ -447,7 +452,7 @@ function DayCard({
               </span>
             )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, fontFamily: 'Montserrat, sans-serif', fontSize: 11, color: T.textSoft }}>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '3px 8px', marginTop: 4, fontFamily: 'Montserrat, sans-serif', fontSize: 11, color: T.textSoft }}>
             <span>{day.meals.length} comidas</span>
             {totalKcal > 0 && <><span style={{ width: 3, height: 3, borderRadius: 2, background: T.textSoft }} /><span>{totalKcal} kcal est.</span></>}
             {tracked > 0 && (
@@ -471,21 +476,57 @@ function DayCard({
 
       {open && (
         <div style={{ borderTop: `1px solid ${T.borderSoft}` }}>
-          {day.meals.map((meal, i) => (
-            <MealBlockRow
-              key={meal.id}
-              meal={meal}
-              dayId={day.id}
-              planId={planId}
-              planStatus={planStatus}
-              logStatus={logStatuses[i]}
-              hasPhoto={logPhotos[i]}
-              isLast={i === day.meals.length - 1}
-              onMealUpdated={updateMeal}
-            />
-          ))}
+          {day.meals.map((meal, i) => {
+            // Emparejar el estado por meal_block, nunca por índice: day.meals
+            // y el log diario pueden venir en orden o longitud distintos.
+            const logMeal = logDay?.meals.find((m) => m.meal_block === meal.meal_block);
+            return (
+              <MealBlockRow
+                key={meal.id}
+                meal={meal}
+                dayId={day.id}
+                planId={planId}
+                planStatus={planStatus}
+                logStatus={logMeal?.status ?? 'pending'}
+                photoUrl={logMeal?.photo_url ?? null}
+                onViewPhoto={setViewerPhoto}
+                isLast={i === day.meals.length - 1}
+                onMealUpdated={updateMeal}
+              />
+            );
+          })}
+
+          {/* Hidratación del día — fotos de los vasos que subió el cliente */}
+          {logDay && logDay.water_glasses.length > 0 && (
+            <div className="px-4 py-3.5 sm:px-[22px]" style={{ borderTop: `1px solid ${T.borderSoft}` }}>
+              <div className="font-body text-[9px] font-bold uppercase tracking-[0.20em] mb-2.5" style={{ color: T.textSoft }}>
+                Hidratación · {logDay.water_glasses.length} {logDay.water_glasses.length === 1 ? 'vaso' : 'vasos'}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {logDay.water_glasses.map((wg) => {
+                  const wgPhoto = wg.photo_url;
+                  return wgPhoto ? (
+                    <button
+                      key={wg.id}
+                      type="button"
+                      onClick={() => setViewerPhoto(wgPhoto)}
+                      aria-label="Ver foto del vaso de agua"
+                      className="h-11 w-11 overflow-hidden rounded-lg border border-kore-wine-dark/10 cursor-pointer active:scale-95 transition-transform"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={wgPhoto} alt="Vaso de agua" className="h-full w-full object-cover" />
+                    </button>
+                  ) : (
+                    <div key={wg.id} className="h-11 w-11 rounded-lg" style={{ background: 'linear-gradient(180deg, #4DA3FF, #0B6BC4)' }} />
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
+
+      <PhotoViewer url={viewerPhoto} onClose={() => setViewerPhoto(null)} />
     </div>
   );
 }
@@ -517,95 +558,97 @@ function ComplianceGrid({ plan, nutritionLogs, weekNum }: { plan: WeeklyNutritio
   const dasharray = 2 * Math.PI * 46;
 
   return (
-    <div style={{ background: '#fff', borderRadius: 22, padding: 26, marginBottom: 18, border: `1px solid ${T.borderSoft}`, boxShadow: '0 2px 12px -8px rgba(45,15,26,0.10)' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 32 }}>
-        {/* Ring */}
-        <div style={{ flexShrink: 0, position: 'relative' }}>
-          <svg width="120" height="120" viewBox="0 0 120 120">
-            <defs>
-              <linearGradient id="nutRingGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#A8C29C"/>
-                <stop offset="100%" stopColor="#3F6B36"/>
-              </linearGradient>
-            </defs>
-            <circle cx="60" cy="60" r="46" fill="none" stroke="rgba(103,15,34,0.08)" strokeWidth="10"/>
-            <circle cx="60" cy="60" r="46" fill="none" stroke="url(#nutRingGrad)" strokeWidth="10"
-              strokeDasharray={`${(pct / 100) * dasharray} ${dasharray}`}
-              strokeLinecap="round" transform="rotate(-90 60 60)"
-              style={{ transition: 'stroke-dasharray 700ms ease-out' }}
-            />
-          </svg>
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ fontFamily: 'Cinzel, serif', fontSize: 32, fontWeight: 600, color: T.wine, lineHeight: 1 }}>{pct}%</div>
-            <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.20em', textTransform: 'uppercase', color: T.textSoft, marginTop: 4 }}>Cumplimiento</div>
+    <div className="mb-[18px] flex flex-col gap-6 rounded-[22px] border border-kore-wine-dark/8 bg-white p-5 shadow-[0_2px_12px_-8px_rgba(45,15,26,0.10)] sm:flex-row sm:items-start sm:gap-8 sm:p-[26px]">
+      {/* Ring */}
+      <div className="relative flex-shrink-0 self-center sm:self-start">
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <defs>
+            <linearGradient id="nutRingGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#A8C29C"/>
+              <stop offset="100%" stopColor="#3F6B36"/>
+            </linearGradient>
+          </defs>
+          <circle cx="60" cy="60" r="46" fill="none" stroke="rgba(103,15,34,0.08)" strokeWidth="10"/>
+          <circle cx="60" cy="60" r="46" fill="none" stroke="url(#nutRingGrad)" strokeWidth="10"
+            strokeDasharray={`${(pct / 100) * dasharray} ${dasharray}`}
+            strokeLinecap="round" transform="rotate(-90 60 60)"
+            style={{ transition: 'stroke-dasharray 700ms ease-out' }}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <div className="font-heading text-[32px] font-semibold leading-none text-kore-wine-dark">{pct}%</div>
+          <div className="mt-1 font-body text-[9px] font-bold uppercase tracking-[0.20em] text-kore-wine-dark/55">Cumplimiento</div>
+        </div>
+      </div>
+
+      {/* Grid */}
+      <div className="min-w-0 flex-1">
+        <div className="mb-3.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <div className="font-body text-[9px] font-bold uppercase tracking-[0.22em] text-kore-wine-dark/55">
+            Cumplimiento · 7 días × 5 comidas
+          </div>
+          <div className="font-body text-[10px] text-kore-wine-dark/55">
+            {sumCompleted}/{sumTracked} cumplidas · {totalPhotos} fotos
           </div>
         </div>
 
-        {/* Grid */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
-            <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: T.textSoft }}>
-              Cumplimiento · 7 días × 5 comidas
+        <div className="grid grid-cols-[34px_repeat(7,minmax(0,1fr))] gap-1.5">
+          {/* Header row */}
+          <div />
+          {weekData.map((d, i) => (
+            <div key={i} className={`text-center font-body text-[9px] font-bold uppercase tracking-[0.04em] ${d.isToday ? 'text-kore-wine-dark' : 'text-kore-wine-dark/55'}`}>
+              {d.dayName}
             </div>
-            <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 10, color: T.textSoft }}>
-              {sumCompleted}/{sumTracked} cumplidas · {totalPhotos} fotos
-            </div>
-          </div>
+          ))}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '60px repeat(7, minmax(0, 36px))', gap: 6, justifyContent: 'start' }}>
-            {/* Header row */}
-            <div />
-            {weekData.map((d, i) => (
-              <div key={i} style={{ textAlign: 'center', fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: d.isToday ? T.wine : T.textSoft }}>{d.dayName}</div>
-            ))}
+          {/* Meal rows */}
+          {MEAL_BLOCKS.map((b, bi) => (
+            <React.Fragment key={b.key}>
+              <div className="self-center font-body text-[9px] font-bold uppercase tracking-[0.04em] text-kore-wine-dark/55">
+                {b.label.split(' ')[0].slice(0, 4)}
+              </div>
+              {weekData.map((d, di) => {
+                const s = d.statuses[bi];
+                const ph = d.photos[bi];
+                const cfgMap: Record<string, { bg: string; fg: string; icon: string }> = {
+                  completed: { bg: '#669959', fg: '#fff', icon: '✓' },
+                  skipped:   { bg: 'rgba(154,5,38,0.18)', fg: '#9A0526', icon: '✕' },
+                  not_done:  { bg: 'rgba(229,201,122,0.30)', fg: T.amberDeep, icon: '?' },
+                  pending:   { bg: 'rgba(103,15,34,0.04)', fg: T.textSoft, icon: '·' },
+                };
+                const cellCfg = cfgMap[s] ?? cfgMap.pending;
+                return (
+                  <div key={di} title={`${d.dayName} · ${b.label}`}
+                    className="relative flex aspect-square items-center justify-center rounded-lg font-heading text-[14px] font-bold"
+                    style={{ background: cellCfg.bg, color: cellCfg.fg }}>
+                    {cellCfg.icon}
+                    {ph && (
+                      <span style={{ position: 'absolute', bottom: -3, right: -3, width: 14, height: 14, borderRadius: 7, background: T.wine, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff' }}>
+                        <svg width="7" height="7" viewBox="0 0 24 24" fill="currentColor">
+                          <circle cx="12" cy="13" r="3"/>
+                          <path d="M3 7h4l2-3h6l2 3h4v12H3z" stroke="currentColor" strokeWidth="2" fill="none"/>
+                        </svg>
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </React.Fragment>
+          ))}
+        </div>
 
-            {/* Meal rows */}
-            {MEAL_BLOCKS.map((b, bi) => (
-              <React.Fragment key={b.key}>
-                <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: T.textSoft, alignSelf: 'center' }}>
-                  {b.label.split(' ')[0].slice(0, 4)}
-                </div>
-                {weekData.map((d, di) => {
-                  const s = d.statuses[bi];
-                  const ph = d.photos[bi];
-                  const cfgMap: Record<string, { bg: string; fg: string; icon: string }> = {
-                    completed: { bg: '#669959', fg: '#fff', icon: '✓' },
-                    skipped:   { bg: 'rgba(154,5,38,0.18)', fg: '#9A0526', icon: '✕' },
-                    not_done:  { bg: 'rgba(229,201,122,0.30)', fg: T.amberDeep, icon: '?' },
-                    pending:   { bg: 'rgba(103,15,34,0.04)', fg: T.textSoft, icon: '·' },
-                  };
-                  const cellCfg = cfgMap[s] ?? cfgMap.pending;
-                  return (
-                    <div key={di} title={`${d.dayName} · ${b.label}`} style={{ position: 'relative', width: 32, height: 32, borderRadius: 8, background: cellCfg.bg, color: cellCfg.fg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Cinzel, serif', fontSize: 14, fontWeight: 700 }}>
-                      {cellCfg.icon}
-                      {ph && (
-                        <span style={{ position: 'absolute', bottom: -3, right: -3, width: 14, height: 14, borderRadius: 7, background: T.wine, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff' }}>
-                          <svg width="7" height="7" viewBox="0 0 24 24" fill="currentColor">
-                            <circle cx="12" cy="13" r="3"/>
-                            <path d="M3 7h4l2-3h6l2 3h4v12H3z" stroke="currentColor" strokeWidth="2" fill="none"/>
-                          </svg>
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </React.Fragment>
-            ))}
-          </div>
-
-          {/* Legend */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginTop: 14, paddingTop: 14, borderTop: `1px solid ${T.borderSoft}`, fontFamily: 'Montserrat, sans-serif', fontSize: 10, color: T.textSoft }}>
-            {[
-              { bg: '#669959',              label: 'Cumplió' },
-              { bg: 'rgba(154,5,38,0.40)', label: 'Saltó' },
-              { bg: 'rgba(229,201,122,0.60)', label: 'Sin marcar' },
-              { bg: 'rgba(103,15,34,0.16)', label: 'Futuro' },
-            ].map(({ bg, label }) => (
-              <span key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: 10, height: 10, borderRadius: 3, background: bg, flexShrink: 0 }} />{label}
-              </span>
-            ))}
-          </div>
+        {/* Legend */}
+        <div className="mt-3.5 flex flex-wrap gap-x-3.5 gap-y-2 border-t border-kore-wine-dark/8 pt-3.5 font-body text-[10px] text-kore-wine-dark/55">
+          {[
+            { bg: '#669959',              label: 'Cumplió' },
+            { bg: 'rgba(154,5,38,0.40)', label: 'Saltó' },
+            { bg: 'rgba(229,201,122,0.60)', label: 'Sin marcar' },
+            { bg: 'rgba(103,15,34,0.16)', label: 'Futuro' },
+          ].map(({ bg, label }) => (
+            <span key={label} className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 flex-shrink-0 rounded-[3px]" style={{ background: bg }} />{label}
+            </span>
+          ))}
         </div>
       </div>
     </div>
@@ -618,25 +661,31 @@ function PlanHeader({
   onPublish,
   onRegenerate,
   onDelete,
+  onRelaunch,
   publishing,
   deleting,
+  relaunching,
 }: {
   plan: WeeklyNutritionPlan;
   onPublish: () => void;
   onRegenerate: () => void;
   onDelete: () => void;
+  onRelaunch: () => void;
   publishing: boolean;
   deleting: boolean;
+  relaunching: boolean;
 }) {
   const isDraft = plan.status === 'draft';
   const weekNum = Math.ceil(new Date(plan.week_start).getDate() / 7);
 
   return (
-    <div style={{
-      position: 'relative', overflow: 'hidden', borderRadius: 22,
-      background: `linear-gradient(135deg, ${isDraft ? '#3D1F1A' : T.wineDark} 0%, ${isDraft ? T.wineDeep : T.wineDeep2} 100%)`,
-      padding: '26px 32px', color: T.ivory, marginBottom: 16,
-    }}>
+    <div
+      className="relative mb-4 overflow-hidden rounded-[22px] p-6 sm:px-8 sm:py-[26px]"
+      style={{
+        background: `linear-gradient(135deg, ${isDraft ? '#3D1F1A' : T.wineDark} 0%, ${isDraft ? T.wineDeep : T.wineDeep2} 100%)`,
+        color: T.ivory,
+      }}
+    >
       {/* Ambient glow */}
       <div style={{
         position: 'absolute', top: -40, right: -30, width: 240, height: 240,
@@ -644,8 +693,8 @@ function PlanHeader({
         background: `radial-gradient(circle, ${isDraft ? 'rgba(229,201,122,0.14)' : 'rgba(168,194,156,0.14)'}, transparent 70%)`,
       }} />
 
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', gap: 24 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', gap: 20, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 200 }}>
           {/* Supertitle + status badge */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
             <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.24em', textTransform: 'uppercase', color: 'rgba(231,200,160,0.65)' }}>
@@ -663,7 +712,7 @@ function PlanHeader({
           </div>
 
           {/* Week title */}
-          <div style={{ fontFamily: 'Cinzel, serif', fontSize: 28, fontWeight: 600, color: T.ivory, letterSpacing: '-0.005em' }}>
+          <div style={{ fontFamily: 'Cinzel, serif', fontSize: 'clamp(21px, 5.2vw, 28px)', fontWeight: 600, color: T.ivory, letterSpacing: '-0.005em', lineHeight: 1.18 }}>
             Semana {weekNum} · {planDateRange(plan)}
           </div>
 
@@ -702,8 +751,13 @@ function PlanHeader({
               </button>
             </>
           ) : (
-            <button onClick={onRegenerate} style={{ padding: '10px 18px', borderRadius: 11, background: 'transparent', color: 'rgba(231,200,160,0.85)', border: '1px solid rgba(231,200,160,0.32)', fontFamily: 'Montserrat, sans-serif', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-              Crear próxima semana
+            <button
+              onClick={onRelaunch}
+              disabled={relaunching}
+              title="Eliminar el plan actual y generar un borrador nuevo desde cero"
+              style={{ padding: '10px 18px', borderRadius: 11, background: 'rgba(244,199,199,0.10)', color: '#F4C7C7', border: '1px solid rgba(244,199,199,0.35)', fontFamily: 'Montserrat, sans-serif', fontSize: 12, fontWeight: 600, cursor: relaunching ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, letterSpacing: '0.04em', opacity: relaunching ? 0.6 : 1 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+              {relaunching ? 'Relanzando…' : 'Relanzar plan'}
             </button>
           )}
         </div>
@@ -797,7 +851,7 @@ function HabitSummaryCard({ clientId }: { clientId: number }) {
     <div>
       {/* Divider + section header */}
       <div style={{ marginTop: 32, paddingTop: 24, borderTop: `1px solid ${T.borderSoft}` }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
           <div>
             <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: T.textSoft }}>
               Contexto secundario
@@ -822,34 +876,37 @@ function HabitSummaryCard({ clientId }: { clientId: number }) {
             El cliente aún no ha completado la evaluación de hábitos nutricionales.
           </div>
         ) : (
-          <div style={{ background: '#fff', borderRadius: 22, padding: 22, border: `1px solid ${T.borderSoft}`, boxShadow: '0 2px 12px -8px rgba(45,15,26,0.10)' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr auto', gap: 20, alignItems: 'center' }}>
+          <div className="rounded-[22px] border border-kore-wine-dark/8 bg-white p-5 shadow-[0_2px_12px_-8px_rgba(45,15,26,0.10)] sm:p-6">
+            <div className="flex flex-col gap-5 sm:grid sm:grid-cols-[150px_1fr_auto] sm:items-center sm:gap-6">
               {/* Score */}
               <div>
-                <div style={{ fontFamily: 'Cinzel, serif', fontSize: 36, fontWeight: 600, color: scoreToneColor, lineHeight: 1 }}>
+                <div className="font-heading text-[36px] font-semibold leading-none" style={{ color: scoreToneColor }}>
                   {scoreNum?.toFixed(1) ?? '—'}
-                  <span style={{ fontSize: 16, opacity: 0.55 }}>/10</span>
+                  <span className="text-[16px] opacity-55">/10</span>
                 </div>
-                <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.20em', textTransform: 'uppercase', color: T.textSoft, marginTop: 6 }}>
+                <div className="mt-1.5 font-body text-[10px] font-bold uppercase tracking-[0.20em] text-kore-wine-dark/55">
                   Score hábito · {habit.habit_category || '—'}
                 </div>
               </div>
 
               {/* 8 metric cells */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4 sm:gap-2.5">
                 {metrics.map((m, i) => (
                   <div key={i}>
-                    <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 9, color: T.textSoft, fontWeight: 600 }}>{m.l}</div>
-                    <div style={{ fontFamily: 'Cinzel, serif', fontSize: 14, fontWeight: 600, color: habitToneColor(m.tone), marginTop: 2 }}>{m.v}</div>
+                    <div className="font-body text-[9px] font-semibold text-kore-wine-dark/55">{m.l}</div>
+                    <div className="mt-0.5 font-heading text-[14px] font-semibold" style={{ color: habitToneColor(m.tone) }}>{m.v}</div>
                   </div>
                 ))}
               </div>
 
               {/* Approval pill */}
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 13px', borderRadius: 999, flexShrink: 0, fontFamily: 'Montserrat, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', background: approvedAt ? 'rgba(168,194,156,0.20)' : 'rgba(229,201,122,0.18)', color: approvedAt ? T.sageDark : T.amberDeep, border: `1px solid ${approvedAt ? 'rgba(168,194,156,0.35)' : 'rgba(229,201,122,0.35)'}` }}>
-                <span style={{ width: 6, height: 6, borderRadius: 3, background: 'currentColor', flexShrink: 0 }} />
-                {approvedAt ? `Aprobada · ${approvedAt}` : 'Sin aprobar'}
-              </span>
+              <div className="flex sm:justify-end">
+                <span className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-3 py-[5px] font-body text-[9px] font-bold uppercase tracking-[0.14em]"
+                  style={{ background: approvedAt ? 'rgba(168,194,156,0.20)' : 'rgba(229,201,122,0.18)', color: approvedAt ? T.sageDark : T.amberDeep, border: `1px solid ${approvedAt ? 'rgba(168,194,156,0.35)' : 'rgba(229,201,122,0.35)'}` }}>
+                  <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-current" />
+                  {approvedAt ? `Aprobada · ${approvedAt}` : 'Sin aprobar'}
+                </span>
+              </div>
             </div>
           </div>
         )}
@@ -888,6 +945,7 @@ export default function ClientNutritionTab({
   const [generating, setGenerating] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [relaunching, setRelaunching] = useState(false);
   const [trainerNotes, setTrainerNotes] = useState('');
   const [selectedWeek, setSelectedWeek] = useState(1);
 
@@ -992,6 +1050,32 @@ export default function ClientNutritionTab({
     handleGenerate();
   };
 
+  // Relanzar: borra el plan publicado y genera un borrador nuevo en un paso.
+  // Los registros diarios del cliente (NutritionDailyLog) son independientes
+  // del plan y se conservan tras el borrado.
+  const handleRelaunch = async () => {
+    if (!activePlan) return;
+    if (!window.confirm(
+      '¿Relanzar el plan? Se eliminará el plan publicado actual y se generará un borrador nuevo de 28 días.\n\nEl historial de comidas registradas por el cliente se conserva.'
+    )) return;
+    setRelaunching(true);
+    try {
+      await api.delete(`/nutrition-plans/${activePlan.id}/delete/`, { headers: authHeaders() });
+      const { data } = await api.post<WeeklyNutritionPlan & { days: PlanDay[] }>(
+        '/nutrition-plans/generate/',
+        { customer_id: clientId },
+        { headers: authHeaders() }
+      );
+      setActivePlan(data);
+      setTrainerNotes(data.trainer_notes ?? '');
+      await fetchPlans();
+    } catch {
+      // ignore — UI ya refleja el estado tras fetchPlans (o queda sin plan)
+    } finally {
+      setRelaunching(false);
+    }
+  };
+
   const handleDayUpdated = (updatedDay: PlanDay) => {
     if (!activePlan) return;
     setActivePlan({
@@ -1035,8 +1119,10 @@ export default function ClientNutritionTab({
           onPublish={handlePublish}
           onRegenerate={handleRegenerate}
           onDelete={handleDelete}
+          onRelaunch={handleRelaunch}
           publishing={publishing}
           deleting={deleting}
+          relaunching={relaunching}
         />
       )}
 
@@ -1056,29 +1142,26 @@ export default function ClientNutritionTab({
 
       {/* Week navigation pills */}
       {activePlan?.days && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20, padding: 4, background: 'rgba(255,255,255,0.55)', border: `1px solid ${T.borderSoft}`, borderRadius: 14, width: 'fit-content' }}>
+        <div className="mb-5 grid grid-cols-2 gap-1.5 rounded-[14px] border border-kore-wine-dark/8 bg-white/55 p-1 sm:flex sm:w-fit sm:gap-1.5">
           {[1, 2, 3, 4].map(w => {
             const wDays = activePlan.days!.filter(d => d.week_number === w);
             const hasToday = wDays.some(d => isToday(d.date));
             const range = weekDateRange(activePlan.days!, w);
+            const sel = selectedWeek === w;
             return (
               <button
                 key={w}
                 onClick={() => setSelectedWeek(w)}
-                style={{
-                  padding: '8px 18px', borderRadius: 10, border: 'none', cursor: 'pointer',
-                  fontFamily: 'Montserrat, sans-serif', fontSize: 11, fontWeight: 700,
-                  letterSpacing: '0.12em', textTransform: 'uppercase', transition: 'all 120ms',
-                  background: selectedWeek === w ? T.wine : 'transparent',
-                  color: selectedWeek === w ? T.ivory : T.textSoft,
-                  position: 'relative',
-                }}>
-                Semana {w}
+                className={`relative rounded-[10px] px-3 py-2 text-center transition-all duration-150 active:scale-95 sm:px-[18px] ${sel ? 'bg-kore-wine-dark text-kore-ivory' : 'bg-transparent text-kore-wine-dark/55'}`}>
+                <div className="font-body text-[11px] font-bold uppercase tracking-[0.12em]">
+                  Semana {w}
+                </div>
                 {hasToday && (
-                  <span style={{ position: 'absolute', top: 5, right: 5, width: 6, height: 6, borderRadius: 3, background: selectedWeek === w ? T.sage : '#9A0526' }} />
+                  <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full"
+                    style={{ background: sel ? T.sage : '#9A0526' }} />
                 )}
                 {range && (
-                  <div style={{ fontFamily: 'Montserrat, sans-serif', fontSize: 8, fontWeight: 600, letterSpacing: '0.08em', marginTop: 1, opacity: 0.75, textTransform: 'none' }}>
+                  <div className="mt-0.5 font-body text-[8px] font-semibold tracking-[0.04em] opacity-75">
                     {range}
                   </div>
                 )}

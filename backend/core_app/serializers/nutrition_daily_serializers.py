@@ -7,6 +7,18 @@ from rest_framework import serializers
 from core_app.models import MealEntry, NutritionDailyLog, WaterGlassLog
 from core_app.models.meal_suggestion import MealSuggestion
 
+# Orden cronológico de los bloques de comida (alineado con
+# core_app/views/nutrition_daily_views.py → MEAL_BLOCKS). El modelo MealEntry
+# no define Meta.ordering, así que el API ordena aquí para no devolver las
+# comidas en orden indefinido.
+_MEAL_BLOCK_ORDER = {
+    MealEntry.MealBlock.BREAKFAST: 0,
+    MealEntry.MealBlock.MID_MORNING: 1,
+    MealEntry.MealBlock.LUNCH: 2,
+    MealEntry.MealBlock.SNACK: 3,
+    MealEntry.MealBlock.DINNER: 4,
+}
+
 
 class FoodBriefSerializer(serializers.ModelSerializer):
     class Meta:
@@ -55,7 +67,7 @@ class WaterGlassLogSerializer(serializers.ModelSerializer):
 
 
 class NutritionDailyLogSerializer(serializers.ModelSerializer):
-    meal_entries = MealEntrySerializer(many=True, read_only=True)
+    meal_entries = serializers.SerializerMethodField()
     water_glasses = WaterGlassLogSerializer(many=True, read_only=True)
     program_goal = serializers.SerializerMethodField()
     trainer_nutrition_note = serializers.SerializerMethodField()
@@ -64,6 +76,13 @@ class NutritionDailyLogSerializer(serializers.ModelSerializer):
         model = NutritionDailyLog
         fields = ('id', 'date', 'is_closed', 'closed_at', 'notes', 'meal_entries',
                   'water_glasses', 'program_goal', 'trainer_nutrition_note')
+
+    def get_meal_entries(self, obj):
+        entries = sorted(
+            obj.meal_entries.all(),
+            key=lambda m: _MEAL_BLOCK_ORDER.get(m.meal_block, 99),
+        )
+        return MealEntrySerializer(entries, many=True, context=self.context).data
 
     def _active_program(self, obj):
         if not hasattr(obj, '_cached_program'):
@@ -80,8 +99,24 @@ class NutritionDailyLogSerializer(serializers.ModelSerializer):
         return program.goal if program else None
 
     def get_trainer_nutrition_note(self, obj):
-        program = self._active_program(obj)
-        return program.trainer_notes or None if program else None
+        from core_app.models.nutrition_week_note import NutritionWeekNote
+        from core_app.utils.program_weeks import current_week_number
+
+        latest = (
+            NutritionWeekNote.objects
+            .filter(customer=obj.customer)
+            .order_by('-cycle_number')
+            .first()
+        )
+        if latest is None:
+            return None
+        week = current_week_number(latest.cycle_start)
+        note = NutritionWeekNote.objects.filter(
+            customer=obj.customer,
+            cycle_number=latest.cycle_number,
+            week_number=week,
+        ).first()
+        return note.notes or None if note else None
 
 
 class MealEntryUpdateSerializer(serializers.Serializer):

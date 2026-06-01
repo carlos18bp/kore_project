@@ -262,14 +262,41 @@ describe('ClientNutritionTab', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders the Crear próxima semana button on a published plan instead of Publicar', async () => {
+  it('renders the Relanzar plan button on a published plan instead of Publicar', async () => {
     setupApi({ planList: [{ id: 51, status: 'published' }], planDetail: publishedPlan() });
 
     render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
     await screen.findByText('Publicado');
 
-    expect(screen.getByRole('button', { name: 'Crear próxima semana' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Relanzar plan' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Publicar' })).not.toBeInTheDocument();
+  });
+
+  it('deletes the published plan and generates a fresh draft when Relanzar is confirmed', async () => {
+    const fresh = { ...draftPlan(), id: 99, trainer_notes: '' };
+    setupApi({ planList: [{ id: 51, status: 'published' }], planDetail: publishedPlan() });
+    mockedApi.post.mockResolvedValueOnce({ data: fresh });
+
+    render(<ClientNutritionTab clientId={CLIENT_ID} nutritionLogs={[]} />);
+    await screen.findByText('Publicado');
+
+    jest.spyOn(window, 'confirm').mockReturnValue(true);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Relanzar plan' }));
+    });
+
+    await waitFor(() => {
+      expect(mockedApi.delete).toHaveBeenCalledWith(
+        expect.stringContaining('/nutrition-plans/51/delete/'),
+        expect.any(Object),
+      );
+      expect(mockedApi.post).toHaveBeenCalledWith(
+        '/nutrition-plans/generate/',
+        { customer_id: CLIENT_ID },
+        expect.any(Object),
+      );
+    });
   });
 
   it('renders the completed log status label for a meal entry', async () => {
@@ -281,6 +308,7 @@ describe('ClientNutritionTab', () => {
         meals: [
           { meal_entry_id: 1, meal_block: 'desayuno', status: 'completed', notes: '', photo_url: null, trainer_comment: '', flagged_for_session: false },
         ],
+        water_glasses: [],
       },
     ];
     setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
@@ -304,6 +332,7 @@ describe('ClientNutritionTab', () => {
         meals: [
           { meal_entry_id: 2, meal_block: 'desayuno', status: 'skipped', notes: '', photo_url: null, trainer_comment: '', flagged_for_session: false },
         ],
+        water_glasses: [],
       },
     ];
     setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });
@@ -327,6 +356,7 @@ describe('ClientNutritionTab', () => {
         meals: [
           { meal_entry_id: 3, meal_block: 'desayuno', status: 'not_done', notes: '', photo_url: null, trainer_comment: '', flagged_for_session: false },
         ],
+        water_glasses: [],
       },
     ];
     setupApi({ planList: [{ id: 50, status: 'draft' }], planDetail: draftPlan() });

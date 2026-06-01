@@ -493,6 +493,13 @@
       "description": "View and manage a client's monthly training program from the trainer perspective: generate, publish, and review program days and exercise logs.",
       "coverage": "missing"
     },
+    "trainer-client-notes": {
+      "name": "Trainer Client Notes Tab",
+      "module": "trainer",
+      "priority": "P2",
+      "roles": ["trainer"],
+      "description": "From the client detail Notes tab, leave weekly trainer notes per 28-day cycle in the Programa and Nutrición subtabs: week 1 is editable, completing it unlocks week 2, and so on; saved weeks stack as history."
+    },
     "trainer-metrics": {
       "name": "Trainer Metrics",
       "module": "trainer",

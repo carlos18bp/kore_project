@@ -71,6 +71,8 @@ test-reports/
 .vscode/
 *.swp
 *.swo
+.claude/settings.local.json
+.playwright-mcp/
 
 # OS
 .DS_Store

@@ -433,3 +433,73 @@ class TrainerClientFitnessLevelView(APIView):
             'fitness_level_override': cp.fitness_level_override,
             'fitness_level_computed': _get_fitness_level_from_evals(customer),
         })
+
+
+class TrainerAgendaView(APIView):
+    """Get the trainer's sessions within a date range.
+
+    GET /api/trainer/agenda/?from=YYYY-MM-DD&to=YYYY-MM-DD
+    """
+
+    permission_classes = [IsAuthenticated, IsTrainerRole]
+
+    def get(self, request):
+        from datetime import datetime, time, timedelta
+        from zoneinfo import ZoneInfo
+
+        trainer_profile = getattr(request.user, 'trainer_profile', None)
+        if not trainer_profile:
+            return Response(
+                {'detail': 'No se encontró perfil de entrenador.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        raw_from = request.query_params.get('from', '').strip()
+        raw_to = request.query_params.get('to', '').strip()
+        try:
+            from_date = datetime.strptime(raw_from, '%Y-%m-%d').date()
+            to_date = datetime.strptime(raw_to, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {'detail': 'Parámetros "from" y "to" requeridos (YYYY-MM-DD).'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if to_date < from_date:
+            return Response(
+                {'detail': 'El rango "to" no puede ser anterior a "from".'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if (to_date - from_date).days > 62:
+            return Response(
+                {'detail': 'El rango no puede exceder 62 días.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        tz = ZoneInfo('America/Bogota')
+        range_start = datetime.combine(from_date, time.min, tzinfo=tz)
+        range_end = datetime.combine(to_date, time.min, tzinfo=tz) + timedelta(days=1)
+
+        bookings = (
+            Booking.objects.filter(
+                trainer=trainer_profile,
+                starts_at__gte=range_start,
+                starts_at__lt=range_end,
+                status__in=[Booking.Status.PENDING, Booking.Status.CONFIRMED],
+            )
+            .select_related('customer', 'package')
+            .order_by('starts_at')
+        )
+
+        sessions = [
+            {
+                'id': b.id,
+                'customer_name': f'{b.customer.first_name} {b.customer.last_name}'.strip(),
+                'customer_id': b.customer.id,
+                'package_title': b.package.title if b.package else '',
+                'starts_at': b.starts_at.isoformat() if b.starts_at else None,
+                'ends_at': b.ends_at.isoformat() if b.ends_at else None,
+                'status': b.status,
+            }
+            for b in bookings
+        ]
+        return Response({'sessions': sessions})

@@ -3,7 +3,7 @@
 import { Suspense, useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { X, ArrowRight, Calendar, CalendarPlus } from 'lucide-react';
+import { X, ArrowRight, ArrowDown, Calendar, CalendarPlus } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useBookingStore } from '@/lib/stores/bookingStore';
 import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
@@ -124,6 +124,9 @@ function BookingShell({
     </section>
   );
 }
+
+// Ventana de agendamiento: el backend permite reservar hasta 30 días (BOOKING_HORIZON_DAYS).
+const BOOKING_HORIZON_DAYS = 30;
 
 function toDateKey(date: Date) {
   const y = date.getFullYear();
@@ -275,9 +278,14 @@ function BookSessionContent() {
   }, [isReschedule, bookingToReschedule?.trainer]);
 
   // Fetch availability from the backend whenever trainer is known.
+  // Pedimos la ventana completa de 30 días; sin date_from/date_to el backend
+  // sólo devuelve 7 días por defecto.
   useEffect(() => {
     if (trainer?.id) {
-      fetchAvailability(undefined, undefined, trainer.id);
+      const today = new Date();
+      const horizon = new Date(today);
+      horizon.setDate(horizon.getDate() + BOOKING_HORIZON_DAYS - 1);
+      fetchAvailability(toDateKey(today), toDateKey(horizon), trainer.id);
     }
   }, [trainer?.id, fetchAvailability]);
 
@@ -510,6 +518,20 @@ function BookSessionContent() {
                     }
                   }}
                 />
+              )}
+
+              {/* Leyenda del puntico + hint hacia las próximas sesiones */}
+              {bookedDates.size > 0 && (
+                <div className="mt-4 border-t border-kore-gray-light/30 pt-3.5">
+                  <div className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-kore-red" />
+                    <span className="text-[11.5px] text-kore-gray-dark/55">Día con sesión ya agendada</span>
+                  </div>
+                  <p className="mt-1.5 flex items-center gap-1.5 text-[11.5px] font-semibold text-kore-red">
+                    <ArrowDown className="h-3.5 w-3.5 flex-shrink-0" strokeWidth={2.2} />
+                    Desliza abajo para ver tus próximas sesiones
+                  </p>
+                </div>
               )}
             </div>
             <div className="p-5 md:p-6">

@@ -87,7 +87,7 @@ describe('TrainerMessageBanner', () => {
     expect(await screen.findByText('🏆 Tu entrenador te felicita')).toBeInTheDocument();
   });
 
-  it('shows at most 2 messages when API returns 3', async () => {
+  it('shows one message at a time when API returns 3', async () => {
     mockedApi.get.mockResolvedValueOnce({
       data: {
         messages: [makeMsg(1, 'manual', 'Msg A'), makeMsg(2, 'manual', 'Msg B'), makeMsg(3, 'manual', 'Msg C')],
@@ -98,8 +98,22 @@ describe('TrainerMessageBanner', () => {
     await screen.findByText('Msg A');
 
     expect(screen.getByText('Msg A')).toBeInTheDocument();
-    expect(screen.getByText('Msg B')).toBeInTheDocument();
+    expect(screen.queryByText('Msg B')).not.toBeInTheDocument();
     expect(screen.queryByText('Msg C')).not.toBeInTheDocument();
+  });
+
+  it('advances to the next message after marking one as read', async () => {
+    mockedApi.get.mockResolvedValueOnce({
+      data: { messages: [makeMsg(1, 'manual', 'Msg A'), makeMsg(2, 'manual', 'Msg B')] },
+    });
+    mockedApi.post.mockResolvedValueOnce({});
+
+    render(<TrainerMessageBanner />);
+    const btn = await screen.findByRole('button', { name: 'Marcar como leído' });
+    await act(async () => { fireEvent.click(btn); });
+
+    expect(await screen.findByText('Msg B')).toBeInTheDocument();
+    expect(screen.queryByText('Msg A')).not.toBeInTheDocument();
   });
 
   it('filters out messages where the message field is falsy', async () => {
