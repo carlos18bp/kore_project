@@ -55,6 +55,14 @@ describe('ProgramCalendar', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Freeze the clock to mid-May 2026 so the calendar opens on the program's
+    // first month, keeping these tests independent of the real current date.
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(2026, 4, 15, 12));
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('renders the day name headers (Lun through Dom)', () => {
