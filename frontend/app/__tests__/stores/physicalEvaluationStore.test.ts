@@ -15,7 +15,12 @@ jest.mock('@/lib/services/http', () => {
     patch: jest.fn(),
     delete: jest.fn(),
   };
-  return { api, getWithRetry: (...args: unknown[]) => api.get(...args) };
+  return {
+    api,
+    getWithRetry: (...args: unknown[]) => api.get(...args),
+    extractApiError: (err: unknown, fallback: string) =>
+      (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? fallback,
+  };
 });
 
 const mockedApi = api as jest.Mocked<typeof api>;
