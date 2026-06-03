@@ -167,3 +167,42 @@ describe('http service — interceptors', () => {
     });
   });
 });
+
+describe('http service — extractApiError', () => {
+  const FALLBACK = 'No se pudo guardar.';
+
+  async function extract(err: unknown, fallback = FALLBACK) {
+    const { extractApiError } = await import('@/lib/services/http');
+    return extractApiError(err, fallback);
+  }
+
+  it('returns the DRF detail message when present', async () => {
+    const msg = await extract({ response: { data: { detail: 'Validation failed.' } } });
+    expect(msg).toBe('Validation failed.');
+  });
+
+  it('returns the first DRF field-validation error', async () => {
+    const msg = await extract({ response: { data: { weight_kg: ['A valid number is required.'] } } });
+    expect(msg).toBe('A valid number is required.');
+  });
+
+  it('returns a connection message when there is no response (network error)', async () => {
+    const msg = await extract({ message: 'Network Error' });
+    expect(msg).toContain('No se pudo contactar el servidor');
+  });
+
+  it('returns a timeout message when the request was aborted', async () => {
+    const msg = await extract({ code: 'ECONNABORTED', message: 'timeout of 60000ms exceeded' });
+    expect(msg).toContain('tardó demasiado');
+  });
+
+  it('falls back when the body is an HTML error page', async () => {
+    const msg = await extract({ response: { data: '<!DOCTYPE html><html>500</html>' } });
+    expect(msg).toBe(FALLBACK);
+  });
+
+  it('falls back when there is no usable message', async () => {
+    const msg = await extract({ response: { data: {} } });
+    expect(msg).toBe(FALLBACK);
+  });
+});

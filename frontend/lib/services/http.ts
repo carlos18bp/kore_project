@@ -13,6 +13,10 @@ const fallbackBaseUrl = process.env.NODE_ENV === 'development'
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || fallbackBaseUrl,
+  // Safety net: a request must never hang indefinitely and leave a form stuck
+  // on "Guardando…". 60s is well above any normal response (saves are fast now
+  // that the risk-score recompute runs in the background) yet still bounded.
+  timeout: 60_000,
 });
 
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
@@ -55,6 +59,48 @@ api.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+/**
+ * Extrae un mensaje de error legible de una falla de axios.
+ *
+ * Los stores solían leer únicamente `response.data.detail`, por lo que los
+ * errores de validación de campo de DRF (`{campo: [msg]}`), los 5xx sin cuerpo
+ * JSON y los timeouts/cortes de red quedaban en el mensaje genérico — o en
+ * nada. Esta helper cubre esos casos para que el usuario siempre vea por qué
+ * no se guardó, en vez de un botón colgado.
+ */
+export function extractApiError(error: unknown, fallback: string): string {
+  const err = error as AxiosError | undefined;
+
+  // Sin respuesta del servidor: timeout o red caída.
+  if (err && !err.response) {
+    if (err.code === 'ECONNABORTED') {
+      return 'La operación tardó demasiado y se canceló. Verifica tu conexión e inténtalo de nuevo.';
+    }
+    return 'No se pudo contactar el servidor. Verifica tu conexión e inténtalo de nuevo.';
+  }
+
+  const data = err?.response?.data as
+    | { detail?: string }
+    | Record<string, unknown>
+    | string
+    | undefined;
+
+  if (typeof data === 'string' && data.trim() && !data.trim().startsWith('<')) {
+    return data;
+  }
+  if (data && typeof data === 'object') {
+    if (typeof (data as { detail?: string }).detail === 'string') {
+      return (data as { detail: string }).detail;
+    }
+    // Errores de validación de campo de DRF: {weight_kg: ["..."]}.
+    for (const value of Object.values(data)) {
+      if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+      if (typeof value === 'string' && value.trim()) return value;
+    }
+  }
+  return fallback;
+}
 
 /**
  * GET con reintentos ante 429 (rate limit de nginx). El dashboard dispara

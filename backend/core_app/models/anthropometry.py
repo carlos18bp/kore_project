@@ -107,6 +107,9 @@ class AnthropometryEvaluation(TimestampedModel):
 
     class Meta:
         ordering = ('-evaluation_date',)
+        indexes = [
+            models.Index(fields=['customer', '-evaluation_date'], name='anthro_customer_date_idx'),
+        ]
 
     def __str__(self):
         return f"Antropometría #{self.pk} — {self.customer.email} ({self.created_at.date()})"

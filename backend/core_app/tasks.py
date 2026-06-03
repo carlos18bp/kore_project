@@ -14,7 +14,7 @@ from decimal import Decimal
 from django.db import transaction as db_transaction
 from django.utils import timezone
 from huey import crontab
-from huey.contrib.djhuey import db_periodic_task
+from huey.contrib.djhuey import db_periodic_task, db_task
 
 from core_app.models import Notification, Payment, Subscription
 from core_app.services.billing_calendar import bogota_today
@@ -524,3 +524,27 @@ def compute_daily_alerts():
 
     logger.info('compute_daily_alerts: processed=%d errors=%d', processed, errors)
     return {'processed': processed, 'errors': errors}
+
+
+@db_task()
+def recompute_risk_score_task(customer_id):
+    """Reactively recompute one customer's risk score off the request path.
+
+    Enqueued (via transaction.on_commit) by the post_save signal handlers on the
+    evaluation models. The behavioral/clinical signal engines run several ORM
+    queries over the customer's program history; running them inline in the
+    request blocked the HTTP response and made evaluation saves appear to hang.
+    Doing it in the background lets the trainer's save return immediately while
+    the stored ClientRiskScore is refreshed moments later.
+
+    Returns:
+        bool: True if a score was written, False if skipped (no active program).
+    """
+    from core_app.models import User
+    from core_app.services.risk_score_service import recompute_risk_score
+
+    try:
+        customer = User.objects.get(pk=customer_id)
+    except User.DoesNotExist:
+        return False
+    return recompute_risk_score(customer)

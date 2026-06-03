@@ -161,6 +161,9 @@ class PhysicalEvaluation(TimestampedModel):
 
     class Meta:
         ordering = ('-evaluation_date',)
+        indexes = [
+            models.Index(fields=['customer', '-evaluation_date'], name='physeval_customer_date_idx'),
+        ]
 
     def __str__(self):
         return f"Evaluación física #{self.pk} — {self.customer.email} ({self.created_at.date()})"

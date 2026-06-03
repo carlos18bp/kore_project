@@ -1,5 +1,6 @@
 import logging
 
+from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
@@ -28,16 +29,29 @@ def create_customer_profile(sender, instance, created, **kwargs):
 # The daily batch at 06:00 handles those.
 
 def _recompute_for_customer(customer, source: str) -> None:
-    """Run recompute_risk_score and swallow errors so they never break a save."""
-    try:
-        from core_app.services.risk_score_service import recompute_risk_score
-        recompute_risk_score(customer)
-        logger.debug('risk_score: recomputed after %s for customer %s', source, customer.pk)
-    except Exception as exc:
-        logger.exception(
-            'risk_score: recompute failed after %s for customer %s: %s',
-            source, customer.pk, exc,
-        )
+    """Enqueue a background risk-score recompute once the current transaction commits.
+
+    The recompute is deliberately kept OFF the request path: its behavioral/clinical
+    signal engines run several ORM queries over the customer's history, and running
+    them inline blocked the HTTP response long enough that evaluation saves appeared
+    to hang in the trainer UI. ``transaction.on_commit`` guarantees the worker sees
+    the just-saved row (and that nothing is enqueued if the save rolls back).
+    Errors are swallowed so they can never break the triggering save.
+    """
+    customer_id = customer.pk
+
+    def _enqueue():
+        try:
+            from core_app.tasks import recompute_risk_score_task
+            recompute_risk_score_task(customer_id)
+            logger.debug('risk_score: enqueued recompute after %s for customer %s', source, customer_id)
+        except Exception as exc:
+            logger.exception(
+                'risk_score: failed to enqueue recompute after %s for customer %s: %s',
+                source, customer_id, exc,
+            )
+
+    transaction.on_commit(_enqueue)
 
 
 @receiver(post_save, sender='core_app.AnthropometryEvaluation')
