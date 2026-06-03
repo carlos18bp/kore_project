@@ -125,6 +125,9 @@ class PosturometryEvaluation(TimestampedModel):
 
     class Meta:
         ordering = ('-evaluation_date',)
+        indexes = [
+            models.Index(fields=['customer', '-evaluation_date'], name='postur_customer_date_idx'),
+        ]
 
     def __str__(self):
         return f"Posturometría #{self.pk} — {self.customer.email} ({self.created_at.date()})"

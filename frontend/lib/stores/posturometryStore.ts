@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import Cookies from 'js-cookie';
-import { api, getWithRetry } from '@/lib/services/http';
+import { api, getWithRetry, extractApiError } from '@/lib/services/http';
 
 export type SegmentEntry = {
   is_normal: boolean;
@@ -136,9 +136,7 @@ export const usePosturometryStore = create<PosturometryState>((set) => ({
       }));
       return data;
     } catch (err) {
-      const message = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        || 'No se pudo guardar la evaluación postural.';
-      set({ error: message, submitting: false });
+      set({ error: extractApiError(err, 'No se pudo guardar la evaluación postural.'), submitting: false });
       return null;
     }
   },
@@ -190,9 +188,7 @@ export const usePosturometryStore = create<PosturometryState>((set) => ({
       }));
       return data;
     } catch (err) {
-      const message = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        || 'No se pudo actualizar la evaluación postural.';
-      set({ error: message, submitting: false });
+      set({ error: extractApiError(err, 'No se pudo actualizar la evaluación postural.'), submitting: false });
       return null;
     }
   },

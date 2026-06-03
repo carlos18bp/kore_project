@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import Cookies from 'js-cookie';
-import { api, getWithRetry } from '@/lib/services/http';
+import { api, getWithRetry, extractApiError } from '@/lib/services/http';
 
 export type AnthropometryEvaluation = {
   id: number;
@@ -123,9 +123,7 @@ export const useAnthropometryStore = create<AnthropometryState>((set) => ({
       }));
       return data;
     } catch (err) {
-      const message = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        || 'No se pudo guardar la evaluación.';
-      set({ error: message, submitting: false });
+      set({ error: extractApiError(err, 'No se pudo guardar la evaluación.'), submitting: false });
       return null;
     }
   },
@@ -182,9 +180,7 @@ export const useAnthropometryStore = create<AnthropometryState>((set) => ({
       }));
       return data;
     } catch (err) {
-      const message = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        || 'No se pudo actualizar la evaluaci\u00f3n.';
-      set({ error: message, submitting: false });
+      set({ error: extractApiError(err, 'No se pudo actualizar la evaluaci\u00f3n.'), submitting: false });
       return null;
     }
   },
