@@ -2,6 +2,7 @@ export const FlowTags = {
   AUTH_LOGIN: ['@flow:auth-login', '@module:auth', '@priority:P1'],
   AUTH_LOGOUT: ['@flow:auth-logout', '@module:auth', '@priority:P2'],
   AUTH_SESSION_PERSISTENCE: ['@flow:auth-session-persistence', '@module:auth', '@priority:P2'],
+  AUTH_TOKEN_REFRESH: ['@flow:auth-token-refresh', '@module:auth', '@priority:P2'],
   AUTH_REGISTER: ['@flow:auth-register', '@module:auth', '@priority:P1'],
   AUTH_PROTECTED_ROUTES: ['@flow:auth-protected-routes', '@module:auth', '@priority:P2'],
 

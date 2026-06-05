@@ -446,7 +446,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Route: any `(app)` route making an authenticated API call
 - Roles: user
 - Description: When an API call returns 401 because the access token expired, transparently refresh it via /api/auth/token/refresh/ and retry the original request so the user is never bounced mid-session; if refresh is impossible, fall back to clearing auth cookies and routing to /login.
-- E2E Coverage: Missing (no spec exercises the 401 → /auth/token/refresh/ → retry path; auth-persistence.spec.ts only covers the profile-401-clears-state case)
+- E2E Coverage: Covered (frontend/e2e/auth/auth-token-refresh.spec.ts)
 
 **Steps**
 1. Be logged in with a valid kore_refresh cookie but an expired kore_token.
