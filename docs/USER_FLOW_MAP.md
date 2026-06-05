@@ -440,6 +440,24 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Loading state appears during login submission.
 - mapUser falls back to email when user name is missing.
 
+### auth-token-refresh: Token Refresh on Expiry
+- Module: auth
+- Priority: P2
+- Route: any `(app)` route making an authenticated API call
+- Roles: user
+- Description: When an API call returns 401 because the access token expired, transparently refresh it via /api/auth/token/refresh/ and retry the original request so the user is never bounced mid-session; if refresh is impossible, fall back to clearing auth cookies and routing to /login.
+- E2E Coverage: Missing (no spec exercises the 401 → /auth/token/refresh/ → retry path; auth-persistence.spec.ts only covers the profile-401-clears-state case)
+
+**Steps**
+1. Be logged in with a valid kore_refresh cookie but an expired kore_token.
+2. Trigger any authenticated API call (e.g. load /dashboard data); the call returns 401.
+3. The HTTP layer calls POST /api/auth/token/refresh/, stores the new kore_token, and replays the original request, which now succeeds — the user sees their data without re-logging in.
+
+**Branches / Variations**
+- Concurrent 401s share a single in-flight refresh (single-flight) and all retry once it resolves.
+- The refresh and login requests themselves are never retried (no refresh-of-the-refresh loop).
+- Missing kore_refresh cookie or a failed refresh clears kore_token/kore_refresh/kore_user and lets the next hydrate route to /login.
+
 ### auth-protected-routes: Auth Protected Routes
 - Module: auth
 - Priority: P2
