@@ -1,4 +1,5 @@
 from django.urls import path
+from rest_framework_simplejwt.views import TokenRefreshView
 
 from core_app.views import (
     change_password,
@@ -18,6 +19,7 @@ from core_app.views import (
 )
 
 urlpatterns = [
+    path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('pre-register/', pre_register_user, name='pre-register-user'),
     path('verify-registration/', verify_registration, name='verify-registration'),
     path('resend-verification-code/', resend_verification_code, name='resend-verification-code'),

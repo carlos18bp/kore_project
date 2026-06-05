@@ -34,6 +34,16 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
+// Single-flight refresh: a burst of parallel requests that all 401 at once
+// share one refresh round-trip instead of stampeding the refresh endpoint.
+let refreshPromise: Promise<string | null> | null = null;
+
+function dropAuthCookies() {
+  Cookies.remove('kore_token');
+  Cookies.remove('kore_refresh');
+  Cookies.remove('kore_user');
+}
+
 api.interceptors.response.use(
   (response) => {
     // DRF `Response(None)` (and any other 200-with-empty-body) is surfaced by
@@ -45,18 +55,64 @@ api.interceptors.response.use(
     }
     return response;
   },
-  (error: AxiosError) => {
-    // SimpleJWT is configured without a refresh endpoint, so on a real 401
-    // the only recovery is to drop the (now-invalid) auth cookies. The next
-    // hydrate() will see no cookies and the (app) layout will route to /login.
-    // Hard navigations (window.location) are intentionally avoided here so the
-    // current request-bound caller can decide how to surface the failure.
-    if (error.response?.status === 401) {
-      Cookies.remove('kore_token');
-      Cookies.remove('kore_refresh');
-      Cookies.remove('kore_user');
+  async (error: AxiosError) => {
+    const original = error.config as
+      | (InternalAxiosRequestConfig & { _retry?: boolean })
+      | undefined;
+
+    // Only attempt a refresh on a genuine 401 that we haven't already retried,
+    // and never for the refresh/login calls themselves (those 401 legitimately
+    // and must not recurse). Everything else propagates unchanged.
+    if (
+      error.response?.status !== 401 ||
+      !original ||
+      original._retry ||
+      original.url?.includes('/auth/token/refresh/') ||
+      original.url?.includes('/auth/login/')
+    ) {
+      return Promise.reject(error);
     }
-    return Promise.reject(error);
+
+    original._retry = true;
+
+    if (!refreshPromise) {
+      refreshPromise = (async () => {
+        const refresh = Cookies.get('kore_refresh');
+        if (!refresh) return null;
+        try {
+          // Use the bare `axios` (not `api`) so this call skips our own
+          // interceptors and can't trigger a refresh-of-the-refresh loop.
+          const { data } = await axios.post(
+            `${api.defaults.baseURL}/auth/token/refresh/`,
+            { refresh },
+          );
+          const newAccess: string = data.access;
+          // Match the 7d cookie lifetime used elsewhere for kore_token.
+          Cookies.set('kore_token', newAccess, { expires: 7 });
+          return newAccess;
+        } catch {
+          return null;
+        } finally {
+          refreshPromise = null;
+        }
+      })();
+    }
+
+    const newToken = await refreshPromise;
+    if (!newToken) {
+      // Refresh unavailable or rejected: fall back to the original behavior —
+      // drop the (now-invalid) auth cookies so the next hydrate() sees none and
+      // the (app) layout routes to /login.
+      dropAuthCookies();
+      return Promise.reject(error);
+    }
+
+    const headers = original.headers instanceof AxiosHeaders
+      ? original.headers
+      : new AxiosHeaders(original.headers as Record<string, string> | undefined);
+    headers.set('Authorization', `Bearer ${newToken}`);
+    original.headers = headers;
+    return api(original);
   },
 );
 
