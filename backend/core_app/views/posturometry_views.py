@@ -12,7 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core_app.models import Booking, PosturometryEvaluation, User
+from core_app.models import PosturometryEvaluation, User
 from core_app.permissions import IsTrainerRole
 
 
@@ -121,14 +121,12 @@ class TrainerPosturometryListCreateView(APIView):
         if not trainer_profile:
             return Response({'detail': 'No trainer profile.'}, status=status.HTTP_404_NOT_FOUND)
 
-        has_bookings = Booking.objects.filter(
-            trainer=trainer_profile, customer_id=customer_id,
-        ).exists()
-        if not has_bookings:
-            return Response({'detail': 'Cliente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-
         try:
-            customer = User.objects.get(id=customer_id, role=User.Role.CUSTOMER)
+            customer = User.objects.get(
+                id=customer_id,
+                role=User.Role.CUSTOMER,
+                assigned_trainer=trainer_profile,
+            )
         except User.DoesNotExist:
             return Response({'detail': 'Cliente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 

@@ -116,6 +116,74 @@ api.interceptors.response.use(
   },
 );
 
+// Labels en español para errores de campo de DRF. Cuando la API devuelve
+// `{weight_kg: ["..."]}`, el usuario ve "Peso: ..." en vez del nombre técnico.
+const FIELD_LABELS_ES: Record<string, string> = {
+  // Antropometría
+  weight_kg: 'Peso',
+  height_cm: 'Talla',
+  waist_cm: 'Cintura',
+  hip_cm: 'Cadera',
+  perimeters: 'Perímetros',
+  skinfolds: 'Pliegues cutáneos',
+  // Evaluación física
+  squats_reps: 'Sentadillas',
+  pushups_reps: 'Flexiones',
+  plank_seconds: 'Plancha',
+  walk_meters: 'Caminata',
+  unipodal_seconds: 'Equilibrio unipodal',
+  hip_mobility: 'Movilidad de cadera',
+  shoulder_mobility: 'Movilidad de hombro',
+  // Posturometría
+  anterior_data: 'Vista anterior',
+  posterior_data: 'Vista posterior',
+  lateral_right_data: 'Lateral derecho',
+  lateral_left_data: 'Lateral izquierdo',
+  anterior_photo: 'Foto anterior',
+  posterior_photo: 'Foto posterior',
+  lateral_right_photo: 'Foto lateral derecha',
+  lateral_left_photo: 'Foto lateral izquierda',
+  // Generales
+  evaluation_date: 'Fecha de evaluación',
+  notes: 'Notas',
+  recommendations: 'Recomendaciones',
+  email: 'Correo',
+  password: 'Contraseña',
+  first_name: 'Nombre',
+  last_name: 'Apellido',
+  phone: 'Teléfono',
+};
+
+// Traduce los mensajes default de Django/DRF (en inglés) a español.
+function translateValidationMessage(msg: string): string {
+  const patterns: [RegExp, string][] = [
+    [/^Ensure this value is greater than or equal to (.+?)\.?$/i, 'Debe ser mayor o igual a $1.'],
+    [/^Ensure this value is less than or equal to (.+?)\.?$/i, 'Debe ser menor o igual a $1.'],
+    [/^Ensure this value is greater than (.+?)\.?$/i, 'Debe ser mayor a $1.'],
+    [/^Ensure this value is less than (.+?)\.?$/i, 'Debe ser menor a $1.'],
+    [/^Ensure this field has no more than (\d+) characters\.?$/i, 'No puede tener más de $1 caracteres.'],
+    [/^Ensure this field has at least (\d+) characters\.?$/i, 'Debe tener al menos $1 caracteres.'],
+    [/^This field is required\.?$/i, 'Este campo es requerido.'],
+    [/^This field may not be (blank|null|empty)\.?$/i, 'Este campo no puede estar vacío.'],
+    [/^A valid (number|integer|date|time|datetime|email)( string)? is required\.?$/i, 'Valor no válido.'],
+    [/^Enter a valid (date|email|number|integer|URL)\.?$/i, 'Valor no válido.'],
+    [/^Not a valid string\.?$/i, 'Valor no válido.'],
+    [/^"(.+)" is not a valid choice\.?$/i, '"$1" no es una opción válida.'],
+    [/^Date has wrong format\..*$/i, 'El formato de la fecha no es válido.'],
+  ];
+  for (const [re, replacement] of patterns) {
+    if (re.test(msg)) return msg.replace(re, replacement);
+  }
+  return msg;
+}
+
+function labelFor(key: string): string {
+  if (FIELD_LABELS_ES[key]) return FIELD_LABELS_ES[key];
+  // Fallback: convierte snake_case → "Snake case"
+  const pretty = key.replace(/_/g, ' ').trim();
+  return pretty.charAt(0).toUpperCase() + pretty.slice(1);
+}
+
 /**
  * Extrae un mensaje de error legible de una falla de axios.
  *
@@ -147,13 +215,24 @@ export function extractApiError(error: unknown, fallback: string): string {
   }
   if (data && typeof data === 'object') {
     if (typeof (data as { detail?: string }).detail === 'string') {
-      return (data as { detail: string }).detail;
+      return translateValidationMessage((data as { detail: string }).detail);
     }
     // Errores de validación de campo de DRF: {weight_kg: ["..."]}.
-    for (const value of Object.values(data)) {
-      if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
-      if (typeof value === 'string' && value.trim()) return value;
+    const fieldErrors: string[] = [];
+    for (const [key, value] of Object.entries(data)) {
+      // `non_field_errors` se muestra sin etiqueta — no es un campo del form.
+      const isFieldKey = key !== 'non_field_errors';
+      const pushMsg = (raw: string) => {
+        const msg = translateValidationMessage(raw);
+        fieldErrors.push(isFieldKey ? `${labelFor(key)}: ${msg}` : msg);
+      };
+      if (Array.isArray(value)) {
+        for (const item of value) if (typeof item === 'string' && item.trim()) pushMsg(item);
+      } else if (typeof value === 'string' && value.trim()) {
+        pushMsg(value);
+      }
     }
+    if (fieldErrors.length > 0) return fieldErrors.join('\n');
   }
   return fallback;
 }
