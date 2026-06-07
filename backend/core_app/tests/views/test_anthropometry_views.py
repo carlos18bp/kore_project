@@ -77,14 +77,21 @@ def package(db):
 
 @pytest.fixture
 def booking_link(trainer, customer_with_profile, package):
-    """Create a booking linking trainer and customer."""
+    """Create a booking and link the customer to the trainer via `assigned_trainer`.
+
+    Bookings alone no longer grant a trainer access to a customer's evaluation
+    endpoints — `User.assigned_trainer` is now the canonical source of truth.
+    """
     future = FIXED_NOW + timedelta(days=3)
-    return Booking.objects.create(
+    booking = Booking.objects.create(
         customer=customer_with_profile, trainer=trainer,
         package=package,
         starts_at=future, ends_at=future + timedelta(hours=1),
         status=Booking.Status.CONFIRMED,
     )
+    customer_with_profile.assigned_trainer = trainer
+    customer_with_profile.save(update_fields=['assigned_trainer'])
+    return booking
 
 
 @pytest.fixture
@@ -127,8 +134,8 @@ class TestTrainerAnthropometryListCreate:
         assert response.data['bmi'] is not None
         assert response.data['bmi_category'] != ''
 
-    def test_create_returns_404_when_no_booking(self, api_client, trainer, customer_with_profile):
-        """Return 404 when trainer has no bookings with the customer."""
+    def test_create_returns_404_when_customer_not_assigned(self, api_client, trainer, customer_with_profile):
+        """Return 404 when the customer is not assigned to the trainer."""
         api_client.force_authenticate(user=trainer.user)
         url = reverse('trainer-anthropometry-list-create', args=[customer_with_profile.id])
         payload = {'weight_kg': 80, 'height_cm': 180}
@@ -136,15 +143,10 @@ class TestTrainerAnthropometryListCreate:
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    def test_create_returns_400_when_profile_incomplete(self, api_client, trainer, customer_no_profile, package):
+    def test_create_returns_400_when_profile_incomplete(self, api_client, trainer, customer_no_profile):
         """Return 400 when client profile missing sex/dob."""
-        future = FIXED_NOW + timedelta(days=3)
-        Booking.objects.create(
-            customer=customer_no_profile, trainer=trainer,
-            package=package,
-            starts_at=future, ends_at=future + timedelta(hours=1),
-            status=Booking.Status.CONFIRMED,
-        )
+        customer_no_profile.assigned_trainer = trainer
+        customer_no_profile.save(update_fields=['assigned_trainer'])
 
         api_client.force_authenticate(user=trainer.user)
         url = reverse('trainer-anthropometry-list-create', args=[customer_no_profile.id])

@@ -21,15 +21,24 @@ FIXED_BOOKING_NOW = timezone.make_aware(dt(2026, 6, 15, 12, 0, 0))
 
 
 def _make_booking(customer, trainer_profile, *, slot_hours_offset=0):
-    """Create a valid Booking with all required FKs."""
+    """Create a valid Booking with all required FKs and link the customer to the trainer.
+
+    Also sets `assigned_trainer` so the eval views can recognise the customer as
+    belonging to the trainer — that is the canonical link, bookings alone no
+    longer grant access to evaluation endpoints.
+    """
     pkg = Package.objects.create(title='Test', price=10000, sessions_count=4, category='personalizado')
     base = FIXED_BOOKING_NOW + timedelta(hours=slot_hours_offset)
-    return Booking.objects.create(
+    booking = Booking.objects.create(
         customer=customer, package=pkg,
         starts_at=base + timedelta(hours=1),
         ends_at=base + timedelta(hours=2),
         trainer=trainer_profile, status='confirmed',
     )
+    if customer.assigned_trainer_id != trainer_profile.id:
+        customer.assigned_trainer = trainer_profile
+        customer.save(update_fields=['assigned_trainer'])
+    return booking
 
 
 SAMPLE_DATA = {
@@ -115,7 +124,8 @@ class TestTrainerPhysicalEvalListCreate(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.json()), 1)
 
-    def test_create_no_booking_returns_404(self):
+    def test_create_returns_404_when_customer_not_assigned(self):
+        """A customer not assigned to this trainer cannot be evaluated."""
         other_customer = User.objects.create_user(
             email='other@test.com', password='pass1234', role='customer',
         )
