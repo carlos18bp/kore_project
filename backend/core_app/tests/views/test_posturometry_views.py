@@ -20,14 +20,23 @@ FIXED_NOW = datetime(2026, 6, 15, 12, 0, 0, tzinfo=dt_timezone.utc)
 
 
 def _make_booking(customer, trainer_profile):
-    """Create a valid Booking with all required FKs."""
+    """Create a valid Booking and link the customer to the trainer.
+
+    Also sets `assigned_trainer` so the eval views can recognise the customer
+    as belonging to the trainer — bookings alone no longer grant access to
+    evaluation endpoints.
+    """
     pkg = Package.objects.create(title='Test', price=10000, sessions_count=4, category='personalizado')
-    return Booking.objects.create(
+    booking = Booking.objects.create(
         customer=customer, package=pkg,
         starts_at=FIXED_NOW + timedelta(hours=1),
         ends_at=FIXED_NOW + timedelta(hours=2),
         trainer=trainer_profile, status='confirmed',
     )
+    if customer.assigned_trainer_id != trainer_profile.id:
+        customer.assigned_trainer = trainer_profile
+        customer.save(update_fields=['assigned_trainer'])
+    return booking
 
 
 def _seg(is_normal=True, severity=0, sub_fields=None):

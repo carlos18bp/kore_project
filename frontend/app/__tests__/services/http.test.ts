@@ -181,9 +181,28 @@ describe('http service — extractApiError', () => {
     expect(msg).toBe('Validation failed.');
   });
 
-  it('returns the first DRF field-validation error', async () => {
+  it('formats DRF field-validation errors with Spanish label and translation', async () => {
     const msg = await extract({ response: { data: { weight_kg: ['A valid number is required.'] } } });
-    expect(msg).toBe('A valid number is required.');
+    expect(msg).toBe('Peso: Valor no válido.');
+  });
+
+  it('joins multiple DRF field errors with line breaks', async () => {
+    const msg = await extract({
+      response: {
+        data: {
+          weight_kg: ['Ensure this value is greater than or equal to 20.'],
+          height_cm: ['Ensure this value is greater than or equal to 100.'],
+        },
+      },
+    });
+    expect(msg).toBe('Peso: Debe ser mayor o igual a 20.\nTalla: Debe ser mayor o igual a 100.');
+  });
+
+  it('omits the label for non_field_errors', async () => {
+    const msg = await extract({
+      response: { data: { non_field_errors: ['This field is required.'] } },
+    });
+    expect(msg).toBe('Este campo es requerido.');
   });
 
   it('returns a connection message when there is no response (network error)', async () => {

@@ -876,6 +876,7 @@ export default function EvalFisicaTab({ clientId }: { clientId: number }) {
               padding: '12px 16px', borderRadius: 12, marginBottom: 16,
               background: 'rgba(154,5,38,0.06)', border: '1px solid rgba(154,5,38,0.18)',
               fontFamily: 'Montserrat, sans-serif', fontSize: 13, color: '#9A0526',
+              whiteSpace: 'pre-line',
             }}>{error}</div>
           )}
 
