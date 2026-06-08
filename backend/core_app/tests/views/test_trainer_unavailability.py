@@ -71,7 +71,7 @@ class TestUnavailabilityEndpoint:
         assert TrainerUnavailability.objects.filter(trainer=trainer_profile, date=NEXT_DAY_BOGOTA).count() == 1
         TrainerUnavailability.objects.get(trainer=trainer_profile, date=NEXT_DAY_BOGOTA).reason == 'New'
 
-    def test_post_rejects_past_dates(self, api_client, trainer_user):
+    def test_post_rejects_past_dates(self, api_client, trainer_user, trainer_profile):
         api_client.force_authenticate(user=trainer_user)
         url = reverse('trainer-unavailability')
 
@@ -104,7 +104,7 @@ class TestUnavailabilityEndpoint:
         assert response.status_code == status.HTTP_204_NO_CONTENT
         assert not TrainerUnavailability.objects.filter(trainer=trainer_profile, date=NEXT_DAY_BOGOTA).exists()
 
-    def test_delete_unknown_date_returns_404(self, api_client, trainer_user):
+    def test_delete_unknown_date_returns_404(self, api_client, trainer_user, trainer_profile):
         api_client.force_authenticate(user=trainer_user)
         url = reverse('trainer-unavailability')
 

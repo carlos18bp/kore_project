@@ -48,8 +48,11 @@ class AvailabilityView(APIView):
         elif getattr(request.user, 'role', None) == 'trainer':
             trainer = getattr(request.user, 'trainer_profile', None)
             if trainer is None:
+                # Trainer-role user without a profile can't query their own
+                # availability — surface the same hint as the generic case so
+                # the caller knows to pass ?trainer=<id> explicitly.
                 return Response(
-                    {'detail': 'No se encontró perfil de entrenador.'},
+                    {'detail': 'Se requiere el parámetro trainer.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         else:

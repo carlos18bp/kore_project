@@ -220,6 +220,11 @@ class TestTrainerCancelBooking:
         package, subscription,
     ):
         """Trainer is exempt from the customer-facing 24h cancel cutoff."""
+        # Pre-populate sessions_used so the refund stays within the
+        # PositiveIntegerField (>=0) constraint.
+        subscription.sessions_used = 1
+        subscription.save(update_fields=['sessions_used'])
+
         booking = self._booking(
             assigned_customer, package, trainer_profile, subscription,
             starts_at=SOON_STARTS_AT, ends_at=SOON_ENDS_AT,
@@ -233,7 +238,7 @@ class TestTrainerCancelBooking:
         booking.refresh_from_db()
         assert booking.status == Booking.Status.CANCELED
         subscription.refresh_from_db()
-        assert subscription.sessions_used == -1  # was 0; refund -> -1
+        assert subscription.sessions_used == 0  # was 1; refund -> 0
 
     def test_trainer_cannot_cancel_foreign_booking(
         self, api_client, trainer_user, other_trainer_profile, foreign_customer, package,

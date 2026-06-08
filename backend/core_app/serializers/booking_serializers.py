@@ -135,15 +135,14 @@ class BookingSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         request = self.context.get('request')
         actor = getattr(request, 'user', None) if request else None
-        if actor is None or not getattr(actor, 'is_authenticated', False):
-            raise serializers.ValidationError('Autenticación requerida.')
+        is_authenticated = bool(actor) and getattr(actor, 'is_authenticated', False)
 
-        actor_role = getattr(actor, 'role', None)
+        actor_role = getattr(actor, 'role', None) if is_authenticated else None
         is_trainer_actor = actor_role == User.Role.TRAINER
-        is_admin_actor = is_admin_user(actor)
+        is_admin_actor = is_authenticated and is_admin_user(actor)
         payload_customer = attrs.get('customer')
 
-        if is_trainer_actor or is_admin_actor:
+        if is_authenticated and (is_trainer_actor or is_admin_actor):
             if payload_customer is None:
                 raise serializers.ValidationError(
                     {'customer_id': 'Se requiere customer_id cuando un trainer agenda en nombre de un cliente.'}
@@ -161,14 +160,16 @@ class BookingSerializer(serializers.ModelSerializer):
                 attrs['trainer'] = trainer_profile
             min_advance_hours = 0
         else:
-            # Customer flow: actor IS the customer. Ignore any customer_id sent
-            # in the payload to prevent users from booking on behalf of others.
+            # Customer flow (or unauthenticated, which is rejected later in
+            # create()). Ignore any customer_id sent in the payload to prevent
+            # users from booking on behalf of others.
             if actor_role == User.Role.CUSTOMER:
                 assigned = getattr(actor, 'assigned_trainer', None)
                 if assigned is None:
                     raise NoTrainerAssignedException()
                 attrs['trainer'] = assigned
-            attrs['customer'] = actor
+            if is_authenticated:
+                attrs['customer'] = actor
             min_advance_hours = MIN_ADVANCE_HOURS
 
         trainer = attrs.get('trainer')
