@@ -70,6 +70,7 @@ from core_app.views.trainer_client_views import (
     TrainerClientSessionsView,
     TrainerDashboardStatsView,
 )
+from core_app.views.trainer_unavailability_views import TrainerUnavailabilityView
 from core_app.views.trainer_intelligence_views import (
     TrainerRiskDashboardView,
     TrainerClientKPIView,
@@ -142,6 +143,7 @@ urlpatterns = [
     path('trainer/my-clients/<int:customer_id>/fitness-level/', TrainerClientFitnessLevelView.as_view(), name='trainer-client-fitness-level'),
     path('trainer/dashboard-stats/', TrainerDashboardStatsView.as_view(), name='trainer-dashboard-stats'),
     path('trainer/agenda/', TrainerAgendaView.as_view(), name='trainer-agenda'),
+    path('trainer/unavailability/', TrainerUnavailabilityView.as_view(), name='trainer-unavailability'),
     path('trainer/my-clients/<int:customer_id>/anthropometry/', TrainerAnthropometryListCreateView.as_view(), name='trainer-anthropometry-list-create'),
     path('trainer/my-clients/<int:customer_id>/anthropometry/<int:eval_id>/', TrainerAnthropometryDetailView.as_view(), name='trainer-anthropometry-detail'),
     path('my-anthropometry/', ClientAnthropometryListView.as_view(), name='client-anthropometry-list'),

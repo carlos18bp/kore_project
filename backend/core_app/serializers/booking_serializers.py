@@ -5,10 +5,15 @@ from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import APIException
 
-from core_app.models import Booking, Package, ProgramDay, Subscription, TrainerProfile
+from core_app.models import Booking, Package, ProgramDay, Subscription, TrainerProfile, User
+from core_app.permissions import is_admin_user
 from core_app.serializers.package_serializers import PackageSerializer
 from core_app.serializers.trainer_profile_serializers import TrainerProfileSerializer
-from core_app.services.slot_schedule import is_start_time_available, session_window
+from core_app.services.slot_schedule import (
+    MIN_ADVANCE_HOURS,
+    is_start_time_available,
+    session_window,
+)
 
 
 class NoTrainerAssignedException(APIException):
@@ -38,7 +43,11 @@ class BookingSerializer(serializers.ModelSerializer):
     - The customer must have an assigned trainer.
     """
 
-    customer_id = serializers.IntegerField(read_only=True, source='customer.id')
+    customer_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(role=User.Role.CUSTOMER),
+        source='customer',
+        required=False,
+    )
 
     package = PackageSerializer(read_only=True)
     trainer = TrainerProfileSerializer(read_only=True)
@@ -125,13 +134,42 @@ class BookingSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         request = self.context.get('request')
-        customer = getattr(request, 'user', None) if request else None
-        if customer is not None and getattr(customer, 'is_authenticated', False):
-            if getattr(customer, 'role', None) == 'customer':
-                assigned = getattr(customer, 'assigned_trainer', None)
+        actor = getattr(request, 'user', None) if request else None
+        if actor is None or not getattr(actor, 'is_authenticated', False):
+            raise serializers.ValidationError('Autenticación requerida.')
+
+        actor_role = getattr(actor, 'role', None)
+        is_trainer_actor = actor_role == User.Role.TRAINER
+        is_admin_actor = is_admin_user(actor)
+        payload_customer = attrs.get('customer')
+
+        if is_trainer_actor or is_admin_actor:
+            if payload_customer is None:
+                raise serializers.ValidationError(
+                    {'customer_id': 'Se requiere customer_id cuando un trainer agenda en nombre de un cliente.'}
+                )
+            if is_trainer_actor:
+                trainer_profile = getattr(actor, 'trainer_profile', None)
+                if trainer_profile is None:
+                    raise serializers.ValidationError(
+                        {'customer_id': 'El usuario no tiene un perfil de entrenador asociado.'}
+                    )
+                if payload_customer.assigned_trainer_id != trainer_profile.pk:
+                    raise serializers.ValidationError(
+                        {'customer_id': 'Este cliente no está asignado a tu cuenta.'}
+                    )
+                attrs['trainer'] = trainer_profile
+            min_advance_hours = 0
+        else:
+            # Customer flow: actor IS the customer. Ignore any customer_id sent
+            # in the payload to prevent users from booking on behalf of others.
+            if actor_role == User.Role.CUSTOMER:
+                assigned = getattr(actor, 'assigned_trainer', None)
                 if assigned is None:
                     raise NoTrainerAssignedException()
                 attrs['trainer'] = assigned
+            attrs['customer'] = actor
+            min_advance_hours = MIN_ADVANCE_HOURS
 
         trainer = attrs.get('trainer')
         starts_at = attrs.get('starts_at')
@@ -139,7 +177,7 @@ class BookingSerializer(serializers.ModelSerializer):
         if trainer is None:
             raise serializers.ValidationError({'trainer_id': 'Se requiere un entrenador.'})
 
-        if not is_start_time_available(trainer, starts_at):
+        if not is_start_time_available(trainer, starts_at, min_advance_hours=min_advance_hours):
             raise serializers.ValidationError({'starts_at': 'Ese horario no está disponible.'})
 
         attrs['ends_at'] = session_window(trainer, starts_at)[1]
@@ -148,6 +186,12 @@ class BookingSerializer(serializers.ModelSerializer):
         if subscription and subscription.sessions_remaining <= 0:
             raise serializers.ValidationError(
                 {'subscription_id': 'La suscripción no tiene sesiones disponibles.'}
+            )
+        # Defense in depth: when a trainer/admin acts on behalf of a customer,
+        # the subscription must belong to that customer.
+        if subscription and attrs.get('customer') and subscription.customer_id != attrs['customer'].id:
+            raise serializers.ValidationError(
+                {'subscription_id': 'La suscripción no pertenece al cliente.'}
             )
 
         return attrs
@@ -158,17 +202,25 @@ class BookingSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         request = self.context.get('request')
-        customer = getattr(request, 'user', None)
-        if not customer or not customer.is_authenticated:
+        actor = getattr(request, 'user', None)
+        if not actor or not actor.is_authenticated:
             raise serializers.ValidationError('Autenticación requerida.')
 
+        actor_role = getattr(actor, 'role', None)
+        is_trainer_actor = actor_role == User.Role.TRAINER
+        is_admin_actor = is_admin_user(actor)
+        min_advance_hours = 0 if (is_trainer_actor or is_admin_actor) else MIN_ADVANCE_HOURS
+
+        customer = validated_data.pop('customer', None) or actor
         trainer = validated_data['trainer']
         starts_at = validated_data['starts_at']
         subscription = validated_data.get('subscription')
 
         with transaction.atomic():
             TrainerProfile.objects.select_for_update().get(pk=trainer.pk)
-            if not is_start_time_available(trainer, starts_at, now=timezone.now()):
+            if not is_start_time_available(
+                trainer, starts_at, now=timezone.now(), min_advance_hours=min_advance_hours,
+            ):
                 raise serializers.ValidationError(
                     {'starts_at': 'Ese horario ya no está disponible.'}
                 )

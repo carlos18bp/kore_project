@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useTrainerStore } from '@/lib/stores/trainerStore';
+import { useBookingStore } from '@/lib/stores/bookingStore';
 import TabBar from '@/app/components/trainer/TabBar';
 import AdherenceRing from '@/app/components/trainer/AdherenceRing';
 import KPIGrid from '@/app/components/trainer/KPIGrid';
@@ -21,6 +22,7 @@ import EvalParqTab from '@/app/components/trainer/evals/EvalParqTab';
 import NotesTab from '@/app/components/trainer/NotesTab';
 import ResponsiveSheet from '@/app/components/trainer/ResponsiveSheet';
 import ClientNutritionTab from '@/app/components/trainer/ClientNutritionTab';
+import TrainerBookingDialog from '@/app/components/trainer/TrainerBookingDialog';
 
 type TabId =
   | 'resumen' | 'programa'
@@ -105,6 +107,15 @@ function TrainerClientDetailPage() {
   const [resolveSheet, setResolveSheet] = useState<number | null>(null);
   const [resolveNote, setResolveNote] = useState('');
   const [resolveType, setResolveType] = useState<'mark_reviewed' | 'private_note' | 'public_note' | 'schedule_eval'>('mark_reviewed');
+  const [bookingDialog, setBookingDialog] = useState<
+    | { mode: 'create' }
+    | { mode: 'reschedule'; bookingId: number; currentStartsAt: string }
+    | null
+  >(null);
+  const [cancelTarget, setCancelTarget] = useState<{ id: number; starts_at: string } | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const cancelBooking = useBookingStore((s) => s.cancelBooking);
   const sectionRef = useRef<HTMLElement>(null);
   useHeroAnimation(sectionRef);
 
@@ -140,6 +151,28 @@ function TrainerClientDetailPage() {
     if (!clientId) return;
     await sendTrainerMessage(clientId, text, triggerType);
     fetchTrainerMessages(clientId);
+  };
+
+  const handleBookingFlowSuccess = () => {
+    if (!clientId) return;
+    fetchClientDetail(clientId);
+    fetchClientSessions(clientId);
+    fetchClientSessionsFull(clientId);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!cancelTarget) return;
+    setCancelLoading(true);
+    try {
+      const result = await cancelBooking(cancelTarget.id, cancelReason || undefined);
+      if (result) {
+        setCancelTarget(null);
+        setCancelReason('');
+        handleBookingFlowSuccess();
+      }
+    } finally {
+      setCancelLoading(false);
+    }
   };
 
   const handleResolveAlert = async () => {
@@ -222,6 +255,17 @@ function TrainerClientDetailPage() {
                   <span style={{ margin: '0 7px', opacity: 0.45 }}>•</span>
                   <span>{client.stats.completed}/{client.stats.total} sesiones</span>
                 </div>
+
+                {/* Quick action: agendar sesión — always visible regardless of KPI/data state */}
+                <button
+                  onClick={() => setBookingDialog({ mode: 'create' })}
+                  className="mt-3 inline-flex items-center gap-1.5 bg-kore-red text-white rounded-full px-3.5 py-1.5 text-[11px] font-semibold hover:bg-kore-red-dark transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Agendar sesión
+                </button>
               </div>
             </div>
 
@@ -322,15 +366,22 @@ function TrainerClientDetailPage() {
                     </div>
                   )}
 
-                  {/* Recent sessions */}
+                  {/* Sessions */}
                   {clientSessions.length > 0 && (
                     <div className="bg-white/65 rounded-[22px] p-5"
                       style={{ border: '1px solid rgba(103,15,34,0.08)' }}>
                       <p className="font-body text-[10px] font-bold tracking-[0.22em] uppercase mb-3"
                         style={{ color: 'rgba(103,15,34,0.55)' }}>Sesiones recientes</p>
                       <div className="space-y-1">
-                        {clientSessions.slice(0, 4).map(s => (
-                          <SessionRow key={s.id} session={s} />
+                        {clientSessions.slice(0, 6).map(s => (
+                          <SessionRow
+                            key={s.id}
+                            session={s}
+                            onReschedule={(session) => setBookingDialog({
+                              mode: 'reschedule', bookingId: session.id, currentStartsAt: session.starts_at,
+                            })}
+                            onCancel={(session) => setCancelTarget({ id: session.id, starts_at: session.starts_at })}
+                          />
                         ))}
                       </div>
                     </div>
@@ -502,6 +553,89 @@ function TrainerClientDetailPage() {
           onClose={() => { setPostSessionSheet(null); fetchTrainerMessages(clientId); }}
         />
       )}
+
+      {/* ── Booking Dialog (Agendar / Reprogramar) ── */}
+      {bookingDialog && client && bookingDialog.mode === 'create' && client.subscription && (
+        <TrainerBookingDialog
+          mode="create"
+          customerId={clientId}
+          customerName={`${client.first_name} ${client.last_name}`}
+          packageId={client.subscription.package_id}
+          subscriptionId={client.subscription.id}
+          onClose={() => setBookingDialog(null)}
+          onSuccess={handleBookingFlowSuccess}
+        />
+      )}
+      {bookingDialog && client && bookingDialog.mode === 'create' && !client.subscription && (
+        <ResponsiveSheet onClose={() => setBookingDialog(null)}>
+          <div className="px-5 py-6 space-y-3">
+            <p className="font-heading text-[16px] font-semibold text-kore-wine-dark">No se puede agendar</p>
+            <p className="font-body text-[13px] text-kore-wine-dark/55">
+              Este cliente no tiene un plan activo. Pídele que adquiera una suscripción antes de agendar sesiones.
+            </p>
+            <button
+              onClick={() => setBookingDialog(null)}
+              className="w-full bg-kore-red text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-kore-red-dark transition-colors"
+            >
+              Entendido
+            </button>
+          </div>
+        </ResponsiveSheet>
+      )}
+      {bookingDialog && client && bookingDialog.mode === 'reschedule' && (
+        <TrainerBookingDialog
+          mode="reschedule"
+          customerId={clientId}
+          customerName={`${client.first_name} ${client.last_name}`}
+          bookingId={bookingDialog.bookingId}
+          currentStartsAt={bookingDialog.currentStartsAt}
+          onClose={() => setBookingDialog(null)}
+          onSuccess={handleBookingFlowSuccess}
+        />
+      )}
+
+      {/* ── Cancel confirmation ── */}
+      {cancelTarget && (
+        <ResponsiveSheet onClose={() => { if (!cancelLoading) { setCancelTarget(null); setCancelReason(''); } }}>
+          <div className="px-5 py-6 space-y-4">
+            <div>
+              <p className="font-body text-[10px] font-bold tracking-[0.22em] uppercase text-kore-wine-dark/55">Cancelar sesión</p>
+              <p className="font-heading text-[16px] font-semibold text-kore-wine-dark mt-1">
+                {new Date(cancelTarget.starts_at).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}
+              </p>
+              <p className="font-body text-[13px] text-kore-wine-dark/55">
+                {new Date(cancelTarget.starts_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })}
+              </p>
+            </div>
+            <label className="block">
+              <span className="font-body text-[11px] font-semibold text-kore-wine-dark/65">Motivo (opcional)</span>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                rows={3}
+                placeholder="Describe brevemente el motivo de la cancelación…"
+                className="mt-1 w-full rounded-xl border border-kore-wine-dark/15 bg-white px-3 py-2 text-sm text-kore-wine-dark placeholder:text-kore-wine-dark/30 focus:outline-none focus:border-kore-red/40"
+              />
+            </label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setCancelTarget(null); setCancelReason(''); }}
+                disabled={cancelLoading}
+                className="flex-1 bg-white border border-kore-wine-dark/15 text-kore-wine-dark rounded-xl py-2.5 text-sm font-semibold hover:bg-kore-cream transition-colors disabled:opacity-50"
+              >
+                Volver
+              </button>
+              <button
+                onClick={handleConfirmCancel}
+                disabled={cancelLoading}
+                className="flex-1 bg-kore-crimson text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-kore-crimson/90 transition-colors disabled:opacity-50"
+              >
+                {cancelLoading ? 'Cancelando…' : 'Confirmar cancelación'}
+              </button>
+            </div>
+          </div>
+        </ResponsiveSheet>
+      )}
     </section>
   );
 }
@@ -587,9 +721,13 @@ function Spinner() {
 function SessionRow({
   session,
   onMessage,
+  onReschedule,
+  onCancel,
 }: {
   session: { id: number; status: string; package_title: string; starts_at: string | null; ends_at: string | null; notes: string; canceled_reason: string; session_notes_for_customer: string; created_at: string };
   onMessage?: (sessionId: number) => void;
+  onReschedule?: (session: { id: number; starts_at: string }) => void;
+  onCancel?: (session: { id: number; starts_at: string }) => void;
 }) {
   const sc = STATUS_CFG[session.status] ?? { label: session.status, bg: 'bg-gray-100', text: 'text-gray-500' };
   const date = session.starts_at
@@ -598,6 +736,9 @@ function SessionRow({
   const time = session.starts_at
     ? new Date(session.starts_at).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })
     : '';
+  const isUpcoming = !!session.starts_at
+    && new Date(session.starts_at) > new Date()
+    && session.status !== 'canceled';
   return (
     <div className="flex items-center gap-3 px-2 py-2.5 rounded-xl transition-colors"
       style={{ ':hover': { background: 'rgba(103,15,34,0.04)' } } as React.CSSProperties}>
@@ -616,7 +757,25 @@ function SessionRow({
           {date}{time ? ` · ${time}` : ''}
         </p>
       </div>
-      {session.status === 'confirmed' && onMessage && (
+      {isUpcoming && onReschedule && (
+        <button
+          onClick={() => onReschedule({ id: session.id, starts_at: session.starts_at as string })}
+          className="font-body text-[10px] font-bold px-2 py-1 rounded-full active:scale-95 transition-colors flex-shrink-0"
+          style={{ color: '#670F22', background: 'rgba(103,15,34,0.08)' }}
+        >
+          Reprogramar
+        </button>
+      )}
+      {isUpcoming && onCancel && (
+        <button
+          onClick={() => onCancel({ id: session.id, starts_at: session.starts_at as string })}
+          className="font-body text-[10px] font-bold px-2 py-1 rounded-full active:scale-95 transition-colors flex-shrink-0"
+          style={{ color: '#9A0526', background: 'rgba(154,5,38,0.08)' }}
+        >
+          Cancelar
+        </button>
+      )}
+      {!isUpcoming && session.status === 'confirmed' && onMessage && (
         <button onClick={() => onMessage(session.id)}
           className="font-body text-[10px] font-bold px-2 py-1 rounded-full active:scale-95 transition-all flex-shrink-0"
           style={{ color: '#669959', background: 'rgba(168,194,156,0.18)' }}>

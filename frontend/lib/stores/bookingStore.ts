@@ -137,6 +137,7 @@ type BookingState = {
     starts_at: string;
     trainer_id?: number;
     subscription_id?: number;
+    customer_id?: number;
     notes?: string;
   }) => Promise<BookingData | null>;
   cancelBooking: (bookingId: number, reason?: string) => Promise<BookingData | null>;

@@ -84,7 +84,7 @@ function DayTimeline({ sessions }: { sessions: UpcomingSession[] }) {
 }
 
 export default function AgendaCard() {
-  const { agendaSessions, fetchAgendaSessions } = useTrainerStore();
+  const { agendaSessions, fetchAgendaSessions, blockedDates, fetchBlockedDates } = useTrainerStore();
   const [view, setView] = useState<View>('dia');
   // refDate: día de referencia para semana/mes. Para "día" siempre es hoy.
   const [refDate, setRefDate] = useState<Date>(() => new Date());
@@ -107,7 +107,8 @@ export default function AgendaCard() {
 
   useEffect(() => {
     fetchAgendaSessions(range.from, range.to);
-  }, [range.from, range.to, fetchAgendaSessions]);
+    fetchBlockedDates(range.from, range.to);
+  }, [range.from, range.to, fetchAgendaSessions, fetchBlockedDates]);
 
   const selectedDaySessions = useMemo(() => {
     if (!selectedDay) return [];
@@ -149,6 +150,7 @@ export default function AgendaCard() {
         <AgendaWeekStrip
           weekStart={startOfWeek(refDate)}
           sessions={agendaSessions}
+          blockedDates={blockedDates}
           onSelectDay={setSelectedDay}
           onPrev={() => setRefDate((d) => addDays(startOfWeek(d), -7))}
           onNext={() => setRefDate((d) => addDays(startOfWeek(d), 7))}
@@ -158,6 +160,7 @@ export default function AgendaCard() {
         <AgendaMonthGrid
           monthRef={refDate}
           sessions={agendaSessions}
+          blockedDates={blockedDates}
           onSelectDay={setSelectedDay}
           onPrev={() => setRefDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
           onNext={() => setRefDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}

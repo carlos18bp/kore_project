@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.db import models as db_models, transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers as drf_serializers, status, viewsets
 from rest_framework.decorators import action
@@ -18,6 +19,18 @@ from core_app.services.email_service import (
 )
 
 CANCEL_RESCHEDULE_HOURS = 24
+
+
+def _is_trainer_owner(user, booking):
+    """True iff ``user`` is the trainer assigned to ``booking``.
+
+    Trainers and admins can manage a client's bookings without the
+    customer-facing 16h / 24h windows; this helper centralizes the check.
+    """
+    trainer_profile = getattr(user, 'trainer_profile', None)
+    if trainer_profile is None or booking.trainer_id is None:
+        return False
+    return booking.trainer_id == trainer_profile.pk
 
 
 def _maybe_create_guest_booking(host_booking):
@@ -92,8 +105,15 @@ class BookingViewSet(viewsets.ModelViewSet):
         qs = Booking.objects.select_related(
             'customer', 'package', 'trainer__user', 'subscription',
         )
-        if not is_admin_user(self.request.user):
-            qs = qs.filter(customer=self.request.user)
+        user = self.request.user
+        if not is_admin_user(user):
+            # Customers see their own bookings; trainers also see bookings
+            # of clients they're assigned to (so they can cancel/reschedule).
+            trainer_profile = getattr(user, 'trainer_profile', None)
+            if trainer_profile is not None:
+                qs = qs.filter(Q(customer=user) | Q(trainer=trainer_profile))
+            else:
+                qs = qs.filter(customer=user)
 
         subscription_param = self.request.query_params.get('subscription')
         if subscription_param:
@@ -142,12 +162,14 @@ class BookingViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        time_until = booking.starts_at - timezone.now()
-        if time_until < timedelta(hours=CANCEL_RESCHEDULE_HOURS):
-            return Response(
-                {'detail': f'No puedes cancelar con menos de {CANCEL_RESCHEDULE_HOURS} horas de anticipación.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        bypass_window = is_admin_user(request.user) or _is_trainer_owner(request.user, booking)
+        if not bypass_window:
+            time_until = booking.starts_at - timezone.now()
+            if time_until < timedelta(hours=CANCEL_RESCHEDULE_HOURS):
+                return Response(
+                    {'detail': f'No puedes cancelar con menos de {CANCEL_RESCHEDULE_HOURS} horas de anticipación.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         with transaction.atomic():
             booking.status = Booking.Status.CANCELED
@@ -189,12 +211,14 @@ class BookingViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        time_until = booking.starts_at - timezone.now()
-        if time_until < timedelta(hours=CANCEL_RESCHEDULE_HOURS):
-            return Response(
-                {'detail': f'No puedes reprogramar con menos de {CANCEL_RESCHEDULE_HOURS} horas de anticipación.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        bypass_window = is_admin_user(request.user) or _is_trainer_owner(request.user, booking)
+        if not bypass_window:
+            time_until = booking.starts_at - timezone.now()
+            if time_until < timedelta(hours=CANCEL_RESCHEDULE_HOURS):
+                return Response(
+                    {'detail': f'No puedes reprogramar con menos de {CANCEL_RESCHEDULE_HOURS} horas de anticipación.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         raw = request.data.get('new_starts_at')
         if not raw:
@@ -212,7 +236,11 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         with transaction.atomic():
             TrainerProfile.objects.select_for_update().get(pk=booking.trainer_id)
-            if not is_start_time_available(booking.trainer, new_starts_at, now=timezone.now()):
+            new_slot_advance_hours = 0 if bypass_window else None
+            check_kwargs = {'now': timezone.now()}
+            if new_slot_advance_hours is not None:
+                check_kwargs['min_advance_hours'] = new_slot_advance_hours
+            if not is_start_time_available(booking.trainer, new_starts_at, **check_kwargs):
                 return Response(
                     {'detail': 'El nuevo horario no está disponible.'},
                     status=status.HTTP_400_BAD_REQUEST,

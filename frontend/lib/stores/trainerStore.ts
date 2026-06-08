@@ -33,6 +33,7 @@ export type ClientProfile = {
 
 export type ClientSubscription = {
   id: number;
+  package_id: number;
   package_title: string;
   package_price: string;
   package_currency: string;
@@ -271,12 +272,19 @@ type TrainerState = {
   statsLoading: boolean;
   agendaSessions: UpcomingSession[];
   agendaLoading: boolean;
+  /** Set of YYYY-MM-DD (Bogota) dates the trainer has blocked from new bookings. */
+  blockedDates: Set<string>;
+  blockedReasons: Record<string, string>;
+  blockedDatesLoading: boolean;
   error: string;
   fetchClients: () => Promise<void>;
   fetchClientDetail: (id: number) => Promise<void>;
   fetchClientSessions: (id: number) => Promise<void>;
   fetchDashboardStats: () => Promise<void>;
   fetchAgendaSessions: (from: string, to: string) => Promise<void>;
+  fetchBlockedDates: (dateFrom?: string, dateTo?: string) => Promise<void>;
+  blockDate: (date: string, reason?: string) => Promise<boolean>;
+  unblockDate: (date: string) => Promise<boolean>;
 
   // Intelligence Center
   riskDashboard: RiskDashboard | null;
@@ -397,6 +405,9 @@ export const useTrainerStore = create<TrainerState>((set, get) => ({
   statsLoading: false,
   agendaSessions: [],
   agendaLoading: false,
+  blockedDates: new Set<string>(),
+  blockedReasons: {},
+  blockedDatesLoading: false,
   error: '',
 
   // Intelligence Center state
@@ -478,6 +489,70 @@ export const useTrainerStore = create<TrainerState>((set, get) => ({
       set({ agendaSessions: data.sessions ?? [], agendaLoading: false });
     } catch {
       set({ agendaSessions: [], agendaLoading: false });
+    }
+  },
+
+  fetchBlockedDates: async (dateFrom?: string, dateTo?: string) => {
+    set({ blockedDatesLoading: true });
+    try {
+      const params: Record<string, string> = {};
+      if (dateFrom) params.date_from = dateFrom;
+      if (dateTo) params.date_to = dateTo;
+      const { data } = await api.get('/trainer/unavailability/', {
+        headers: authHeaders(),
+        params,
+      });
+      const dates: string[] = data?.dates ?? [];
+      const details: { date: string; reason: string }[] = data?.details ?? [];
+      const reasonsMap: Record<string, string> = {};
+      details.forEach((d) => { if (d.reason) reasonsMap[d.date] = d.reason; });
+      set({
+        blockedDates: new Set(dates),
+        blockedReasons: reasonsMap,
+        blockedDatesLoading: false,
+      });
+    } catch {
+      set({ blockedDatesLoading: false });
+    }
+  },
+
+  blockDate: async (date, reason) => {
+    try {
+      await api.post(
+        '/trainer/unavailability/',
+        { date, ...(reason ? { reason } : {}) },
+        { headers: authHeaders() },
+      );
+      set((s) => {
+        const next = new Set(s.blockedDates);
+        next.add(date);
+        return {
+          blockedDates: next,
+          blockedReasons: { ...s.blockedReasons, ...(reason ? { [date]: reason } : {}) },
+        };
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
+  unblockDate: async (date) => {
+    try {
+      await api.delete('/trainer/unavailability/', {
+        headers: authHeaders(),
+        params: { date },
+      });
+      set((s) => {
+        const next = new Set(s.blockedDates);
+        next.delete(date);
+        const reasons = { ...s.blockedReasons };
+        delete reasons[date];
+        return { blockedDates: next, blockedReasons: reasons };
+      });
+      return true;
+    } catch {
+      return false;
     }
   },
 
