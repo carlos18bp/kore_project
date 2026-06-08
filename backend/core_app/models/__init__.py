@@ -1,6 +1,7 @@
 from .user import User
 from .package import Package
 from .trainer_profile import TrainerProfile
+from .trainer_unavailability import TrainerUnavailability
 from .subscription import Subscription
 from .booking import Booking
 from .payment import Payment
@@ -37,6 +38,7 @@ __all__ = [
     'User',
     'Package',
     'TrainerProfile',
+    'TrainerUnavailability',
     'Subscription',
     'Booking',
     'Payment',

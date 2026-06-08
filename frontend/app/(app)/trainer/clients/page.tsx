@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTrainerStore, type ClientRiskScore, type RiskLevel } from '@/lib/stores/trainerStore';
+import TrainerBookingDialog from '@/app/components/trainer/TrainerBookingDialog';
+import ResponsiveSheet from '@/app/components/trainer/ResponsiveSheet';
 
 type FilterChip = 'all' | 'alto' | 'medio' | 'bajo' | 'eval' | 'no_session';
 
@@ -40,10 +42,28 @@ export default function TrainerClientsPage() {
     riskDashboard, riskDashboardLoading, fetchRiskDashboard,
     comparativeMetrics, fetchComparativeMetrics,
     dashboardStats, fetchDashboardStats,
+    fetchClientDetail, selectedClient,
   } = useTrainerStore();
 
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterChip>('all');
+  const [agendaTarget, setAgendaTarget] = useState<{ id: number; name: string } | null>(null);
+  const [agendaLoading, setAgendaLoading] = useState(false);
+
+  const handleAgendarClick = async (e: React.MouseEvent, client: { id: number; first_name: string; last_name: string }) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const name = `${client.first_name} ${client.last_name}`;
+    setAgendaTarget({ id: client.id, name });
+    setAgendaLoading(true);
+    try {
+      await fetchClientDetail(client.id);
+    } finally {
+      setAgendaLoading(false);
+    }
+  };
+
+  const agendaClient = agendaTarget && selectedClient?.id === agendaTarget.id ? selectedClient : null;
 
   useEffect(() => {
     fetchClients();
@@ -178,10 +198,18 @@ export default function TrainerClientsPage() {
                 const score = risk?.kore_score;
 
                 return (
-                  <button
+                  <div
                     key={c.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => router.push(`/trainer/clients/client?id=${c.id}`)}
-                    className="w-full text-left bg-white/65 rounded-[22px] p-4 active:scale-[0.98] transition-transform duration-100"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        router.push(`/trainer/clients/client?id=${c.id}`);
+                      }
+                    }}
+                    className="w-full text-left bg-white/65 rounded-[22px] p-4 active:scale-[0.98] transition-transform duration-100 cursor-pointer"
                     style={{ border: '1px solid rgba(103,15,34,0.08)', boxShadow: '0 2px 12px -8px rgba(45,15,26,0.10)' }}
                   >
                     {/* Top row */}
@@ -199,6 +227,16 @@ export default function TrainerClientsPage() {
                         <p className="font-body text-[11px] truncate" style={{ color: 'rgba(103,15,34,0.45)' }}>
                           {c.active_package ?? 'Sin programa'}
                         </p>
+                        <button
+                          onClick={(e) => handleAgendarClick(e, c)}
+                          className="mt-1.5 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 font-body text-[10px] font-bold transition-colors active:scale-95"
+                          style={{ color: '#670F22', background: 'rgba(103,15,34,0.08)' }}
+                        >
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.4} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                          </svg>
+                          Agendar
+                        </button>
                       </div>
                       {rc && (
                         <span className="flex-shrink-0 px-2 py-0.5 rounded-full font-body text-[10px] font-bold"
@@ -232,7 +270,7 @@ export default function TrainerClientsPage() {
                         </p>
                       </div>
                     )}
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -371,12 +409,24 @@ export default function TrainerClientsPage() {
                             )}
                           </td>
 
-                          {/* Arrow */}
+                          {/* Acciones */}
                           <td className="px-3 py-3">
-                            <svg className="w-4 h-4" style={{ color: 'rgba(103,15,34,0.25)' }}
-                              fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                            </svg>
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={(e) => handleAgendarClick(e, c)}
+                                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-body text-[10px] font-bold transition-colors active:scale-95"
+                                style={{ color: '#670F22', background: 'rgba(103,15,34,0.08)' }}
+                              >
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.4} stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                </svg>
+                                Agendar
+                              </button>
+                              <svg className="w-4 h-4" style={{ color: 'rgba(103,15,34,0.25)' }}
+                                fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                              </svg>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -388,6 +438,44 @@ export default function TrainerClientsPage() {
           </>
         )}
       </div>
+
+      {/* ── Quick-action booking dialog (lazy-fetched client detail) ── */}
+      {agendaTarget && agendaLoading && !agendaClient && (
+        <ResponsiveSheet onClose={() => setAgendaTarget(null)}>
+          <div className="px-5 py-8 flex flex-col items-center gap-3">
+            <div className="animate-spin h-6 w-6 border-2 rounded-full"
+              style={{ borderColor: 'rgba(103,15,34,0.15)', borderTopColor: '#670F22' }} />
+            <p className="font-body text-[12px] text-kore-wine-dark/55">Cargando datos del cliente…</p>
+          </div>
+        </ResponsiveSheet>
+      )}
+      {agendaTarget && agendaClient && agendaClient.subscription && (
+        <TrainerBookingDialog
+          mode="create"
+          customerId={agendaTarget.id}
+          customerName={agendaTarget.name}
+          packageId={agendaClient.subscription.package_id}
+          subscriptionId={agendaClient.subscription.id}
+          onClose={() => setAgendaTarget(null)}
+          onSuccess={() => { fetchDashboardStats(); }}
+        />
+      )}
+      {agendaTarget && agendaClient && !agendaClient.subscription && (
+        <ResponsiveSheet onClose={() => setAgendaTarget(null)}>
+          <div className="px-5 py-6 space-y-3">
+            <p className="font-heading text-[16px] font-semibold text-kore-wine-dark">No se puede agendar</p>
+            <p className="font-body text-[13px] text-kore-wine-dark/55">
+              {agendaTarget.name} no tiene un plan activo. Pídele que adquiera una suscripción antes de agendar sesiones.
+            </p>
+            <button
+              onClick={() => setAgendaTarget(null)}
+              className="w-full bg-kore-red text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-kore-red-dark transition-colors"
+            >
+              Entendido
+            </button>
+          </div>
+        </ResponsiveSheet>
+      )}
     </section>
   );
 }

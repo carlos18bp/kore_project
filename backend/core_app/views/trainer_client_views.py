@@ -208,6 +208,7 @@ class TrainerClientDetailView(APIView):
             },
             'subscription': {
                 'id': active_sub.id,
+                'package_id': active_sub.package.id,
                 'package_title': active_sub.package.title,
                 'package_price': str(active_sub.package.price),
                 'package_currency': active_sub.package.currency,

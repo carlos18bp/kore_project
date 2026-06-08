@@ -6,6 +6,7 @@ import { dateKey, sessionsByDay } from '@/lib/utils/agendaDates';
 type Props = {
   monthRef: Date; // cualquier fecha dentro del mes visible
   sessions: UpcomingSession[];
+  blockedDates?: Set<string>;
   onSelectDay: (date: Date) => void;
   onPrev: () => void;
   onNext: () => void;
@@ -16,6 +17,7 @@ const WEEKDAY_HEADERS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 export default function AgendaMonthGrid({
   monthRef,
   sessions,
+  blockedDates,
   onSelectDay,
   onPrev,
   onNext,
@@ -74,24 +76,42 @@ export default function AgendaMonthGrid({
           const key = dateKey(day);
           const count = byDay.get(key)?.length ?? 0;
           const isToday = key === todayKey;
+          const isBlocked = blockedDates?.has(key) ?? false;
           return (
             <button
               key={key}
               type="button"
               data-testid={`month-day-${dayNum}`}
               onClick={() => onSelectDay(day)}
+              aria-label={isBlocked ? `${dayNum} (día bloqueado)` : `${dayNum}`}
               className={`relative aspect-square rounded-lg flex flex-col items-center justify-center transition-colors ${
-                isToday
-                  ? 'bg-kore-crimson/10 text-kore-crimson font-bold'
-                  : 'text-kore-wine-dark hover:bg-kore-wine-dark/5'
+                isBlocked
+                  ? 'bg-kore-wine-dark/8 text-kore-wine-dark/45'
+                  : isToday
+                    ? 'bg-kore-crimson/10 text-kore-crimson font-bold'
+                    : 'text-kore-wine-dark hover:bg-kore-wine-dark/5'
               }`}
             >
-              <span className="font-body text-[12px] font-semibold">{dayNum}</span>
-              {count > 0 && (
+              <span
+                className={`font-body text-[12px] font-semibold ${
+                  isBlocked ? 'line-through decoration-[1.5px]' : ''
+                }`}
+              >
+                {dayNum}
+              </span>
+              {count > 0 && !isBlocked && (
                 <span
                   data-testid="month-day-dot"
                   className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-kore-crimson"
                 />
+              )}
+              {isBlocked && (
+                <span
+                  data-testid="month-day-blocked"
+                  className="absolute bottom-1 right-1 text-[8px] text-kore-wine-dark/55"
+                >
+                  ⊘
+                </span>
               )}
             </button>
           );

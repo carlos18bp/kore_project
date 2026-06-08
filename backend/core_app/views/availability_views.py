@@ -7,7 +7,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core_app.models import TrainerProfile
-from core_app.services.slot_schedule import BUSINESS_TZ, compute_available_start_times
+from core_app.permissions import is_admin_user
+from core_app.services.slot_schedule import (
+    BUSINESS_TZ,
+    MIN_ADVANCE_HOURS,
+    compute_available_start_times,
+)
 
 
 class AvailabilityView(APIView):
@@ -40,6 +45,16 @@ class AvailabilityView(APIView):
             trainer = getattr(request.user, 'assigned_trainer', None)
             if trainer is None:
                 return Response({})
+        elif getattr(request.user, 'role', None) == 'trainer':
+            trainer = getattr(request.user, 'trainer_profile', None)
+            if trainer is None:
+                # Trainer-role user without a profile can't query their own
+                # availability — surface the same hint as the generic case so
+                # the caller knows to pass ?trainer=<id> explicitly.
+                return Response(
+                    {'detail': 'Se requiere el parámetro trainer.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         else:
             return Response(
                 {'detail': 'Se requiere el parámetro trainer.'},
@@ -79,8 +94,22 @@ class AvailabilityView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Trainers querying their own availability (and admins) are exempt
+        # from the customer-facing 16h advance cutoff: they can manually book
+        # for a client at any biz-hour slot, not just ≥16h ahead.
+        trainer_profile = getattr(request.user, 'trainer_profile', None)
+        actor_is_target_trainer = (
+            trainer_profile is not None and trainer_profile.pk == trainer.pk
+        )
+        min_advance_hours = (
+            0
+            if actor_is_target_trainer or is_admin_user(request.user)
+            else MIN_ADVANCE_HOURS
+        )
+
         available = compute_available_start_times(
-            trainer, date_from, date_to + timedelta(days=1), now=timezone.now(),
+            trainer, date_from, date_to + timedelta(days=1),
+            now=timezone.now(), min_advance_hours=min_advance_hours,
         )
         result = {
             str(day): [dt.isoformat() for dt in starts]
