@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useId } from 'react';
+import { useEffect, useState, useCallback, useId, useMemo } from 'react';
 import {
   usePosturometryStore,
   type PosturometryFormData,
@@ -916,6 +916,14 @@ export default function EvalPosturTab({ clientId }: { clientId: number }) {
   const cur = FORM_VIEWS.find(v => v.key === activeView)!;
   const viewValues = isEditing ? form[activeView] as Record<string, string> : {};
 
+  const curFile = form[cur.photoKey] as File | null;
+  const photoPreview = useMemo(
+    () => (curFile ? URL.createObjectURL(curFile) : null),
+    [curFile],
+  );
+  useEffect(() => () => { if (photoPreview) URL.revokeObjectURL(photoPreview); }, [photoPreview]);
+  const savedPhoto = editMode === 'edit' && latest ? getViewPhoto(latest, activeView) : null;
+
   return (
     <div>
       <FormHero
@@ -1008,6 +1016,7 @@ export default function EvalPosturTab({ clientId }: { clientId: number }) {
               <div className="grid grid-cols-1 sm:grid-cols-[220px_1fr]" style={{ gap: 20 }}>
                 <PhotoSlot
                   label={`Foto vista ${cur.label.toLowerCase()}`}
+                  currentUrl={photoPreview ?? savedPhoto}
                   onFile={f => setForm(p => ({ ...p, [cur.photoKey]: f }))}
                 />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
