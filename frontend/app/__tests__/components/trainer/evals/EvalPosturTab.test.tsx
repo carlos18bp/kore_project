@@ -94,6 +94,27 @@ describe('EvalPosturTab', () => {
     expect(screen.getByDisplayValue('2026-04-04')).toBeInTheDocument();
   });
 
+  it('shows a preview of the selected photo in the photo slot', () => {
+    const createObjectURL = jest.fn(() => 'blob:mock-preview');
+    const revokeObjectURL = jest.fn();
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
+    setupStore({ evaluations: [] });
+
+    const { container } = render(<EvalPosturTab clientId={CLIENT_ID} />);
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Registrar primera evaluación' }));
+    });
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['photo'], 'anterior.png', { type: 'image/png' });
+    act(() => {
+      fireEvent.change(fileInput, { target: { files: [file] } });
+    });
+
+    expect(createObjectURL).toHaveBeenCalledWith(file);
+    expect(container.querySelector('img[src="blob:mock-preview"]')).toBeInTheDocument();
+    expect(screen.queryByText('Subir foto · arrastrar o clic')).not.toBeInTheDocument();
+  });
+
   it('calls fullUpdateEvaluation and returns to the results view when an edit is saved', async () => {
     const { fullUpdateEvaluation } = setupStore({ evaluations: [makeEval()] });
 
