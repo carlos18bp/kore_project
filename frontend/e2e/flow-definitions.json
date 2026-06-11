@@ -337,7 +337,7 @@
       "module": "assessments",
       "priority": "P2",
       "roles": ["user"],
-      "description": "View posturometry evaluation results with regional indicators and recommendations."
+      "description": "View posturometry evaluation results with regional indicators, recommendations, and a before/after photo compare lightbox with tap-to-zoom."
     },
     "customer-pending-assessments": {
       "name": "Pending Assessments",

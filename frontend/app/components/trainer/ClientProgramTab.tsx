@@ -696,7 +696,7 @@ function ProgramHeader({
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 10, flexShrink: 0, alignSelf: 'flex-start', marginTop: 4 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, maxWidth: '100%', alignSelf: 'flex-start', marginTop: 4 }}>
           {isDraft ? (
             <>
               <button onClick={onDelete}

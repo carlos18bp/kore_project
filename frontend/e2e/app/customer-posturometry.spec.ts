@@ -108,6 +108,37 @@ test.describe('Customer Posturometry Page', { tag: [...FlowTags.CUSTOMER_POSTURO
     await expect(page.getByText(/Tu entrenador realizará tu primera evaluación de postura/)).toBeVisible();
   });
 
+  test('opens the photo compare lightbox, zooms with a tap and closes with Escape', async ({ page }) => {
+    const previousEvaluation = {
+      ...fakeEvaluation,
+      id: 2,
+      evaluation_date: '2025-12-01',
+      created_at: '2025-12-01T10:00:00Z',
+      anterior_photo: '/images/tree.png?registro=anterior-previo',
+    };
+    const currentEvaluation = {
+      ...fakeEvaluation,
+      id: 1,
+      anterior_photo: '/images/tree.png?registro=anterior-actual',
+    };
+    await goToPosturometryWithData(page, [currentEvaluation, previousEvaluation]);
+
+    await page.getByRole('button', { name: 'Comparar fotos en grande' }).first().click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText('Inicial', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('Última', { exact: true })).toBeVisible();
+
+    const latestPhoto = dialog.getByRole('img', { name: 'Última' });
+    await expect(latestPhoto).toHaveCSS('cursor', 'zoom-in');
+    await latestPhoto.click();
+    await expect(latestPhoto).toHaveCSS('cursor', 'zoom-out');
+
+    await page.keyboard.press('Escape');
+    await expect(dialog).not.toBeVisible();
+  });
+
   test('shows the before/after timeline section once two evaluations exist', async ({ page }) => {
     const previousEvaluation = {
       ...fakeEvaluation,

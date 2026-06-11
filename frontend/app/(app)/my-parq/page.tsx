@@ -268,8 +268,8 @@ function Hero({ assessment }: { assessment: ParqAssessment }) {
             . {c.story}
           </p>
 
-          <div className="grid grid-cols-3 gap-3 mt-6">
-            <div style={{ padding: '14px 16px', borderRadius: 14, background: 'rgba(20,5,12,0.30)', border: '1px solid rgba(231,200,160,0.20)' }}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-6">
+            <div className="max-sm:col-span-2" style={{ padding: '14px 16px', borderRadius: 14, background: 'rgba(20,5,12,0.30)', border: '1px solid rgba(231,200,160,0.20)' }}>
               <p className="text-[9px] font-bold uppercase" style={{ letterSpacing: '0.20em', color: KORE.gold }}>Respuestas afirmativas</p>
               <div className="flex items-baseline gap-1.5 mt-1">
                 <span className="font-heading font-semibold leading-none tabular-nums" style={{ color: KORE.ivory, fontSize: 36 }}>{yesCount}</span>
@@ -327,9 +327,8 @@ function QuestionsList({ assessment }: { assessment: ParqAssessment }) {
           return (
             <div
               key={q.key}
-              className="grid items-start gap-4"
+              className="grid items-start gap-x-4 gap-y-2 grid-cols-[32px_minmax(0,1fr)_96px]"
               style={{
-                gridTemplateColumns: '32px 1fr 96px',
                 padding: '14px 16px',
                 borderRadius: 14,
                 background: yes ? 'rgba(229,201,122,0.10)' : 'rgba(255,255,255,0.65)',
@@ -337,12 +336,12 @@ function QuestionsList({ assessment }: { assessment: ParqAssessment }) {
               }}
             >
               <span className="font-heading text-[11px] font-semibold" style={{ color: 'rgba(103,15,34,0.45)', letterSpacing: '0.18em' }}>0{i + 1}</span>
-              <div className="min-w-0">
+              <div className="min-w-0 max-sm:col-span-3 max-sm:order-last">
                 <p className="text-[13px] leading-[1.55]" style={{ color: '#3A2128' }}>{q.text}</p>
                 <p className="text-[11px] mt-1" style={{ color: 'rgba(103,15,34,0.5)' }}>{q.detail}</p>
               </div>
               <div
-                className="grid grid-cols-2 overflow-hidden self-start"
+                className="grid grid-cols-2 overflow-hidden self-start max-sm:col-start-3"
                 style={{
                   borderRadius: 8,
                   background: 'rgba(103,15,34,0.05)',

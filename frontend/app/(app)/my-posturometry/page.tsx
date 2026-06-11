@@ -2,9 +2,11 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { Maximize2 } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { usePosturometryStore, type PosturometryEvaluation } from '@/lib/stores/posturometryStore';
 import TrainerNoteHero from '@/app/components/shared/TrainerNoteHero';
+import PhotoCompareLightbox, { type LightboxPhoto } from '@/app/components/shared/PhotoCompareLightbox';
 
 /* ──────────────────────────────────────────────────────────────────────────
  *  Constants — palette, copy, helpers
@@ -354,7 +356,7 @@ function RadarChart({
 
 /* Photo with japandi grid overlay + corner registration marks */
 function PhotoFrame({
-  src, label, sublabel, dim = false, height, className,
+  src, label, sublabel, dim = false, height, className, onExpand,
 }: {
   src: string | null;
   label: string;
@@ -362,6 +364,7 @@ function PhotoFrame({
   dim?: boolean;
   height?: number;
   className?: string;
+  onExpand?: () => void;
 }) {
   const sizeStyle = height !== undefined ? { height } : { height: '100%' };
   if (!src) {
@@ -384,11 +387,13 @@ function PhotoFrame({
   return (
     <div
       className={`relative overflow-hidden ${className ?? ''}`}
+      onClick={onExpand}
       style={{
         borderRadius: 18,
         background: '#1A0A11',
         ...sizeStyle,
         boxShadow: '0 8px 24px -10px rgba(45,15,26,0.4), inset 0 0 0 1px rgba(231,200,160,0.18)',
+        cursor: onExpand ? 'zoom-in' : undefined,
       }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -421,21 +426,37 @@ function PhotoFrame({
           <circle key={k as string} cx={x as number} cy={y as number} r="0.5" fill={KORE.gold} opacity="0.55" />
         ))}
       </svg>
-      <div
-        className="absolute"
-        style={{
-          top: 14, left: 16, padding: '5px 12px', borderRadius: 999,
-          background: 'rgba(20,5,10,0.55)',
-          backdropFilter: 'blur(8px)',
-          border: '1px solid rgba(231,200,160,0.30)',
-        }}
-      >
-        <span className="text-[10px] font-bold uppercase" style={{ letterSpacing: '0.18em', color: KORE.gold }}>{label}</span>
-      </div>
-      {sublabel && (
-        <div className="absolute" style={{ bottom: 14, left: 16, right: 16 }}>
-          <span className="font-heading text-[13px] font-semibold" style={{ color: KORE.ivory, letterSpacing: '0.04em' }}>{sublabel}</span>
+      {/* label + sublabel anchored to the bottom so they never cover the face */}
+      <div className="absolute flex flex-col items-start gap-1.5" style={{ bottom: 14, left: 16, right: 16 }}>
+        <div
+          style={{
+            padding: '5px 12px', borderRadius: 999, maxWidth: '100%',
+            background: 'rgba(20,5,10,0.55)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(231,200,160,0.30)',
+          }}
+        >
+          <span className="text-[10px] font-bold uppercase block truncate" style={{ letterSpacing: '0.18em', color: KORE.gold }}>{label}</span>
         </div>
+        {sublabel && (
+          <span className="font-heading text-[13px] font-semibold" style={{ color: KORE.ivory, letterSpacing: '0.04em' }}>{sublabel}</span>
+        )}
+      </div>
+      {onExpand && (
+        <button
+          type="button"
+          aria-label={`Ampliar foto — ${label}`}
+          onClick={(e) => { e.stopPropagation(); onExpand(); }}
+          className="absolute grid place-items-center active:scale-95 transition-all duration-100"
+          style={{
+            top: 12, right: 12, width: 34, height: 34, borderRadius: 999, cursor: 'zoom-in',
+            background: 'rgba(20,5,10,0.55)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(231,200,160,0.30)',
+          }}
+        >
+          <Maximize2 size={15} strokeWidth={2} color={KORE.gold} />
+        </button>
       )}
     </div>
   );
@@ -470,6 +491,23 @@ function Hero({
   const gB = band(latestG);
   const fB = first && firstG !== null ? band(firstG) : null;
   const delta = first && firstG !== null ? firstG - latestG : null; // positive = improved
+
+  const [showLightbox, setShowLightbox] = useState(false);
+  const lightboxPhotos: LightboxPhoto[] = [];
+  if (first?.anterior_photo) {
+    lightboxPhotos.push({
+      src: first.anterior_photo,
+      label: 'Inicial',
+      sublabel: `${formatDate(first.evaluation_date || first.created_at)} · Global ${num(first.global_index)?.toFixed(2) ?? '—'}`,
+    });
+  }
+  if (latest.anterior_photo) {
+    lightboxPhotos.push({
+      src: latest.anterior_photo,
+      label: 'Última',
+      sublabel: `${formatDate(latest.evaluation_date || latest.created_at)} · Global ${latestG.toFixed(2)}`,
+    });
+  }
 
   return (
     <div
@@ -593,14 +631,40 @@ function Hero({
               sublabel={first ? `Global ${num(first.global_index)?.toFixed(2) ?? '—'}` : undefined}
               dim
               height={420}
+              onExpand={first?.anterior_photo ? () => setShowLightbox(true) : undefined}
             />
             <PhotoFrame
               src={latest.anterior_photo ?? null}
               label="Última"
               sublabel={`Global ${latestG.toFixed(2)}`}
               height={420}
+              onExpand={latest.anterior_photo ? () => setShowLightbox(true) : undefined}
             />
           </div>
+          {lightboxPhotos.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowLightbox(true)}
+              className="flex items-center justify-center gap-2 w-full active:scale-95 transition-all duration-100"
+              style={{
+                padding: '13px 16px', borderRadius: 14, cursor: 'pointer',
+                background: 'rgba(255,233,220,0.08)',
+                border: '1px solid rgba(231,200,160,0.30)',
+              }}
+            >
+              <Maximize2 size={15} strokeWidth={2} color={KORE.gold} />
+              <span className="text-[11px] font-bold uppercase" style={{ letterSpacing: '0.16em', color: KORE.ivory }}>
+                {lightboxPhotos.length > 1 ? 'Comparar fotos en grande' : 'Ver foto en grande'}
+              </span>
+            </button>
+          )}
+          {showLightbox && (
+            <PhotoCompareLightbox
+              photos={lightboxPhotos}
+              title={lightboxPhotos.length > 1 ? 'Vista anterior · Antes y después' : 'Vista anterior'}
+              onClose={() => setShowLightbox(false)}
+            />
+          )}
           {first && delta !== null && delta > 0.05 && (
             <div style={{ padding: '12px 16px', borderRadius: 12, background: 'rgba(168,194,156,0.12)', border: '1px solid rgba(168,194,156,0.30)' }}>
               <p className="text-[12px] leading-[1.55]" style={{ color: KORE.sageSoft }}>
@@ -928,6 +992,14 @@ function ViewSection({
   const meta = VIEW_META[viewKey];
   const photoLatest = getViewPhoto(latest, viewKey);
   const photoFirst = first ? getViewPhoto(first, viewKey) : null;
+  const [showLightbox, setShowLightbox] = useState(false);
+  const lightboxPhotos: LightboxPhoto[] = [];
+  if (photoFirst && first) {
+    lightboxPhotos.push({ src: photoFirst, label: 'Inicial', sublabel: formatDate(first.evaluation_date || first.created_at) });
+  }
+  if (photoLatest) {
+    lightboxPhotos.push({ src: photoLatest, label: 'Última', sublabel: formatDate(latest.evaluation_date || latest.created_at) });
+  }
   const observation = getViewObservation(latest, viewKey);
   const findings = latest.findings?.[viewKey] ?? [];
   const functional = getFunctionalSegments(latest, viewKey);
@@ -994,6 +1066,7 @@ function ViewSection({
             sublabel={meta.label}
             dim
             className="h-72 md:h-96 lg:h-[520px] md:order-1 lg:order-1"
+            onExpand={photoFirst ? () => setShowLightbox(true) : undefined}
           />
         )}
         <div
@@ -1012,8 +1085,34 @@ function ViewSection({
           label={`Última · ${formatDate(latest.evaluation_date || latest.created_at)}`}
           sublabel={meta.label}
           className={`h-72 md:h-96 lg:h-[520px] ${first ? 'md:order-2 lg:order-3' : ''}`}
+          onExpand={photoLatest ? () => setShowLightbox(true) : undefined}
         />
       </div>
+
+      {lightboxPhotos.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowLightbox(true)}
+          className="flex items-center justify-center gap-2 w-full mt-5 active:scale-95 transition-all duration-100"
+          style={{
+            padding: '13px 16px', borderRadius: 14, cursor: 'pointer',
+            background: 'rgba(103,15,34,0.05)',
+            border: '1px solid rgba(103,15,34,0.12)',
+          }}
+        >
+          <Maximize2 size={15} strokeWidth={2} color={KORE.wineDark} />
+          <span className="text-[11px] font-bold uppercase" style={{ letterSpacing: '0.16em', color: KORE.wineDark }}>
+            {lightboxPhotos.length > 1 ? 'Comparar fotos en grande' : 'Ver foto en grande'}
+          </span>
+        </button>
+      )}
+      {showLightbox && (
+        <PhotoCompareLightbox
+          photos={lightboxPhotos}
+          title={lightboxPhotos.length > 1 ? `${meta.label} · Antes y después` : meta.label}
+          onClose={() => setShowLightbox(false)}
+        />
+      )}
     </div>
   );
 }
