@@ -1084,12 +1084,15 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 2. View global posture score and regional breakdowns (head, shoulders, spine, pelvis, lower limbs).
 3. Expand region cards for educational content and recommendations.
 4. View progress timeline if multiple evaluations exist.
+5. Open the photo compare lightbox via the "Comparar fotos en grande" button or the expand icon on any photo; tap a photo to zoom in/out; close with Escape, the close button, or the backdrop.
 
 **Branches / Variations**
 - No evaluations shows empty state.
 - Color-coded indicators include orange in addition to green/yellow/red.
 - Regional cards with GSAP accordion animations.
 - Trainer recommendations override defaults when available.
+- With a single photo the compare button reads "Ver foto en grande" and the lightbox shows one pane.
+- Photo labels (Inicial/Última) render at the bottom edge of each frame so they never cover the subject's face.
 
 ### customer-pending-assessments: Pending Assessments
 - Module: assessments
