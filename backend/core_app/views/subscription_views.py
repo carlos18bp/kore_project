@@ -419,6 +419,10 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         Admin users receive all subscriptions.  Customers receive their own
         subscriptions plus any active guest subscription they have been
         accepted into.
+
+        This returns the FULL scope (every term) so that retrieve / patch /
+        renew / delete can resolve any subscription id. The ``list`` action
+        collapses this to one canonical membership per customer for display.
         """
         qs = Subscription.objects.select_related('customer', 'package').all()
         if is_admin_user(self.request.user):
@@ -437,48 +441,44 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
                 qs = qs.filter(status=status_filter)
             if category_filter in {'personalizado', 'semi_personalizado', 'terapeutico'}:
                 qs = qs.filter(package__category=category_filter)
-            qs = qs.distinct()
-            # Collapse to ONE canonical subscription per customer: the active
-            # one if present, otherwise the most recently created. Past terms
-            # remain in the DB and surface via the renewal-history timeline.
-            canonical_ids: dict[int, int] = {}
-            best_rank: dict[int, tuple] = {}
-            for sub in qs.order_by('-created_at'):
-                rank = (
-                    1 if sub.status == Subscription.Status.ACTIVE else 0,
-                    sub.created_at.timestamp(),
-                )
-                if sub.customer_id not in best_rank or rank > best_rank[sub.customer_id]:
-                    best_rank[sub.customer_id] = rank
-                    canonical_ids[sub.customer_id] = sub.id
-            return (
-                Subscription.objects
-                .select_related('customer', 'package')
-                .filter(id__in=list(canonical_ids.values()))
-                .order_by('-created_at')
-            )
-        # Guest subscriptions the user was accepted into (genuinely separate).
-        guest_qs = qs.filter(
-            guest_link__guest=self.request.user,
-            guest_link__status=SubscriptionGuest.STATUS_ACCEPTED,
+            return qs.distinct()
+        return qs.filter(
+            Q(customer=self.request.user) |
+            Q(guest_link__guest=self.request.user, guest_link__status=SubscriptionGuest.STATUS_ACCEPTED)
         ).distinct()
-        # The user's OWN membership collapses to one canonical row: active if
-        # present, else most recent. Past own terms surface via renewal-history.
-        own_qs = qs.filter(customer=self.request.user).order_by('-created_at')
-        own_canonical = (
-            own_qs.filter(status=Subscription.Status.ACTIVE).first()
-            or own_qs.first()
-        )
-        keep_ids = list(guest_qs.values_list('id', flat=True))
-        if own_canonical:
-            keep_ids.append(own_canonical.id)
-        return (
+
+    def list(self, request, *args, **kwargs):
+        """List subscriptions collapsed to ONE canonical membership per customer.
+
+        For each customer, the canonical row is the active one if present,
+        otherwise the most recently created. Past terms remain in the DB and
+        surface via the renewal-history timeline. For a customer viewing their
+        own page, this naturally keeps one own membership plus any guest
+        subscription (the guest row belongs to a different customer_id).
+        """
+        queryset = self.get_queryset()
+        canonical_ids: dict[int, int] = {}
+        best_rank: dict[int, tuple] = {}
+        for sub in queryset.order_by('-created_at'):
+            rank = (
+                1 if sub.status == Subscription.Status.ACTIVE else 0,
+                sub.created_at.timestamp(),
+            )
+            if sub.customer_id not in best_rank or rank > best_rank[sub.customer_id]:
+                best_rank[sub.customer_id] = rank
+                canonical_ids[sub.customer_id] = sub.id
+        canonical_qs = (
             Subscription.objects
             .select_related('customer', 'package')
-            .filter(id__in=keep_ids)
+            .filter(id__in=list(canonical_ids.values()))
             .order_by('-created_at')
-            .distinct()
         )
+        page = self.paginate_queryset(canonical_qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(canonical_qs, many=True)
+        return Response(serializer.data)
 
     @action(detail=False, methods=['get'], url_path='category-counts')
     def category_counts(self, request):
