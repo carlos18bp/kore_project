@@ -16,8 +16,9 @@ from django.utils import timezone
 from huey import crontab
 from huey.contrib.djhuey import db_periodic_task, db_task
 
-from core_app.models import Notification, Payment, Subscription
+from core_app.models import Notification, Payment, Subscription, SubscriptionRenewal
 from core_app.services.billing_calendar import bogota_today
+from core_app.services.renewal_history_service import record_renewal
 from core_app.services.email_service import (
     send_payment_receipt,
     send_subscription_expiry_reminder,
@@ -123,12 +124,14 @@ def _bill_subscription(sub):
         if txn_status == 'APPROVED':
             leftover = max(sub.sessions_total - sub.sessions_used, 0)
             rollover = min(leftover, MAX_ROLLOVER_SESSIONS)
+            new_period_start = timezone.now()
+            new_period_end = new_period_start + timedelta(days=package.validity_days)
             sub.next_billing_date = sub.next_billing_date + timedelta(
                 days=package.validity_days
             )
             sub.sessions_total = package.sessions_count + rollover
             sub.sessions_used = 0
-            sub.expires_at = timezone.now() + timedelta(days=package.validity_days)
+            sub.expires_at = new_period_end
             sub.save(
                 update_fields=[
                     'next_billing_date',
@@ -136,6 +139,16 @@ def _bill_subscription(sub):
                     'sessions_total',
                     'expires_at',
                 ]
+            )
+
+            record_renewal(
+                subscription=sub,
+                kind=SubscriptionRenewal.Kind.AUTOMATIC,
+                period_start=new_period_start,
+                period_end=new_period_end,
+                sessions_granted=sub.sessions_total,
+                package=package,
+                payment=payment,
             )
 
             Notification.objects.create(

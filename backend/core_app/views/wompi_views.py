@@ -18,11 +18,12 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from core_app.models import Payment, PaymentIntent, Subscription, User, WompiEvent
+from core_app.models import Payment, PaymentIntent, Subscription, SubscriptionRenewal, User, WompiEvent
 
 TERMINAL_TXN_STATUSES = frozenset({'APPROVED', 'DECLINED', 'ERROR', 'VOIDED'})
 from core_app.services.billing_calendar import bogota_today
 from core_app.services.email_service import send_payment_receipt, send_welcome_email
+from core_app.services.renewal_history_service import record_renewal
 from core_app.services.wompi_service import (
     generate_integrity_signature,
     verify_event_checksum,
@@ -356,6 +357,16 @@ def _resolve_payment_intent(intent, txn_status, payment_method_type=''):
                         'wompi_reference': locked_intent.reference,
                         'payment_source_id': locked_intent.payment_source_id,
                     },
+                )
+
+                record_renewal(
+                    subscription=subscription,
+                    kind=SubscriptionRenewal.Kind.INITIAL,
+                    period_start=now,
+                    period_end=subscription.expires_at,
+                    sessions_granted=subscription.sessions_total,
+                    package=package,
+                    payment=payment,
                 )
 
                 locked_intent.status = PaymentIntent.Status.APPROVED

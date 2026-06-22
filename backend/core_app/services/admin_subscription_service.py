@@ -27,7 +27,8 @@ from typing import Optional
 from django.db import transaction
 from django.utils import timezone
 
-from core_app.models import Payment, Subscription
+from core_app.models import Payment, Subscription, SubscriptionRenewal
+from core_app.services.renewal_history_service import record_renewal
 
 
 ALLOWED_OFFLINE_METHODS = {
@@ -76,7 +77,7 @@ def create_subscription_for_admin(
         payment_method_type='',
     )
 
-    Payment.objects.create(
+    payment = Payment.objects.create(
         subscription=subscription,
         customer=customer,
         status=Payment.Status.CONFIRMED,
@@ -90,6 +91,18 @@ def create_subscription_for_admin(
             notes=notes,
             extra={'package_id': package.pk},
         ),
+    )
+
+    record_renewal(
+        subscription=subscription,
+        kind=SubscriptionRenewal.Kind.INITIAL,
+        period_start=starts_at,
+        period_end=expires_at,
+        sessions_granted=subscription.sessions_total,
+        package=package,
+        payment=payment,
+        actor_email=getattr(actor, 'email', '') or '',
+        note=notes,
     )
 
     return subscription
@@ -129,7 +142,7 @@ def evolve_subscription_for_admin(
     current_subscription.sessions_total = new_package.sessions_count
     current_subscription.save(update_fields=['package', 'sessions_total', 'updated_at'])
 
-    Payment.objects.create(
+    payment = Payment.objects.create(
         subscription=current_subscription,
         customer=current_subscription.customer,
         status=Payment.Status.CONFIRMED,
@@ -148,6 +161,18 @@ def evolve_subscription_for_admin(
                 'to_package_title': new_package.title,
             },
         ),
+    )
+
+    record_renewal(
+        subscription=current_subscription,
+        kind=SubscriptionRenewal.Kind.PLAN_CHANGE,
+        period_start=current_subscription.starts_at,
+        period_end=current_subscription.expires_at,
+        sessions_granted=current_subscription.sessions_total,
+        package=new_package,
+        payment=payment,
+        actor_email=getattr(actor, 'email', '') or '',
+        note=notes,
     )
 
     return current_subscription
