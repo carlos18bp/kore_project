@@ -15,10 +15,13 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from django.db.models import Count, ProtectedError, Q
 
-from core_app.models import Package, Payment, PaymentIntent, Subscription, SubscriptionGuest, User
+from core_app.models import Package, Payment, PaymentIntent, Subscription, SubscriptionGuest, SubscriptionRenewal, User
 from core_app.permissions import is_admin_user
 from core_app.serializers import UserSerializer
 from core_app.serializers.subscription_serializers import AdminSubscriptionSerializer, SubscriptionSerializer
+from core_app.serializers.renewal_history_serializers import RenewalHistoryItemSerializer
+from core_app.services.renewal_history_service import build_renewal_timeline, record_renewal
+from core_app.services.slot_schedule import MAX_ROLLOVER_SESSIONS
 from core_app.serializers.wompi_serializers import (
     CheckoutPreparationSerializer,
     PaymentIntentStatusSerializer,
@@ -434,11 +437,48 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
                 qs = qs.filter(status=status_filter)
             if category_filter in {'personalizado', 'semi_personalizado', 'terapeutico'}:
                 qs = qs.filter(package__category=category_filter)
-            return qs.distinct()
-        return qs.filter(
-            Q(customer=self.request.user) |
-            Q(guest_link__guest=self.request.user, guest_link__status=SubscriptionGuest.STATUS_ACCEPTED)
+            qs = qs.distinct()
+            # Collapse to ONE canonical subscription per customer: the active
+            # one if present, otherwise the most recently created. Past terms
+            # remain in the DB and surface via the renewal-history timeline.
+            canonical_ids: dict[int, int] = {}
+            best_rank: dict[int, tuple] = {}
+            for sub in qs.order_by('-created_at'):
+                rank = (
+                    1 if sub.status == Subscription.Status.ACTIVE else 0,
+                    sub.created_at.timestamp(),
+                )
+                if sub.customer_id not in best_rank or rank > best_rank[sub.customer_id]:
+                    best_rank[sub.customer_id] = rank
+                    canonical_ids[sub.customer_id] = sub.id
+            return (
+                Subscription.objects
+                .select_related('customer', 'package')
+                .filter(id__in=list(canonical_ids.values()))
+                .order_by('-created_at')
+            )
+        # Guest subscriptions the user was accepted into (genuinely separate).
+        guest_qs = qs.filter(
+            guest_link__guest=self.request.user,
+            guest_link__status=SubscriptionGuest.STATUS_ACCEPTED,
         ).distinct()
+        # The user's OWN membership collapses to one canonical row: active if
+        # present, else most recent. Past own terms surface via renewal-history.
+        own_qs = qs.filter(customer=self.request.user).order_by('-created_at')
+        own_canonical = (
+            own_qs.filter(status=Subscription.Status.ACTIVE).first()
+            or own_qs.first()
+        )
+        keep_ids = list(guest_qs.values_list('id', flat=True))
+        if own_canonical:
+            keep_ids.append(own_canonical.id)
+        return (
+            Subscription.objects
+            .select_related('customer', 'package')
+            .filter(id__in=keep_ids)
+            .order_by('-created_at')
+            .distinct()
+        )
 
     @action(detail=False, methods=['get'], url_path='category-counts')
     def category_counts(self, request):
@@ -454,7 +494,7 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         rows = (
             Subscription.objects
             .values('package__category')
-            .annotate(total=Count('id'))
+            .annotate(total=Count('customer_id', distinct=True))
         )
         for row in rows:
             category = row['package__category']
@@ -1270,50 +1310,70 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='admin-renew')
     def admin_renew(self, request, pk=None):
-        """Manually renew a subscription as a cash payment. Admin-only.
+        """Manually renew a subscription in place as a cash payment. Admin-only.
 
-        Creates a new active Subscription and a CASH Payment record,
-        then marks the original subscription as expired.
-        Returns 403 for non-admin callers.
+        Extends the SAME subscription (no new row is created): reactivates it,
+        pushes ``expires_at`` by the package validity, rolls over remaining
+        sessions, records a CASH ``Payment`` and a ``SubscriptionRenewal``
+        history row. Only allowed when the subscription is expired or canceled.
+        Returns 403 for non-admin callers, 400 if the sub is still active.
         """
         if not is_admin_user(request.user):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
-        old_sub = self.get_object()
+        sub = self.get_object()
+        if sub.status not in (
+            Subscription.Status.EXPIRED,
+            Subscription.Status.CANCELED,
+        ):
+            return Response(
+                {'detail': 'Sólo se puede renovar una suscripción expirada o cancelada.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        package = sub.package
         now = timezone.now()
+        period_end = now + timedelta(days=package.validity_days)
+        leftover = max(sub.sessions_total - sub.sessions_used, 0)
+        rollover = min(leftover, MAX_ROLLOVER_SESSIONS)
 
-        new_sub = Subscription.objects.create(
-            customer=old_sub.customer,
-            package=old_sub.package,
-            sessions_total=old_sub.package.sessions_count,
-            sessions_used=0,
-            status=Subscription.Status.ACTIVE,
-            starts_at=now,
-            expires_at=now + timedelta(days=old_sub.package.validity_days),
-            is_recurring=False,
-        )
+        with transaction.atomic():
+            payment = Payment.objects.create(
+                subscription=sub,
+                customer=sub.customer,
+                status=Payment.Status.CONFIRMED,
+                amount=package.price,
+                currency=package.currency,
+                provider=Payment.Provider.CASH,
+                confirmed_at=now,
+                metadata={'renewed_by_admin': request.user.email},
+            )
 
-        if old_sub.status != Subscription.Status.EXPIRED:
-            old_sub.status = Subscription.Status.EXPIRED
-            old_sub.save(update_fields=['status', 'updated_at'])
+            sub.status = Subscription.Status.ACTIVE
+            sub.starts_at = now
+            sub.expires_at = period_end
+            sub.sessions_total = package.sessions_count + rollover
+            sub.sessions_used = 0
+            sub.billing_failed_at = None
+            sub.save(update_fields=[
+                'status', 'starts_at', 'expires_at',
+                'sessions_total', 'sessions_used', 'billing_failed_at', 'updated_at',
+            ])
 
-        Payment.objects.create(
-            subscription=new_sub,
-            customer=old_sub.customer,
-            status=Payment.Status.CONFIRMED,
-            amount=old_sub.package.price,
-            currency=old_sub.package.currency,
-            provider=Payment.Provider.CASH,
-            confirmed_at=now,
-            metadata={
-                'renewed_from_subscription_id': old_sub.pk,
-                'renewed_by_admin': request.user.email,
-            },
-        )
+            record_renewal(
+                subscription=sub,
+                kind=SubscriptionRenewal.Kind.MANUAL,
+                period_start=now,
+                period_end=period_end,
+                sessions_granted=sub.sessions_total,
+                package=package,
+                payment=payment,
+                actor_email=request.user.email,
+            )
 
         return Response(
-            self.get_serializer(new_sub, context={'request': request}).data,
-            status=status.HTTP_201_CREATED,
+            self.get_serializer(sub, context={'request': request}).data,
+            status=status.HTTP_200_OK,
         )
 
     @action(detail=True, methods=['delete'], url_path='admin-delete')
@@ -1532,4 +1592,18 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         subscription = self.get_object()
         payments = Payment.objects.filter(subscription=subscription).order_by('-created_at')
         serializer = SubscriptionPaymentHistorySerializer(payments, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='renewal-history')
+    def renewal_history(self, request, pk=None):
+        """Return the full renewal timeline for the subscription's customer.
+
+        Combines append-only SubscriptionRenewal records with legacy
+        subscription rows (those with no records) into one period timeline,
+        newest first. Access is gated by ``get_object`` (admins see any;
+        customers see their own / accepted guest subscriptions).
+        """
+        subscription = self.get_object()
+        timeline = build_renewal_timeline(subscription.customer)
+        serializer = RenewalHistoryItemSerializer(timeline, many=True)
         return Response(serializer.data)
