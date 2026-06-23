@@ -447,16 +447,15 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
             Q(guest_link__guest=self.request.user, guest_link__status=SubscriptionGuest.STATUS_ACCEPTED)
         ).distinct()
 
-    def list(self, request, *args, **kwargs):
-        """List subscriptions collapsed to ONE canonical membership per customer.
+    @staticmethod
+    def _canonical_subscription_ids(queryset):
+        """Collapse a subscription queryset to one canonical id per customer.
 
-        For each customer, the canonical row is the active one if present,
-        otherwise the most recently created. Past terms remain in the DB and
-        surface via the renewal-history timeline. For a customer viewing their
-        own page, this naturally keeps one own membership plus any guest
-        subscription (the guest row belongs to a different customer_id).
+        The canonical row is the active one if present, otherwise the most
+        recently created. Past terms remain in the DB and surface via the
+        renewal-history timeline. Used by both ``list`` and ``category_counts``
+        so the category tab totals match the rows actually shown.
         """
-        queryset = self.get_queryset()
         canonical_ids: dict[int, int] = {}
         best_rank: dict[int, tuple] = {}
         for sub in queryset.order_by('-created_at'):
@@ -467,10 +466,23 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
             if sub.customer_id not in best_rank or rank > best_rank[sub.customer_id]:
                 best_rank[sub.customer_id] = rank
                 canonical_ids[sub.customer_id] = sub.id
+        return list(canonical_ids.values())
+
+    def list(self, request, *args, **kwargs):
+        """List subscriptions collapsed to ONE canonical membership per customer.
+
+        For each customer, the canonical row is the active one if present,
+        otherwise the most recently created. Past terms remain in the DB and
+        surface via the renewal-history timeline. For a customer viewing their
+        own page, this naturally keeps one own membership plus any guest
+        subscription (the guest row belongs to a different customer_id).
+        """
+        queryset = self.get_queryset()
+        canonical_ids = self._canonical_subscription_ids(queryset)
         canonical_qs = (
             Subscription.objects
             .select_related('customer', 'package')
-            .filter(id__in=list(canonical_ids.values()))
+            .filter(id__in=canonical_ids)
             .order_by('-created_at')
         )
         page = self.paginate_queryset(canonical_qs)
@@ -482,19 +494,25 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='category-counts')
     def category_counts(self, request):
-        """Return total subscription counts per package category (admin only).
+        """Return canonical-membership counts per package category (admin only).
 
         Lets the admin subscriptions screen show real totals on the category
-        tabs upfront, instead of only the count for the active filter.
+        tabs upfront, instead of only the count for the active filter. Counts
+        the SAME canonical membership the collapsed list shows (one per
+        customer), so the tab totals match the rows actually displayed.
         """
         if not is_admin_user(request.user):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         counts = {'semi_personalizado': 0, 'personalizado': 0, 'terapeutico': 0}
+        canonical_ids = self._canonical_subscription_ids(
+            Subscription.objects.select_related('package').all()
+        )
         rows = (
             Subscription.objects
+            .filter(id__in=canonical_ids)
             .values('package__category')
-            .annotate(total=Count('customer_id', distinct=True))
+            .annotate(total=Count('id'))
         )
         for row in rows:
             category = row['package__category']

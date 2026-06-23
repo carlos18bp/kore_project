@@ -227,7 +227,7 @@ export const useAdminSubscriptionStore = create<AdminSubscriptionState>((set, ge
       const { data } = await api.get(`/subscriptions/${id}/renewal-history/`, {
         headers: authHeaders(),
       });
-      return data as RenewalHistoryItem[];
+      return Array.isArray(data) ? (data as RenewalHistoryItem[]) : [];
     } catch {
       return [];
     }

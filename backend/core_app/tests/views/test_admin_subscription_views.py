@@ -174,14 +174,19 @@ def test_patch_forbidden_for_trainer(api_client, trainer, active_sub):
 # ── admin-renew ──────────────────────────────────────────────────────────────
 
 @pytest.mark.django_db
-def test_admin_renew_creates_new_active_subscription(api_client, admin_user, expired_sub):
+def test_admin_renew_reactivates_in_place(api_client, admin_user, expired_sub):
+    """Manual renewal extends the SAME subscription in place (no new row)."""
     api_client.force_authenticate(user=admin_user)
+    before = Subscription.objects.count()
     url = reverse('subscription-admin-renew', kwargs={'pk': expired_sub.pk})
     resp = api_client.post(url, {}, format='json')
-    assert resp.status_code == status.HTTP_201_CREATED
+    assert resp.status_code == status.HTTP_200_OK
+    assert resp.data['id'] == expired_sub.pk
     assert resp.data['status'] == 'active'
     assert resp.data['sessions_used'] == 0
     assert resp.data['sessions_total'] == expired_sub.package.sessions_count
+    # No new subscription row is created — it is the same membership.
+    assert Subscription.objects.count() == before
 
 
 @pytest.mark.django_db
@@ -189,22 +194,37 @@ def test_admin_renew_creates_cash_payment(api_client, admin_user, expired_sub):
     api_client.force_authenticate(user=admin_user)
     url = reverse('subscription-admin-renew', kwargs={'pk': expired_sub.pk})
     resp = api_client.post(url, {}, format='json')
-    assert resp.status_code == status.HTTP_201_CREATED
-    new_sub_id = resp.data['id']
-    payment = Payment.objects.filter(subscription_id=new_sub_id).first()
+    assert resp.status_code == status.HTTP_200_OK
+    # The payment is recorded on the SAME subscription that was renewed.
+    payment = Payment.objects.filter(subscription_id=expired_sub.pk).first()
     assert payment is not None
     assert payment.provider == Payment.Provider.CASH
     assert payment.status == Payment.Status.CONFIRMED
-    assert 'renewed_from_subscription_id' in payment.metadata
+    assert 'renewed_by_admin' in payment.metadata
 
 
 @pytest.mark.django_db
-def test_admin_renew_marks_old_subscription_expired(api_client, admin_user, active_sub):
+def test_admin_renew_records_manual_renewal_history(api_client, admin_user, expired_sub):
+    """A manual renewal appends a SubscriptionRenewal history row."""
+    api_client.force_authenticate(user=admin_user)
+    url = reverse('subscription-admin-renew', kwargs={'pk': expired_sub.pk})
+    api_client.post(url, {}, format='json')
+    expired_sub.refresh_from_db()
+    assert expired_sub.status == Subscription.Status.ACTIVE
+    renewal = expired_sub.renewals.first()
+    assert renewal is not None
+    assert renewal.kind == 'manual'
+
+
+@pytest.mark.django_db
+def test_admin_renew_rejects_active_subscription(api_client, admin_user, active_sub):
+    """Renewal is only allowed once a subscription is expired or canceled."""
     api_client.force_authenticate(user=admin_user)
     url = reverse('subscription-admin-renew', kwargs={'pk': active_sub.pk})
-    api_client.post(url, {}, format='json')
+    resp = api_client.post(url, {}, format='json')
+    assert resp.status_code == status.HTTP_400_BAD_REQUEST
     active_sub.refresh_from_db()
-    assert active_sub.status == Subscription.Status.EXPIRED
+    assert active_sub.status == Subscription.Status.ACTIVE
 
 
 @pytest.mark.django_db
@@ -317,7 +337,8 @@ def test_admin_serializer_includes_is_duo_and_guest_info(api_client, admin_user,
 # ── Category counts ─────────────────────────────────────────────────────────
 
 @pytest.mark.django_db
-def test_category_counts_returns_totals_per_category(api_client, admin_user, customer):
+def test_category_counts_returns_totals_per_category(api_client, admin_user):
+    """Counts are per canonical membership (one row per customer), matching the list."""
     pkg_pareja = Package.objects.create(
         title='Pareja', category='semi_personalizado',
         sessions_count=8, validity_days=30, price='200000', currency='COP',
@@ -327,15 +348,24 @@ def test_category_counts_returns_totals_per_category(api_client, admin_user, cus
         sessions_count=12, validity_days=30, price='400000', currency='COP',
     )
     now = FIXED_NOW
-    for _ in range(2):
+    # Two distinct customers on semi_personalizado, one on personalizado.
+    for i in range(2):
+        cust = User.objects.create_user(
+            email=f'cat_semi_{i}@kore.com', password='p',
+            first_name='Semi', last_name=str(i), role=User.Role.CUSTOMER,
+        )
         Subscription.objects.create(
-            customer=customer, package=pkg_pareja,
+            customer=cust, package=pkg_pareja,
             sessions_total=8, sessions_used=0,
             status=Subscription.Status.ACTIVE,
             starts_at=now, expires_at=now + timedelta(days=30),
         )
+    cust_personal = User.objects.create_user(
+        email='cat_personal@kore.com', password='p',
+        first_name='Solo', last_name='User', role=User.Role.CUSTOMER,
+    )
     Subscription.objects.create(
-        customer=customer, package=pkg_personal,
+        customer=cust_personal, package=pkg_personal,
         sessions_total=12, sessions_used=0,
         status=Subscription.Status.ACTIVE,
         starts_at=now, expires_at=now + timedelta(days=30),

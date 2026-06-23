@@ -91,6 +91,7 @@ function defaultSubscriptionState(overrides: Record<string, unknown> = {}) {
     setSelectedSubscriptionId: mockSetSelectedSubscriptionId,
     cancelSubscription: mockCancelSubscription,
     fetchPaymentHistory: mockFetchPaymentHistory,
+    fetchRenewalHistory: jest.fn().mockResolvedValue([]),
     fetchPendingInvitation: jest.fn().mockResolvedValue(undefined),
     acceptPendingInvitation: jest.fn().mockResolvedValue({ success: false }),
     inviteGuest: jest.fn().mockResolvedValue({ success: true }),

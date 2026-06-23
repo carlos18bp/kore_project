@@ -152,7 +152,7 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       const { data } = await api.get(`/subscriptions/${id}/renewal-history/`, {
         headers: authHeaders(),
       });
-      return data as RenewalHistoryItem[];
+      return Array.isArray(data) ? (data as RenewalHistoryItem[]) : [];
     } catch {
       return [];
     }
