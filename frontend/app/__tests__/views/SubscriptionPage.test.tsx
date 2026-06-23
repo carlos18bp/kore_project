@@ -29,6 +29,7 @@ const mockFetchSubscriptions = jest.fn();
 const mockFetchBookings = jest.fn();
 const mockSetSelectedSubscriptionId = jest.fn();
 const mockFetchPaymentHistory = jest.fn();
+const mockFetchRenewalHistory = jest.fn().mockResolvedValue([]);
 const mockCancelSubscription = jest.fn();
 
 jest.mock('@/lib/stores/subscriptionStore', () => ({
@@ -91,7 +92,7 @@ function defaultSubscriptionState(overrides: Record<string, unknown> = {}) {
     setSelectedSubscriptionId: mockSetSelectedSubscriptionId,
     cancelSubscription: mockCancelSubscription,
     fetchPaymentHistory: mockFetchPaymentHistory,
-    fetchRenewalHistory: jest.fn().mockResolvedValue([]),
+    fetchRenewalHistory: mockFetchRenewalHistory,
     fetchPendingInvitation: jest.fn().mockResolvedValue(undefined),
     acceptPendingInvitation: jest.fn().mockResolvedValue({ success: false }),
     inviteGuest: jest.fn().mockResolvedValue({ success: true }),
