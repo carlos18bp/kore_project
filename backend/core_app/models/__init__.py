@@ -3,6 +3,7 @@ from .package import Package
 from .trainer_profile import TrainerProfile
 from .trainer_unavailability import TrainerUnavailability
 from .subscription import Subscription
+from .subscription_renewal import SubscriptionRenewal
 from .booking import Booking
 from .payment import Payment
 from .notification import Notification
@@ -40,6 +41,7 @@ __all__ = [
     'TrainerProfile',
     'TrainerUnavailability',
     'Subscription',
+    'SubscriptionRenewal',
     'Booking',
     'Payment',
     'PaymentIntent',
