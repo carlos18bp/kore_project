@@ -29,7 +29,15 @@ const mockFetchSubscriptions = jest.fn();
 const mockFetchBookings = jest.fn();
 const mockSetSelectedSubscriptionId = jest.fn();
 const mockFetchPaymentHistory = jest.fn();
+const mockFetchRenewalHistory = jest.fn().mockResolvedValue([]);
 const mockCancelSubscription = jest.fn();
+// These mirror the store's stable action references. They MUST be stable across
+// renders: the mount effect depends on fetchPendingInvitation, so a fresh ref
+// each render would re-fire it and double-count fetchSubscriptions/fetchBookings.
+const mockFetchPendingInvitation = jest.fn().mockResolvedValue(undefined);
+const mockAcceptPendingInvitation = jest.fn().mockResolvedValue({ success: false });
+const mockInviteGuest = jest.fn().mockResolvedValue({ success: true });
+const mockRevokeGuest = jest.fn().mockResolvedValue(true);
 
 jest.mock('@/lib/stores/subscriptionStore', () => ({
   useSubscriptionStore: jest.fn(),
@@ -91,10 +99,11 @@ function defaultSubscriptionState(overrides: Record<string, unknown> = {}) {
     setSelectedSubscriptionId: mockSetSelectedSubscriptionId,
     cancelSubscription: mockCancelSubscription,
     fetchPaymentHistory: mockFetchPaymentHistory,
-    fetchPendingInvitation: jest.fn().mockResolvedValue(undefined),
-    acceptPendingInvitation: jest.fn().mockResolvedValue({ success: false }),
-    inviteGuest: jest.fn().mockResolvedValue({ success: true }),
-    revokeGuest: jest.fn().mockResolvedValue(true),
+    fetchRenewalHistory: mockFetchRenewalHistory,
+    fetchPendingInvitation: mockFetchPendingInvitation,
+    acceptPendingInvitation: mockAcceptPendingInvitation,
+    inviteGuest: mockInviteGuest,
+    revokeGuest: mockRevokeGuest,
     ...overrides,
   };
 }

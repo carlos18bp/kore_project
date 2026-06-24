@@ -6,6 +6,8 @@ import { useAuthStore } from '@/lib/stores/authStore';
 import { useSubscriptionStore } from '@/lib/stores/subscriptionStore';
 import { useBookingStore, type BookingData, type Subscription } from '@/lib/stores/bookingStore';
 import SessionDetailModal from '@/app/components/booking/SessionDetailModal';
+import RenewalHistory from '@/app/components/shared/RenewalHistory';
+import type { RenewalHistoryItem } from '@/lib/stores/adminSubscriptionStore';
 import { WHATSAPP_URL } from '@/lib/constants';
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -922,6 +924,7 @@ export default function SubscriptionPage() {
     setSelectedSubscriptionId,
     cancelSubscription,
     fetchPaymentHistory,
+    fetchRenewalHistory,
     inviteGuest,
     revokeGuest,
   } = useSubscriptionStore();
@@ -934,6 +937,7 @@ export default function SubscriptionPage() {
   const [guestError, setGuestError] = useState('');
   const [inviteAccepting, setInviteAccepting] = useState(false);
   const [inviteAccepted, setInviteAccepted] = useState<{ host_name: string; package_title: string } | null>(null);
+  const [renewalHistory, setRenewalHistory] = useState<RenewalHistoryItem[]>([]);
 
   useEffect(() => {
     fetchSubscriptions();
@@ -976,6 +980,14 @@ export default function SubscriptionPage() {
   }, [selectedSubscription, fetchPaymentHistory]);
 
   const detailSubscription = selectedSubscription ?? activeSubscription ?? null;
+
+  useEffect(() => {
+    if (detailSubscription && !detailSubscription.is_guest) {
+      fetchRenewalHistory(detailSubscription.id).then(setRenewalHistory);
+    } else {
+      setRenewalHistory([]);
+    }
+  }, [detailSubscription, fetchRenewalHistory]);
 
   if (!user) {
     return (
@@ -1301,6 +1313,27 @@ export default function SubscriptionPage() {
             <div className="mt-8">
               <PaymentsCard payments={payments} />
             </div>
+
+            {/* Renewal history */}
+            {!detailSubscription.is_guest && (
+              <div
+                className="mt-8"
+                style={{
+                  background: 'rgba(255,255,255,0.65)',
+                  borderRadius: 28,
+                  padding: 'clamp(20px, 2.5vw, 28px)',
+                  border: '1px solid rgba(103,15,34,0.08)',
+                }}
+              >
+                <p
+                  className="text-[11px] font-bold uppercase tracking-[0.16em] mb-4"
+                  style={{ color: 'rgba(103,15,34,0.55)' }}
+                >
+                  Historial de renovaciones
+                </p>
+                <RenewalHistory items={renewalHistory} />
+              </div>
+            )}
 
             {/* Footer */}
             <div className="mt-10 text-center text-[11px] uppercase" style={{ letterSpacing: '0.18em', color: 'rgba(103,15,34,0.40)' }}>

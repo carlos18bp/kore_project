@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { api } from '@/lib/services/http';
 import Cookies from 'js-cookie';
 import type { Subscription } from './bookingStore';
+import type { RenewalHistoryItem } from './adminSubscriptionStore';
 
 export type PaymentRecord = {
   id: number;
@@ -33,6 +34,7 @@ type SubscriptionState = {
   setSelectedSubscriptionId: (id: number | null) => void;
   cancelSubscription: (id: number) => Promise<boolean>;
   fetchPaymentHistory: (id: number) => Promise<void>;
+  fetchRenewalHistory: (id: number) => Promise<RenewalHistoryItem[]>;
   fetchExpiryReminder: () => Promise<void>;
   acknowledgeExpiryReminder: (id: number) => Promise<boolean>;
   inviteGuest: (subscriptionId: number, email: string) => Promise<{ success: boolean; error?: string }>;
@@ -142,6 +144,17 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
       set({ payments: data });
     } catch {
       set({ error: 'No se pudo cargar el historial de pagos.', payments: [] });
+    }
+  },
+
+  fetchRenewalHistory: async (id: number) => {
+    try {
+      const { data } = await api.get(`/subscriptions/${id}/renewal-history/`, {
+        headers: authHeaders(),
+      });
+      return Array.isArray(data) ? (data as RenewalHistoryItem[]) : [];
+    } catch {
+      return [];
     }
   },
 

@@ -18,9 +18,11 @@ import MemberCard, {
 import Modal from '@/app/components/admin/Modal';
 import SoftActionCard from '@/app/components/admin/SoftActionCard';
 import SubscriptionHero from '@/app/components/admin/SubscriptionHero';
+import RenewalHistory from '@/app/components/shared/RenewalHistory';
 import {
   useAdminSubscriptionStore,
   type PatchSubscriptionPayload,
+  type RenewalHistoryItem,
 } from '@/lib/stores/adminSubscriptionStore';
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -50,6 +52,7 @@ export default function SubscriptionDetailPage() {
   const {
     selected, loading, actionLoading, error,
     fetchById, patchSubscription, renewSubscription, deleteSubscription,
+    fetchRenewalHistory,
   } = useAdminSubscriptionStore();
 
   const [form, setForm] = useState<PatchSubscriptionPayload>({});
@@ -58,10 +61,17 @@ export default function SubscriptionDetailPage() {
   const [renewModal, setRenewModal] = useState(false);
   const [deleteModal, setDeleteModal] = useState(false);
   const [deleteErr, setDeleteErr] = useState('');
+  const [history, setHistory] = useState<RenewalHistoryItem[]>([]);
 
   useEffect(() => {
     if (Number.isFinite(id) && id > 0) fetchById(id);
   }, [id, fetchById]);
+
+  useEffect(() => {
+    if (Number.isFinite(id) && id > 0) {
+      fetchRenewalHistory(id).then(setHistory);
+    }
+  }, [id, fetchRenewalHistory]);
 
   useEffect(() => {
     if (selected) {
@@ -119,6 +129,7 @@ export default function SubscriptionDetailPage() {
     if (result) {
       setRenewOk(true);
       await fetchById(id);
+      setHistory(await fetchRenewalHistory(id));
     }
   };
 
@@ -347,11 +358,22 @@ export default function SubscriptionDetailPage() {
         </Card>
       </div>
 
+      {/* Renewal history */}
+      <Card className="p-7 mt-5">
+        <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-kore-burgundy/55">
+          Historial
+        </div>
+        <div className="font-heading text-lg font-semibold text-kore-burgundy mt-1 mb-4">
+          Historial de renovaciones
+        </div>
+        <RenewalHistory items={history} />
+      </Card>
+
       {/* Renewal */}
       <div className="mt-5">
         {renewOk && (
           <div className="mb-3 px-4 py-3 rounded-xl bg-kore-sage/15 border border-kore-sage/35 text-[12px] font-semibold text-kore-sage-deep">
-            Suscripción renovada. La actual quedó marcada como expirada y se creó una nueva.
+            Suscripción renovada: se extendió el periodo en sitio (no se creó una suscripción nueva).
           </div>
         )}
         <DarkActionCard

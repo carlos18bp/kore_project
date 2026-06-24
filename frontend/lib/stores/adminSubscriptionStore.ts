@@ -40,6 +40,18 @@ export type AdminSubscription = {
   updated_at: string;
 };
 
+export type RenewalHistoryItem = {
+  kind: 'initial' | 'manual' | 'automatic' | 'plan_change';
+  period_start: string;
+  period_end: string;
+  sessions_granted: number;
+  package_title: string;
+  actor_email: string;
+  note: string;
+  source: 'record' | 'legacy';
+  payment: { amount: string; currency: string; provider: string; status: string } | null;
+};
+
 export type AdminCreateSubscriptionPayload = {
   action: 'create' | 'evolve';
   customer_id: number;
@@ -95,6 +107,7 @@ type AdminSubscriptionState = {
   fetchById: (id: number) => Promise<void>;
   patchSubscription: (id: number, payload: PatchSubscriptionPayload) => Promise<boolean>;
   renewSubscription: (id: number) => Promise<AdminSubscription | null>;
+  fetchRenewalHistory: (id: number) => Promise<RenewalHistoryItem[]>;
   deleteSubscription: (id: number) => Promise<{ ok: true } | { ok: false; detail: string }>;
   createOrEvolveSubscription: (
     payload: AdminCreateSubscriptionPayload,
@@ -206,6 +219,17 @@ export const useAdminSubscriptionStore = create<AdminSubscriptionState>((set, ge
     } catch {
       set({ error: 'No se pudo renovar la suscripción.', actionLoading: false });
       return null;
+    }
+  },
+
+  fetchRenewalHistory: async (id: number) => {
+    try {
+      const { data } = await api.get(`/subscriptions/${id}/renewal-history/`, {
+        headers: authHeaders(),
+      });
+      return Array.isArray(data) ? (data as RenewalHistoryItem[]) : [];
+    } catch {
+      return [];
     }
   },
 

@@ -76,14 +76,21 @@ class TestSubscriptionViews:
         )
 
     def test_list_returns_own_subscriptions(self, api_client, customer, active_subscription, expired_subscription):
-        """Return only the authenticated customer's subscriptions in list results."""
+        """Collapse a customer's terms into ONE canonical membership.
+
+        The customer owns two subscription rows (active + expired), but the list
+        shows a single canonical membership; past terms survive only in the
+        renewal-history timeline. The canonical id is one of the customer's own
+        rows.
+        """
         api_client.force_authenticate(user=customer)
         url = reverse('subscription-list')
         response = api_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
         results = get_results(response.data)
-        assert len(results) == 2
+        assert len(results) == 1
+        assert results[0]['id'] in {active_subscription.id, expired_subscription.id}
 
     def test_list_excludes_other_users_subscriptions(
         self, api_client, customer, other_customer, active_subscription, package
