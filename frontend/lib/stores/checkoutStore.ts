@@ -551,6 +551,17 @@ export const useCheckoutStore = create<CheckoutState>((set, get) => ({
         requestConfig,
       );
 
+      // Bancolombia is redirect-based: an empty authorization_url means there is
+      // nowhere to send the customer, so the flow would silently dead-end. Surface
+      // it as an error instead of letting the page do nothing.
+      if (!data.authorization_url) {
+        set({
+          paymentStatus: 'error',
+          error: 'No se pudo abrir Bancolombia. Intenta de nuevo o usa otro método de pago.',
+        });
+        return null;
+      }
+
       set({
         intentResult: data,
         redirectUrl: data.authorization_url,
