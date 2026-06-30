@@ -959,6 +959,25 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_502_BAD_GATEWAY,
             )
 
+        # Bancolombia Transfer is redirect-based: without an authorization_url the
+        # customer cannot reach Bancolombia to authorize the recurring debit, so the
+        # whole flow is dead-on-arrival. Wompi may omit it when the method/recurring
+        # payment source is not enabled for the account. Fail loudly here instead of
+        # creating an intent the frontend can never redirect to (silent dead end).
+        authorization_url = token_data.get('authorization_url') or ''
+        if not authorization_url:
+            logger.error(
+                'Bancolombia token %s created but Wompi returned no authorization_url '
+                '(env=%s). Aborting — customer cannot be redirected.',
+                token_data.get('token_id'),
+                settings.WOMPI_ENVIRONMENT,
+            )
+            return Response(
+                {'detail': 'Bancolombia no devolvió la URL de autorización. '
+                           'Verifica que el método esté habilitado e intenta de nuevo.'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
         reference = generate_reference()
         intent = PaymentIntent.objects.create(
             customer=user,
@@ -968,7 +987,7 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
             payment_source_id='',
             payment_method_type='BANCOLOMBIA_TRANSFER',
             wompi_bancolombia_token_id=str(token_data['token_id']),
-            wompi_authorization_url=token_data.get('authorization_url') or '',
+            wompi_authorization_url=authorization_url,
             amount=package.price,
             currency=package.currency,
             pending_email=registration_payload['email'] if registration_payload else '',
@@ -981,7 +1000,7 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         )
 
         response_data = PaymentIntentStatusSerializer(intent).data
-        response_data['authorization_url'] = token_data.get('authorization_url') or ''
+        response_data['authorization_url'] = authorization_url
         return Response(response_data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['post'], url_path='bancolombia/confirm')
