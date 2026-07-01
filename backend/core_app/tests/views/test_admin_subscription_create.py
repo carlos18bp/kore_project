@@ -235,14 +235,14 @@ def test_admin_evolve_subscription_upgrades_and_charges_delta(
 
 
 @pytest.mark.django_db
-def test_admin_evolve_subscription_blocks_downgrade_lower_price_returns_400(
+def test_admin_evolve_subscription_lower_price_schedules_plan_change(
     api_client, admin_user, customer, large_package, url,
 ):
     cheaper = Package.objects.create(
         title='Plan Cheaper', sessions_count=20, validity_days=30,
         price=Decimal('150000'), currency='COP', is_active=True,
     )
-    Subscription.objects.create(
+    sub = Subscription.objects.create(
         customer=customer, package=large_package,
         sessions_total=large_package.sessions_count, sessions_used=1,
         status=Subscription.Status.ACTIVE,
@@ -257,19 +257,26 @@ def test_admin_evolve_subscription_blocks_downgrade_lower_price_returns_400(
         'payment_method': 'cash',
     }, format='json')
 
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert 'price' in response.data.get('detail', '').lower()
+    # Downgrade is scheduled for the next cycle: current package unchanged, the
+    # target stored in pending_package, and no payment recorded now.
+    assert response.status_code == status.HTTP_200_OK
+    sub.refresh_from_db()
+    assert sub.package_id == large_package.pk
+    assert sub.pending_package_id == cheaper.pk
+    assert not Payment.objects.filter(subscription=sub).exists()
 
 
 @pytest.mark.django_db
-def test_admin_evolve_subscription_blocks_downgrade_fewer_sessions_returns_400(
+def test_admin_evolve_subscription_fewer_sessions_schedules_plan_change(
     api_client, admin_user, customer, large_package, url,
 ):
+    # Lower price AND fewer sessions than the current plan: a genuine downgrade,
+    # which is now scheduled for the next cycle rather than blocked.
     fewer_sessions = Package.objects.create(
         title='Plan Fewer', sessions_count=6, validity_days=30,
-        price=Decimal('400000'), currency='COP', is_active=True,
+        price=Decimal('250000'), currency='COP', is_active=True,
     )
-    Subscription.objects.create(
+    sub = Subscription.objects.create(
         customer=customer, package=large_package,
         sessions_total=large_package.sessions_count, sessions_used=1,
         status=Subscription.Status.ACTIVE,
@@ -284,5 +291,8 @@ def test_admin_evolve_subscription_blocks_downgrade_fewer_sessions_returns_400(
         'payment_method': 'cash',
     }, format='json')
 
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert 'sessions' in response.data.get('detail', '').lower()
+    assert response.status_code == status.HTTP_200_OK
+    sub.refresh_from_db()
+    assert sub.package_id == large_package.pk
+    assert sub.pending_package_id == fewer_sessions.pk
+    assert not Payment.objects.filter(subscription=sub).exists()
