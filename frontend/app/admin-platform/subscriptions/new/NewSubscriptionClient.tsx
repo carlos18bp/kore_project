@@ -164,11 +164,12 @@ export default function NewSubscriptionClient() {
     return addDaysISO(startsAt, selectedPackage.validity_days);
   }, [mode, activeSub, selectedPackage, startsAt]);
 
-  const downgradeReason = (pkg: PackageItem): string | null => {
+  // Any different package is allowed now: an UPGRADE (higher price) applies
+  // immediately, a DOWNGRADE or lateral change (lower/equal price) is scheduled
+  // for the next cycle. Only re-selecting the current plan is blocked.
+  const changeBlockReason = (pkg: PackageItem): string | null => {
     if (mode !== 'evolve' || !currentPackage) return null;
     if (pkg.id === currentPackage.id) return 'Es el plan actual.';
-    if (parseFloat(pkg.price) <= parseFloat(currentPackage.price)) return 'Precio menor o igual al plan actual.';
-    if (pkg.sessions_count <= currentPackage.sessions_count) return 'Tiene menos o igual número de sesiones.';
     return null;
   };
 
@@ -182,7 +183,11 @@ export default function NewSubscriptionClient() {
     return selectedPackage.sessions_count - currentPackage.sessions_count;
   }, [mode, selectedPackage, currentPackage]);
 
-  const submittable = !!customerId && !!selectedPackage && !downgradeReason(selectedPackage!);
+  // Downgrade / lateral change (price lower than or equal to current): scheduled
+  // for the next billing cycle, no charge now. Upgrade (delta > 0) is immediate.
+  const isScheduledChange = mode === 'evolve' && deltaAmount !== null && deltaAmount <= 0;
+
+  const submittable = !!customerId && !!selectedPackage && !changeBlockReason(selectedPackage!);
 
   const handleSubmit = async () => {
     if (!customerId || !selectedPackage) return;
@@ -353,7 +358,7 @@ export default function NewSubscriptionClient() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {packages.map((pkg) => {
-                  const blockedReason = downgradeReason(pkg);
+                  const blockedReason = changeBlockReason(pkg);
                   const selected = selectedPackageId === pkg.id;
                   return (
                     <button
@@ -447,22 +452,37 @@ export default function NewSubscriptionClient() {
             </div>
 
             {mode === 'evolve' && deltaAmount !== null && deltaSessions !== null && (
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <div className="p-3.5 rounded-xl bg-kore-burgundy/5 border border-kore-burgundy/10">
-                  <div className="text-[10px] uppercase tracking-wide text-kore-burgundy/55 font-bold">
-                    Diferencia a pagar
+              isScheduledChange ? (
+                <div className="mt-4 p-3.5 rounded-xl bg-kore-amber/8 border border-kore-amber/30">
+                  <div className="text-[10px] uppercase tracking-wide text-kore-amber-deep font-bold">
+                    Cambio programado — próximo ciclo
                   </div>
-                  <div className="font-heading text-xl font-bold text-kore-burgundy mt-1">
-                    {formatPrice(deltaAmount, selectedPackage.currency)}
+                  <div className="text-[12px] text-kore-burgundy/75 mt-1 leading-relaxed">
+                    Sin cobro ni reembolso ahora. El periodo actual se mantiene hasta
+                    el {activeSub ? new Date(activeSub.expires_at).toLocaleDateString('es-CO') : '—'}.
+                    Desde la próxima renovación el plan pasará a «{selectedPackage.title}»:{' '}
+                    {selectedPackage.sessions_count} sesiones y{' '}
+                    {formatPrice(selectedPackage.price, selectedPackage.currency)} de cobro recurrente.
                   </div>
                 </div>
-                <div className="p-3.5 rounded-xl bg-kore-sage/10 border border-kore-sage/20">
-                  <div className="text-[10px] uppercase tracking-wide text-kore-sage font-bold">
-                    Sesiones adicionales
+              ) : (
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="p-3.5 rounded-xl bg-kore-burgundy/5 border border-kore-burgundy/10">
+                    <div className="text-[10px] uppercase tracking-wide text-kore-burgundy/55 font-bold">
+                      Diferencia a pagar (ahora)
+                    </div>
+                    <div className="font-heading text-xl font-bold text-kore-burgundy mt-1">
+                      {formatPrice(deltaAmount, selectedPackage.currency)}
+                    </div>
                   </div>
-                  <div className="font-heading text-xl font-bold text-kore-sage mt-1">+{deltaSessions}</div>
+                  <div className="p-3.5 rounded-xl bg-kore-sage/10 border border-kore-sage/20">
+                    <div className="text-[10px] uppercase tracking-wide text-kore-sage font-bold">
+                      Sesiones adicionales
+                    </div>
+                    <div className="font-heading text-xl font-bold text-kore-sage mt-1">+{deltaSessions}</div>
+                  </div>
                 </div>
-              </div>
+              )
             )}
           </Card>
         )}
@@ -559,26 +579,40 @@ export default function NewSubscriptionClient() {
             onClick={() => setConfirmOpen(true)}
             disabled={!submittable || actionLoading}
           >
-            {mode === 'evolve' ? 'Evolucionar plan' : 'Crear suscripción'}
+            {mode === 'evolve'
+              ? (isScheduledChange ? 'Programar cambio' : 'Evolucionar plan')
+              : 'Crear suscripción'}
           </Btn>
         </div>
 
         <div className="text-[11px] text-kore-burgundy/45 flex items-center gap-2 mt-2">
-          <Pill>{mode === 'evolve' ? 'Evolución' : 'Nueva'}</Pill>
+          <Pill>{mode === 'evolve' ? (isScheduledChange ? 'Cambio programado' : 'Evolución') : 'Nueva'}</Pill>
           <span>
-            Solo registras pagos fuera de plataforma — los cobros Wompi siguen su flujo automático.
+            {isScheduledChange
+              ? 'El cambio se aplica en la próxima renovación; no se registra ningún pago ahora.'
+              : 'Solo registras pagos fuera de plataforma — los cobros Wompi siguen su flujo automático.'}
           </span>
         </div>
       </div>
 
       {confirmOpen && selectedPackage && (
         <Modal
-          title={mode === 'evolve' ? 'Confirmar evolución' : 'Confirmar nueva suscripción'}
+          title={
+            mode === 'evolve'
+              ? (isScheduledChange ? 'Programar cambio de plan' : 'Confirmar evolución')
+              : 'Confirmar nueva suscripción'
+          }
           body={
             mode === 'evolve'
-              ? `Vas a evolucionar la suscripción de ${
-                  selectedUser?.full_name || selectedUser?.email
-                } al plan ${selectedPackage.title}. Monto a registrar: ${formatPrice(deltaAmount ?? 0, selectedPackage.currency)} (${paymentMethod === 'cash' ? 'Efectivo' : 'Transferencia'}).`
+              ? (isScheduledChange
+                  ? `Vas a programar el cambio de plan de ${
+                      selectedUser?.full_name || selectedUser?.email
+                    } a «${selectedPackage.title}». Se aplicará en la próxima renovación${
+                      activeSub ? ` (después del ${new Date(activeSub.expires_at).toLocaleDateString('es-CO')})` : ''
+                    }. No se registra ningún pago ni reembolso ahora.`
+                  : `Vas a evolucionar la suscripción de ${
+                      selectedUser?.full_name || selectedUser?.email
+                    } al plan ${selectedPackage.title}. Monto a registrar: ${formatPrice(deltaAmount ?? 0, selectedPackage.currency)} (${paymentMethod === 'cash' ? 'Efectivo' : 'Transferencia'}).`)
               : `Vas a crear una suscripción ${selectedPackage.title} para ${
                   selectedUser?.full_name || selectedUser?.email
                 }. Monto a registrar: ${formatPrice(selectedPackage.price, selectedPackage.currency)} (${paymentMethod === 'cash' ? 'Efectivo' : 'Transferencia'}).`
