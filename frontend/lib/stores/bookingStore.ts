@@ -53,6 +53,8 @@ export type Subscription = {
   next_billing_date: string | null;
   is_recurring: boolean;
   billing_failed_at: string | null;
+  pending_package?: PackageInfo | null;
+  cancel_at_period_end?: boolean;
   is_guest?: boolean;
   guest_info?: GuestInfo | null;
 };

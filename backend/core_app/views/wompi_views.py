@@ -23,6 +23,7 @@ from core_app.models import Payment, PaymentIntent, Subscription, SubscriptionRe
 TERMINAL_TXN_STATUSES = frozenset({'APPROVED', 'DECLINED', 'ERROR', 'VOIDED'})
 from core_app.services.billing_calendar import bogota_today
 from core_app.services.email_service import send_payment_receipt, send_welcome_email
+from core_app.services.recurring_renewal import apply_recurring_renewal
 from core_app.services.renewal_history_service import record_renewal
 from core_app.services.wompi_service import (
     generate_integrity_signature,
@@ -213,16 +214,24 @@ def _handle_transaction_updated(data):
         return
 
     # --- Path 2: Update an existing Payment (recurring billing) ---
+    # Recurring Payments are keyed by the reference we generated when creating the
+    # transaction (stored in provider_reference), NOT the Wompi transaction id.
+    # Match on the reference so async charges (Nequi/Bancolombia) that only clear
+    # later can be reconciled; fall back to the txn id for safety.
+    lookup_ref = txn_reference or txn_id
     try:
         payment = Payment.objects.select_related('subscription').get(
-            provider_reference=txn_id,
+            provider_reference=lookup_ref,
             provider=Payment.Provider.WOMPI,
         )
     except Payment.DoesNotExist:
-        logger.warning('No PaymentIntent or Payment found for Wompi txn %s', txn_id)
+        logger.warning(
+            'No PaymentIntent or Payment found for Wompi txn %s (ref %s)',
+            txn_id, txn_reference,
+        )
         return
     except Payment.MultipleObjectsReturned:
-        logger.error('Multiple payments found for Wompi transaction %s', txn_id)
+        logger.error('Multiple payments found for Wompi reference %s', lookup_ref)
         return
 
     _update_existing_payment(payment, txn_id, txn_status)
@@ -415,7 +424,14 @@ def _update_existing_payment(payment, txn_id, txn_status):
         payment.save(update_fields=['status', 'confirmed_at', 'updated_at'])
         logger.info('Payment %s confirmed via webhook (txn %s)', payment.pk, txn_id)
 
-        send_payment_receipt(payment)
+        # A recurring charge that only cleared now (Nequi/Bancolombia async):
+        # advance the billing cycle and apply any scheduled plan change. This is
+        # idempotent and sends the receipt itself; fall back to just the receipt
+        # when the payment is not tied to a subscription.
+        if payment.subscription_id:
+            apply_recurring_renewal(payment.subscription, payment)
+        else:
+            send_payment_receipt(payment)
 
     elif txn_status in ('DECLINED', 'ERROR'):
         payment.status = Payment.Status.FAILED

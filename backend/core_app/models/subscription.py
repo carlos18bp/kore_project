@@ -94,6 +94,24 @@ class Subscription(TimestampedModel):
         blank=True,
         help_text='Timestamp when the last automatic billing attempt failed.',
     )
+    pending_package = models.ForeignKey(
+        'core_app.Package',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='pending_subscriptions',
+        help_text=(
+            'Package scheduled to take effect at the next renewal '
+            '(downgrade / lateral plan change). Applied and cleared on renewal.'
+        ),
+    )
+    cancel_at_period_end = models.BooleanField(
+        default=False,
+        help_text=(
+            'Subscription canceled but access is retained until expires_at; '
+            'recurring billing is stopped. Flipped to CANCELED at expiry.'
+        ),
+    )
 
     class Meta:
         ordering = ('-created_at',)

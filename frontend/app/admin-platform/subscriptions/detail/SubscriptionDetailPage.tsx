@@ -52,7 +52,7 @@ export default function SubscriptionDetailPage() {
   const {
     selected, loading, actionLoading, error,
     fetchById, patchSubscription, renewSubscription, deleteSubscription,
-    fetchRenewalHistory,
+    cancelSubscription, fetchRenewalHistory,
   } = useAdminSubscriptionStore();
 
   const [form, setForm] = useState<PatchSubscriptionPayload>({});
@@ -61,6 +61,8 @@ export default function SubscriptionDetailPage() {
   const [renewModal, setRenewModal] = useState(false);
   const [deleteModal, setDeleteModal] = useState(false);
   const [deleteErr, setDeleteErr] = useState('');
+  const [cancelModal, setCancelModal] = useState(false);
+  const [cancelOk, setCancelOk] = useState(false);
   const [history, setHistory] = useState<RenewalHistoryItem[]>([]);
 
   useEffect(() => {
@@ -144,6 +146,13 @@ export default function SubscriptionDetailPage() {
     }
   };
 
+  const handleCancel = async () => {
+    setCancelOk(false);
+    const result = await cancelSubscription(id);
+    setCancelModal(false);
+    if (result) setCancelOk(true);
+  };
+
   return (
     <AdminShell
       breadcrumb={[
@@ -171,6 +180,24 @@ export default function SubscriptionDetailPage() {
         sessionsUsed={selected.sessions_used}
         sessionsTotal={selected.sessions_total}
       />
+
+      {selected.cancel_at_period_end && (
+        <Card className="p-5 mt-5 border-kore-amber/40 bg-kore-amber/8">
+          <div className="text-[12px] font-semibold text-kore-amber-deep">
+            Cancelada — la renovación automática está detenida. El cliente conserva
+            acceso y sus sesiones hasta el {fmtDate(selected.expires_at)}.
+          </div>
+        </Card>
+      )}
+
+      {selected.pending_package && (
+        <Card className="p-5 mt-5 border-kore-burgundy/15">
+          <div className="text-[12px] font-semibold text-kore-burgundy">
+            Cambio de plan programado: pasará a «{selected.pending_package.title}»
+            desde el {fmtDate(selected.next_billing_date)} (próxima renovación).
+          </div>
+        </Card>
+      )}
 
       {/* Plan Pareja */}
       {selected.is_duo && (
@@ -391,6 +418,25 @@ export default function SubscriptionDetailPage() {
         )}
       </div>
 
+      {/* Cancel at period end */}
+      {selected.status === 'active' && !selected.cancel_at_period_end && (
+        <div className="mt-5">
+          {cancelOk && (
+            <div className="mb-3 px-4 py-3 rounded-xl bg-kore-amber/15 border border-kore-amber/35 text-[12px] font-semibold text-kore-amber-deep">
+              Renovación detenida. El cliente conserva acceso hasta el {fmtDate(selected.expires_at)}.
+            </div>
+          )}
+          <SoftActionCard
+            tone="danger"
+            title="Cancelar suscripción"
+            description={`Detiene la renovación automática. El cliente conserva sus sesiones y acceso hasta el vencimiento (${fmtDate(selected.expires_at)}). No se elimina nada y se puede renovar manualmente más adelante.`}
+            cta="Cancelar renovación"
+            onAction={() => setCancelModal(true)}
+            disabled={actionLoading}
+          />
+        </div>
+      )}
+
       {/* Delete */}
       <div className="mt-5">
         {deleteErr && (
@@ -428,6 +474,17 @@ export default function SubscriptionDetailPage() {
           loading={actionLoading}
           onClose={() => setDeleteModal(false)}
           onConfirm={handleDelete}
+        />
+      )}
+
+      {cancelModal && (
+        <Modal
+          title="Cancelar suscripción"
+          body={`Se detendrá la renovación automática. ${selected.customer_name || selected.customer_email} conservará acceso y sus sesiones hasta el ${fmtDate(selected.expires_at)}. Podrás renovarla manualmente más adelante.`}
+          confirmLabel="Sí, cancelar renovación"
+          loading={actionLoading}
+          onClose={() => setCancelModal(false)}
+          onConfirm={handleCancel}
         />
       )}
     </AdminShell>

@@ -1084,15 +1084,18 @@ class TestSubscriptionCancel:
     """Covers cancellation outcomes for active and inactive subscriptions."""
 
     def test_cancel_active_subscription(self, api_client, existing_user, active_subscription):
-        """Cancel endpoint marks active subscriptions as canceled and clears next billing."""
+        """Cancel stops recurring billing but keeps access until the period ends."""
         api_client.force_authenticate(user=existing_user)
         url = reverse('subscription-cancel-subscription', args=[active_subscription.id])
         response = api_client.post(url)
         assert response.status_code == status.HTTP_200_OK
-        assert response.data['status'] == 'canceled'
+        # Access is retained until expires_at, so the effective status stays active.
+        assert response.data['status'] == 'active'
 
         active_subscription.refresh_from_db()
-        assert active_subscription.status == Subscription.Status.CANCELED
+        assert active_subscription.status == Subscription.Status.ACTIVE
+        assert active_subscription.cancel_at_period_end is True
+        assert active_subscription.is_recurring is False
         assert active_subscription.next_billing_date is None
 
     def test_cancel_inactive_subscription_returns_400(self, api_client, existing_user, active_subscription):
