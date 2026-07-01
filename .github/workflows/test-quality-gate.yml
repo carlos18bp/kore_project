@@ -2,9 +2,9 @@ name: Test Quality Gate
 
 on:
   pull_request:
-    branches: [main, master]
+    branches: [main, master, july-release]
   push:
-    branches: [main, master]
+    branches: [main, master, july-release]
 
 jobs:
   test-quality-gate:
