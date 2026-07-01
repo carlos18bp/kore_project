@@ -35,7 +35,13 @@ class Command(BaseCommand):
                 if locked_sub.status != Subscription.Status.ACTIVE or locked_sub.expires_at > now:
                     continue
 
-                locked_sub.status = Subscription.Status.EXPIRED
+                # A subscription canceled at period end lands in CANCELED once the
+                # paid period is over; a plain lapse lands in EXPIRED.
+                locked_sub.status = (
+                    Subscription.Status.CANCELED
+                    if locked_sub.cancel_at_period_end
+                    else Subscription.Status.EXPIRED
+                )
                 locked_sub.next_billing_date = None
                 locked_sub.sessions_used = locked_sub.sessions_total
                 locked_sub.save(

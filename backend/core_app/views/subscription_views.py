@@ -37,6 +37,7 @@ from core_app.services.admin_subscription_service import (
     ALLOWED_OFFLINE_METHODS,
     create_subscription_for_admin,
     evolve_subscription_for_admin,
+    schedule_plan_change_for_admin,
 )
 from core_app.services.wompi_service import (
     WompiError,
@@ -1154,9 +1155,14 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='cancel')
     def cancel_subscription(self, request, pk=None):
-        """Cancel an active subscription.
+        """Cancel an active subscription at the end of the paid period.
 
-        Sets status to canceled and clears next_billing_date.
+        Netflix-style cancel: recurring billing is stopped immediately but the
+        customer keeps access and sessions until ``expires_at``. The row stays
+        ``ACTIVE`` (so subscription gating still grants access) and is flipped to
+        ``CANCELED`` by ``expire_subscriptions`` once the period ends. Any
+        scheduled plan change is dropped. Available to the subscription owner and
+        to admins (whose queryset spans all subscriptions).
 
         Args:
             request: DRF request.
@@ -1171,10 +1177,17 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
                 {'detail': 'Solo se pueden cancelar suscripciones activas.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        subscription.status = Subscription.Status.CANCELED
+        subscription.cancel_at_period_end = True
+        subscription.is_recurring = False
         subscription.next_billing_date = None
-        subscription.save(update_fields=['status', 'next_billing_date', 'updated_at'])
-        return Response(SubscriptionSerializer(subscription).data)
+        subscription.pending_package = None
+        subscription.save(update_fields=[
+            'cancel_at_period_end', 'is_recurring', 'next_billing_date',
+            'pending_package', 'updated_at',
+        ])
+        return Response(
+            SubscriptionSerializer(subscription, context={'request': request}).data
+        )
 
     @action(detail=False, methods=['get'], url_path='expiry-reminder')
     def expiry_reminder(self, request):
@@ -1368,7 +1381,8 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        package = sub.package
+        # Apply a scheduled plan change (if any) as part of the manual renewal.
+        package = sub.pending_package or sub.package
         now = timezone.now()
         period_end = now + timedelta(days=package.validity_days)
         leftover = max(sub.sessions_total - sub.sessions_used, 0)
@@ -1387,13 +1401,17 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
             )
 
             sub.status = Subscription.Status.ACTIVE
+            sub.package = package
+            sub.pending_package = None
+            sub.cancel_at_period_end = False
             sub.starts_at = now
             sub.expires_at = period_end
             sub.sessions_total = package.sessions_count + rollover
             sub.sessions_used = 0
             sub.billing_failed_at = None
             sub.save(update_fields=[
-                'status', 'starts_at', 'expires_at',
+                'status', 'package', 'pending_package', 'cancel_at_period_end',
+                'starts_at', 'expires_at',
                 'sessions_total', 'sessions_used', 'billing_failed_at', 'updated_at',
             ])
 
@@ -1448,9 +1466,11 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         - ``action="create"`` requires the customer to have zero active
           subscriptions. Builds a brand new Subscription and Payment.
         - ``action="evolve"`` requires exactly one active subscription and a
-          strictly larger ``new_package`` (price AND sessions_count). The
-          existing subscription is mutated in place; only the delta is
-          recorded as a new Payment.
+          different ``new_package``. An UPGRADE (higher price) applies
+          immediately, mutating the subscription in place and recording the
+          price delta as a new Payment. A DOWNGRADE or lateral change (price
+          lower than or equal to the current one) is scheduled for the next
+          renewal via ``pending_package`` — no charge or refund happens now.
 
         Returns 409 when ``action`` mismatches the customer's actual state so
         the frontend can swap modes without losing the form.
@@ -1589,27 +1609,30 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
         current = active_subs[0]
         if package.pk == current.package_id:
             return Response(
-                {'detail': 'New package is the same as the current one. Choose a larger package.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if package.price <= current.package.price:
-            return Response(
-                {'detail': 'Downgrade blocked: new package price must be greater than the current one.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if package.sessions_count <= current.sessions_total:
-            return Response(
-                {'detail': 'Downgrade blocked: new package must have more sessions than the current one.'},
+                {'detail': 'New package is the same as the current one.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        subscription = evolve_subscription_for_admin(
-            current_subscription=current,
-            new_package=package,
-            payment_method=payment_method,
-            notes=notes,
-            actor=request.user,
-        )
+        if package.price > current.package.price:
+            # Upgrade: applies immediately — charge the price delta and grant the
+            # larger package/session count now.
+            subscription = evolve_subscription_for_admin(
+                current_subscription=current,
+                new_package=package,
+                payment_method=payment_method,
+                notes=notes,
+                actor=request.user,
+            )
+        else:
+            # Downgrade or lateral change: scheduled for the next billing cycle.
+            # No charge or refund now; the current paid period is untouched and
+            # the new package (and its price) take effect on the next renewal.
+            subscription = schedule_plan_change_for_admin(
+                current_subscription=current,
+                new_package=package,
+                notes=notes,
+                actor=request.user,
+            )
         return Response(
             AdminSubscriptionSerializer(subscription, context={'request': request}).data,
             status=status.HTTP_200_OK,

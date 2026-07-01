@@ -16,14 +16,10 @@ from django.utils import timezone
 from huey import crontab
 from huey.contrib.djhuey import db_periodic_task, db_task
 
-from core_app.models import Notification, Payment, Subscription, SubscriptionRenewal
+from core_app.models import Notification, Payment, Subscription
 from core_app.services.billing_calendar import bogota_today
-from core_app.services.renewal_history_service import record_renewal
-from core_app.services.email_service import (
-    send_payment_receipt,
-    send_subscription_expiry_reminder,
-)
-from core_app.services.slot_schedule import MAX_ROLLOVER_SESSIONS
+from core_app.services.email_service import send_subscription_expiry_reminder
+from core_app.services.recurring_renewal import apply_recurring_renewal
 from core_app.services.wompi_service import create_transaction, generate_reference
 
 logger = logging.getLogger(__name__)
@@ -91,7 +87,9 @@ def _bill_subscription(sub):
     Raises:
         WompiError: If the Wompi transaction creation fails.
     """
-    package = sub.package
+    # A scheduled plan change (downgrade / lateral) takes effect at renewal: bill
+    # the pending package's price and apply it below once the charge is approved.
+    package = sub.pending_package or sub.package
     amount_in_cents = int(Decimal(str(package.price)) * 100)
     reference = generate_reference()
 
@@ -122,49 +120,10 @@ def _bill_subscription(sub):
         )
 
         if txn_status == 'APPROVED':
-            leftover = max(sub.sessions_total - sub.sessions_used, 0)
-            rollover = min(leftover, MAX_ROLLOVER_SESSIONS)
-            new_period_start = timezone.now()
-            new_period_end = new_period_start + timedelta(days=package.validity_days)
-            sub.next_billing_date = sub.next_billing_date + timedelta(
-                days=package.validity_days
-            )
-            sub.sessions_total = package.sessions_count + rollover
-            sub.sessions_used = 0
-            sub.expires_at = new_period_end
-            sub.save(
-                update_fields=[
-                    'next_billing_date',
-                    'sessions_used',
-                    'sessions_total',
-                    'expires_at',
-                ]
-            )
-
-            record_renewal(
-                subscription=sub,
-                kind=SubscriptionRenewal.Kind.AUTOMATIC,
-                period_start=new_period_start,
-                period_end=new_period_end,
-                sessions_granted=sub.sessions_total,
-                package=package,
-                payment=payment,
-            )
-
-            Notification.objects.create(
-                notification_type=Notification.Type.PAYMENT_CONFIRMED,
-                sent_to=sub.customer.email,
-                payment=payment,
-                payload={
-                    'subscription_id': sub.id,
-                    'payment_id': payment.id,
-                    'amount': str(package.price),
-                    'currency': package.currency,
-                    'reference': reference,
-                },
-            )
-
-            send_payment_receipt(payment)
+            # Charge approved synchronously: advance the cycle now. The webhook
+            # reconciliation path calls the same helper for async PENDING->APPROVED
+            # charges, and it is idempotent so the two paths never double-apply.
+            apply_recurring_renewal(sub, payment)
 
     logger.info(
         'Billed subscription %s: txn=%s status=%s',
