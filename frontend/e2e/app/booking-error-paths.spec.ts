@@ -307,9 +307,6 @@ test.describe('bookingStore extractErrorMessage branches', { tag: [...FlowTags.B
       await page.getByLabel('Mes siguiente').click();
     }
     // Click calendar day — virtual slot system enables Mon-Sat automatically
-    if (tomorrow.getMonth() !== new Date().getMonth()) {
-      await page.getByLabel('Mes siguiente').click();
-    }
     const dayBtn = page.getByRole('button', { name: dayNum, exact: true });
     await dayBtn.click({ timeout: 10_000 });
     // Select the time slot matching the mock (TimeSlotPicker defaults to 12h)

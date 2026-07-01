@@ -339,6 +339,10 @@ export default function CheckoutClient() {
     );
     if (!result) return;
 
+    // Defensive: never navigate to an empty URL (would silently reload the page).
+    // The store already surfaces an error in that case and returns a null result.
+    if (!result.authorization_url) return;
+
     sessionStorage.setItem(BANCOLOMBIA_PENDING_REF_KEY, result.reference);
     if (result.checkout_access_token) {
       sessionStorage.setItem(BANCOLOMBIA_PENDING_ACCESS_KEY, result.checkout_access_token);
@@ -348,10 +352,13 @@ export default function CheckoutClient() {
     window.location.href = result.authorization_url;
   }, [pkg, startBancolombiaPurchase, isAuthenticated, registrationToken, needsTermsAcceptance, acceptTerms]);
 
-  // Detect Bancolombia callback and confirm the pending intent
+  // Detect Bancolombia callback and confirm the pending intent.
+  // The pending reference in sessionStorage is the authoritative signal that we
+  // started a Bancolombia purchase — rely on it rather than the callback query
+  // param, which a payment provider redirect can drop or mangle. The param is
+  // still accepted (set by our redirect_url) but no longer required.
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (searchParams.get(BANCOLOMBIA_CALLBACK_PARAM) !== '1') return;
     const pendingRef = sessionStorage.getItem(BANCOLOMBIA_PENDING_REF_KEY);
     if (!pendingRef) return;
     const pendingAccessToken = sessionStorage.getItem(BANCOLOMBIA_PENDING_ACCESS_KEY) || undefined;
