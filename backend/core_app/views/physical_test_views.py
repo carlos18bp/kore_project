@@ -13,10 +13,13 @@ class PhysicalTestViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = PhysicalTest.objects.select_related('customer', 'trainer')
-        if is_admin_user(self.request.user):
-            return qs
-        trainer_profile = getattr(self.request.user, 'trainer_profile', None)
-        return qs.filter(customer__assigned_trainer=trainer_profile)
+        if not is_admin_user(self.request.user):
+            trainer_profile = getattr(self.request.user, 'trainer_profile', None)
+            qs = qs.filter(customer__assigned_trainer=trainer_profile)
+        customer_param = self.request.query_params.get('customer')
+        if customer_param:
+            qs = qs.filter(customer_id=customer_param)
+        return qs
 
     def perform_create(self, serializer):
         # A passed test awards credits — only the assigned trainer (or an
