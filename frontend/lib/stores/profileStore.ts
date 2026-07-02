@@ -22,6 +22,15 @@ export type TodayMood = {
   score: number;
   notes: string;
   date: string;
+  energy_level?: number | null;
+  pain?: boolean | null;
+  ready_to_train?: boolean | null;
+};
+
+export type MoodExtras = {
+  energy_level?: number;
+  pain?: boolean;
+  ready_to_train?: boolean;
 };
 
 export type ProfileData = {
@@ -74,7 +83,7 @@ type ProfileState = {
   updateProfile: (data: UpdateProfilePayload) => Promise<{ success: boolean; error?: string }>;
   uploadAvatar: (file: File) => Promise<{ success: boolean; avatar_url?: string; error?: string }>;
   changePassword: (data: ChangePasswordPayload) => Promise<{ success: boolean; error?: string }>;
-  submitMood: (score: number, notes?: string) => Promise<{ success: boolean; error?: string }>;
+  submitMood: (score: number, notes?: string, extras?: MoodExtras) => Promise<{ success: boolean; error?: string }>;
   submitWeight: (weightKg: number) => Promise<{ success: boolean; error?: string }>;
   openMoodModal: () => void;
   closeMoodModal: () => void;
@@ -210,9 +219,9 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
     }
   },
 
-  submitMood: async (score, notes) => {
+  submitMood: async (score, notes, extras) => {
     try {
-      const payload: { score: number; notes?: string } = { score };
+      const payload: { score: number; notes?: string } & MoodExtras = { score, ...extras };
       if (notes !== undefined) payload.notes = notes;
       const { data } = await api.post<TodayMood>('/auth/mood/', payload, {
         headers: authHeaders(),
