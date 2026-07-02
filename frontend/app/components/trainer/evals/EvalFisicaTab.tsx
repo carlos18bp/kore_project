@@ -10,6 +10,7 @@ import {
   T, FormHero, FormSection, Field, RatingScale, YesNoToggle,
   ComputedCard, NotesField, StickyFooter, EvalSectionHeader, EvalEmptyState, EvalSpinner,
 } from './shared';
+import PhysicalTestSection from './PhysicalTestSection';
 
 // ─── Helpers ──────────────────────────────────────────────────
 const KORE = {
@@ -820,6 +821,7 @@ export default function EvalFisicaTab({ clientId }: { clientId: number }) {
 
   return (
     <div>
+      <PhysicalTestSection clientId={clientId} />
       <FormHero
         kicker="Evaluación · Módulo 3"
         title="Condición física"

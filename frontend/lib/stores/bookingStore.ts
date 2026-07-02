@@ -77,6 +77,8 @@ export type BookingData = {
   status: 'pending' | 'confirmed' | 'canceled';
   notes: string;
   canceled_reason: string;
+  attendance_status: 'unset' | 'attended' | 'no_show';
+  attendance_confirmed_at: string | null;
   session_objective: string;
   session_notes_for_customer: string;
   program_day_exercises: ProgramDayExercise[];
@@ -144,6 +146,7 @@ type BookingState = {
   }) => Promise<BookingData | null>;
   cancelBooking: (bookingId: number, reason?: string) => Promise<BookingData | null>;
   rescheduleBooking: (bookingId: number, newStartsAt: string) => Promise<BookingData | null>;
+  confirmAttendance: (bookingId: number, attended: boolean) => Promise<BookingData | null>;
 };
 
 function authHeaders() {
@@ -358,6 +361,27 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       return null;
     } finally {
       set({ loading: false });
+    }
+  },
+
+  confirmAttendance: async (bookingId, attended) => {
+    set({ error: null });
+    try {
+      const { data } = await api.post<BookingData>(
+        `/bookings/${bookingId}/confirm-attendance/`,
+        { attended },
+        { headers: authHeaders() },
+      );
+      if (get().bookingDetail?.id === bookingId) {
+        set({ bookingDetail: data });
+      }
+      return data;
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { detail?: string } } }).response?.data?.detail ??
+        'No se pudo registrar la asistencia.';
+      set({ error: typeof msg === 'string' ? msg : 'No se pudo registrar la asistencia.' });
+      return null;
     }
   },
 

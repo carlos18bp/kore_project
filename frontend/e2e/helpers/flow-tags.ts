@@ -72,6 +72,7 @@ export const FlowTags = {
   TRAINER_CLIENT_NUTRITION: ['@flow:trainer-client-nutrition', '@module:trainer', '@priority:P2'],
   TRAINER_CLIENT_PARQ: ['@flow:trainer-client-parq', '@module:trainer', '@priority:P2'],
   TRAINER_CLIENT_PHYSICAL_EVAL: ['@flow:trainer-client-physical-eval', '@module:trainer', '@priority:P2'],
+  TRAINER_CLIENT_PHYSICAL_TESTS: ['@flow:trainer-client-physical-tests', '@module:trainer', '@priority:P2'],
   TRAINER_CLIENT_POSTUROMETRY: ['@flow:trainer-client-posturometry', '@module:trainer', '@priority:P2'],
   TRAINER_ALERTS: ['@flow:trainer-alerts', '@module:trainer', '@priority:P1'],
   TRAINER_CLIENT_PROGRAM: ['@flow:trainer-client-program', '@module:trainer', '@priority:P2'],

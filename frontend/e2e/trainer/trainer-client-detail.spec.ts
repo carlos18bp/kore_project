@@ -244,4 +244,31 @@ test.describe('Trainer Client Detail Page', { tag: [...FlowTags.TRAINER_CLIENT_D
     await expect(page.getByText('Plan Elite').first()).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('4/7 sesiones')).toBeVisible();
   });
+
+  test('confirms attendance on a past session and shows the badge', async ({ page }) => {
+    await injectTrainerAuthCookies(page);
+    // One past unconfirmed session so exactly one row shows the buttons
+    await setupClientDetailMocks(page, fakeClient, [
+      { id: 101, status: 'confirmed', starts_at: '2025-12-01T10:00:00Z', package_title: 'Plan Elite', attendance_status: 'unset' },
+    ]);
+    // "Sesiones recientes" only renders on the clinical-KPI branch of the resumen,
+    // so override the helper's 404 kpi mock with real KPI data (LIFO priority).
+    await page.route('**/api/trainer/my-clients/1/kpi/', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(fakeKPI) });
+    });
+    await page.route('**/api/bookings/101/confirm-attendance/', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ id: 101, attendance_status: 'attended', attendance_confirmed_at: '2026-07-02T15:00:00Z' }),
+      });
+    });
+    await page.goto('/trainer/clients/client?id=1');
+
+    await expect(page.getByRole('heading', { level: 1, name: 'María López' })).toBeVisible({ timeout: 15_000 });
+    const confirmBtn = page.getByRole('button', { name: '✓ Asistió' }).first();
+    await expect(confirmBtn).toBeVisible({ timeout: 10_000 });
+    await confirmBtn.click();
+    await expect(page.getByText('Asistió', { exact: true }).first()).toBeVisible({ timeout: 10_000 });
+  });
 });

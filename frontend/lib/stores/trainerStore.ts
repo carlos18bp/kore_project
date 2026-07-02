@@ -93,6 +93,8 @@ export type ClientSession = {
   canceled_reason: string;
   session_objective: string;
   session_notes_for_customer: string;
+  attendance_status?: 'unset' | 'attended' | 'no_show';
+  attendance_confirmed_at?: string | null;
   created_at: string;
 };
 
@@ -104,6 +106,8 @@ export type UpcomingSession = {
   starts_at: string;
   ends_at: string;
   status: string;
+  attendance_status?: 'unset' | 'attended' | 'no_show';
+  attendance_confirmed_at?: string | null;
 };
 
 export type TrainerDashboardStats = {
@@ -282,6 +286,7 @@ type TrainerState = {
   fetchClientSessions: (id: number) => Promise<void>;
   fetchDashboardStats: () => Promise<void>;
   fetchAgendaSessions: (from: string, to: string) => Promise<void>;
+  markSessionAttendance: (bookingId: number, status: 'attended' | 'no_show') => void;
   fetchBlockedDates: (dateFrom?: string, dateTo?: string) => Promise<void>;
   blockDate: (date: string, reason?: string) => Promise<boolean>;
   unblockDate: (date: string) => Promise<boolean>;
@@ -491,6 +496,16 @@ export const useTrainerStore = create<TrainerState>((set, get) => ({
       set({ agendaSessions: [], agendaLoading: false });
     }
   },
+
+  markSessionAttendance: (bookingId: number, status: 'attended' | 'no_show') =>
+    set((state) => ({
+      agendaSessions: state.agendaSessions.map((s) =>
+        s.id === bookingId ? { ...s, attendance_status: status } : s,
+      ),
+      clientSessions: state.clientSessions.map((s) =>
+        s.id === bookingId ? { ...s, attendance_status: status } : s,
+      ),
+    })),
 
   fetchBlockedDates: async (dateFrom?: string, dateTo?: string) => {
     set({ blockedDatesLoading: true });

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useTrainerStore, type UpcomingSession } from '@/lib/stores/trainerStore';
+import AttendanceActions from './AttendanceActions';
 import ResponsiveSheet from './ResponsiveSheet';
 
 type Props = {
@@ -171,27 +172,34 @@ export default function AgendaDayModal({ date, sessions, onClose }: Props) {
         ) : (
           <div className="flex flex-col gap-2">
             {ordered.map((s) => (
-              <Link
+              <div
                 key={s.id}
-                href={`/trainer/clients/client?id=${s.customer_id}`}
-                prefetch={false}
                 className="flex items-center gap-3 rounded-xl border border-kore-wine-dark/8 bg-kore-cream/50 px-3.5 py-3 transition-colors hover:bg-white"
               >
-                <span className="font-heading text-[13px] font-semibold text-kore-wine-dark w-12 flex-shrink-0">
-                  {fmtTime(s.starts_at)}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="font-body text-[13px] font-semibold text-kore-gray-dark truncate">
-                    {s.customer_name}
-                  </p>
-                  <p className="font-body text-[11px] text-kore-wine-dark/55 truncate">
-                    {s.package_title}
-                  </p>
-                </div>
+                <Link
+                  href={`/trainer/clients/client?id=${s.customer_id}`}
+                  prefetch={false}
+                  className="flex items-center gap-3 flex-1 min-w-0"
+                >
+                  <span className="font-heading text-[13px] font-semibold text-kore-wine-dark w-12 flex-shrink-0">
+                    {fmtTime(s.starts_at)}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-body text-[13px] font-semibold text-kore-gray-dark truncate">
+                      {s.customer_name}
+                    </p>
+                    <p className="font-body text-[11px] text-kore-wine-dark/55 truncate">
+                      {s.package_title}
+                    </p>
+                  </div>
+                </Link>
+                <AttendanceActions
+                  session={{ id: s.id, starts_at: s.starts_at, status: s.status, attendance_status: s.attendance_status }}
+                />
                 <span className="font-body text-[10px] font-bold uppercase tracking-wide text-kore-wine-dark/45 flex-shrink-0">
                   {STATUS_LABEL[s.status] ?? s.status}
                 </span>
-              </Link>
+              </div>
             ))}
           </div>
         )}
