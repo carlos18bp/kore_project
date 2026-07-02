@@ -34,11 +34,13 @@ La fundación: modelos y lógica que todas las demás partes consumen.
 - **Detección de inasistencia y reprogramación tardía**: tarea periódica (Huey) que evalúa al cierre del día; la reprogramación tardía se detecta al momento de reprogramar.
 - **API**: endpoints de balance, historial de transacciones y configuración — base para las vistas de las partes 3 y 6.
 
-## Parte 2 — Check-in Diario + Hábitos Complementarios
+## Parte 2 — Check-in Diario + Visibilidad de Créditos + Cámara de Rutina
 
-- **Check-in diario**: nivel de energía, ánimo, presencia de dolor y disposición para entrenar. Respuestas por tap, completable en menos de 30 segundos; otorga créditos al completarlo.
-- **Hábitos complementarios**: registro diario de hidratación, horas de sueño y movilidad. Cada hábito cumplido otorga créditos y suma al progreso de adherencia del día.
-- **Bloque de hábitos en dashboard**: sección compacta con los tres hábitos del día, su estado y los créditos disponibles por completar cada uno.
+- **Check-in diario enriquecido**: nivel de energía, ánimo, presencia de dolor y disposición para entrenar. Respuestas por tap, completable en menos de 30 segundos; otorga créditos al completarlo (evoluciona el registro de ánimo existente).
+- **Visibilidad de créditos**: cada acción que otorga créditos muestra su "+X" dinámico, leído de la configuración del motor (personalizable por el trainer/admin; UI en Parte 6).
+- **Bloque "Hoy ganas" en dashboard**: sección compacta con las acciones de crédito del día (check-in, hidratación, comidas, rutina), su estado y los créditos disponibles.
+- **Flujo de cámara de rutina**: gate de consentimiento + capturas aleatorias por ejercicio con carga diferida; activa `require_workout_captures`.
+- ⚠️ **Descope acordado (2026-07-02)**: hábitos de sueño y movilidad quedan fuera — sin PWA/wearables no hay forma de verificarlos y serían el único auto-reporte sin evidencia de la economía. La hidratación permanece (verificada con foto). Retomar junto al módulo PWA si se contrata.
 
 ## Parte 3 — Vistas Cliente de Créditos
 
