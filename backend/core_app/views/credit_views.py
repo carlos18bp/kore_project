@@ -129,6 +129,25 @@ class TrainerReviewTransactionView(APIView):
         return Response(CreditTransactionSerializer(tx).data)
 
 
+class CreditValuesView(APIView):
+    """Read-only credit configuration for any authenticated user.
+
+    Feeds the dynamic "+X créditos" chips in the client UI; exposes no
+    trainer-only data.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        settings_obj = credit_engine.get_settings()
+        return Response({
+            'action_values': settings_obj.action_values,
+            'streak_bonuses': settings_obj.streak_bonuses,
+            'water_goal_glasses': settings_obj.water_goal_glasses,
+            'meal_review_days': settings_obj.meal_review_days,
+            'require_workout_captures': settings_obj.require_workout_captures,
+        })
+
+
 class CreditSettingsView(APIView):
     permission_classes = [IsTrainerRole]
 
