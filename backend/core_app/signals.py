@@ -85,3 +85,44 @@ def on_nutrition_plan_save(sender, instance, **kwargs):
     from core_app.models.weekly_nutrition_plan import WeeklyNutritionPlan
     if instance.status == WeeklyNutritionPlan.Status.PUBLISHED:
         _recompute_for_customer(instance.customer, 'WeeklyNutritionPlan.publish')
+
+
+# ── Credit engine event hooks (Phase 2) ─────────────────────────────────────
+#
+# Same pattern as the risk-score recompute: enqueue AFTER the commit so the
+# worker sees the saved row, and swallow enqueue errors so credits can never
+# break the user's save. Rules live in services/credit_engine.handle_event.
+
+def _enqueue_credit_event(kind: str, object_id: int) -> None:
+    def _enqueue():
+        try:
+            from core_app.tasks import process_credit_event
+            process_credit_event(kind, object_id)
+        except Exception as exc:
+            logger.exception('credits: failed to enqueue %s for %s: %s', kind, object_id, exc)
+
+    transaction.on_commit(_enqueue)
+
+
+@receiver(post_save, sender='core_app.MoodEntry')
+def on_mood_entry_credit(sender, instance, created, **kwargs):
+    if created:
+        _enqueue_credit_event('checkin', instance.pk)
+
+
+@receiver(post_save, sender='core_app.WaterGlassLog')
+def on_water_glass_credit(sender, instance, created, **kwargs):
+    if created:
+        _enqueue_credit_event('water_glass', instance.pk)
+
+
+@receiver(post_save, sender='core_app.MealEntry')
+def on_meal_entry_credit(sender, instance, **kwargs):
+    if instance.status == 'completed' and instance.photo:
+        _enqueue_credit_event('meal_photo', instance.pk)
+
+
+@receiver(post_save, sender='core_app.PhysicalTest')
+def on_physical_test_credit(sender, instance, **kwargs):
+    if instance.result == 'passed':
+        _enqueue_credit_event('physical_test', instance.pk)
