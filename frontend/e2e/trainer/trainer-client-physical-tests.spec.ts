@@ -36,8 +36,10 @@ test.describe('Trainer — test físico quincenal', { tag: [...FlowTags.TRAINER_
     await page.route('**/api/trainer/my-clients/1/sessions/', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
     });
+    // 404 renders the resumen's stats fallback; an empty object would crash
+    // the KPI branch (kpi.clinical.kore_score). The tab bar renders either way.
     await page.route('**/api/trainer/my-clients/1/kpi/', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+      await route.fulfill({ status: 404, body: '' });
     });
     await page.route('**/api/trainer/my-clients/1/sessions-full/', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });

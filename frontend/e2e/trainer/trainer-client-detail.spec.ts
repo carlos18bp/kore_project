@@ -251,6 +251,11 @@ test.describe('Trainer Client Detail Page', { tag: [...FlowTags.TRAINER_CLIENT_D
     await setupClientDetailMocks(page, fakeClient, [
       { id: 101, status: 'confirmed', starts_at: '2025-12-01T10:00:00Z', package_title: 'Plan Elite', attendance_status: 'unset' },
     ]);
+    // "Sesiones recientes" only renders on the clinical-KPI branch of the resumen,
+    // so override the helper's 404 kpi mock with real KPI data (LIFO priority).
+    await page.route('**/api/trainer/my-clients/1/kpi/', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(fakeKPI) });
+    });
     await page.route('**/api/bookings/101/confirm-attendance/', async (route) => {
       await route.fulfill({
         status: 200,
