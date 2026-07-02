@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import gsap from 'gsap';
 import { useProgramStore } from '@/lib/stores/programStore';
+import { useCreditValuesStore } from '@/lib/stores/creditValuesStore';
+import { useWorkoutCaptures } from '@/lib/hooks/useWorkoutCaptures';
 import YouTubeEmbed from '@/app/components/program/YouTubeEmbed';
 
 type Phase = 'intro' | 'countdown' | 'execute' | 'rest' | 'complete';
@@ -118,6 +120,24 @@ export default function RutinaPage() {
   const pe = currentLog?.program_exercise;
   const ex = pe?.exercise;
 
+  // ── Workout camera validation (credits engine) ────────────────────────────
+  const { value: creditValue, requireWorkoutCaptures, fetchValues } = useCreditValuesStore();
+  useEffect(() => { fetchValues(); }, [fetchValues]);
+
+  const [gateOpen, setGateOpen] = useState(false);
+  const executeWindowMs = ((pe?.duration_seconds ?? 45) + 15) * 1000;
+  const captures = useWorkoutCaptures({
+    active: phase === 'execute' && requireWorkoutCaptures,
+    logId: todayData?.daily_log?.id ?? null,
+    exLogId: currentLog?.id ?? null,
+    windowMs: executeWindowMs,
+  });
+
+  // First visit with the rule active and no stored decision → consent gate.
+  useEffect(() => {
+    if (requireWorkoutCaptures && captures.permission === 'unknown') setGateOpen(true);
+  }, [requireWorkoutCaptures, captures.permission]);
+
   // Intro animation
   useEffect(() => {
     if (phase !== 'intro') return;
@@ -200,6 +220,43 @@ export default function RutinaPage() {
     );
   }
 
+  // Consent gate for the camera validation — shown before the routine flow.
+  if (gateOpen) {
+    return (
+      <RutinaShell>
+        <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center gap-5">
+          <div className="text-5xl">🎥</div>
+          <h2 className="font-heading text-[24px] font-semibold" style={{ color: '#FFF8EC' }}>
+            Validación de tu rutina
+          </h2>
+          <p className="text-[14px] max-w-sm" style={{ color: '#FFE9DC', opacity: 0.8 }}>
+            Durante tu entrenamiento se tomará un video para validar el cumplimiento de tu rutina
+            y entregarte tus créditos cuando tu entrenador lo valide.
+          </p>
+          {creditValue('workout_day') !== null && (
+            <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300">
+              +{creditValue('workout_day')} créditos por rutina validada
+            </span>
+          )}
+          <div className="flex flex-col gap-3 w-full max-w-xs mt-2">
+            <button
+              onClick={async () => { await captures.requestPermission(); setGateOpen(false); }}
+              className="bg-[#E00000] hover:bg-[#C20000] text-white font-semibold px-8 py-3.5 rounded-2xl transition-colors active:scale-95 text-[14px]"
+            >
+              Activar cámara
+            </button>
+            <button
+              onClick={() => { localStorage.setItem('kore_workout_camera', 'denied'); setGateOpen(false); }}
+              className="text-[13px] py-2" style={{ color: '#FFE9DC', opacity: 0.6 }}
+            >
+              Entrenar sin validar
+            </button>
+          </div>
+        </div>
+      </RutinaShell>
+    );
+  }
+
   const total = exerciseLogs.length;
   const completedCount = exerciseLogs.filter((el) => el.status === 'completed').length;
   const skippedCount = exerciseLogs.filter((el) => el.status === 'skipped').length;
@@ -252,6 +309,11 @@ export default function RutinaPage() {
               </div>
             )}
           </div>
+          {requireWorkoutCaptures && captures.permission === 'granted' && creditValue('workout_day') !== null && (
+            <p className="text-[12px] mb-6" style={{ color: '#FFE9DC', opacity: 0.7 }}>
+              📸 Rutina en validación · +{creditValue('workout_day')} créditos cuando tu entrenador la apruebe
+            </p>
+          )}
           <button
             onClick={handleClose}
             className="bg-[#E00000] hover:bg-[#C20000] text-white font-semibold px-8 py-3.5 rounded-2xl transition-colors active:scale-95 text-[14px]"
@@ -343,6 +405,12 @@ export default function RutinaPage() {
               </div>
             )}
 
+            {requireWorkoutCaptures && creditValue('workout_day') !== null && (
+              <span className="inline-block mb-4 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300">
+                +{creditValue('workout_day')} al validar tu entrenador
+              </span>
+            )}
+
             {ex.youtube_url && (
               <div className="mb-5">
                 <YouTubeEmbed url={ex.youtube_url} title={ex.name} />
@@ -388,6 +456,21 @@ export default function RutinaPage() {
 
     return (
       <RutinaShell>
+        <video ref={captures.videoRef} muted playsInline className="fixed w-px h-px opacity-0 pointer-events-none" />
+        {captures.capturing && (
+          <span className="fixed top-20 right-5 z-20 inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full bg-red-500/15 text-red-300">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+            Validando rutina
+          </span>
+        )}
+        {requireWorkoutCaptures && captures.permission === 'denied' && (
+          <button
+            onClick={() => setGateOpen(true)}
+            className="fixed top-20 right-5 z-20 text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300"
+          >
+            Sin validación · no suma créditos
+          </button>
+        )}
         <div className="min-h-screen flex flex-col">
           <div className="flex items-center justify-between px-5 pt-6 xl:pt-10 pb-3 shrink-0">
             <button onClick={handleClose} aria-label="Cerrar rutina"
