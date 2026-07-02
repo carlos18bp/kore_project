@@ -1127,12 +1127,15 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 3. View stats cards: total active clients, today's scheduled sessions.
 4. Quick action card links to /trainer/clients.
 5. View upcoming sessions list with client name, package, date/time.
+6. Open a day in the agenda and confirm attendance (✓ asistió / ✗ no asistió) for sessions that already started.
 
 **Branches / Variations**
 - Loading state shows dashes for stats and spinner for session list.
 - Empty upcoming sessions shows calendar placeholder and "No hay sesiones próximas".
 - Session rows link to client detail page.
 - Greeting changes based on hour (Buenos días/tardes/noches).
+- Confirmed attendance shows a green "Asistió" / red "No asistió" badge instead of buttons.
+- Sessions left unconfirmed at day close (23:55) are marked as no-show by the credits engine and penalized; confirming attendance afterwards reverses the penalty.
 
 ### trainer-clients-list: Trainer Client List
 - Module: trainer
@@ -1168,13 +1171,15 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 1. Navigate from client list to /trainer/clients/client?id=X.
 2. View client profile card (avatar, name, email, phone, goal, DOB, city, EPS, member since).
 3. View session history with status badges.
-4. Access assessment module links (anthropometry, posturometry, physical evaluation, nutrition, PAR-Q).
+4. Confirm attendance (✓ asistió / ✗ no asistió) on past sessions from the recent sessions list.
+5. Access assessment module links (anthropometry, posturometry, physical evaluation, nutrition, PAR-Q).
 
 **Branches / Variations**
 - Loading state shows spinner.
 - Client not found shows error state.
 - Missing profile fields show fallback values.
 - Session history shows confirmed/canceled/pending status badges.
+- Past sessions with attendance already set show the "Asistió"/"No asistió" badge; late confirmation reverses a prior no-show credit penalty.
 
 ### trainer-client-anthropometry: Trainer Client Anthropometry
 - Module: trainer
@@ -1248,6 +1253,26 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - No evaluations shows empty state with create button.
 - Form validates required fields before submission.
 - API failure shows error message.
+
+### trainer-client-physical-tests: Trainer Biweekly Physical Test
+- Module: trainer
+- Priority: P2
+- Route: /trainer/clients/client?id=X (tab Ev. Física)
+- Roles: trainer
+- Description: Register the biweekly physical test result (passed/failed); a passed test awards credits to the client via the credits engine.
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-client-physical-tests.spec.ts)
+
+**Steps**
+1. Open the client detail and switch to the Ev. Física tab.
+2. View the "Test quincenal" section with the latest test and result badge.
+3. Press "Registrar test" and fill date (defaults to today), result (Aprobado/No aprobado) and optional notes.
+4. Save; the new test becomes the latest and joins the collapsible history.
+
+**Branches / Variations**
+- No tests yet shows the baseline empty message.
+- "Ver historial (N)" toggles the previous tests list with result badges.
+- API failure shows an inline error banner; the form stays open.
+- A passed test triggers the credit award on the backend (PhysicalTest signal).
 
 ### trainer-client-posturometry: Trainer Client Posturometry
 - Module: trainer
