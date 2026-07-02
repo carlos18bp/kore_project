@@ -79,6 +79,7 @@ type ProgramState = {
   fetchActiveProgram: () => Promise<void>;
   fetchTodayData: () => Promise<void>;
   updateExerciseStatus: (logId: number, exLogId: number, status: ExerciseLog['status']) => Promise<void>;
+  uploadExerciseCapture: (logId: number, exLogId: number, file: File) => Promise<boolean>;
 };
 
 function authHeaders() {
@@ -140,6 +141,19 @@ export const useProgramStore = create<ProgramState>((set, get) => ({
       });
     } catch {
       set({ error: 'No se pudo actualizar el ejercicio.' });
+    }
+  },
+
+  uploadExerciseCapture: async (logId, exLogId, file) => {
+    try {
+      const form = new FormData();
+      form.append('image', file);
+      await api.post(`/my-program/logs/${logId}/exercises/${exLogId}/captures/`, form, {
+        headers: authHeaders(),
+      });
+      return true;
+    } catch {
+      return false;
     }
   },
 }));
