@@ -12,6 +12,7 @@ import RiskBadge from '@/app/components/trainer/RiskBadge';
 import AlertCard from '@/app/components/trainer/AlertCard';
 import ClientProgramTab from '@/app/components/trainer/ClientProgramTab';
 import PostSessionMessageSheet from '@/app/components/trainer/PostSessionMessageSheet';
+import AttendanceActions from '@/app/components/trainer/AttendanceActions';
 import SectionLabel from '@/app/components/shared/SectionLabel';
 import EmptyState from '@/app/components/shared/EmptyState';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
@@ -724,7 +725,7 @@ function SessionRow({
   onReschedule,
   onCancel,
 }: {
-  session: { id: number; status: string; package_title: string; starts_at: string | null; ends_at: string | null; notes: string; canceled_reason: string; session_notes_for_customer: string; created_at: string };
+  session: { id: number; status: string; package_title: string; starts_at: string | null; ends_at: string | null; notes: string; canceled_reason: string; session_notes_for_customer: string; created_at: string; attendance_status?: 'unset' | 'attended' | 'no_show' };
   onMessage?: (sessionId: number) => void;
   onReschedule?: (session: { id: number; starts_at: string }) => void;
   onCancel?: (session: { id: number; starts_at: string }) => void;
@@ -782,6 +783,9 @@ function SessionRow({
           Mensaje
         </button>
       )}
+      <AttendanceActions
+        session={{ id: session.id, starts_at: session.starts_at, status: session.status, attendance_status: session.attendance_status }}
+      />
       <span className={`font-body text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${sc.bg} ${sc.text}`}>
         {sc.label}
       </span>
