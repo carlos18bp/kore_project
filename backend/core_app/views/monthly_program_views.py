@@ -492,3 +492,40 @@ class UpdateExerciseLogView(APIView):
         exercise_log.notes = request.data.get('notes', exercise_log.notes)
         exercise_log.save(update_fields=['status', 'notes'])
         return Response(ExerciseLogSerializer(exercise_log).data)
+
+
+class ExerciseCaptureUploadView(APIView):
+    """Deferred-upload endpoint for workout evidence captures.
+
+    The client-facing flow presents this as video validation; the app uploads
+    a few random photos per exercise while the exercise is active.
+    """
+    permission_classes = [IsAuthenticated]
+
+    MAX_CAPTURES_PER_EXERCISE = 5
+
+    def post(self, request, log_id, ex_log_id):
+        from core_app.models.monthly_program import ExerciseCapture
+
+        try:
+            ex_log = ExerciseLog.objects.select_related('daily_log').get(
+                pk=ex_log_id, daily_log_id=log_id, daily_log__customer=request.user,
+            )
+        except ExerciseLog.DoesNotExist:
+            return Response({'detail': 'Registro no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if ex_log.daily_log.is_closed:
+            return Response(
+                {'detail': 'El día ya está cerrado; no se pueden subir capturas.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        image = request.FILES.get('image')
+        if image is None:
+            return Response({'detail': 'El campo image es obligatorio.'}, status=status.HTTP_400_BAD_REQUEST)
+        if ex_log.captures.count() >= self.MAX_CAPTURES_PER_EXERCISE:
+            return Response(
+                {'detail': 'Límite de capturas alcanzado para este ejercicio.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        capture = ExerciseCapture.objects.create(exercise_log=ex_log, image=image)
+        return Response({'id': capture.pk}, status=status.HTTP_201_CREATED)

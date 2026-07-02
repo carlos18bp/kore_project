@@ -115,6 +115,15 @@ from core_app.views.nutrition_week_note_views import (
     CustomerNutritionWeekNoteListView,
     UpdateNutritionWeekNoteView,
 )
+from core_app.views.credit_views import (
+    CreditSettingsView,
+    CreditTransactionListView,
+    CreditWalletView,
+    TrainerPendingReviewsView,
+    TrainerReviewTransactionView,
+)
+from core_app.views.physical_test_views import PhysicalTestViewSet
+from core_app.views.monthly_program_views import ExerciseCaptureUploadView
 
 router = DefaultRouter()
 router.register('packages', PackageViewSet, basename='package')
@@ -128,6 +137,7 @@ router.register('faqs', FAQItemViewSet, basename='faq')
 router.register('contact-messages', ContactMessageViewSet, basename='contact-message')
 router.register('analytics-events', AnalyticsEventViewSet, basename='analytics-event')
 router.register('admin/users', AdminUserViewSet, basename='admin-user')
+router.register('trainer/physical-tests', PhysicalTestViewSet, basename='physical-test')
 
 urlpatterns = [
     path('subscriptions/accept-invite/', accept_invite, name='subscription-accept-invite'),
@@ -217,4 +227,11 @@ urlpatterns = [
     path('meal-suggestions/', MealSuggestionCatalogView.as_view(), name='meal-suggestions'),
     path('my-nutrition-plan/', CustomerNutritionPlanWeekView.as_view(), name='my-nutrition-plan'),
     path('my-nutrition-plans/', CustomerNutritionPlanHistoryView.as_view(), name='my-nutrition-plans'),
+    # Credits (Phase 2)
+    path('credits/wallet/', CreditWalletView.as_view(), name='credits-wallet'),
+    path('credits/transactions/', CreditTransactionListView.as_view(), name='credits-transactions'),
+    path('credits/settings/', CreditSettingsView.as_view(), name='credits-settings'),
+    path('trainer/credits/pending-reviews/', TrainerPendingReviewsView.as_view(), name='trainer-credits-pending-reviews'),
+    path('trainer/credits/transactions/<int:tx_id>/review/', TrainerReviewTransactionView.as_view(), name='trainer-credits-review'),
+    path('my-program/logs/<int:log_id>/exercises/<int:ex_log_id>/captures/', ExerciseCaptureUploadView.as_view(), name='my-program-exercise-captures'),
 ]
