@@ -1,7 +1,28 @@
+from datetime import datetime, timedelta, timezone as dt_timezone
+
 import pytest
 from rest_framework.test import APIClient
 
 from core_app.models import User
+
+FROZEN_BASE = datetime(2026, 7, 15, 15, 0, 0, tzinfo=dt_timezone.utc)
+
+
+@pytest.fixture
+def frozen_now(monkeypatch):
+    """Deterministic replacement for django.utils.timezone.now().
+
+    Returns FROZEN_BASE; each subsequent call inside the test ticks forward by
+    one microsecond so auto_now_add ordering stays stable.
+    """
+    state = {'ticks': 0}
+
+    def _now():
+        state['ticks'] += 1
+        return FROZEN_BASE + timedelta(microseconds=state['ticks'])
+
+    monkeypatch.setattr('django.utils.timezone.now', _now)
+    return FROZEN_BASE
 
 
 @pytest.fixture

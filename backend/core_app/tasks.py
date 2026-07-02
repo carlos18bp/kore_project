@@ -520,3 +520,21 @@ def recompute_risk_score_task(customer_id):
     except User.DoesNotExist:
         return False
     return recompute_risk_score(customer)
+
+
+@db_task()
+def process_credit_event(kind, object_id):
+    """Resolve one Phase 1 event into credit ledger entries, off the request path.
+
+    Enqueued via transaction.on_commit by the credit signal receivers.
+    """
+    from core_app.services.credit_engine import handle_event
+    handle_event(kind, object_id)
+
+
+@db_periodic_task(crontab(minute=57, hour=23))
+def close_credits_day():
+    """At 23:57 daily (after close_daily_logs): evaluate streaks, no-shows and
+    expired pending credit transactions."""
+    from core_app.services.credit_day_close import process_credits_day_close
+    return process_credits_day_close()

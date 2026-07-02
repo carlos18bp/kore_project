@@ -265,6 +265,8 @@ class BookingViewSet(viewsets.ModelViewSet):
             _maybe_create_guest_booking(new_booking)
 
         send_booking_reschedule(booking, new_booking)
+        from core_app.services import credit_engine
+        credit_engine.on_reschedule(booking, new_booking, acting_user=request.user)
         serializer = self.get_serializer(new_booking)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -295,6 +297,47 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking.save(update_fields=list(data.keys()))
         import logging
         logging.getLogger(__name__).warning('[session_prep] booking=%s payload=%s saved_obj=%r', pk, dict(data), booking.session_objective)
+        serializer = self.get_serializer(booking)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='confirm-attendance', permission_classes=[IsTrainerRole])
+    def confirm_attendance(self, request, pk=None):
+        """Trainer marks whether the customer attended a session that already started.
+
+        Body: ``{"attended": true|false}``. Emits credit awards/penalties via the
+        credit engine (late confirmation reverses a prior no-show penalty).
+        """
+        try:
+            booking = Booking.objects.select_related('trainer', 'customer').get(pk=pk)
+        except Booking.DoesNotExist:
+            return Response({'detail': 'Sesión no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+
+        trainer_profile = getattr(request.user, 'trainer_profile', None)
+        if not is_admin_user(request.user):
+            # Fail closed on unassigned bookings: attendance moves credits, so
+            # only the booking's own trainer (or an admin) may confirm it.
+            if not trainer_profile or booking.trainer_id is None or booking.trainer_id != trainer_profile.pk:
+                return Response({'detail': 'No autorizado.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if booking.status == Booking.Status.CANCELED:
+            return Response(
+                {'detail': 'No se puede confirmar asistencia de una sesión cancelada.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if booking.starts_at > timezone.now():
+            return Response(
+                {'detail': 'La sesión aún no ha iniciado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        attended = request.data.get('attended')
+        if not isinstance(attended, bool):
+            return Response(
+                {'detail': 'El campo attended (true/false) es obligatorio.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from core_app.services import credit_engine
+        credit_engine.record_attendance(booking, attended=attended)
         serializer = self.get_serializer(booking)
         return Response(serializer.data)
 
