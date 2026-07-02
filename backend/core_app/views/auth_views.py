@@ -359,8 +359,9 @@ def mood_view(request):
     serializer = MoodEntrySerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     defaults = {'score': serializer.validated_data['score']}
-    if 'notes' in serializer.validated_data:
-        defaults['notes'] = serializer.validated_data['notes']
+    for key in ('notes', 'energy_level', 'pain', 'ready_to_train'):
+        if key in serializer.validated_data:
+            defaults[key] = serializer.validated_data[key]
     entry, created = MoodEntry.objects.update_or_create(
         user=request.user,
         date=today,
