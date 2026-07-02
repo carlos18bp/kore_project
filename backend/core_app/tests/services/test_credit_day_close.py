@@ -77,9 +77,9 @@ def test_inactive_day_resets_streak(existing_user):
 
 
 @pytest.mark.django_db
-def test_unconfirmed_booking_marked_no_show_with_penalty(existing_user):
+def test_unconfirmed_booking_marked_no_show_with_penalty(existing_user, frozen_now):
     package = Package.objects.create(title='P')
-    start = timezone.now() - timedelta(hours=3)
+    start = frozen_now - timedelta(hours=3)
     booking = Booking.objects.create(
         customer=existing_user, package=package,
         starts_at=start, ends_at=start + timedelta(hours=1),
@@ -93,13 +93,13 @@ def test_unconfirmed_booking_marked_no_show_with_penalty(existing_user):
 
 
 @pytest.mark.django_db
-def test_expired_pending_transactions_autoconfirm(existing_user):
+def test_expired_pending_transactions_autoconfirm(existing_user, frozen_now):
     tx = credit_engine.award(
         existing_user, CreditTransaction.Action.MEAL_PHOTO, 'meal_entry', 9,
         'Registraste tu cena', status=CreditTransaction.Status.PENDING,
-        review_deadline=timezone.now() - timedelta(hours=1),
+        review_deadline=frozen_now - timedelta(hours=1),
     )
-    process_credits_day_close(today=timezone.localdate())
+    process_credits_day_close(today=frozen_now.date())
     tx.refresh_from_db()
     assert tx.status == CreditTransaction.Status.CONFIRMED
     assert credit_engine.get_wallet(existing_user).balance == 5

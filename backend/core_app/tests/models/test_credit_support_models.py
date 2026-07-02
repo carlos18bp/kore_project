@@ -19,12 +19,11 @@ def test_physical_test_result_choices(existing_user):
 
 
 @pytest.mark.django_db
-def test_booking_attendance_defaults_to_unset(existing_user):
+def test_booking_attendance_defaults_to_unset(existing_user, frozen_now):
     package = Package.objects.create(title='P')
-    now = timezone.now()
     booking = Booking.objects.create(
         customer=existing_user, package=package,
-        starts_at=now, ends_at=now + timedelta(hours=1),
+        starts_at=frozen_now, ends_at=frozen_now + timedelta(hours=1),
     )
     assert booking.attendance_status == Booking.AttendanceStatus.UNSET
     assert booking.attendance_confirmed_at is None

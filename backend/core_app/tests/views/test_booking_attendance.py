@@ -1,7 +1,6 @@
 from datetime import timedelta
 
 import pytest
-from django.utils import timezone
 
 from core_app.models import Booking, Package, TrainerProfile, User
 from core_app.services import credit_engine
@@ -18,13 +17,12 @@ def trainer_user(db):
 
 
 @pytest.fixture
-def past_booking(existing_user, trainer_user):
+def past_booking(existing_user, trainer_user, frozen_now):
     package = Package.objects.create(title='P')
-    now = timezone.now()
     return Booking.objects.create(
         customer=existing_user, package=package,
         trainer=trainer_user.trainer_profile,
-        starts_at=now - timedelta(hours=2), ends_at=now - timedelta(hours=1),
+        starts_at=frozen_now - timedelta(hours=2), ends_at=frozen_now - timedelta(hours=1),
         status=Booking.Status.CONFIRMED,
     )
 
@@ -53,13 +51,12 @@ def test_customer_cannot_confirm_attendance(api_client, existing_user, past_book
 
 
 @pytest.mark.django_db
-def test_cannot_confirm_future_booking(api_client, trainer_user, existing_user):
+def test_cannot_confirm_future_booking(api_client, trainer_user, existing_user, frozen_now):
     package = Package.objects.create(title='P2')
-    now = timezone.now()
     future = Booking.objects.create(
         customer=existing_user, package=package,
         trainer=trainer_user.trainer_profile,
-        starts_at=now + timedelta(days=1), ends_at=now + timedelta(days=1, hours=1),
+        starts_at=frozen_now + timedelta(days=1), ends_at=frozen_now + timedelta(days=1, hours=1),
         status=Booking.Status.CONFIRMED,
     )
     api_client.force_authenticate(trainer_user)

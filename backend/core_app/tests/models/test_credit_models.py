@@ -10,12 +10,17 @@ def test_credit_settings_is_singleton():
     b = CreditSettings.load()
     assert a.pk == b.pk == 1
     assert a.difficulty == CreditSettings.Difficulty.MEDIUM
-    assert a.training_day_threshold == 0.70
-    assert a.nutrition_min_meals == 3
-    assert a.water_goal_glasses == 8
-    assert a.meal_review_days == 3
-    assert a.reschedule_window_hours == 24
-    assert a.require_workout_captures is False
+
+
+@pytest.mark.django_db
+def test_credit_settings_default_thresholds():
+    s = CreditSettings.load()
+    assert s.training_day_threshold == 0.70
+    assert s.nutrition_min_meals == 3
+    assert s.water_goal_glasses == 8
+    assert s.meal_review_days == 3
+    assert s.reschedule_window_hours == 24
+    assert s.require_workout_captures is False
 
 
 @pytest.mark.django_db
@@ -46,3 +51,4 @@ def test_transaction_reference_is_unique_per_customer_action(existing_user):
             reference_type='mood_entry',
             reference_id='1',
         )
+    assert CreditTransaction.objects.count() == 1

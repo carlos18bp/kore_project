@@ -1,7 +1,6 @@
 from datetime import timedelta
 
 import pytest
-from django.utils import timezone
 
 from core_app.models import Booking, Package, User
 from core_app.models.credit import CreditTransaction
@@ -14,11 +13,10 @@ def package(db):
 
 
 @pytest.fixture
-def booking(existing_user, package):
-    now = timezone.now()
+def booking(existing_user, package, frozen_now):
     return Booking.objects.create(
         customer=existing_user, package=package,
-        starts_at=now - timedelta(hours=2), ends_at=now - timedelta(hours=1),
+        starts_at=frozen_now - timedelta(hours=2), ends_at=frozen_now - timedelta(hours=1),
         status=Booking.Status.CONFIRMED,
     )
 
@@ -71,16 +69,15 @@ def test_late_attendance_confirmation_reverses_penalty(booking, existing_user):
 
 
 @pytest.mark.django_db
-def test_late_reschedule_penalizes_customer(existing_user, package):
-    now = timezone.now()
+def test_late_reschedule_penalizes_customer(existing_user, package, frozen_now):
     old = Booking.objects.create(
         customer=existing_user, package=package,
-        starts_at=now + timedelta(hours=5), ends_at=now + timedelta(hours=6),
+        starts_at=frozen_now + timedelta(hours=5), ends_at=frozen_now + timedelta(hours=6),
         status=Booking.Status.CANCELED,
     )
     new = Booking.objects.create(
         customer=existing_user, package=package,
-        starts_at=now + timedelta(days=3), ends_at=now + timedelta(days=3, hours=1),
+        starts_at=frozen_now + timedelta(days=3), ends_at=frozen_now + timedelta(days=3, hours=1),
     )
     credit_engine.on_reschedule(old, new, acting_user=existing_user)
     assert credit_engine.get_wallet(existing_user).balance == -20

@@ -1,5 +1,4 @@
 import pytest
-from django.utils import timezone
 
 from core_app.models import TrainerProfile, User
 from core_app.models.credit import CreditTransaction
@@ -24,16 +23,16 @@ def assigned_customer(existing_user, trainer_user):
 
 
 @pytest.mark.django_db
-def test_pending_reviews_lists_only_own_clients(api_client, trainer_user, assigned_customer):
+def test_pending_reviews_lists_only_own_clients(api_client, trainer_user, assigned_customer, frozen_now):
     credit_engine.award(
         assigned_customer, CreditTransaction.Action.MEAL_PHOTO, 'meal_entry', 1,
         'Registraste tu almuerzo', status=CreditTransaction.Status.PENDING,
-        review_deadline=timezone.now(),
+        review_deadline=frozen_now,
     )
     other = User.objects.create_user(email='o@example.com', password='x', role=User.Role.CUSTOMER)
     credit_engine.award(
         other, CreditTransaction.Action.MEAL_PHOTO, 'meal_entry', 2,
-        'Cena', status=CreditTransaction.Status.PENDING, review_deadline=timezone.now(),
+        'Cena', status=CreditTransaction.Status.PENDING, review_deadline=frozen_now,
     )
     api_client.force_authenticate(trainer_user)
     resp = api_client.get('/api/trainer/credits/pending-reviews/')
@@ -44,14 +43,14 @@ def test_pending_reviews_lists_only_own_clients(api_client, trainer_user, assign
 
 
 @pytest.mark.django_db
-def test_review_approve_and_reject(api_client, trainer_user, assigned_customer):
+def test_review_approve_and_reject(api_client, trainer_user, assigned_customer, frozen_now):
     tx1 = credit_engine.award(
         assigned_customer, CreditTransaction.Action.MEAL_PHOTO, 'meal_entry', 3,
-        'Almuerzo', status=CreditTransaction.Status.PENDING, review_deadline=timezone.now(),
+        'Almuerzo', status=CreditTransaction.Status.PENDING, review_deadline=frozen_now,
     )
     tx2 = credit_engine.award(
         assigned_customer, CreditTransaction.Action.MEAL_PHOTO, 'meal_entry', 4,
-        'Cena', status=CreditTransaction.Status.PENDING, review_deadline=timezone.now(),
+        'Cena', status=CreditTransaction.Status.PENDING, review_deadline=frozen_now,
     )
     api_client.force_authenticate(trainer_user)
     assert api_client.post(

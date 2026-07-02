@@ -1,17 +1,16 @@
 import pytest
-from django.utils import timezone
 
 from core_app.models.credit import CreditTransaction
 from core_app.services import credit_engine
 
 
 @pytest.mark.django_db
-def test_wallet_endpoint_returns_state_and_next_milestone(api_client, existing_user):
+def test_wallet_endpoint_returns_state_and_next_milestone(api_client, existing_user, frozen_now):
     credit_engine.award(existing_user, CreditTransaction.Action.CHECKIN, 'mood_entry', 1, 'Check-in')
     credit_engine.award(
         existing_user, CreditTransaction.Action.MEAL_PHOTO, 'meal_entry', 1, 'Almuerzo',
         status=CreditTransaction.Status.PENDING,
-        review_deadline=timezone.now(),
+        review_deadline=frozen_now,
     )
     wallet = credit_engine.get_wallet(existing_user)
     wallet.current_streak = 5
