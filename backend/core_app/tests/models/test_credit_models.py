@@ -1,5 +1,5 @@
 import pytest
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 
 from core_app.models.credit import CreditSettings, CreditTransaction, CreditWallet
 
@@ -42,7 +42,7 @@ def test_transaction_reference_is_unique_per_customer_action(existing_user):
         reference_type='mood_entry',
         reference_id='1',
     )
-    with pytest.raises(IntegrityError):
+    with pytest.raises(IntegrityError), transaction.atomic():
         CreditTransaction.objects.create(
             customer=existing_user,
             action=CreditTransaction.Action.CHECKIN,
