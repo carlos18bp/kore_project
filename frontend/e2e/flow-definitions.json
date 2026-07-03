@@ -1,5 +1,5 @@
 {
-  "version": "1.0.8",
+  "version": "1.0.9",
   "lastUpdated": "2026-07-02",
   "documentation": "Step-by-step user journeys (branches, variations) are maintained in docs/USER_FLOW_MAP.md. This file defines flow IDs and metadata for Playwright @flow: tags and e2e/reporters/flow-coverage-reporter.mjs.",
   "flows": {
@@ -135,6 +135,13 @@
       "priority": "P1",
       "roles": ["user"],
       "description": "Render dashboard overview sections and data."
+    },
+    "customer-credits": {
+      "name": "Cliente — Mis créditos",
+      "module": "app",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "El cliente ve su balance de créditos, racha con progreso al siguiente bono e historial de transacciones."
     },
     "dashboard-reminder": {
       "name": "Dashboard Reminder",

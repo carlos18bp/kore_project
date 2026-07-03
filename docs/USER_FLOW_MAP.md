@@ -493,7 +493,29 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Upcoming session card shows scheduled session when available.
 - Recent activity displays confirmed, canceled, and pending states.
 - Sidebar navigation links remain visible.
-- "Hoy ganas" block lists today's credit actions (check-in, hidratación, comidas, rutina) with done/pending state and dynamic "+X" chips; the check-in row opens the MoodCheckIn modal, the others link to their pages.
+- Hero header shows a tappable credit balance badge (→ /mis-creditos) and the streak (now from the credits engine).
+- "Hoy ganas" task pills live inside the hero (check-in, hidratación, comidas, rutina) with done/pending state and dynamic "+X" chips; the check-in pill opens the MoodCheckIn modal, the others link to their pages.
+- Next session renders as a compact row ("Próxima sesión · fecha hora →") that opens the upcoming-sessions modal; hidden when there is no upcoming session.
+
+### customer-credits: Cliente — Mis créditos
+- Module: app
+- Priority: P2
+- Route: /mis-creditos
+- Roles: user
+- Description: The client views their credit balance, streak with progress to the next bonus, and a readable transaction history.
+- E2E Coverage: Covered (frontend/e2e/app/mis-creditos.spec.ts)
+
+**Steps**
+1. Open /mis-creditos from the hero balance badge or the "Mis créditos" nav link (sidebar / mobile "Más").
+2. See the balance card (with pending-in-validation amount when applicable).
+3. See the streak ring with the week strip and the progress bar to the next bonus.
+4. Scroll the transaction history; more movements load on scroll.
+
+**Branches / Variations**
+- Pending balance chip only shows when there are pending credits.
+- Past the last milestone shows "¡Racha máxima!" instead of the bonus countdown.
+- Empty history shows the starter message ("Aún no tienes movimientos…").
+- Each movement is coloured: earned (sage), penalty (red), pending (amber).
 
 ### dashboard-reminder: Upcoming Session Reminder
 - Module: dashboard

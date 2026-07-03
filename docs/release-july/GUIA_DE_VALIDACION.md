@@ -219,9 +219,48 @@ siempre — el teléfono ya está frente a ti reproduciendo el video del ejercic
 
 ---
 
+## Parte 3 — Balance, racha e historial del cliente
+
+### Funcionalidad 6: Ver tus créditos, tu racha y tu historial
+
+#### 1. ¿Qué es y para qué sirve?
+
+Es tu billetera de créditos dentro de Kore Health. En un solo lugar ves cuántos
+créditos tienes, cuántos días llevas de racha (y cuánto te falta para tu próximo
+bono), y el detalle de cada crédito que has ganado o perdido. Ahora también los
+ves de un vistazo en tu pantalla de inicio.
+
+#### 2. Antes de empezar
+
+- Una cuenta de tipo **cliente** con la que puedas iniciar sesión.
+- Haber usado la app unos días ayuda a que tengas movimientos y racha para ver.
+
+#### 3. Paso a paso para probarlo
+
+1. Inicia sesión como cliente y entra al tablero.
+2. Arriba verás una **etiqueta con tu saldo de créditos** y tu **racha** (el número de días con la llamita).
+3. Toca el saldo — o entra por el menú a **"Mis créditos"** (en el menú lateral en computador, o en "Más" en el celular).
+4. En esa pantalla verás tu **balance**, tu **racha** con el anillo y los días de la semana, y cuánto te falta para el siguiente bono.
+5. Baja para ver tu **historial**: cada crédito ganado o perdido con su fecha y descripción. Sigue bajando y se cargan más.
+
+#### 4. Cómo sabes que funcionó
+
+- La etiqueta del saldo en el inicio muestra tu número de créditos y lleva a "Mis créditos" al tocarla.
+- La tarjeta de balance muestra tu total; si tienes créditos en revisión aparece "+X en validación por tu entrenador".
+- El anillo de racha muestra tus días y el texto "Faltan N días para tu bono de +X".
+- El historial lista tus movimientos con colores: verde (ganado), rojo (perdido), ámbar (pendiente).
+
+#### 5. Si algo no sale como esperabas
+
+- **El saldo aparece como "—"** → espera un momento a que cargue o refresca; si sigue, avísale al equipo técnico.
+- **La racha del inicio cambió respecto a antes** → es correcto: ahora la racha es la del sistema de créditos (la que te da bonos), calculada distinto a la anterior.
+- **No veo movimientos** → aún no has ganado ni perdido créditos; completa tu check-in para empezar.
+- Si persiste, avísale al equipo técnico con una captura de pantalla.
+
+---
+
 ## Próximas secciones (se agregarán al entregar cada parte)
 
-- **Parte 3** — Balance de créditos, racha e historial del cliente.
 - **Parte 4** — Tienda interna y canjes.
 - **Parte 5** — Calificación de sesiones.
 - **Parte 6** — Configuración de dificultad y revisión de fotos del entrenador.

@@ -18,16 +18,10 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
     await expect(main.getByText('Mi Progreso').filter({ visible: true })).toBeVisible({ timeout: 10_000 });
   });
 
-  test('renders session card', async ({ page }) => {
-    const main = page.getByRole('main');
+  test('renders the compact next-session row', async ({ page }) => {
+    // The row is always present (empty state included) and opens the sessions modal.
     await expect(
-      main.getByText(/Próxima sesión/i).filter({ visible: true }).first(),
-    ).toBeVisible({ timeout: 10_000 });
-  });
-
-  test('renders next session card', async ({ page }) => {
-    await expect(
-      page.getByRole('main').getByText(/Próxima sesión/i).filter({ visible: true }).first(),
+      page.getByRole('main').getByText('Próxima sesión').filter({ visible: true }).first(),
     ).toBeVisible({ timeout: 10_000 });
   });
 
@@ -52,24 +46,18 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
     await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
   });
 
-  test('shows the Hoy ganas block with credit chips', async ({ page }) => {
+  test('hero shows the credit balance badge', async ({ page }) => {
+    await page.route('**/api/credits/wallet/**', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ balance: 55, pending_balance: 0, current_streak: 3, longest_streak: 9, last_active_date: null, next_milestone: null }) }));
     await page.route('**/api/credits/values/**', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          action_values: { checkin: 5, water_goal: 10, meal_photo: 5, workout_day: 15 },
-          streak_bonuses: { '3': 20, '7': 50 },
-          water_goal_glasses: 8, meal_review_days: 3, require_workout_captures: true,
-        }),
-      }),
-    );
+      route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ action_values: { checkin: 5, water_goal: 10, meal_photo: 5, workout_day: 15 }, streak_bonuses: { '3': 20, '7': 50 }, water_goal_glasses: 8, meal_review_days: 3, require_workout_captures: true }) }));
     await page.goto('/dashboard');
-    const card = page.getByTestId('today-credits-card').filter({ visible: true }).first();
-    await expect(card).toBeVisible({ timeout: 15_000 });
-    await expect(card.getByText('Hoy ganas')).toBeVisible();
-    await expect(card.getByText('Check-in diario')).toBeVisible();
-    await expect(card.getByText('+15')).toBeVisible();
+    const badge = page.getByRole('link', { name: 'Ver mis créditos' }).filter({ visible: true }).first();
+    await expect(badge).toBeVisible({ timeout: 15_000 });
+    await expect(badge).toHaveAttribute('href', '/mis-creditos');
+    await expect(badge.getByText('55')).toBeVisible();
   });
 });
 
@@ -139,7 +127,7 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
     await page.goto('/dashboard');
     const main = page.getByRole('main');
     await expect(main.getByRole('heading', { level: 1, name: /Usuario/ })).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('Sin sesión agendada').filter({ visible: true }).first()).toBeVisible();
+    await expect(main.getByText('Sin sesiones próximas').filter({ visible: true }).first()).toBeVisible();
   });
 
   test('upcoming session shows formatted date in Proxima sesion card', async ({ page }) => {
@@ -182,7 +170,7 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
     });
 
     await page.goto('/dashboard');
-    await page.getByRole('button', { name: /Próximas sesiones/ }).first().click();
+    await page.getByRole('button', { name: 'Ver mis sesiones' }).first().click();
 
     await expect(page.getByRole('heading', { name: 'Mis sesiones' })).toBeVisible({ timeout: 5_000 });
     await page.getByRole('button', { name: /Pasadas\s*\(/ }).click();

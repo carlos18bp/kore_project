@@ -25,6 +25,7 @@ export const FlowTags = {
   TRAINER_MOBILE_BOTTOM_NAV: ['@flow:trainer-mobile-bottom-nav', '@module:navigation', '@priority:P3'],
 
   DASHBOARD_OVERVIEW: ['@flow:dashboard-overview', '@module:dashboard', '@priority:P1'],
+  CUSTOMER_CREDITS: ['@flow:customer-credits', '@module:app', '@priority:P2'],
   DASHBOARD_REMINDER: ['@flow:dashboard-reminder', '@module:dashboard', '@priority:P2'],
 
   MY_PROGRAMS_LIST: ['@flow:my-programs-list', '@module:programs', '@priority:P1'],
