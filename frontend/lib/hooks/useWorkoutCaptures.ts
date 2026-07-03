@@ -69,6 +69,12 @@ export function useWorkoutCaptures({ active, logId, exLogId, windowMs }: Args) {
     streamRef.current = null;
   }, []);
 
+  const decline = useCallback(() => {
+    localStorage.setItem(STORAGE_KEY, 'denied');
+    setPermission('denied');
+    releaseStream();
+  }, [releaseStream]);
+
   const captureFrame = useCallback(async () => {
     const video = videoRef.current;
     if (!video || !streamRef.current || logId === null || exLogId === null) return;
@@ -84,11 +90,19 @@ export function useWorkoutCaptures({ active, logId, exLogId, windowMs }: Args) {
     queue.enqueue({ logId, exLogId, file: compressed });
   }, [logId, exLogId, queue]);
 
-  // Re-acquire the stream on mount when consent was previously granted.
+  // Consent scope: the camera runs ONLY while an exercise set is executing.
+  // Outside `active` the stream is released (camera light off); with browser
+  // permission already granted, re-acquiring at the next set needs no prompt.
   useEffect(() => {
-    if (permission === 'granted' && !streamRef.current) {
+    if (active && permission === 'granted' && !streamRef.current) {
       void requestPermission();
     }
+    if (!active) {
+      releaseStream();
+    }
+  }, [active, permission, requestPermission, releaseStream]);
+
+  useEffect(() => {
     return () => {
       timeoutsRef.current.forEach(clearTimeout);
       releaseStream();
@@ -112,5 +126,5 @@ export function useWorkoutCaptures({ active, logId, exLogId, windowMs }: Args) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, permission, exLogId]);
 
-  return { videoRef, permission, requestPermission, releaseStream, capturing };
+  return { videoRef, permission, requestPermission, decline, releaseStream, capturing };
 }

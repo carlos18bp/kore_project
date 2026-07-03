@@ -246,7 +246,7 @@ export default function RutinaPage() {
               Activar cámara
             </button>
             <button
-              onClick={() => { localStorage.setItem('kore_workout_camera', 'denied'); setGateOpen(false); }}
+              onClick={() => { captures.decline(); setGateOpen(false); }}
               className="text-[13px] py-2" style={{ color: '#FFE9DC', opacity: 0.6 }}
             >
               Entrenar sin validar
