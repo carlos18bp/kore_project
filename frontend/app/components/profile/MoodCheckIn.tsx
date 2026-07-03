@@ -86,7 +86,7 @@ export default function MoodCheckIn() {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" data-testid="mood-checkin-modal">
       <div className="absolute inset-0 bg-white/40 backdrop-blur-md" onClick={handleDismiss} />
 
       <div className="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 overflow-hidden animate-in fade-in zoom-in-95 duration-300">

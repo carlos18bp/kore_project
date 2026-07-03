@@ -114,9 +114,113 @@ Piensa en ello como el examen que confirma que la rutina está dando resultados.
 
 ---
 
+## Parte 2 — Experiencia del cliente: check-in, créditos visibles y cámara
+
+### Funcionalidad 3: Check-in diario de 4 preguntas
+
+#### 1. ¿Qué es y para qué sirve?
+
+Al entrar a la app cada día, aparece una ventana que te pregunta cómo estás:
+tu ánimo, tu energía, si tienes algún dolor y si estás listo para entrenar.
+Son cuatro toques y toma menos de 30 segundos. Completarlo suma créditos, y
+le da a tu entrenador una foto diaria de cómo llegas a entrenar.
+
+#### 2. Antes de empezar
+
+- Una cuenta de tipo **cliente** con la que puedas iniciar sesión.
+- No haber registrado tu check-in hoy (aparece una sola vez al día).
+
+#### 3. Paso a paso para probarlo
+
+1. Inicia sesión como cliente. La ventana del check-in aparece sola.
+2. Arriba verás la etiqueta **"Check-in de hoy · +X créditos"** — eso es lo que ganas al completarlo.
+3. Toca tu ánimo del 1 al 10 → pasa solo a la siguiente pregunta.
+4. Toca tu nivel de energía (Agotado … A tope).
+5. Toca **"Sin dolor"** o **"Tengo dolor"** (si duele, puedes contarle al entrenador dónde).
+6. Cierra con **"¡Listo para entrenar!"** o **"Hoy no"**.
+
+#### 4. Cómo sabes que funcionó
+
+- Aparece la confirmación "Registrado. ¡Gracias!" con tu puntaje.
+- En el tablero, la fila "Check-in diario" del bloque **"Hoy ganas"** queda marcada como completada.
+
+#### 5. Si algo no sale como esperabas
+
+- **No aparece la ventana** → ya registraste tu check-in hoy, o la descartaste con "Ahora no" (vuelve a entrar o tócala desde "Hoy ganas").
+- **No veo la etiqueta de créditos** → refresca la página; si persiste, avísale al equipo técnico.
+
+---
+
+### Funcionalidad 4: Bloque "Hoy ganas" en el tablero
+
+#### 1. ¿Qué es y para qué sirve?
+
+Es tu lista diaria de acciones que dan créditos: check-in, hidratación, comidas
+con foto y la rutina. Cada fila muestra si ya la hiciste y cuántos créditos
+vale — los valores son los que configure tu entrenador, así que siempre están
+al día.
+
+#### 2. Antes de empezar
+
+- Cuenta de **cliente** con programa activo.
+
+#### 3. Paso a paso para probarlo
+
+1. Entra al tablero (pantalla principal).
+2. Busca la tarjeta **"Hoy ganas"** (bajo tu rutina del día).
+3. Revisa las cuatro filas y sus etiquetas "+X".
+4. Toca una fila pendiente: el check-in abre su ventana; hidratación y comidas te llevan a tu nutrición; la rutina te lleva a entrenar.
+
+#### 4. Cómo sabes que funcionó
+
+- Las filas completadas muestran el círculo verde con el check.
+- Los contadores avanzan en vivo (vasos 3/8, comidas 2/5, ejercicios 4/6).
+
+#### 5. Si algo no sale como esperabas
+
+- **No veo la tarjeta** → es solo para cuentas de cliente (no invitados).
+- **Las etiquetas "+X" no aparecen** → la configuración aún está cargando; refresca la página.
+
+---
+
+### Funcionalidad 5: Validación de tu rutina con cámara
+
+#### 1. ¿Qué es y para qué sirve?
+
+Para que tu rutina diaria sume créditos, la app valida que realmente estás
+entrenando: durante tus ejercicios se toma un video de verificación y tu
+entrenador lo revisa para entregarte los créditos. Tú solo entrenas como
+siempre — el teléfono ya está frente a ti reproduciendo el video del ejercicio.
+
+#### 2. Antes de empezar
+
+- Cuenta de **cliente** con rutina asignada para hoy.
+- Un dispositivo con cámara frontal (celular o computador con webcam).
+
+#### 3. Paso a paso para probarlo
+
+1. Entra a tu rutina del día ("Entrenar ahora" desde el tablero).
+2. La primera vez verás la pantalla **"Validación de tu rutina"** explicando la verificación. Toca **"Activar cámara"** y acepta el permiso del navegador.
+3. Entrena normal: durante cada ejercicio verás la señal **"● Validando rutina"** parpadeando arriba a la derecha.
+4. Al terminar, la pantalla de cierre te muestra **"Rutina en validación · +X créditos cuando tu entrenador la apruebe"**.
+
+#### 4. Cómo sabes que funcionó
+
+- La señal "Validando rutina" aparece en cada ejercicio.
+- La luz de tu cámara se enciende solo mientras ejecutas un ejercicio y se apaga entre pausas — es intencional, solo valida cuando entrenas.
+- A los 3 días (o cuando tu entrenador la apruebe antes) los créditos pasan a tu balance.
+
+#### 5. Si algo no sale como esperabas
+
+- **Toqué "Entrenar sin validar" y quiero activarla** → dentro del ejercicio, toca el aviso ámbar "Sin validación · no suma créditos" para reabrir la activación.
+- **Negué el permiso del navegador** → habilita la cámara para el sitio en la configuración del navegador y reabre la rutina.
+- **No aparece la pantalla de validación** → ya tomaste una decisión antes (quedó recordada); usa el aviso ámbar para cambiarla.
+- Si persiste, avísale al equipo técnico con una captura de pantalla.
+
+---
+
 ## Próximas secciones (se agregarán al entregar cada parte)
 
-- **Parte 2** — Check-in diario y hábitos del cliente (con la validación por cámara de la rutina).
 - **Parte 3** — Balance de créditos, racha e historial del cliente.
 - **Parte 4** — Tienda interna y canjes.
 - **Parte 5** — Calificación de sesiones.

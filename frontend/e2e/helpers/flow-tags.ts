@@ -82,6 +82,7 @@ export const FlowTags = {
 
   CUSTOMER_MI_PROGRAMA: ['@flow:customer-mi-programa', '@module:program', '@priority:P1'],
   CUSTOMER_MI_PROGRAMA_RUTINA: ['@flow:customer-mi-programa-rutina', '@module:program', '@priority:P1'],
+  PROGRAM_WORKOUT_CAPTURES: ['@flow:program-workout-captures', '@module:program', '@priority:P2'],
   CUSTOMER_MI_PROGRAMA_PROGRESO: ['@flow:customer-mi-programa-progreso', '@module:program', '@priority:P2'],
   CUSTOMER_MI_PROGRAMA_RESUMEN: ['@flow:customer-mi-programa-resumen', '@module:program', '@priority:P2'],
   CUSTOMER_MI_PROGRAMA_DIA: ['@flow:customer-mi-programa-dia', '@module:program', '@priority:P2'],

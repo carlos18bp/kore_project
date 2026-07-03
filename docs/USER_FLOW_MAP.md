@@ -493,6 +493,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Upcoming session card shows scheduled session when available.
 - Recent activity displays confirmed, canceled, and pending states.
 - Sidebar navigation links remain visible.
+- "Hoy ganas" block lists today's credit actions (check-in, hidratación, comidas, rutina) with done/pending state and dynamic "+X" chips; the check-in row opens the MoodCheckIn modal, the others link to their pages.
 
 ### dashboard-reminder: Upcoming Session Reminder
 - Module: dashboard
@@ -947,10 +948,22 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 ### profile-mood-entry: Profile Mood Entry
 - Module: profile
 - Priority: P3
-- Route: /profile (modal overlay)
+- Route: /profile (modal overlay; auto-opens on any (app) page)
 - Roles: user
-- Description: Record a daily mood (1-10) entry from the MoodCheckIn modal that auto-opens on the profile page when no mood has been logged today.
+- Description: 4-step daily check-in (ánimo 1-10, energía 1-5, dolor sí/no, listo para entrenar sí/no) from the MoodCheckIn modal that auto-opens when no mood has been logged today. Completing it awards credits (dynamic "+X" chip from the engine config).
 - E2E Coverage: Covered (frontend/e2e/app/profile-mood-entry.spec.ts)
+
+**Steps**
+1. Modal auto-opens with progress dots and the "Check-in de hoy · +X créditos" chip.
+2. Tap a mood score (1-10) → auto-advances to energy.
+3. Tap energy level (1-5) → auto-advances to pain.
+4. Tap "Sin dolor" / "Tengo dolor" → auto-advances to readiness (pain shows an optional note field for the trainer).
+5. Tap "¡Listo para entrenar!" or "Hoy no" → submits everything in one POST and shows the confirmation.
+
+**Branches / Variations**
+- "Ahora no" dismisses for the session (sessionStorage flag).
+- The dashboard "Hoy ganas" row re-opens the modal while no check-in exists today.
+- Credit chip hidden until the engine config loads (never shows a stale amount).
 
 ### profile-completion-cta: Profile Completion CTA
 - Module: profile
@@ -1457,6 +1470,27 @@ These elements are present across multiple routes and affect the user experience
 - Rest day: shows rest day card instead of exercise list.
 - All exercises completed: adherence = 100%, celebration state.
 - No DailyLog exists yet: auto-creates on first interaction.
+
+---
+
+### program-workout-captures: Workout Camera Validation
+- Module: program
+- Priority: P2
+- Route: /mi-programa/rutina
+- Roles: user
+- Description: Camera-based validation of the daily routine for workout-day credits. The client is told a video will be taken; the system takes 2-3 random photo captures per exercise during execution and uploads them in the background for trainer review.
+- E2E Coverage: Covered (frontend/e2e/program/mi-programa-rutina.spec.ts — "Rutina — validación por cámara")
+
+**Steps**
+1. First visit with the rule active shows the consent gate: "Validación de tu rutina" with the video copy and the "+X créditos" chip.
+2. "Activar cámara" triggers the browser camera permission; the choice is remembered.
+3. During each exercise's execution phase the "● Validando rutina" indicator pulses while random captures are taken and queued for deferred upload.
+4. The completion screen shows "Rutina en validación · +X créditos cuando tu entrenador la apruebe".
+
+**Branches / Variations**
+- "Entrenar sin validar" (or browser permission denied): the routine works normally but an amber notice explains workout credits need validation; tapping it re-opens the gate.
+- Camera runs ONLY while a set is executing (released between phases — consent scope).
+- Upload failures retry once silently; the engine needs at least one capture that day.
 
 ---
 
