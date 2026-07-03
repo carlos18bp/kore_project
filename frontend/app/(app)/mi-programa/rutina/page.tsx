@@ -67,6 +67,40 @@ function RutinaShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+function fmtClock(seconds: number): string {
+  const s = Math.max(0, seconds);
+  const m = Math.floor(s / 60);
+  return `${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/** Cinematic scrubber ticks from the design; the gold tick tracks progress. */
+function WorkoutTicks({ progress }: { progress: number }) {
+  const count = 40;
+  const active = Math.min(count - 1, Math.max(0, Math.round(progress * (count - 1))));
+  return (
+    <div
+      className="flex justify-center items-center gap-[5px] h-[26px] overflow-hidden"
+      style={{ WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent)', maskImage: 'linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent)' }}
+    >
+      {Array.from({ length: count }, (_, i) => {
+        const major = i % 5 === 0;
+        const isActive = i === active;
+        return (
+          <span
+            key={i}
+            className="w-[1.5px] rounded-[1px] transition-colors"
+            style={{
+              height: major ? 20 : 11,
+              background: isActive ? '#E7C8A0' : major ? 'rgba(255,248,236,0.45)' : 'rgba(255,248,236,0.22)',
+              boxShadow: isActive ? '0 0 8px rgba(231,200,160,0.8)' : 'none',
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 function TimerRing({ remaining, total, size = 160, light = false }: { remaining: number; total: number; size?: number; light?: boolean }) {
   const cx = size / 2;
   const r = (size / 2) - 10;
@@ -125,6 +159,7 @@ export default function RutinaPage() {
   useEffect(() => { fetchValues(); }, [fetchValues]);
 
   const [gateOpen, setGateOpen] = useState(false);
+  const [confirmExit, setConfirmExit] = useState(false);
   const executeWindowMs = ((pe?.duration_seconds ?? 45) + 15) * 1000;
   const captures = useWorkoutCaptures({
     active: phase === 'execute' && requireWorkoutCaptures,
@@ -450,101 +485,157 @@ export default function RutinaPage() {
     );
   }
 
-  // ── EXECUTE ────────────────────────────────────────────────────────────────
+  // ── EXECUTE — camera-first workout view (imported design) ──────────────────
   if (phase === 'execute') {
-    const timerDone = pe.duration_seconds ? execRemaining <= 0 : true;
-    // Mirror mode: with the camera validating, the selfie feed becomes the
-    // backdrop and the workout UI floats over it in glass panels.
     const cameraLive = requireWorkoutCaptures && captures.permission === 'granted';
-    const glass = 'bg-white/40 backdrop-blur-md border border-white/50 shadow-sm';
+    const durationProgress = pe.duration_seconds ? 1 - execRemaining / pe.duration_seconds : 0;
 
     return (
       <RutinaShell>
-        <video
-          ref={captures.videoRef}
-          muted
-          playsInline
-          className={cameraLive
-            ? 'fixed inset-0 z-0 h-full w-full object-cover -scale-x-100'
-            : 'fixed w-px h-px opacity-0 pointer-events-none'}
-        />
-        {captures.capturing && (
-          <span className={`fixed top-20 right-5 z-20 inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full ${
-            cameraLive ? 'bg-white/40 backdrop-blur-md text-red-600 border border-white/50' : 'bg-red-500/15 text-red-300'
-          }`}>
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-            Validando rutina
-          </span>
+        {/* Backdrop: live selfie feed when validating, cinematic gradient otherwise */}
+        {cameraLive ? (
+          <video ref={captures.videoRef} muted playsInline className="fixed inset-0 z-0 h-full w-full object-cover -scale-x-100" />
+        ) : (
+          <>
+            <video ref={captures.videoRef} muted playsInline className="fixed w-px h-px opacity-0 pointer-events-none" />
+            <div className="fixed inset-0 z-0" style={{ background: 'radial-gradient(ellipse 58% 46% at 50% 40%, #7c6a5d 0%, #52463d 38%, #2b221c 74%, #14100d 100%)' }} />
+          </>
         )}
-        {requireWorkoutCaptures && captures.permission === 'denied' && (
-          <button
-            onClick={() => setGateOpen(true)}
-            className="fixed top-20 right-5 z-20 text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300"
-          >
-            Sin validación · no suma créditos
-          </button>
-        )}
-        <div className="relative z-10 min-h-screen flex flex-col">
-          <div className={`flex items-center justify-between px-4 py-3 shrink-0 ${
-            cameraLive ? `${glass} rounded-2xl mx-4 mt-6 xl:mt-10` : 'px-5 pt-6 xl:pt-10 pb-3'
-          }`}>
-            <button onClick={handleClose} aria-label="Cerrar rutina"
-              className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors active:scale-95 ${
-                cameraLive
-                  ? 'bg-white/50 border border-white/60 hover:bg-white/70'
-                  : 'bg-white/10 backdrop-blur border border-white/15 hover:bg-white/15'
-              }`}>
-              <svg className={`w-4 h-4 ${cameraLive ? 'text-kore-wine-dark/70' : 'text-white/80'}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        {/* Legibility gradient over the feed */}
+        <div className="fixed inset-0 z-[1] pointer-events-none" style={{ background: 'linear-gradient(180deg, rgba(13,10,8,0.72) 0%, transparent 18%, transparent 55%, rgba(13,10,8,0.88) 100%)' }} />
+        {/* Faint dot grid */}
+        <div className="fixed z-[2] pointer-events-none" style={{ inset: '80px 24px 220px', opacity: 0.45, backgroundImage: 'radial-gradient(rgba(255,248,236,0.14) 1px, transparent 1.4px)', backgroundSize: '46px 46px' }} />
+
+        {/* Tracking brackets around the subject */}
+        <div className="fixed z-[3] pointer-events-none left-[20%] right-[20%] top-[24%] h-[38%]">
+          {(['tl', 'tr', 'bl', 'br'] as const).map((c) => (
+            <span key={c} className="absolute w-6 h-6" style={{
+              borderColor: 'rgba(255,248,236,0.85)', borderStyle: 'solid', borderWidth: '1.5px',
+              ...(c === 'tl' ? { top: 0, left: 0, borderRight: 'none', borderBottom: 'none', borderRadius: '4px 0 0 0' } : {}),
+              ...(c === 'tr' ? { top: 0, right: 0, borderLeft: 'none', borderBottom: 'none', borderRadius: '0 4px 0 0' } : {}),
+              ...(c === 'bl' ? { bottom: 0, left: 0, borderRight: 'none', borderTop: 'none', borderRadius: '0 0 0 4px' } : {}),
+              ...(c === 'br' ? { bottom: 0, right: 0, borderLeft: 'none', borderTop: 'none', borderRadius: '0 0 4px 0' } : {}),
+            }} />
+          ))}
+        </div>
+
+        <div className="relative z-10 min-h-screen flex flex-col text-kore-ivory">
+          {/* Top bar — back (confirms exit) + exercise title */}
+          <div className="flex items-center justify-between px-6 pt-8 xl:pt-12">
+            <button onClick={() => setConfirmExit(true)} aria-label="Salir del entrenamiento"
+              className="w-8 h-8 grid place-items-center active:scale-90 transition-transform">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFF8EC" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
               </svg>
             </button>
-            <p className={`text-[12px] font-medium text-center flex-1 px-2 truncate ${cameraLive ? 'text-kore-wine-dark/80' : 'text-white/55'}`}>{ex.name}</p>
-            <p className="text-[12px] font-bold shrink-0 tabular-nums" style={{ color: '#E00000' }}>{setIdx + 1} / {pe.sets}</p>
+            <p className="text-[15px] font-medium tracking-[0.04em] text-center flex-1 px-3 truncate" style={{ color: '#FFF8EC' }}>
+              {ex.name}
+            </p>
+            <div className="w-8 shrink-0" />
           </div>
 
-          <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6">
-            <div className={cameraLive ? `${glass} rounded-3xl px-10 py-8 flex flex-col items-center gap-4` : 'flex flex-col items-center gap-6'}>
-              {pe.duration_seconds ? (
-                <>
-                  <TimerRing remaining={execRemaining} total={pe.duration_seconds} size={200} light={cameraLive} />
-                  {timerDone && <p className="text-[13px] font-semibold text-kore-red animate-pulse">¡Tiempo!</p>}
-                </>
-              ) : (
-                <div className="flex flex-col items-center">
-                  <span className={`font-heading font-black leading-none ${cameraLive ? 'text-kore-wine-dark' : 'text-white'}`} style={{ fontSize: 'clamp(72px, 28vw, 120px)' }}>
-                    {pe.reps}
-                  </span>
-                  <p className={`text-[14px] mt-2 ${cameraLive ? 'text-kore-wine-dark/60' : 'text-white/55'}`}>repeticiones</p>
-                </div>
-              )}
-              <p className={`text-[11px] uppercase tracking-[0.14em] font-semibold ${cameraLive ? 'text-kore-wine-dark/55' : 'text-white/45'}`}>
-                {pe.sets - setIdx - 1 > 0
-                  ? `${pe.sets - setIdx - 1} ${pe.sets - setIdx - 1 === 1 ? 'serie' : 'series'} restantes`
-                  : 'Última serie'}
+          {/* Validation status label (over the subject) */}
+          {cameraLive && captures.capturing && (
+            <div className="absolute left-1/2 -translate-x-1/2 top-[64%] z-[22] inline-flex items-center gap-2 text-[13px] font-medium" style={{ color: 'rgba(255,248,236,0.92)' }}>
+              <span className="w-2 h-2 rounded-full bg-[#E7C8A0] animate-pulse" />
+              Validando tu rutina
+            </div>
+          )}
+          {requireWorkoutCaptures && captures.permission === 'denied' && (
+            <button onClick={() => setGateOpen(true)}
+              className="absolute left-1/2 -translate-x-1/2 top-[64%] z-[22] text-[11px] font-semibold px-3 py-1 rounded-full bg-amber-500/20 text-amber-200 border border-amber-300/30">
+              Sin validación · no suma créditos
+            </button>
+          )}
+
+          <div className="flex-1" />
+
+          {/* Data row: Serie · Repeticiones/Duración · Ejercicio */}
+          <div className="px-8 flex justify-between items-start" style={{ marginBottom: 18 }}>
+            <div>
+              <p className="text-[10px] font-medium tracking-[0.04em]" style={{ color: 'rgba(255,248,236,0.5)' }}>Serie</p>
+              <p className="text-[15px] font-semibold mt-1 tabular-nums" style={{ color: '#FFF8EC' }}>
+                {String(setIdx + 1).padStart(2, '0')} — {String(pe.sets).padStart(2, '0')}
               </p>
+            </div>
+            <div className="text-center">
+              <p className="text-[10px] font-medium tracking-[0.04em]" style={{ color: 'rgba(255,248,236,0.5)' }}>
+                {pe.duration_seconds ? 'Duración' : 'Repeticiones'}
+              </p>
+              <p className="text-[15px] font-semibold mt-1 tabular-nums" style={{ color: '#FFF8EC' }}>
+                {pe.duration_seconds ? fmtClock(execRemaining) : String(pe.reps ?? 0).padStart(2, '0')}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-medium tracking-[0.04em]" style={{ color: 'rgba(255,248,236,0.5)' }}>Ejercicio</p>
+              <p className="text-[15px] font-semibold mt-1 tabular-nums" style={{ color: '#FFF8EC' }}>{exIdx + 1} de {total}</p>
             </div>
           </div>
 
-          <div className={`space-y-2 max-w-sm mx-auto ${cameraLive ? `${glass} rounded-2xl p-3 mb-8 w-[calc(100%-2.5rem)]` : 'px-5 pb-10 w-full'}`}>
-            <button onClick={handleCompleteSet}
-              className={`w-full py-4 rounded-2xl font-semibold text-[15px] transition-all active:scale-95 ${
-                timerDone
-                  ? 'text-white shadow-lg'
-                  : cameraLive ? 'text-kore-wine-dark border border-kore-red/25' : 'text-white border border-white/15 hover:border-white/30'
-              }`}
-              style={timerDone
-                ? { background: 'linear-gradient(135deg, #E00000 0%, #9A0526 100%)', boxShadow: '0 8px 24px -8px rgba(224,0,0,0.45)' }
-                : { background: cameraLive ? 'rgba(224,0,0,0.08)' : 'rgba(224,0,0,0.10)' }
-              }>
-              ✓ Completé el set
+          {/* Prev / Next (skip) */}
+          <div className="px-8 flex justify-between items-center text-[12px]" style={{ color: 'rgba(255,248,236,0.55)', marginBottom: 16 }}>
+            <button onClick={() => { if (exIdx > 0) { setExIdx((i) => i - 1); setSetIdx(0); setPhase('intro'); } }}
+              disabled={exIdx === 0}
+              className={`inline-flex items-center gap-1.5 ${exIdx === 0 ? 'opacity-30' : 'active:scale-95'} transition-transform`}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+              Anterior
             </button>
-            <button onClick={handleSkip} className={`w-full transition-colors text-[13px] py-1.5 ${
-              cameraLive ? 'text-kore-wine-dark/45 hover:text-kore-wine-dark/70' : 'text-white/35 hover:text-white/55'
-            }`}>
-              Omitir ejercicio
+            <button onClick={handleSkip} aria-label="Omitir ejercicio" className="inline-flex items-center gap-1.5 active:scale-95 transition-transform">
+              Siguiente
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+            </button>
+          </div>
+
+          {/* Scrubber (duration) or set progress (reps) */}
+          <div style={{ marginBottom: 20 }}>
+            {pe.duration_seconds ? (
+              <>
+                <div className="relative text-center text-[13px] font-semibold mb-2" style={{ color: '#FFF8EC' }}>
+                  {fmtClock(execRemaining)}
+                </div>
+                <WorkoutTicks progress={durationProgress} />
+              </>
+            ) : (
+              <p className="text-center text-[11px] uppercase tracking-[0.14em] font-semibold" style={{ color: 'rgba(255,248,236,0.45)' }}>
+                {pe.sets - setIdx - 1 > 0 ? `${pe.sets - setIdx - 1} ${pe.sets - setIdx - 1 === 1 ? 'serie' : 'series'} restantes` : 'Última serie'}
+              </p>
+            )}
+          </div>
+
+          {/* Glass control bar — "Completé el set" */}
+          <div className="px-6 pb-9">
+            <button onClick={handleCompleteSet}
+              className="w-full h-[60px] rounded-[30px] flex items-center justify-center gap-3 text-[16px] font-semibold active:scale-[0.98] transition-transform"
+              style={{
+                color: '#FFF8EC', background: 'rgba(255,248,236,0.10)', border: '1px solid rgba(255,248,236,0.22)',
+                backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18)',
+              }}>
+              <span className="w-[26px] h-[26px] rounded-[13px] grid place-items-center" style={{ background: '#A8C29C' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2b221c" strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+              </span>
+              Completé el set
             </button>
           </div>
         </div>
+
+        {/* Exit confirmation popup */}
+        {confirmExit && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center p-6" style={{ background: 'rgba(13,10,8,0.55)', backdropFilter: 'blur(4px)' }}>
+            <div className="w-full max-w-xs rounded-3xl p-6 text-center" style={{ background: 'rgba(255,248,236,0.12)', border: '1px solid rgba(255,248,236,0.22)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)' }}>
+              <p className="font-heading text-[18px] font-semibold mb-1" style={{ color: '#FFF8EC' }}>¿Salir del entrenamiento?</p>
+              <p className="text-[13px] mb-5" style={{ color: 'rgba(255,248,236,0.7)' }}>Tu progreso de hoy se guarda; puedes retomar cuando quieras.</p>
+              <div className="flex flex-col gap-2.5">
+                <button onClick={handleClose} className="w-full py-3 rounded-2xl text-[14px] font-semibold text-white active:scale-95 transition-transform"
+                  style={{ background: 'linear-gradient(135deg, #E00000 0%, #9A0526 100%)' }}>
+                  Salir
+                </button>
+                <button onClick={() => setConfirmExit(false)} className="w-full py-2.5 text-[13px] font-medium" style={{ color: 'rgba(255,248,236,0.7)' }}>
+                  Seguir entrenando
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </RutinaShell>
     );
   }
