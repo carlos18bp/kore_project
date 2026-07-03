@@ -56,6 +56,19 @@ jest.mock('@/lib/stores/profileStore', () => ({
     profile: null,
     todayMood: null,
     fetchProfile: jest.fn(),
+    openMoodModal: jest.fn(),
+  }),
+}));
+
+jest.mock('@/lib/stores/creditValuesStore', () => ({
+  useCreditValuesStore: () => ({
+    actionValues: {},
+    streakBonuses: {},
+    waterGoalGlasses: 8,
+    requireWorkoutCaptures: false,
+    loaded: false,
+    fetchValues: jest.fn(),
+    value: () => null,
   }),
 }));
 
@@ -128,6 +141,8 @@ jest.mock('@/lib/stores/programStore', () => ({
   useProgramStore: () => ({
     activeProgram: null,
     fetchActiveProgram: jest.fn(),
+    todayData: null,
+    fetchTodayData: jest.fn(),
   }),
 }));
 
