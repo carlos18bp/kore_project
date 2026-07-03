@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
-import { Flame } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { Flame, ArrowDownLeft, ArrowUpRight, Clock } from 'lucide-react';
 import GlowRing from '@/app/components/shared/GlowRing';
-import { useWalletStore } from '@/lib/stores/walletStore';
+import { useWalletStore, type CreditTransaction } from '@/lib/stores/walletStore';
 
 const WEEK = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
@@ -24,9 +24,44 @@ function StreakWeekDots({ streak }: { streak: number }) {
   );
 }
 
+function TxRow({ tx }: { tx: CreditTransaction }) {
+  const pending = tx.status === 'pending';
+  const positive = tx.amount >= 0;
+  const Icon = pending ? Clock : positive ? ArrowUpRight : ArrowDownLeft;
+  const tone = pending ? 'bg-amber-100 text-amber-600' : positive ? 'bg-kore-sage/20 text-kore-sage-deep' : 'bg-red-100 text-red-600';
+  const date = new Date(tx.created_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+  return (
+    <div className="flex items-center gap-3 py-2.5">
+      <span className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${tone}`}>
+        <Icon className="w-4 h-4" strokeWidth={2} />
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-[13px] font-medium text-kore-gray-dark truncate">{tx.description}</p>
+        <p className="text-[11px] text-kore-gray-dark/40">{date}{pending ? ' · en validación' : ''}</p>
+      </div>
+      <span className={`text-[14px] font-bold tabular-nums flex-shrink-0 ${positive ? 'text-kore-sage-deep' : 'text-red-600'}`}>
+        {positive ? '+' : ''}{tx.amount}
+      </span>
+    </div>
+  );
+}
+
 export default function MisCreditosPage() {
-  const { wallet, walletLoaded, fetchWallet } = useWalletStore();
+  const { wallet, walletLoaded, fetchWallet, transactions, txLoading, fetchTransactions } = useWalletStore();
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => { fetchWallet(true); }, [fetchWallet]);
+  useEffect(() => { fetchTransactions(true); }, [fetchTransactions]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) fetchTransactions();
+    }, { rootMargin: '120px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [fetchTransactions]);
 
   const ms = wallet?.next_milestone ?? null;
   const bonusProgress = ms ? Math.round(((ms.days - ms.remaining) / ms.days) * 100) : 100;
@@ -74,7 +109,21 @@ export default function MisCreditosPage() {
         )}
       </div>
 
-      {/* History mounts here in Task 7 */}
+      {/* History */}
+      <div className="bg-white rounded-2xl p-4 border border-kore-gray-light/40 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-wide text-kore-gray-dark/50 mb-1 px-1">Historial</p>
+        {transactions.length === 0 && !txLoading ? (
+          <p className="text-[13px] text-kore-gray-dark/40 py-6 text-center">
+            Aún no tienes movimientos. Completa tu check-in para empezar a ganar.
+          </p>
+        ) : (
+          <div className="divide-y divide-kore-gray-light/40">
+            {transactions.map((tx) => <TxRow key={tx.id} tx={tx} />)}
+          </div>
+        )}
+        {txLoading && <p className="text-[12px] text-kore-gray-dark/40 py-3 text-center">Cargando…</p>}
+        <div ref={sentinelRef} className="h-1" />
+      </div>
     </div>
   );
 }
