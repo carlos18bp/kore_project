@@ -5,11 +5,13 @@ import { CalendarClock, ChevronRight } from 'lucide-react';
 export default function NextSessionRow({ formattedDate, formattedTime, onShowUpcoming }: {
   formattedDate: string | null; formattedTime: string; onShowUpcoming: () => void;
 }) {
-  const dateLabel = formattedDate ?? 'Próximamente';
+  const hasSession = !!formattedDate;
+  const value = hasSession ? `${formattedDate} · ${formattedTime}` : 'Sin sesiones próximas';
   return (
     <button
       type="button"
       onClick={onShowUpcoming}
+      aria-label="Ver mis sesiones"
       className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/70 backdrop-blur-sm border border-white/60 shadow-sm hover:bg-white/90 transition-colors active:scale-[0.99]"
     >
       <span className="w-8 h-8 rounded-full bg-kore-wine-dark/8 flex items-center justify-center flex-shrink-0">
@@ -17,7 +19,7 @@ export default function NextSessionRow({ formattedDate, formattedTime, onShowUpc
       </span>
       <span className="flex-1 min-w-0 text-left">
         <span className="block text-[10px] font-semibold uppercase tracking-wide text-kore-gray-dark/50">Próxima sesión</span>
-        <span className="block text-[13px] font-semibold text-kore-gray-dark truncate">{dateLabel} · {formattedTime}</span>
+        <span className={`block text-[13px] font-semibold truncate ${hasSession ? 'text-kore-gray-dark' : 'text-kore-gray-dark/45'}`}>{value}</span>
       </span>
       <ChevronRight className="w-4 h-4 text-kore-gray-dark/30 flex-shrink-0" strokeWidth={2} />
     </button>

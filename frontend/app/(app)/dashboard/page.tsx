@@ -1544,8 +1544,8 @@ export default function DashboardPage() {
           </AnimatedHero>
         )}
 
-        {/* Next session — compact row */}
-        {!isGuestDashboard && upcomingReminder && (
+        {/* Next session — compact row (always present; empty state opens the modal) */}
+        {!isGuestDashboard && (
           <NextSessionRow
             formattedDate={formattedDate}
             formattedTime={formattedTime}
@@ -1745,17 +1745,11 @@ export default function DashboardPage() {
 
           <div className="col-span-4">
             {!isGuestDashboard ? (
-              upcomingReminder ? (
-                <NextSessionRow
-                  formattedDate={formattedDate}
-                  formattedTime={formattedTime}
-                  onShowUpcoming={() => setShowUpcoming(true)}
-                />
-              ) : (
-                <div className="rounded-2xl p-6 bg-white/70 border border-white/60 h-full flex items-center justify-center text-center">
-                  <p className="text-sm text-kore-gray-dark/40">Sin sesiones próximas</p>
-                </div>
-              )
+              <NextSessionRow
+                formattedDate={formattedDate}
+                formattedTime={formattedTime}
+                onShowUpcoming={() => setShowUpcoming(true)}
+              />
             ) : (
               <div className="rounded-[22px] p-6 bg-white/70 border border-white/60 h-full flex items-center justify-center text-center">
                 <p className="text-sm text-kore-gray-dark/40">Modo invitado activo</p>
