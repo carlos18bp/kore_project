@@ -506,19 +506,6 @@ export default function RutinaPage() {
         {/* Faint dot grid */}
         <div className="fixed z-[2] pointer-events-none" style={{ inset: '80px 24px 220px', opacity: 0.45, backgroundImage: 'radial-gradient(rgba(255,248,236,0.14) 1px, transparent 1.4px)', backgroundSize: '46px 46px' }} />
 
-        {/* Tracking brackets around the subject */}
-        <div className="fixed z-[3] pointer-events-none left-[20%] right-[20%] top-[24%] h-[38%]">
-          {(['tl', 'tr', 'bl', 'br'] as const).map((c) => (
-            <span key={c} className="absolute w-6 h-6" style={{
-              borderColor: 'rgba(255,248,236,0.85)', borderStyle: 'solid', borderWidth: '1.5px',
-              ...(c === 'tl' ? { top: 0, left: 0, borderRight: 'none', borderBottom: 'none', borderRadius: '4px 0 0 0' } : {}),
-              ...(c === 'tr' ? { top: 0, right: 0, borderLeft: 'none', borderBottom: 'none', borderRadius: '0 4px 0 0' } : {}),
-              ...(c === 'bl' ? { bottom: 0, left: 0, borderRight: 'none', borderTop: 'none', borderRadius: '0 0 0 4px' } : {}),
-              ...(c === 'br' ? { bottom: 0, right: 0, borderLeft: 'none', borderTop: 'none', borderRadius: '0 0 4px 0' } : {}),
-            }} />
-          ))}
-        </div>
-
         <div className="relative z-10 min-h-screen flex flex-col text-kore-ivory">
           {/* Top bar — back (confirms exit) + exercise title */}
           <div className="flex items-center justify-between px-6 pt-8 xl:pt-12">
