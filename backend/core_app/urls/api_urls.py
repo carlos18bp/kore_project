@@ -118,6 +118,7 @@ from core_app.views.nutrition_week_note_views import (
 from core_app.views.credit_views import (
     CreditSettingsView,
     CreditTransactionListView,
+    CreditValuesView,
     CreditWalletView,
     TrainerPendingReviewsView,
     TrainerReviewTransactionView,
@@ -230,6 +231,7 @@ urlpatterns = [
     # Credits (Phase 2)
     path('credits/wallet/', CreditWalletView.as_view(), name='credits-wallet'),
     path('credits/transactions/', CreditTransactionListView.as_view(), name='credits-transactions'),
+    path('credits/values/', CreditValuesView.as_view(), name='credits-values'),
     path('credits/settings/', CreditSettingsView.as_view(), name='credits-settings'),
     path('trainer/credits/pending-reviews/', TrainerPendingReviewsView.as_view(), name='trainer-credits-pending-reviews'),
     path('trainer/credits/transactions/<int:tx_id>/review/', TrainerReviewTransactionView.as_view(), name='trainer-credits-review'),

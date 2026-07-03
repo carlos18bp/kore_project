@@ -16,6 +16,10 @@ jest.mock('@/lib/stores/profileStore', () => ({
   useProfileStore: jest.fn(),
 }));
 
+jest.mock('@/lib/stores/creditValuesStore', () => ({
+  useCreditValuesStore: () => ({ value: () => 5, fetchValues: jest.fn() }),
+}));
+
 const mockedUseAuthStore = useAuthStore as unknown as jest.Mock;
 const mockedUseProfileStore = useProfileStore as unknown as jest.Mock;
 
@@ -121,13 +125,15 @@ describe('MoodCheckIn', () => {
     });
   });
 
-  it('displays default score label of 7 (Bien)', async () => {
+  it('shows the credit chip and no score label before picking', async () => {
     setupStores();
     render(<MoodCheckIn />);
 
     await waitFor(() => {
-      expect(screen.getByText('Bien')).toBeInTheDocument();
+      expect(screen.getByText('Check-in de hoy · +5 créditos')).toBeInTheDocument();
     });
+    // No score selected yet → no label under the selector
+    expect(screen.queryByText('Bien')).not.toBeInTheDocument();
   });
 
   it('updates score label when a score button is clicked', async () => {
@@ -184,8 +190,17 @@ describe('MoodCheckIn', () => {
     expect(screen.queryByText('¿Cómo te sientes hoy?')).not.toBeInTheDocument();
   });
 
-  it('submits mood and shows confirmation', async () => {
-    jest.useFakeTimers();
+  async function walkToReadyStep(opts: { score?: string; energy?: RegExp; pain?: string } = {}) {
+    const { score = '9', energy = /A tope/, pain = 'Sin dolor' } = opts;
+    fireEvent.click(screen.getByRole('button', { name: score }));
+    await screen.findByText('¿Cuánta energía tienes?');
+    fireEvent.click(screen.getByRole('button', { name: energy }));
+    await screen.findByText('¿Tienes algún dolor o molestia?');
+    fireEvent.click(screen.getByRole('button', { name: pain }));
+    await screen.findByText('¿Listo para entrenar hoy?');
+  }
+
+  it('submits the 4-step check-in and shows confirmation', async () => {
     const { mockSubmitMood } = setupStores();
     render(<MoodCheckIn />);
 
@@ -193,29 +208,22 @@ describe('MoodCheckIn', () => {
       expect(screen.getByText('¿Cómo te sientes hoy?')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: '9' }));
-
-    const notesInput = screen.getByPlaceholderText('Notas adicionales (opcional)');
-    fireEvent.change(notesInput, { target: { value: 'Feeling great' } });
-
+    await walkToReadyStep({ score: '9', energy: /A tope/, pain: 'Sin dolor' });
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /Registrar/i }));
+      fireEvent.click(screen.getByRole('button', { name: '¡Listo para entrenar!' }));
     });
 
-    expect(mockSubmitMood).toHaveBeenCalledWith(9, 'Feeling great');
+    expect(mockSubmitMood).toHaveBeenCalledWith(9, undefined, {
+      energy_level: 5, pain: false, ready_to_train: true,
+    });
 
     await waitFor(() => {
       expect(screen.getByText('Excelente')).toBeInTheDocument();
       expect(screen.getByText('Registrado. ¡Gracias!')).toBeInTheDocument();
     });
-
-    act(() => { jest.advanceTimersByTime(2000); });
-
-    expect(screen.queryByText('Registrado. ¡Gracias!')).not.toBeInTheDocument();
-    jest.useRealTimers();
   });
 
-  it('submits mood without notes when notes field is empty', async () => {
+  it('pain path shows the trainer note field and submits it with Hoy no', async () => {
     const { mockSubmitMood } = setupStores();
     render(<MoodCheckIn />);
 
@@ -223,14 +231,19 @@ describe('MoodCheckIn', () => {
       expect(screen.getByText('¿Cómo te sientes hoy?')).toBeInTheDocument();
     });
 
+    await walkToReadyStep({ score: '4', energy: /Bajo/, pain: 'Tengo dolor' });
+    const notesInput = screen.getByPlaceholderText('Cuéntale a tu entrenador dónde te duele (opcional)');
+    fireEvent.change(notesInput, { target: { value: 'Rodilla derecha' } });
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /Registrar/i }));
+      fireEvent.click(screen.getByRole('button', { name: 'Hoy no' }));
     });
 
-    expect(mockSubmitMood).toHaveBeenCalledWith(7, undefined);
+    expect(mockSubmitMood).toHaveBeenCalledWith(4, 'Rodilla derecha', {
+      energy_level: 2, pain: true, ready_to_train: false,
+    });
   });
 
-  it('disables submit button while submitting', async () => {
+  it('disables submit buttons while submitting', async () => {
     let resolveSubmit: () => void;
     const submitPromise = new Promise<void>((resolve) => { resolveSubmit = resolve; });
     setupStores({ profile: { submitMood: jest.fn().mockReturnValue(submitPromise) } });
@@ -241,11 +254,13 @@ describe('MoodCheckIn', () => {
       expect(screen.getByText('¿Cómo te sientes hoy?')).toBeInTheDocument();
     });
 
-    const submitBtn = screen.getByRole('button', { name: /Registrar/i });
+    await walkToReadyStep();
+    const submitBtn = screen.getByRole('button', { name: '¡Listo para entrenar!' });
     await act(async () => { fireEvent.click(submitBtn); });
 
     expect(screen.getByText('Guardando...')).toBeInTheDocument();
     expect(submitBtn).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Hoy no' })).toBeDisabled();
 
     await act(async () => { resolveSubmit!(); });
   });

@@ -24,6 +24,12 @@ class MoodEntry(TimestampedModel):
         blank=True,
         help_text='Optional notes about how the user feels.',
     )
+    energy_level = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        help_text='Energy 1 (agotado) to 5 (a tope). Optional check-in extra.',
+    )
+    pain = models.BooleanField(null=True, blank=True)
+    ready_to_train = models.BooleanField(null=True, blank=True)
     date = models.DateField(default=timezone.localdate)
 
     class Meta:

@@ -1,5 +1,5 @@
 {
-  "version": "1.0.7",
+  "version": "1.0.8",
   "lastUpdated": "2026-07-02",
   "documentation": "Step-by-step user journeys (branches, variations) are maintained in docs/USER_FLOW_MAP.md. This file defines flow IDs and metadata for Playwright @flow: tags and e2e/reporters/flow-coverage-reporter.mjs.",
   "flows": {
@@ -466,6 +466,13 @@
       "roles": ["user"],
       "description": "View today's routine: exercise list, complete/skip individual exercises, log mood/notes, and see day-level adherence.",
       "coverage": "missing"
+    },
+    "program-workout-captures": {
+      "name": "Workout Camera Validation",
+      "module": "program",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "Consent gate and random camera captures during the routine that validate workout-day credits."
     },
     "customer-mi-programa-progreso": {
       "name": "Mi Programa — Progreso",

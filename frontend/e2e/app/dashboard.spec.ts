@@ -51,6 +51,26 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
     await expect(sidebar.getByRole('link', { name: 'Mi Suscripción' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
   });
+
+  test('shows the Hoy ganas block with credit chips', async ({ page }) => {
+    await page.route('**/api/credits/values/**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          action_values: { checkin: 5, water_goal: 10, meal_photo: 5, workout_day: 15 },
+          streak_bonuses: { '3': 20, '7': 50 },
+          water_goal_glasses: 8, meal_review_days: 3, require_workout_captures: true,
+        }),
+      }),
+    );
+    await page.goto('/dashboard');
+    const card = page.getByTestId('today-credits-card').filter({ visible: true }).first();
+    await expect(card).toBeVisible({ timeout: 15_000 });
+    await expect(card.getByText('Hoy ganas')).toBeVisible();
+    await expect(card.getByText('Check-in diario')).toBeVisible();
+    await expect(card.getByText('+15')).toBeVisible();
+  });
 });
 
 test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags.USER] }, () => {

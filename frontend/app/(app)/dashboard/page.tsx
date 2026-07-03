@@ -29,6 +29,7 @@ import type { BookingData } from '@/lib/stores/bookingStore';
 import SubscriptionExpiryReminder from '@/app/components/subscription/SubscriptionExpiryReminder';
 import SubscriptionDashboardToast from '@/app/components/subscription/SubscriptionDashboardToast';
 import ProgressTabsCard from '@/app/components/program/ProgressTabsCard';
+import TodayCreditsCard from '@/app/components/dashboard/TodayCreditsCard';
 import { useAnthropometryStore } from '@/lib/stores/anthropometryStore';
 import { usePosturometryStore } from '@/lib/stores/posturometryStore';
 import { usePhysicalEvaluationStore } from '@/lib/stores/physicalEvaluationStore';
@@ -1768,6 +1769,9 @@ export default function DashboardPage() {
           />
         )}
 
+        {/* Hoy ganas — créditos del día */}
+        {!isGuestDashboard && <TodayCreditsCard />}
+
         {/* Mi progreso + Resumen mensual */}
         <ProgressTabsCard mobileExpanded={progressExpanded} onToggleMobile={() => setProgressExpanded((v) => !v)} />
 
@@ -1974,6 +1978,13 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* Hoy ganas — créditos del día */}
+        {!isGuestDashboard && (
+          <div className="mb-5">
+            <TodayCreditsCard />
+          </div>
+        )}
 
         {/* Row 2: Mi Progreso / Resumen (full width) */}
         <div className="mb-5">

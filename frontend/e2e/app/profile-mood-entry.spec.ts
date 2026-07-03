@@ -2,19 +2,21 @@ import { test, expect, E2E_USER, injectAuthCookies, setupDefaultApiMocks } from 
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
- * E2E tests for the MoodCheckIn modal that auto-opens on /profile when no
- * mood entry has been logged today. Covers score selection, submission,
+ * E2E tests for the MoodCheckIn modal (4-step check-in: ánimo → energía →
+ * dolor → listo para entrenar) that auto-opens when no mood entry has been
+ * logged today. Covers the step flow, credit chip, submission payload,
  * dismiss, and the "already logged" path.
  *
- * NOTE: The /profile page also has a static "mood card" with the same heading
- * "¿Cómo te sientes hoy?" when no mood is set. To distinguish the modal from
- * the static card, the assertions key off the "Registrar" button which only
- * exists inside the modal overlay.
- *
- * Weight tracking has a backend endpoint and store action but no UI surface,
- * so it is intentionally not exercised here.
+ * The modal root carries data-testid="mood-checkin-modal" to distinguish it
+ * from the static mood card on /profile.
  */
 test.describe('Profile Mood Entry', { tag: [...FlowTags.PROFILE_MOOD_ENTRY, RoleTags.USER] }, () => {
+
+  const CREDIT_VALUES = {
+    action_values: { checkin: 5, water_goal: 10, meal_photo: 5, workout_day: 15 },
+    streak_bonuses: { '3': 20, '7': 50 },
+    water_goal_glasses: 8, meal_review_days: 3, require_workout_captures: true,
+  };
 
   function buildProfile(overrides: { today_mood?: object | null } = {}) {
     return {
@@ -39,8 +41,8 @@ test.describe('Profile Mood Entry', { tag: [...FlowTags.PROFILE_MOOD_ENTRY, Role
     };
   }
 
-  async function setupProfileMocks(page: import('@playwright/test').Page, options: { hasTodayMood?: boolean; submitOk?: boolean } = {}) {
-    const { hasTodayMood = false, submitOk = true } = options;
+  async function setupProfileMocks(page: import('@playwright/test').Page, options: { hasTodayMood?: boolean } = {}) {
+    const { hasTodayMood = false } = options;
     const todayMood = hasTodayMood
       ? { score: 6, notes: '', date: new Date().toISOString().slice(0, 10) }
       : null;
@@ -53,16 +55,23 @@ test.describe('Profile Mood Entry', { tag: [...FlowTags.PROFILE_MOOD_ENTRY, Role
       });
     });
 
+    await page.route('**/api/credits/values/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(CREDIT_VALUES),
+      });
+    });
+
     await page.route('**/api/auth/mood/', async (route) => {
       if (route.request().method() === 'POST') {
         await route.fulfill({
-          status: submitOk ? 201 : 500,
+          status: 201,
           contentType: 'application/json',
-          body: JSON.stringify(
-            submitOk
-              ? { score: 9, notes: 'Excelente día', date: new Date().toISOString().slice(0, 10) }
-              : { detail: 'Server error' }
-          ),
+          body: JSON.stringify({
+            score: 8, notes: '', date: new Date().toISOString().slice(0, 10),
+            energy_level: 4, pain: false, ready_to_train: true,
+          }),
         });
       } else {
         await route.continue();
@@ -75,73 +84,77 @@ test.describe('Profile Mood Entry', { tag: [...FlowTags.PROFILE_MOOD_ENTRY, Role
     await setupDefaultApiMocks(page);
   });
 
-  test('MoodCheckIn modal opens automatically on profile page when no mood today', async ({ page }) => {
+  test('modal auto-opens with the credit chip when no mood today', async ({ page }) => {
     await setupProfileMocks(page);
 
     await page.goto('/profile');
-    // The Registrar button is unique to the modal overlay (not present on the static profile card)
-    await expect(page.getByRole('button', { name: 'Registrar' })).toBeVisible({ timeout: 15_000 });
+    const modal = page.getByTestId('mood-checkin-modal');
+    await expect(modal).toBeVisible({ timeout: 15_000 });
+    await expect(modal.getByText(/Check-in de hoy · \+5 créditos/)).toBeVisible();
+    await expect(modal.getByText('¿Cómo te sientes hoy?')).toBeVisible();
   });
 
-  test('renders all 10 score buttons, Registrar and Ahora no buttons', async ({ page }) => {
+  test('renders the 10 score buttons on the first step', async ({ page }) => {
     await setupProfileMocks(page);
 
     await page.goto('/profile');
-    const registrar = page.getByRole('button', { name: 'Registrar' });
-    await expect(registrar).toBeVisible({ timeout: 15_000 });
-    // Scope to the modal panel — the profile page also renders a static mood card with 1–10 buttons.
-    const modal = registrar.locator('xpath=../..');
+    const modal = page.getByTestId('mood-checkin-modal');
+    await expect(modal).toBeVisible({ timeout: 15_000 });
 
     for (let n = 1; n <= 10; n += 1) {
       await expect(modal.getByRole('button', { name: String(n), exact: true })).toBeVisible();
     }
-    await expect(page.getByRole('button', { name: 'Ahora no' })).toBeVisible();
+    await expect(modal.getByRole('button', { name: 'Ahora no' })).toBeVisible();
   });
 
-  test('selecting score 9 and submitting calls POST /auth/mood/', async ({ page }) => {
+  test('completes the 4-step check-in and posts extras', async ({ page }) => {
     await setupProfileMocks(page);
+    let moodPayload: Record<string, unknown> | null = null;
+    await page.route('**/api/auth/mood/', async (route) => {
+      if (route.request().method() === 'POST') {
+        moodPayload = route.request().postDataJSON();
+        return route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify({ score: 8, notes: '', date: '2026-07-15', energy_level: 4, pain: false, ready_to_train: true }),
+        });
+      }
+      return route.continue();
+    });
 
     await page.goto('/profile');
-    const registrar = page.getByRole('button', { name: 'Registrar' });
-    await expect(registrar).toBeVisible({ timeout: 15_000 });
-    const modal = registrar.locator('xpath=../..');
+    const modal = page.getByTestId('mood-checkin-modal');
+    await expect(modal).toBeVisible({ timeout: 15_000 });
 
-    // Select score 9 and add notes
-    await modal.getByRole('button', { name: '9', exact: true }).click();
-    await page.getByPlaceholder('Notas adicionales (opcional)').fill('Excelente día de entrenamiento');
+    await modal.getByRole('button', { name: '8', exact: true }).click();
+    await expect(modal.getByText('¿Cuánta energía tienes?')).toBeVisible();
+    await modal.getByRole('button', { name: /Bien/ }).click();
+    await expect(modal.getByText('¿Tienes algún dolor o molestia?')).toBeVisible();
+    await modal.getByRole('button', { name: 'Sin dolor' }).click();
+    await expect(modal.getByText('¿Listo para entrenar hoy?')).toBeVisible();
+    await modal.getByRole('button', { name: '¡Listo para entrenar!' }).click();
 
-    // Wait for the POST and click submit
-    const moodPost = page.waitForResponse(
-      (response) => response.url().includes('/api/auth/mood/') && response.request().method() === 'POST',
-    );
-    await registrar.click();
-    const response = await moodPost;
-    expect(response.ok()).toBe(true);
-
-    // Confirmation card appears (showConfirmation state)
     await expect(page.getByText('Registrado. ¡Gracias!')).toBeVisible({ timeout: 5_000 });
+    expect(moodPayload).toMatchObject({ score: 8, energy_level: 4, pain: false, ready_to_train: true });
   });
 
   test('does NOT open modal when today_mood already exists', async ({ page }) => {
     await setupProfileMocks(page, { hasTodayMood: true });
 
     await page.goto('/profile');
-    // Profile page renders
     await expect(page.getByRole('heading', { level: 1, name: 'Mi perfil' })).toBeVisible({ timeout: 15_000 });
-    // The modal-only Registrar button is NOT present
-    await expect(page.getByRole('button', { name: 'Registrar' })).not.toBeVisible();
+    await expect(page.getByTestId('mood-checkin-modal')).not.toBeVisible();
   });
 
   test('Ahora no dismiss closes modal and persists in sessionStorage', async ({ page }) => {
     await setupProfileMocks(page);
 
     await page.goto('/profile');
-    await expect(page.getByRole('button', { name: 'Registrar' })).toBeVisible({ timeout: 15_000 });
+    const modal = page.getByTestId('mood-checkin-modal');
+    await expect(modal).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole('button', { name: 'Ahora no' }).click();
-
-    // Modal-only Registrar button disappears after dismiss
-    await expect(page.getByRole('button', { name: 'Registrar' })).not.toBeVisible();
+    await modal.getByRole('button', { name: 'Ahora no' }).click();
+    await expect(modal).not.toBeVisible();
 
     const dismissed = await page.evaluate(() => sessionStorage.getItem('kore_mood_dismissed'));
     expect(dismissed).toBe('1');
