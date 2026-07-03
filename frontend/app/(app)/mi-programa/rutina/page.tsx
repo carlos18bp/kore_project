@@ -67,7 +67,7 @@ function RutinaShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function TimerRing({ remaining, total, size = 160 }: { remaining: number; total: number; size?: number }) {
+function TimerRing({ remaining, total, size = 160, light = false }: { remaining: number; total: number; size?: number; light?: boolean }) {
   const cx = size / 2;
   const r = (size / 2) - 10;
   const circ = 2 * Math.PI * r;
@@ -78,12 +78,12 @@ function TimerRing({ remaining, total, size = 160 }: { remaining: number; total:
   return (
     <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90" style={{ position: 'absolute', inset: 0 }}>
-        <circle cx={cx} cy={cx} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="5" />
+        <circle cx={cx} cy={cx} r={r} fill="none" stroke={light ? 'rgba(103,15,34,0.12)' : 'rgba(255,255,255,0.08)'} strokeWidth="5" />
         <circle cx={cx} cy={cx} r={r} fill="none" stroke="#E00000" strokeWidth="5" strokeLinecap="round"
           strokeDasharray={circ} strokeDashoffset={offset} style={{ transition: 'stroke-dashoffset 1s linear' }} />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="font-black text-white" style={{ fontSize: size * 0.22 }}>{label}</span>
+        <span className={`font-black ${light ? 'text-kore-wine-dark' : 'text-white'}`} style={{ fontSize: size * 0.22 }}>{label}</span>
       </div>
     </div>
   );
@@ -453,13 +453,26 @@ export default function RutinaPage() {
   // ── EXECUTE ────────────────────────────────────────────────────────────────
   if (phase === 'execute') {
     const timerDone = pe.duration_seconds ? execRemaining <= 0 : true;
+    // Mirror mode: with the camera validating, the selfie feed becomes the
+    // backdrop and the workout UI floats over it in glass panels.
+    const cameraLive = requireWorkoutCaptures && captures.permission === 'granted';
+    const glass = 'bg-white/40 backdrop-blur-md border border-white/50 shadow-sm';
 
     return (
       <RutinaShell>
-        <video ref={captures.videoRef} muted playsInline className="fixed w-px h-px opacity-0 pointer-events-none" />
+        <video
+          ref={captures.videoRef}
+          muted
+          playsInline
+          className={cameraLive
+            ? 'fixed inset-0 z-0 h-full w-full object-cover -scale-x-100'
+            : 'fixed w-px h-px opacity-0 pointer-events-none'}
+        />
         {captures.capturing && (
-          <span className="fixed top-20 right-5 z-20 inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full bg-red-500/15 text-red-300">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+          <span className={`fixed top-20 right-5 z-20 inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full ${
+            cameraLive ? 'bg-white/40 backdrop-blur-md text-red-600 border border-white/50' : 'bg-red-500/15 text-red-300'
+          }`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
             Validando rutina
           </span>
         )}
@@ -471,53 +484,63 @@ export default function RutinaPage() {
             Sin validación · no suma créditos
           </button>
         )}
-        <div className="min-h-screen flex flex-col">
-          <div className="flex items-center justify-between px-5 pt-6 xl:pt-10 pb-3 shrink-0">
+        <div className="relative z-10 min-h-screen flex flex-col">
+          <div className={`flex items-center justify-between px-4 py-3 shrink-0 ${
+            cameraLive ? `${glass} rounded-2xl mx-4 mt-6 xl:mt-10` : 'px-5 pt-6 xl:pt-10 pb-3'
+          }`}>
             <button onClick={handleClose} aria-label="Cerrar rutina"
-              className="w-10 h-10 rounded-full bg-white/10 backdrop-blur border border-white/15 flex items-center justify-center hover:bg-white/15 transition-colors active:scale-95">
-              <svg className="w-4 h-4 text-white/80" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors active:scale-95 ${
+                cameraLive
+                  ? 'bg-white/50 border border-white/60 hover:bg-white/70'
+                  : 'bg-white/10 backdrop-blur border border-white/15 hover:bg-white/15'
+              }`}>
+              <svg className={`w-4 h-4 ${cameraLive ? 'text-kore-wine-dark/70' : 'text-white/80'}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            <p className="text-[12px] text-white/55 font-medium text-center flex-1 px-2 truncate">{ex.name}</p>
+            <p className={`text-[12px] font-medium text-center flex-1 px-2 truncate ${cameraLive ? 'text-kore-wine-dark/80' : 'text-white/55'}`}>{ex.name}</p>
             <p className="text-[12px] font-bold shrink-0 tabular-nums" style={{ color: '#E00000' }}>{setIdx + 1} / {pe.sets}</p>
           </div>
 
           <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6">
-            {pe.duration_seconds ? (
-              <>
-                <TimerRing remaining={execRemaining} total={pe.duration_seconds} size={200} />
-                {timerDone && <p className="text-[13px] font-semibold text-kore-red animate-pulse">¡Tiempo!</p>}
-              </>
-            ) : (
-              <div className="flex flex-col items-center">
-                <span className="font-heading font-black text-white leading-none" style={{ fontSize: 'clamp(72px, 28vw, 120px)' }}>
-                  {pe.reps}
-                </span>
-                <p className="text-white/55 text-[14px] mt-2">repeticiones</p>
-              </div>
-            )}
-            <p className="text-[11px] text-white/45 uppercase tracking-[0.14em] font-semibold">
-              {pe.sets - setIdx - 1 > 0
-                ? `${pe.sets - setIdx - 1} ${pe.sets - setIdx - 1 === 1 ? 'serie' : 'series'} restantes`
-                : 'Última serie'}
-            </p>
+            <div className={cameraLive ? `${glass} rounded-3xl px-10 py-8 flex flex-col items-center gap-4` : 'flex flex-col items-center gap-6'}>
+              {pe.duration_seconds ? (
+                <>
+                  <TimerRing remaining={execRemaining} total={pe.duration_seconds} size={200} light={cameraLive} />
+                  {timerDone && <p className="text-[13px] font-semibold text-kore-red animate-pulse">¡Tiempo!</p>}
+                </>
+              ) : (
+                <div className="flex flex-col items-center">
+                  <span className={`font-heading font-black leading-none ${cameraLive ? 'text-kore-wine-dark' : 'text-white'}`} style={{ fontSize: 'clamp(72px, 28vw, 120px)' }}>
+                    {pe.reps}
+                  </span>
+                  <p className={`text-[14px] mt-2 ${cameraLive ? 'text-kore-wine-dark/60' : 'text-white/55'}`}>repeticiones</p>
+                </div>
+              )}
+              <p className={`text-[11px] uppercase tracking-[0.14em] font-semibold ${cameraLive ? 'text-kore-wine-dark/55' : 'text-white/45'}`}>
+                {pe.sets - setIdx - 1 > 0
+                  ? `${pe.sets - setIdx - 1} ${pe.sets - setIdx - 1 === 1 ? 'serie' : 'series'} restantes`
+                  : 'Última serie'}
+              </p>
+            </div>
           </div>
 
-          <div className="px-5 pb-10 space-y-2 max-w-sm mx-auto w-full">
+          <div className={`space-y-2 max-w-sm mx-auto ${cameraLive ? `${glass} rounded-2xl p-3 mb-8 w-[calc(100%-2.5rem)]` : 'px-5 pb-10 w-full'}`}>
             <button onClick={handleCompleteSet}
               className={`w-full py-4 rounded-2xl font-semibold text-[15px] transition-all active:scale-95 ${
                 timerDone
                   ? 'text-white shadow-lg'
-                  : 'text-white border border-white/15 hover:border-white/30'
+                  : cameraLive ? 'text-kore-wine-dark border border-kore-red/25' : 'text-white border border-white/15 hover:border-white/30'
               }`}
               style={timerDone
                 ? { background: 'linear-gradient(135deg, #E00000 0%, #9A0526 100%)', boxShadow: '0 8px 24px -8px rgba(224,0,0,0.45)' }
-                : { background: 'rgba(224,0,0,0.10)' }
+                : { background: cameraLive ? 'rgba(224,0,0,0.08)' : 'rgba(224,0,0,0.10)' }
               }>
               ✓ Completé el set
             </button>
-            <button onClick={handleSkip} className="w-full text-white/35 hover:text-white/55 transition-colors text-[13px] py-1.5">
+            <button onClick={handleSkip} className={`w-full transition-colors text-[13px] py-1.5 ${
+              cameraLive ? 'text-kore-wine-dark/45 hover:text-kore-wine-dark/70' : 'text-white/35 hover:text-white/55'
+            }`}>
               Omitir ejercicio
             </button>
           </div>
