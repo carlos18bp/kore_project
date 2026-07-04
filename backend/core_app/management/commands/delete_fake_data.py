@@ -16,8 +16,11 @@ from core_app.models import (
     SiteSettings,
     Subscription,
     SubscriptionGuest,
+    SubscriptionRenewal,
     TrainerProfile,
+    TrainerUnavailability,
     User,
+    WompiEvent,
 )
 
 
@@ -62,7 +65,16 @@ class Command(BaseCommand):
             deleted_summary.append(f"payment_intents: {PaymentIntent.objects.all().delete()[0]}")
             deleted_summary.append(f"bookings: {Booking.objects.all().delete()[0]}")
             deleted_summary.append(f"subscription_guests: {SubscriptionGuest.objects.all().delete()[0]}")
+            # SubscriptionRenewal has a PROTECT FK to Package, so it must be
+            # removed before subscriptions/packages are deleted.
+            deleted_summary.append(f"subscription_renewals: {SubscriptionRenewal.objects.all().delete()[0]}")
             deleted_summary.append(f"subscriptions: {Subscription.objects.all().delete()[0]}")
+
+            # Rows whose FK does not chain to a deleted @kore.com user need
+            # explicit cleanup: TrainerUnavailability (FK -> TrainerProfile) and
+            # WompiEvent (no FK at all).
+            deleted_summary.append(f"trainer_unavailability: {TrainerUnavailability.objects.all().delete()[0]}")
+            deleted_summary.append(f"wompi_events: {WompiEvent.objects.all().delete()[0]}")
 
             deleted_summary.append(f"trainer_profiles: {TrainerProfile.objects.all().delete()[0]}")
 
