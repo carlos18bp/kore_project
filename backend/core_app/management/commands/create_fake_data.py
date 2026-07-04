@@ -56,6 +56,20 @@ class Command(BaseCommand):
         )
         parser.add_argument('--skip-spotlight', action='store_true', default=False)
 
+        parser.add_argument('--programs-per-customer', type=int, default=1)
+        parser.add_argument('--skip-programs', action='store_true', default=False)
+
+        parser.add_argument('--nutrition-days', type=int, default=14)
+        parser.add_argument('--skip-nutrition-daily', action='store_true', default=False)
+
+        parser.add_argument('--nutrition-plans-per-customer', type=int, default=1)
+        parser.add_argument('--skip-nutrition-plans', action='store_true', default=False)
+
+        parser.add_argument('--trainer-messages-per-customer', type=int, default=2)
+        parser.add_argument('--skip-trainer-intelligence', action='store_true', default=False)
+
+        parser.add_argument('--skip-tracking', action='store_true', default=False)
+
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS('=' * 70))
         self.stdout.write(self.style.SUCCESS('Starting fake data creation...'))
@@ -165,6 +179,52 @@ class Command(BaseCommand):
                 executed.append(f"spotlight ({', '.join(spotlight_emails)})")
         else:
             self.stdout.write(self.style.WARNING('Skipped spotlight customer history'))
+
+        if not options['skip_programs']:
+            call_command(
+                'create_fake_programs',
+                per_customer=options['programs_per_customer'],
+                stdout=self.stdout,
+            )
+            executed.append('programs')
+        else:
+            self.stdout.write(self.style.WARNING('Skipped programs'))
+
+        if not options['skip_nutrition_daily']:
+            call_command(
+                'create_fake_nutrition_daily',
+                days=options['nutrition_days'],
+                stdout=self.stdout,
+            )
+            executed.append('nutrition_daily')
+        else:
+            self.stdout.write(self.style.WARNING('Skipped nutrition daily'))
+
+        if not options['skip_nutrition_plans']:
+            call_command(
+                'create_fake_nutrition_plans',
+                per_customer=options['nutrition_plans_per_customer'],
+                stdout=self.stdout,
+            )
+            executed.append('nutrition_plans')
+        else:
+            self.stdout.write(self.style.WARNING('Skipped nutrition plans'))
+
+        if not options['skip_trainer_intelligence']:
+            call_command(
+                'create_fake_trainer_intelligence',
+                messages_per_customer=options['trainer_messages_per_customer'],
+                stdout=self.stdout,
+            )
+            executed.append('trainer_intelligence')
+        else:
+            self.stdout.write(self.style.WARNING('Skipped trainer intelligence'))
+
+        if not options['skip_tracking']:
+            call_command('create_fake_tracking', stdout=self.stdout)
+            executed.append('tracking')
+        else:
+            self.stdout.write(self.style.WARNING('Skipped tracking'))
 
         self.stdout.write('')
         self.stdout.write(self.style.SUCCESS('=' * 70))
