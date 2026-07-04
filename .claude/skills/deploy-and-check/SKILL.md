@@ -13,7 +13,7 @@ argument-hint: "[branch-name (opcional — default: rama actual del repo)]"
 **Verificación obligatoria ANTES de cualquier otro paso**:
 
 ```bash
-if [[ -d /home/dev-env/webapps ]]; then
+if [[ -d /home/dev-env/webapps || -d /home/dev_env/webapps ]]; then
   echo "❌ Esta skill no se puede ejecutar desde la dev machine."
   echo "   SSH primero al VPS destino:"
   echo "     ssh vps-projectapp-staging   (o vps-gym)"
@@ -79,11 +79,10 @@ GIT_CURRENT_BRANCH=$(cd "$PROJECT_DIR" && git rev-parse --abbrev-ref HEAD 2>/dev
 BRANCH="${ARGUMENTS:-$GIT_CURRENT_BRANCH}"
 [ -n "$BRANCH" ] || { echo "❌ ERROR: no se pudo determinar la rama actual y no se especificó argumento"; exit 1; }
 
-# Resolve DJANGO_SETTINGS_MODULE EXACTAMENTE como lo corre el servicio de prod.
 # manage.py defaultea a *_dev (SQLite) en varios proyectos del fleet, así que
 # migrate/collectstatic DEBEN usar el módulo de prod o pegan a la base equivocada.
 # Fuente primaria: el Environment= del unit systemd de gunicorn. Fallback: backend/.env.
-# Los pasos 5 (migrate) y 7 (collectstatic) heredan este export.
+# Los pasos 5 (migrate) y 7 (collectstatic) lo re-derivan (el env no persiste entre pasos del skill).
 DJANGO_SETTINGS_MODULE=$(systemctl show "$GUNICORN_SVC" -p Environment --value 2>/dev/null \
         | tr ' ' '\n' | grep '^DJANGO_SETTINGS_MODULE=' | head -1 | cut -d= -f2-)
 [ -z "$DJANGO_SETTINGS_MODULE" ] && DJANGO_SETTINGS_MODULE=$(grep -hE '^DJANGO_SETTINGS_MODULE=' \
@@ -139,8 +138,15 @@ cd "$PROJECT_DIR" && git fetch origin && git checkout "$BRANCH" && git pull orig
 
 5. Backend deps + migrations:
 ```bash
-# migrate corre con el DJANGO_SETTINGS_MODULE exportado en Phase 0 (módulo de prod,
-# no el *_dev/SQLite que manage.py usaría por default).
+# manage.py suele tener setdefault a un settings *_dev (SQLite u otra DB). migrate DEBE
+# usar el settings REAL del servicio prod, y como el env NO persiste entre pasos del skill,
+# se re-deriva acá (systemd → .env). Sin esto, migrás la base equivocada.
+DJANGO_SETTINGS_MODULE=$(systemctl show "$GUNICORN_SVC" -p Environment --value 2>/dev/null \
+        | tr ' ' '\n' | grep '^DJANGO_SETTINGS_MODULE=' | head -1 | cut -d= -f2-)
+[ -z "$DJANGO_SETTINGS_MODULE" ] && DJANGO_SETTINGS_MODULE=$(grep -hE '^DJANGO_SETTINGS_MODULE=' \
+        "$PROJECT_DIR/backend/.env" 2>/dev/null | head -1 | cut -d= -f2-)
+export DJANGO_SETTINGS_MODULE
+echo "→ migrate con DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE:-<manage.py default — puede ser dev!>}"
 cd "$PROJECT_DIR/backend" && \
     "$PROJECT_DIR/$VENV_PATH" -m pip install -r requirements.txt && \
     "$PROJECT_DIR/$VENV_PATH" manage.py migrate
@@ -167,8 +173,14 @@ fi
 
 7. Collectstatic (si aplica):
 ```bash
-# collectstatic hereda el DJANGO_SETTINGS_MODULE exportado en Phase 0 (módulo de prod).
 if [ "$COLLECTSTATIC" = "true" ]; then
+    # Mismo motivo que migrate: usar el settings prod (STATIC_ROOT correcto). Re-derivar
+    # porque el env no persiste entre pasos del skill.
+    DJANGO_SETTINGS_MODULE=$(systemctl show "$GUNICORN_SVC" -p Environment --value 2>/dev/null \
+            | tr ' ' '\n' | grep '^DJANGO_SETTINGS_MODULE=' | head -1 | cut -d= -f2-)
+    [ -z "$DJANGO_SETTINGS_MODULE" ] && DJANGO_SETTINGS_MODULE=$(grep -hE '^DJANGO_SETTINGS_MODULE=' \
+            "$PROJECT_DIR/backend/.env" 2>/dev/null | head -1 | cut -d= -f2-)
+    export DJANGO_SETTINGS_MODULE
     cd "$PROJECT_DIR/backend" && "$PROJECT_DIR/$VENV_PATH" manage.py collectstatic --noinput
 fi
 ```
@@ -235,37 +247,3 @@ sudo systemctl status "$HUEY_SVC" --no-pager -l
 - Skill **genérico** — auto-resuelve servicios, dominios y rutas desde `~/webapps/vps-ops-toolkit/projects.yml`. Funciona para staging y producción.
 - Sin argumento despliega en la rama actual (`git rev-parse --abbrev-ref HEAD`). Con argumento hace checkout a la rama indicada.
 - Fuente canónica: `vps-ops-toolkit/workflows/.claude/deploy-and-check.md`. Las versiones en `.windsurf/` y `.agents/skills/` son copias del mismo contenido.
-
----
-
-## Output final
-
-Reportar siguiendo [[_output-protocol]]. Plantilla específica de
-`/deploy-and-check`:
-
-```markdown
-🟢 deploy-and-check OK — <proyecto> @ <rama>
-✨ Todo en orden — no hay acciones pendientes.
-
-| Dimensión | Estado | Detalle |
-|---|---|---|
-| Entorno VPS | ✅ | hostname <srv>, no es dev-machine |
-| Phase 0 — Discovery | ✅ | projects.yml leído: <svc>, <dominio>, <env> |
-| Phase 1 — Pre-deploy | ✅ | quick-status OK, working tree clean, rama existe |
-| Phase 2 — Pull & build | ✅ | git pull, pip install, migrate, frontend build |
-| Phase 3 — Restart services | ✅ | gunicorn + huey + (frontend) reiniciados |
-| Phase 4 — Health endpoint | ✅ | curl /api/health/ → 200 OK |
-| Phase 4 — post-deploy-check | ✅ | post-deploy-check.sh PASS para <proyecto> |
-```
-
-Si la verificación de entorno falla (corriendo en dev-machine), reportar
-🚫 con `## Next steps` indicando el SSH al VPS destino — **no es error**,
-es safety gate.
-
-Si gunicorn/huey no levanta, health 5xx, o post-deploy-check FAIL, reemplazar
-✅ por ❌, omitir la línea ✨ y agregar `## Next steps` con los `journalctl
--u <svc> -n 50` y los logs específicos (`backend/logs/django.log`,
-`/var/log/nginx/error.log`).
-
-**No duplicar contadores con el output del script bash:** el reporte de la
-skill va DESPUÉS de cualquier `print_summary` que emita post-deploy-check.sh.
