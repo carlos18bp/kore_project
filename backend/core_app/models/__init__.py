@@ -36,6 +36,7 @@ from .trainer_message import TrainerMessage
 from .weekly_nutrition_plan import WeeklyNutritionPlan, WeeklyPlanDay, WeeklyPlanMeal
 from .nutrition_week_note import NutritionWeekNote
 from .credit import CreditSettings, CreditWallet, CreditTransaction
+from .store import StoreItem, RedemptionRequest
 
 __all__ = [
     'User',
@@ -88,6 +89,8 @@ __all__ = [
     'CreditSettings',
     'CreditWallet',
     'CreditTransaction',
+    'StoreItem',
+    'RedemptionRequest',
     'ExerciseCapture',
     'PhysicalTest',
 ]

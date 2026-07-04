@@ -85,11 +85,13 @@ def test_unconfirmed_booking_marked_no_show_with_penalty(existing_user, frozen_n
         starts_at=start, ends_at=start + timedelta(hours=1),
         status=Booking.Status.CONFIRMED,
     )
+    # Seed a positive balance so the no-show penalty applies (floor-at-0 never goes negative).
+    credit_engine.award(existing_user, CreditTransaction.Action.SESSION_ATTENDED, 'seed', 's', 'x', amount=100)
     # Evaluate the day the booking belongs to (avoids flakiness near UTC midnight)
     process_credits_day_close(today=start.date())
     booking.refresh_from_db()
     assert booking.attendance_status == Booking.AttendanceStatus.NO_SHOW
-    assert credit_engine.get_wallet(existing_user).balance == -40
+    assert credit_engine.get_wallet(existing_user).balance == 60  # 100 - 40
 
 
 @pytest.mark.django_db

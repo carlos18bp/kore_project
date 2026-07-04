@@ -502,20 +502,62 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Priority: P2
 - Route: /mis-creditos
 - Roles: user
-- Description: The client views their credit balance, streak with progress to the next bonus, and a readable transaction history.
+- Description: The client views their credit balance split into disponibles (approved) and por aprobar (pending), streak with progress to the next bonus, a readable transaction history, and their redemptions ("Mis canjes").
 - E2E Coverage: Covered (frontend/e2e/app/mis-creditos.spec.ts)
 
 **Steps**
 1. Open /mis-creditos from the hero balance badge or the "Mis créditos" nav link (sidebar / mobile "Más").
-2. See the balance card (with pending-in-validation amount when applicable).
+2. See the balance card split into two figures: "Disponibles" (approved, spendable) and "Por aprobar" (pending), with the note that only disponibles can be spent.
 3. See the streak ring with the week strip and the progress bar to the next bonus.
-4. Scroll the transaction history; more movements load on scroll.
+4. See "Mis canjes" (when any redemptions exist) with each item's status: Pendiente / Entregado / Rechazado.
+5. Scroll the transaction history; more movements load on scroll.
 
 **Branches / Variations**
-- Pending balance chip only shows when there are pending credits.
+- "Mis canjes" section only shows when the client has at least one redemption.
 - Past the last milestone shows "¡Racha máxima!" instead of the bonus countdown.
 - Empty history shows the starter message ("Aún no tienes movimientos…").
 - Each movement is coloured: earned (sage), penalty (red), pending (amber).
+
+### customer-store: Cliente — Tienda
+- Module: app
+- Priority: P2
+- Route: /tienda
+- Roles: user
+- Description: The client browses the store catalog, sees their spendable balance, and redeems an item using only approved credits.
+- E2E Coverage: Covered (frontend/e2e/app/tienda.spec.ts)
+
+**Steps**
+1. Open /tienda from the "Tienda" nav link (sidebar / mobile "Más").
+2. See the catalog grid and the "X disponibles" chip with the approved balance.
+3. Each item shows its price in credits and a "Canjear" button (or "Sin saldo" when the price exceeds the balance).
+4. Click "Canjear" → a confirm dialog shows the item and the credits to be deducted.
+5. Confirm → the redemption is created (status pending), credits are deducted immediately, and a success toast appears.
+
+**Branches / Variations**
+- Items priced above the available balance render disabled with "Sin saldo".
+- Insufficient funds at confirm time returns a backend error surfaced inline.
+- Empty catalog shows "Aún no hay productos en la tienda.".
+- Only approved (disponibles) credits count toward affordability; pending credits do not.
+
+### trainer-store-management: Trainer — Gestión de tienda
+- Module: trainer
+- Priority: P2
+- Route: /trainer/tienda
+- Roles: trainer
+- Description: The trainer reviews pending redemption requests (fulfill or reject with credit refund) and manages the catalog (create items, toggle active).
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-tienda.spec.ts)
+
+**Steps**
+1. Open /trainer/tienda from the trainer nav "Tienda" link.
+2. See "Solicitudes de canje": each pending request shows item, customer and credits spent.
+3. Click "Entregar" to fulfill (client notified) or "Rechazar" to reject (credits refunded, client notified).
+4. In "Catálogo", add an item (name, price, type) and toggle any item Activo/Inactivo.
+
+**Branches / Variations**
+- Empty inbox shows "Sin solicitudes pendientes.".
+- Rejecting a redemption refunds the spent credits to the client's balance.
+- Non-admin trainers only see redemptions from their assigned customers; admins see all.
+- Item creation requires a name and a price greater than 0.
 
 ### dashboard-reminder: Upcoming Session Reminder
 - Module: dashboard

@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { Flame, ArrowDownLeft, ArrowUpRight, Clock } from 'lucide-react';
 import GlowRing from '@/app/components/shared/GlowRing';
 import { useWalletStore, type CreditTransaction } from '@/lib/stores/walletStore';
+import { useStoreStore } from '@/lib/stores/storeStore';
 
 const WEEK = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
@@ -48,10 +49,12 @@ function TxRow({ tx }: { tx: CreditTransaction }) {
 
 export default function MisCreditosPage() {
   const { wallet, walletLoaded, fetchWallet, transactions, txLoading, fetchTransactions } = useWalletStore();
+  const { redemptions, fetchMyRedemptions } = useStoreStore();
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { fetchWallet(true); }, [fetchWallet]);
   useEffect(() => { fetchTransactions(true); }, [fetchTransactions]);
+  useEffect(() => { fetchMyRedemptions(); }, [fetchMyRedemptions]);
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -73,15 +76,24 @@ export default function MisCreditosPage() {
       {/* Balance */}
       <div className="rounded-2xl p-6 shadow-lg text-center" style={{ background: 'linear-gradient(135deg, #2D0F1A 0%, #4A1828 55%, #670F22 100%)' }}>
         <p className="text-[11px] uppercase tracking-[0.16em] font-semibold" style={{ color: '#E7C8A0' }}>Balance</p>
-        <p className="font-heading font-black tabular-nums mt-2" style={{ color: '#FFF8EC', fontSize: 'clamp(44px, 14vw, 64px)' }}>
-          {walletLoaded && wallet ? wallet.balance : '—'}
+        <div className="flex items-stretch justify-center gap-6 mt-3">
+          <div>
+            <p className="font-heading font-black tabular-nums leading-none" style={{ color: '#FFF8EC', fontSize: 'clamp(36px, 11vw, 52px)' }}>
+              {walletLoaded && wallet ? wallet.balance : '—'}
+            </p>
+            <p className="text-[11px] mt-1" style={{ color: '#FFE9DC', opacity: 0.75 }}>Disponibles</p>
+          </div>
+          <div className="w-px self-stretch" style={{ background: 'rgba(231,200,160,0.25)' }} />
+          <div>
+            <p className="font-heading font-black tabular-nums leading-none" style={{ color: '#E7C8A0', fontSize: 'clamp(36px, 11vw, 52px)' }}>
+              {wallet ? wallet.pending_balance : '—'}
+            </p>
+            <p className="text-[11px] mt-1" style={{ color: '#FFE9DC', opacity: 0.6 }}>Por aprobar</p>
+          </div>
+        </div>
+        <p className="text-[11px] mt-3" style={{ color: '#FFE9DC', opacity: 0.55 }}>
+          Solo puedes canjear con los créditos disponibles.
         </p>
-        <p className="text-[13px]" style={{ color: '#FFE9DC', opacity: 0.75 }}>créditos disponibles</p>
-        {wallet && wallet.pending_balance > 0 && (
-          <p className="text-[12px] mt-2 inline-block px-3 py-1 rounded-full" style={{ background: 'rgba(231,200,160,0.15)', color: '#E7C8A0' }}>
-            +{wallet.pending_balance} en validación por tu entrenador
-          </p>
-        )}
       </div>
 
       {/* Streak */}
@@ -108,6 +120,29 @@ export default function MisCreditosPage() {
           <p className="text-[11px] text-kore-gray-dark/40 mt-1">Tu récord: {wallet.longest_streak} días</p>
         )}
       </div>
+
+      {/* Mis canjes */}
+      {redemptions.length > 0 && (
+        <div className="bg-white rounded-2xl p-4 border border-kore-gray-light/40 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-kore-gray-dark/50 mb-1 px-1">Mis canjes</p>
+          <div className="divide-y divide-kore-gray-light/40">
+            {redemptions.map((r) => {
+              const tone = r.status === 'fulfilled' ? 'bg-kore-sage/20 text-kore-sage-deep'
+                : r.status === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600';
+              const label = r.status === 'fulfilled' ? 'Entregado' : r.status === 'rejected' ? 'Rechazado' : 'Pendiente';
+              return (
+                <div key={r.id} className="flex items-center gap-3 py-2.5">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-medium text-kore-gray-dark truncate">{r.item_name}</p>
+                    <p className="text-[11px] text-kore-gray-dark/40">{new Date(r.created_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })} · {r.credits_spent} créditos</p>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tone}`}>{label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* History */}
       <div className="bg-white rounded-2xl p-4 border border-kore-gray-light/40 shadow-sm">

@@ -20,16 +20,22 @@ test.describe('Mis créditos', { tag: [...FlowTags.CUSTOMER_CREDITS, RoleTags.US
     await mockLoginAsTestUser(page);
     await page.route('**/api/credits/wallet/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(WALLET) }));
     await page.route('**/api/credits/transactions/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TX) }));
+    await page.route('**/api/store/redemptions/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
   });
 
   test('shows balance, streak and history', async ({ page }) => {
     await page.goto('/mis-creditos');
     await expect(page.getByTestId('mis-creditos')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('55')).toBeVisible();
-    await expect(page.getByText('+15 en validación por tu entrenador')).toBeVisible();
     await expect(page.getByText(/Faltan/)).toBeVisible();
     await expect(page.getByText('Completaste tu entrenamiento del 2026-07-03')).toBeVisible();
     await expect(page.getByText('No asististe a tu sesión del 2026-07-02')).toBeVisible();
+  });
+
+  test('shows the balance split (disponibles / por aprobar)', async ({ page }) => {
+    await page.goto('/mis-creditos');
+    await expect(page.getByText('Disponibles', { exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Por aprobar', { exact: true })).toBeVisible();
   });
 
   test('empty history shows the starter message', async ({ page }) => {

@@ -49,6 +49,11 @@ const ChatIcon = (
     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
   </svg>
 );
+const StoreIcon = (
+  <svg {...iconProps}>
+    <path d="M3 9l1-5h16l1 5M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9M4 9h16M9 13h6" />
+  </svg>
+);
 
 export default function TrainerSidebar() {
   const { riskDashboard } = useTrainerStore();
@@ -66,6 +71,7 @@ export default function TrainerSidebar() {
           { key: 'alerts', label: 'Alertas', href: '/trainer/alerts', icon: BellIcon, badge: alertCount > 0 ? alertCount : undefined },
           { key: 'metrics', label: 'Métricas', href: '/trainer/metrics', icon: ChartIcon },
           { key: 'nutrition-catalog', label: 'Catálogo comidas', href: '/trainer/nutrition-catalog', icon: FoodCatalogIcon },
+          { key: 'store', label: 'Tienda', href: '/trainer/tienda', icon: StoreIcon },
           { key: 'messages', label: 'Mensajes', href: '/trainer/messages', icon: ChatIcon, soon: true },
         ],
       },

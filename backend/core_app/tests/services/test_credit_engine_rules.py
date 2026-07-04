@@ -61,11 +61,13 @@ def test_record_attendance_attended_awards_credits(booking, existing_user):
 
 @pytest.mark.django_db
 def test_late_attendance_confirmation_reverses_penalty(booking, existing_user):
+    # Seed a positive balance so the (clamped) penalty applies in full.
+    credit_engine.award(existing_user, CreditTransaction.Action.SESSION_ATTENDED, 'seed', 's', 'x', amount=100)
     credit_engine.record_attendance(booking, attended=False)
-    assert credit_engine.get_wallet(existing_user).balance == -40
+    assert credit_engine.get_wallet(existing_user).balance == 60  # 100 - 40 (floor-at-0 doesn't clamp here)
     credit_engine.record_attendance(booking, attended=True)
-    # -40 (penalty) +40 (reversal) +50 (attended)
-    assert credit_engine.get_wallet(existing_user).balance == 50
+    # 60 + 40 (reversal) + 50 (attended)
+    assert credit_engine.get_wallet(existing_user).balance == 150
 
 
 @pytest.mark.django_db
@@ -79,8 +81,10 @@ def test_late_reschedule_penalizes_customer(existing_user, package, frozen_now):
         customer=existing_user, package=package,
         starts_at=frozen_now + timedelta(days=3), ends_at=frozen_now + timedelta(days=3, hours=1),
     )
+    # Seed a positive balance so the penalty applies (floor-at-0 never goes negative).
+    credit_engine.award(existing_user, CreditTransaction.Action.SESSION_ATTENDED, 'seed', 's', 'x', amount=100)
     credit_engine.on_reschedule(old, new, acting_user=existing_user)
-    assert credit_engine.get_wallet(existing_user).balance == -20
+    assert credit_engine.get_wallet(existing_user).balance == 80  # 100 - 20
     # Trainer/admin-initiated reschedule must NOT penalize
     tx_count = CreditTransaction.objects.count()
     admin = User.objects.create_user(
