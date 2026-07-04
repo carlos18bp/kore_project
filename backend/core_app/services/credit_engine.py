@@ -200,7 +200,7 @@ def record_attendance(booking, attended: bool) -> None:
             f'Asististe a tu sesión del {day}',
         )
     else:
-        award(
+        apply_penalty(
             booking.customer, CreditTransaction.Action.NO_SHOW_PENALTY,
             'booking', booking.pk,
             f'No asististe a tu sesión del {day}',
@@ -220,7 +220,7 @@ def on_reschedule(old_booking, new_booking, acting_user) -> None:
         if old_booking.starts_at - timezone.now() >= window:
             return
         day = timezone.localtime(old_booking.starts_at).date().isoformat()
-        award(
+        apply_penalty(
             old_booking.customer, CreditTransaction.Action.LATE_RESCHEDULE_PENALTY,
             'booking', old_booking.pk,
             f'Reprogramaste tu sesión del {day} con poca anticipación',
@@ -302,4 +302,31 @@ def spend(customer, amount, reference_type, reference_id, description) -> Credit
         if not created:
             return None
         CreditWallet.objects.filter(customer=customer).update(balance=F('balance') - amount)
+    return tx
+
+
+def apply_penalty(customer, action, reference_type, reference_id, description) -> CreditTransaction | None:
+    """Apply a penalty clamped to the available balance (floor at 0).
+
+    The recorded amount is the clamped debit, so the ledger and wallet stay
+    consistent. Returns None when the balance is already 0 or the reference
+    was already penalized.
+    """
+    magnitude = abs(action_value(get_settings(), action))
+    ref_id = str(reference_id) if reference_id is not None else None
+    with transaction.atomic():
+        wallet = CreditWallet.objects.select_for_update().get_or_create(customer=customer)[0]
+        effective = min(magnitude, max(0, wallet.balance))
+        if effective <= 0:
+            return None
+        tx, created = CreditTransaction.objects.get_or_create(
+            customer=customer,
+            action=action,
+            reference_type=reference_type,
+            reference_id=ref_id,
+            defaults={'amount': -effective, 'status': CreditTransaction.Status.CONFIRMED, 'description': description},
+        )
+        if not created:
+            return None
+        CreditWallet.objects.filter(customer=customer).update(balance=F('balance') - effective)
     return tx
