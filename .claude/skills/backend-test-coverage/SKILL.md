@@ -47,12 +47,26 @@ Before writing any test, consult: `docs/TESTING_QUALITY_STANDARDS.md`
 5. Run only new/modified test files
 6. Verify tests pass and coverage improves
 
-## Output Format
+---
 
+## Output final
+
+Reportar siguiendo [[_output-protocol]]. Plantilla específica de
+`/backend-test-coverage`:
+
+```markdown
+🟢 backend-test-coverage OK
+✨ Todo en orden — no hay acciones pendientes.
+
+| Dimensión | Estado | Detalle |
+|---|---|---|
+| Coverage report leído | ✅ | pytest --cov ejecutado, JSON parseado |
+| Files priorizados | ✅ | N archivos lowest-coverage × highest-impact |
+| Tests agregados | ✅ | N tests, batch ≤20, ciclos ≤3 |
+| Quality standards | ✅ | docs/TESTING_QUALITY_STANDARDS.md respetados |
+| Coverage delta | ✅ | X% → Y% en los archivos tocados |
 ```
-### File: <test_file_path>
-- Tests added: <count>
-- Coverage before: <X%>
-- Coverage after: <Y%>
-- Command executed: pytest <path> -v
-```
+
+Si quedan archivos sin alcanzar 100% pero el batch consumió su límite (20
+tests / 3 ciclos), reemplazar el ✅ de "Coverage delta" por ⚠️ y agregar
+`## Next steps` con los archivos pendientes y el siguiente lote.

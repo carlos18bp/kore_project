@@ -73,9 +73,31 @@ npx playwright test path/to/spec.spec.js
 python3 scripts/test_quality_gate.py --repo-root . --external-lint run --semantic-rules strict
 ```
 
-## Deliverable
+## Output final
 
-- A phased plan (Phase 0-5)
-- Done conditions for each phase
-- Per-phase test-run commands (only changed tests)
-- Severity breakdown from initial gate run
+Reportar siguiendo [[_output-protocol]]. Plantilla específica de esta skill
+(una fila por fase del plan; ⏭️ si la fase queda fuera del scope elegido):
+
+```markdown
+🟢 test-quality-gate OK
+✨ Todo en orden — no hay acciones pendientes.
+
+| Dimensión | Estado | Detalle |
+|---|---|---|
+| Gate inicial leído | ✅ | severity breakdown errores/warnings/info |
+| Phase 0 — Unblock | ✅ | ESLint/jest-dom rules corregidas |
+| Phase 1 — Backend determinism | ✅ | timezone.now y nondet fuentes arregladas |
+| Phase 2 — E2E locators | ✅ | role/testid en specs P1/P2 |
+| Phase 3 — High-value units | ✅ | fragilidad/coupling resueltos |
+| Phase 4 — Warning sweep | ✅ | warnings eliminados |
+| Phase 5 — Info/style | ✅ | info-level findings resueltos |
+| Gate final | ✅ | score subió X → Y, errores=0 |
+```
+
+Solo se corren los tests refactorizados (nunca la suite entera). Si una fase
+quedó incompleta (Phase 5 opcional, batch consumió límite, warnings/info no
+cerrados), reemplazar el ✅ por ⚠️ o ⏭️, omitir la línea ✨ y agregar
+`## Next steps` con los archivos restantes + el comando del gate.
+
+## Next steps
+- `python3 scripts/test_quality_gate.py --repo-root . --external-lint run --semantic-rules strict` — re-correr el gate y confirmar el score
