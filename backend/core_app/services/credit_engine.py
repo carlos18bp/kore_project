@@ -278,3 +278,28 @@ def handle_event(kind: str, object_id: int) -> None:
             )
     except Exception:
         logger.exception('credits: handle_event(%s, %s) failed', kind, object_id)
+
+
+def spend(customer, amount, reference_type, reference_id, description) -> CreditTransaction | None:
+    """Debit confirmed credits for a redemption. Atomic; never goes below 0.
+
+    Returns None on non-positive amount, insufficient funds, or duplicate reference.
+    """
+    if amount <= 0:
+        return None
+    ref_id = str(reference_id) if reference_id is not None else None
+    with transaction.atomic():
+        wallet = CreditWallet.objects.select_for_update().get_or_create(customer=customer)[0]
+        if wallet.balance < amount:
+            return None
+        tx, created = CreditTransaction.objects.get_or_create(
+            customer=customer,
+            action=CreditTransaction.Action.REDEMPTION,
+            reference_type=reference_type,
+            reference_id=ref_id,
+            defaults={'amount': -amount, 'status': CreditTransaction.Status.CONFIRMED, 'description': description},
+        )
+        if not created:
+            return None
+        CreditWallet.objects.filter(customer=customer).update(balance=F('balance') - amount)
+    return tx
