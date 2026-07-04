@@ -246,7 +246,7 @@ ves de un vistazo en tu pantalla de inicio.
 #### 4. Cómo sabes que funcionó
 
 - La etiqueta del saldo en el inicio muestra tu número de créditos y lleva a "Mis créditos" al tocarla.
-- La tarjeta de balance muestra tu total; si tienes créditos en revisión aparece "+X en validación por tu entrenador".
+- La tarjeta de balance muestra tu saldo dividido en "Disponibles" y "Por aprobar" (los que aún revisa tu entrenador).
 - El anillo de racha muestra tus días y el texto "Faltan N días para tu bono de +X".
 - El historial lista tus movimientos con colores: verde (ganado), rojo (perdido), ámbar (pendiente).
 
@@ -259,9 +259,82 @@ ves de un vistazo en tu pantalla de inicio.
 
 ---
 
+## Parte 4 — Tienda interna y canjes
+
+### Funcionalidad 7: Canjear tus créditos por artículos de la tienda
+
+#### 1. ¿Qué es y para qué sirve?
+
+Es la tienda dentro de Kore Health donde cambias los créditos que ganaste por
+artículos y beneficios (productos, servicios, sesiones adicionales o descuentos).
+Solo puedes canjear con los créditos que ya te **aprobaron**; los que están "por
+aprobar" todavía no cuentan para comprar.
+
+#### 2. Antes de empezar
+
+- Una cuenta de tipo **cliente** con créditos **disponibles** (aprobados).
+- Que tu entrenador (o el equipo) haya publicado al menos un artículo en la tienda.
+
+#### 3. Paso a paso para probarlo
+
+1. Inicia sesión como cliente.
+2. Entra a **"Tienda"** (menú lateral en computador, o "Más" en el celular).
+3. Arriba a la derecha verás tu chip de **"X disponibles"** (tus créditos aprobados).
+4. Elige un artículo que puedas pagar y toca **"Canjear"**. Si cuesta más de lo que tienes, el botón dirá **"Sin saldo"**.
+5. Confirma en la ventana **"¿Canjear …?"** — se descontarán los créditos indicados.
+6. Verás el mensaje **"¡Canje solicitado! Tu entrenador lo gestionará."**.
+7. Entra a **"Mis créditos"**: el balance ahora aparece dividido en **Disponibles** y **Por aprobar**, y abajo en **"Mis canjes"** verás tu solicitud con su estado (Pendiente / Entregado / Rechazado).
+
+#### 4. Cómo sabes que funcionó
+
+- El chip "disponibles" baja en la cantidad del artículo que canjeaste.
+- En "Mis créditos" el canje aparece en **"Mis canjes"** como **Pendiente**.
+- En "Mis créditos" el balance se muestra en dos números: **Disponibles** y **Por aprobar**, con la nota "Solo puedes canjear con los créditos disponibles".
+- Cuando tu entrenador lo entregue, el estado cambia a **Entregado**; si lo rechaza, cambia a **Rechazado** y te devuelven los créditos.
+
+#### 5. Si algo no sale como esperabas
+
+- **El botón dice "Sin saldo"** → el artículo cuesta más que tus créditos disponibles; recuerda que los "por aprobar" no cuentan aún.
+- **Me dice que no tengo créditos suficientes al confirmar** → tu saldo disponible cambió; refresca la tienda y vuelve a intentar.
+- **No veo artículos** → aún no hay productos publicados; pídele a tu entrenador que agregue alguno.
+- Si persiste, avísale al equipo técnico con una captura de pantalla.
+
+### Funcionalidad 8 (entrenador): Gestionar la tienda y las solicitudes de canje
+
+#### 1. ¿Qué es y para qué sirve?
+
+Es el panel del entrenador para publicar artículos en la tienda y atender los
+canjes que piden los clientes: entregarlos o rechazarlos (devolviendo los créditos).
+
+#### 2. Antes de empezar
+
+- Una cuenta de tipo **entrenador**.
+- Al menos un cliente con un canje solicitado (ver Funcionalidad 7).
+
+#### 3. Paso a paso para probarlo
+
+1. Inicia sesión como entrenador y entra a **"Tienda"** en el menú.
+2. En **"Solicitudes de canje"** verás los canjes pendientes con el artículo, el cliente y los créditos.
+3. Toca **"Entregar"** cuando ya le diste el artículo al cliente, o **"Rechazar"** si no puedes cumplirlo.
+4. En **"Catálogo"** agrega un artículo nuevo (nombre, precio en créditos y tipo) y usa el botón de estado para activarlo o desactivarlo.
+
+#### 4. Cómo sabes que funcionó
+
+- Al **Entregar** o **Rechazar**, la solicitud desaparece de la lista de pendientes.
+- Al **Rechazar**, al cliente se le devuelven los créditos y le llega un aviso.
+- El artículo nuevo aparece en el catálogo y, si está **Activo**, el cliente lo ve en su tienda.
+
+#### 5. Si algo no sale como esperabas
+
+- **No puedo crear el artículo** → revisa que tenga nombre y un precio mayor a 0.
+- **No veo solicitudes** → puede que no haya canjes pendientes de tus clientes.
+- **Sigo viendo un canje ya resuelto** → refresca la página.
+- Si persiste, avísale al equipo técnico con una captura de pantalla.
+
+---
+
 ## Próximas secciones (se agregarán al entregar cada parte)
 
-- **Parte 4** — Tienda interna y canjes.
 - **Parte 5** — Calificación de sesiones.
 - **Parte 6** — Configuración de dificultad y revisión de fotos del entrenador.
 - **Parte 7** — Analítica y KPIs de la economía de créditos.

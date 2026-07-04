@@ -1,6 +1,6 @@
 {
-  "version": "1.0.9",
-  "lastUpdated": "2026-07-02",
+  "version": "1.1.0",
+  "lastUpdated": "2026-07-04",
   "documentation": "Step-by-step user journeys (branches, variations) are maintained in docs/USER_FLOW_MAP.md. This file defines flow IDs and metadata for Playwright @flow: tags and e2e/reporters/flow-coverage-reporter.mjs.",
   "flows": {
     "auth-login": {
@@ -141,7 +141,21 @@
       "module": "app",
       "priority": "P2",
       "roles": ["user"],
-      "description": "El cliente ve su balance de créditos, racha con progreso al siguiente bono e historial de transacciones."
+      "description": "El cliente ve su balance de créditos (dividido en disponibles y por aprobar), racha con progreso al siguiente bono, historial de transacciones y sus canjes."
+    },
+    "customer-store": {
+      "name": "Cliente — Tienda",
+      "module": "app",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "El cliente ve el catálogo de la tienda, su saldo disponible y canjea un artículo (confirmación) usando solo créditos aprobados."
+    },
+    "trainer-store-management": {
+      "name": "Trainer — Gestión de tienda",
+      "module": "trainer",
+      "priority": "P2",
+      "roles": ["trainer"],
+      "description": "El entrenador ve las solicitudes de canje pendientes, las entrega o rechaza (con devolución de créditos) y gestiona el catálogo (crear ítems y activar/desactivar)."
     },
     "dashboard-reminder": {
       "name": "Dashboard Reminder",

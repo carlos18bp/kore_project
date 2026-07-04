@@ -47,6 +47,14 @@ no técnica para el cliente; esta es el setup reproducible para probar).
 | Racha y bono | `CreditWallet.current_streak` > 0 y `streak_bonuses` en `CreditSettings` (para calcular el próximo hito). |
 | Historial | Varias `CreditTransaction` con distintos `action`/`status` y fechas escalonadas. |
 
+### Parte 4 — Tienda interna y canjes
+| Funcionalidad | Registros necesarios |
+|---|---|
+| Catálogo cliente | Varios `StoreItem` con `is_active=True`, `price_credits` variados y `item_type` distintos (al menos uno por encima del balance para ver "Sin saldo"). |
+| Canjear | Cliente con `CreditWallet.balance` > 0 (créditos **confirmados**); el canje crea `RedemptionRequest` en `pending` y descuenta del balance. |
+| Balance disponible vs. por aprobar | Mezcla de `CreditTransaction` `confirmed` (disponibles) y `pending` (por aprobar) para el mismo cliente. |
+| Gestión trainer | `StoreItem` en catálogo + `RedemptionRequest` `pending` de un cliente **asignado** al trainer (para entregar/rechazar). |
+
 ---
 
 ## 3. Rutas de prueba paso a paso
@@ -79,7 +87,21 @@ no técnica para el cliente; esta es el setup reproducible para probar).
 ### 3.5 Cliente — Balance, racha e historial (Parte 3)
 1. Login cliente → tablero → arriba: **etiqueta de saldo** + **racha** (llamita).
 2. Toca el saldo (o menú → **Mis créditos**).
-3. Verifica: **balance** (con "+X en validación" si hay pendientes), **anillo de racha** con días y progreso al bono, e **historial** con scroll (verde=ganado, rojo=perdido, ámbar=pendiente).
+3. Verifica: **balance dividido** en "Disponibles" y "Por aprobar", **anillo de racha** con días y progreso al bono, e **historial** con scroll (verde=ganado, rojo=perdido, ámbar=pendiente).
+
+### 3.6 Cliente — Tienda: canjear un artículo (Parte 4)
+1. Login `customer1@kore.com` / `password` → menú → **Tienda** (o "Más" en móvil).
+2. Verifica el chip **"X disponibles"** (tus créditos confirmados) y la grilla de artículos.
+3. Toca **Canjear** en un artículo que puedas pagar → confirma en **"¿Canjear …?"**.
+4. Debe salir **"¡Canje solicitado!"** y el chip de disponibles baja el precio del artículo.
+5. Menú → **Mis créditos** → verifica el split **Disponibles / Por aprobar** y la sección **Mis canjes** con estado **Pendiente**.
+
+### 3.7 Entrenador — Tienda: gestionar catálogo y canjes (Parte 4)
+1. Login `german.franco@kore.com` / `password` → menú → **Tienda**.
+2. En **Solicitudes de canje** verás el canje de `customer1` (artículo, cliente, créditos).
+3. Toca **Entregar** → desaparece de pendientes (al cliente le llega aviso y su canje pasa a **Entregado**).
+4. Alterno: **Rechazar** → al cliente se le **devuelven** los créditos y su canje pasa a **Rechazado**.
+5. En **Catálogo** agrega un artículo (nombre, precio, tipo) y usa el botón de estado para **Activo/Inactivo**.
 
 ---
 
@@ -150,6 +172,14 @@ mk('workout_day', 15, 'pending', 'Completaste tu entrenamiento de hoy', 's8', 0)
 bal = CreditTransaction.objects.filter(customer=u, status='confirmed').aggregate(s=Sum('amount'))['s'] or 0
 CreditWallet.objects.filter(customer=u).update(balance=bal)
 print('OK — balance:', bal)
+
+# Tienda (Parte 4): catálogo con artículos accesibles y uno caro
+from core_app.models.store import StoreItem
+StoreItem.objects.get_or_create(name='Camiseta KÓRE', defaults={'description': 'Algodón premium', 'price_credits': 50, 'item_type': 'producto'})
+StoreItem.objects.get_or_create(name='Botella KÓRE', defaults={'description': 'Termo 750ml', 'price_credits': 30, 'item_type': 'producto'})
+StoreItem.objects.get_or_create(name='Sesión extra', defaults={'description': 'Una sesión adicional', 'price_credits': 40, 'item_type': 'sesion_adicional'})
+StoreItem.objects.get_or_create(name='Descuento 10%', defaults={'description': 'En tu próxima renovación', 'price_credits': 500, 'item_type': 'descuento'})
+print('OK — store items:', StoreItem.objects.filter(is_active=True).count())
 ```
 
 > Ajusta emails/contraseñas si en staging los usuarios de prueba son otros.
