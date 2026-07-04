@@ -8,18 +8,27 @@
     "$schema": {
       "type": "string"
     },
+    "version": {
+      "type": "string"
+    },
+    "lastUpdated": {
+      "type": "string"
+    },
+    "documentation": {
+      "type": "string"
+    },
     "flows": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
+      "type": "object",
+      "minProperties": 1,
+      "description": "Object map keyed by flow id (matches the runtime shape consumed by e2e/reporters/flow-coverage-reporter.mjs). The key is the flow id.",
+      "propertyNames": {
+        "pattern": "^[a-z0-9-]+$"
+      },
+      "additionalProperties": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "name", "module", "priority", "roles", "description"],
+        "required": ["name", "module", "priority", "roles", "description"],
         "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^[a-z0-9-]+$"
-          },
           "name": {
             "type": "string",
             "minLength": 1
@@ -30,7 +39,7 @@
           },
           "priority": {
             "type": "string",
-            "enum": ["P1", "P2", "P3"]
+            "enum": ["P1", "P2", "P3", "P4"]
           },
           "roles": {
             "type": "array",
@@ -43,6 +52,10 @@
           "description": {
             "type": "string",
             "minLength": 1
+          },
+          "coverage": {
+            "type": "string",
+            "enum": ["missing", "partial", "covered"]
           }
         }
       }

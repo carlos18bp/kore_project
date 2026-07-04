@@ -489,6 +489,58 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
     await expect(payBtn).toBeEnabled();
   });
 
+  test('bancolombia payment success shows pago exitoso', async ({ page }) => {
+    // BANCOLOMBIA uses the Wompi-aligned redirect + confirm flow:
+    //   POST /subscriptions/bancolombia/start/   → returns authorization_url
+    //   window.location.href = authorization_url → customer authorizes recurring debit at the bank
+    //   redirect back to /checkout?...&bancolombia_callback=1
+    //   POST /subscriptions/bancolombia/confirm/ → creates payment_source + recurring txn
+    //   GET  /subscriptions/intent-status/       → poll until approved
+    // The external Bancolombia step is short-circuited by pointing authorization_url
+    // back at the same-origin callback URL, so window.location.href redirects straight
+    // to the confirm path (mirroring a customer who authorized and returned). This keeps
+    // the whole flow client-side and drives the full success screen.
+    await mockWompiWidgetScript(page);
+    await setupDefaultApiMocks(page);
+    await setupCheckoutMocks(page, mockPackage);
+
+    const intentPending = buildIntent(70, 'pending', 'txn_bancolombia_001');
+    const intentApproved = { ...intentPending, status: 'approved' as const };
+
+    await page.route('**/api/subscriptions/bancolombia/start/**', async (route) => {
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ...intentPending,
+          authorization_url: '/checkout?package=6&bancolombia_callback=1',
+        }),
+      });
+    });
+    await page.route('**/api/subscriptions/bancolombia/confirm/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(intentPending),
+      });
+    });
+    await mockIntentStatus(page, intentApproved);
+
+    await seedAuthenticatedCookies(page);
+    await page.goto('/checkout?package=6');
+    await expect(
+      page.getByRole('heading', { name: 'Resumen del programa' }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole('button', { name: /Bancolombia/ }).click();
+    await page.getByRole('checkbox').check();
+    const payBtn = page.getByRole('button', { name: /Pagar.*Bancolombia/ });
+    await expect(payBtn).toBeEnabled({ timeout: 10_000 });
+    await payBtn.click();
+
+    await expect(page.getByText('¡Pago exitoso!')).toBeVisible({ timeout: 15_000 });
+  });
+
   test('switching payment methods shows correct form', async ({ page }) => {
     await mockWompiWidgetScript(page);
     await setupDefaultApiMocks(page);
