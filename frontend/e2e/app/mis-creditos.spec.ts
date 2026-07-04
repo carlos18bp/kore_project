@@ -34,8 +34,8 @@ test.describe('Mis créditos', { tag: [...FlowTags.CUSTOMER_CREDITS, RoleTags.US
 
   test('shows the balance split (disponibles / por aprobar)', async ({ page }) => {
     await page.goto('/mis-creditos');
-    await expect(page.getByText('Disponibles')).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText('Por aprobar')).toBeVisible();
+    await expect(page.getByText('Disponibles', { exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Por aprobar', { exact: true })).toBeVisible();
   });
 
   test('empty history shows the starter message', async ({ page }) => {
