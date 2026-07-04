@@ -65,6 +65,8 @@ class CreditTransaction(TimestampedModel):
         NO_SHOW_REVERSAL = 'no_show_reversal', 'No-show reversal'
         LATE_RESCHEDULE_PENALTY = 'late_reschedule_penalty', 'Late reschedule penalty'
         ADJUSTMENT = 'adjustment', 'Manual adjustment'
+        REDEMPTION = 'redemption', 'Store redemption'
+        REDEMPTION_REFUND = 'redemption_refund', 'Redemption refund'
 
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'
