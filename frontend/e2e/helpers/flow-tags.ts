@@ -92,6 +92,24 @@ export const FlowTags = {
 
   AUTH_ACCEPT_INVITE: ['@flow:auth-accept-invite', '@module:auth', '@priority:P2'],
   AUTH_FORCED_PASSWORD_CHANGE: ['@flow:auth-forced-password-change', '@module:auth', '@priority:P2'],
+
+  ADMIN_DASHBOARD: ['@flow:admin-dashboard', '@module:admin', '@priority:P2'],
+  ADMIN_USERS_LIST: ['@flow:admin-users-list', '@module:admin', '@priority:P1'],
+  ADMIN_USER_CREATE: ['@flow:admin-user-create', '@module:admin', '@priority:P1'],
+  ADMIN_USER_DETAIL: ['@flow:admin-user-detail', '@module:admin', '@priority:P1'],
+  ADMIN_SUBSCRIPTIONS_LIST: ['@flow:admin-subscriptions-list', '@module:admin', '@priority:P2'],
+  ADMIN_SUBSCRIPTION_CREATE: ['@flow:admin-subscription-create', '@module:admin', '@priority:P1'],
+  ADMIN_SUBSCRIPTION_DETAIL: ['@flow:admin-subscription-detail', '@module:admin', '@priority:P1'],
+  ADMIN_PLANS: ['@flow:admin-plans', '@module:admin', '@priority:P1'],
+
+  CUSTOMER_NUTRITION_DAILY: ['@flow:customer-nutrition-daily', '@module:nutrition', '@priority:P2'],
+  CUSTOMER_NUTRITION_PLAN: ['@flow:customer-nutrition-plan', '@module:nutrition', '@priority:P2'],
+  SUBSCRIPTION_DUO_INVITE: ['@flow:subscription-duo-invite', '@module:subscription', '@priority:P2'],
+
+  TRAINER_CLIENT_NUTRITION_PLAN: ['@flow:trainer-client-nutrition-plan', '@module:trainer', '@priority:P2'],
+  TRAINER_CLIENT_BOOKING: ['@flow:trainer-client-booking', '@module:trainer', '@priority:P2'],
+  TRAINER_CLIENT_MESSAGING: ['@flow:trainer-client-messaging', '@module:trainer', '@priority:P2'],
+  CUSTOMER_TRAINER_MESSAGE: ['@flow:customer-trainer-message', '@module:dashboard', '@priority:P3'],
 };
 
 export const RoleTags = {

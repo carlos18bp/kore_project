@@ -106,6 +106,11 @@ class TestCreateFakeData:
             skip_analytics_events=True,
             skip_diagnostics=True,
             skip_spotlight=True,
+            skip_programs=True,
+            skip_nutrition_daily=True,
+            skip_nutrition_plans=True,
+            skip_trainer_intelligence=True,
+            skip_tracking=True,
             stdout=out,
         )
         output = out.getvalue()

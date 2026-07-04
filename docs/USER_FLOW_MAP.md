@@ -1,7 +1,7 @@
 # User Flow Map
 
-Version: 1.7
-Last Updated: 2026-05-11
+Version: 1.8
+Last Updated: 2026-07-04
 Description: End-to-end user flows for the Kore frontend, grouped by role with branches for form variants and alternate outcomes.
 Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, frontend/e2e specs, frontend/app routes. Canonical customer subscription URL is `/subscription` (flow IDs `my-programs-*` are historical).
 
@@ -9,7 +9,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Guest: Unauthenticated visitor.
 - User: Authenticated customer.
 - Trainer: Fitness/health professional who manages clients and assessments.
-- Admin: No dedicated frontend flows found in the current app or E2E suite.
+- Admin: Platform administrator. Operates the `admin-platform/` route group (users, subscriptions, plans) under its own layout guard (`app/admin-platform/layout.tsx`).
 
 ## Shared Flows (Public or Guest + User)
 
@@ -1395,7 +1395,154 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 Customer subscription and session management live at **`/subscription`** (`frontend/app/(app)/subscription/page.tsx`). Legacy paths such as `/my-programs` may still appear in `robots.txt` or old links; the SPA route used by E2E and the sidebar is `/subscription`.
 
 ## Admin Flows
-- No admin-specific frontend flows mapped in the current codebase or E2E suite.
+
+Admin operates the `admin-platform/` route group, which has its own layout guard
+(`app/admin-platform/layout.tsx`: `role==='admin'` else redirect to `/dashboard`)
+and its own bottom nav (`AdminMobileBottomNav`). Detail pages are addressed by
+`?id=` query param (no `[id]` segments, consistent with static export). Registered
+2026-07-04 after the E2E user-flows audit found the whole group unmapped.
+
+### admin-dashboard: Admin Platform Dashboard
+- Module: admin
+- Priority: P2
+- Route: /admin-platform/dashboard
+- Roles: admin
+- Coverage: **Missing**
+- Description: Landing overview for admins: aggregate subscription stat tiles (total, active, expired, canceled).
+
+**Steps**
+1. Admin logs in; `(app)/layout.tsx` redirects `role==='admin'` to /admin-platform/dashboard.
+2. Stat tiles load from the subscriptions list.
+3. Admin reads the totals and navigates into a section via the bottom nav.
+
+**Branches / Variations**
+- Non-admin hitting /admin-platform/* is redirected to /dashboard.
+
+### admin-users-list: Admin Users List
+- Module: admin
+- Priority: P1
+- Route: /admin-platform/users
+- Roles: admin
+- Coverage: **Missing**
+- Description: Browse and manage the platform user roster.
+
+**Steps**
+1. Navigate to /admin-platform/users.
+2. User list loads (paginated).
+3. Admin searches by name/email and filters by role chips.
+4. Admin clicks "＋ Inscribir usuario" → /admin-platform/users/new, or a row → user detail.
+
+**Branches / Variations**
+- Empty search result: empty state.
+- Role filter narrows the list (customer / trainer / admin).
+
+### admin-user-create: Admin Create User
+- Module: admin
+- Priority: P1
+- Route: /admin-platform/users/new
+- Roles: admin
+- Coverage: **Missing**
+- Description: Enroll a new user (customer or trainer) from the admin panel.
+
+**Steps**
+1. Navigate to /admin-platform/users/new.
+2. Fill email, first/last name, phone.
+3. Select role (customer/trainer).
+4. Submit → POST /api/admin/users/ → back to list.
+
+**Branches / Variations**
+- Validation error (duplicate email / missing field): inline error.
+- Cancel returns to the list without creating.
+
+### admin-user-detail: Admin User Detail
+- Module: admin
+- Priority: P1
+- Route: /admin-platform/users/detail?id=[userId]
+- Roles: admin
+- Coverage: **Missing**
+- Description: Manage a single user: role, active state, password reset, trainer assignment, assigned clients.
+
+**Steps**
+1. Open a user from the list.
+2. Edit role via role buttons; Save/Discard.
+3. Toggle active/inactive (POST /api/admin/users/{id}/toggle-active/).
+4. Reset password (POST /api/admin/users/{id}/reset-password/).
+5. Assign a trainer via the select; manage assigned clients (Quitar).
+
+**Branches / Variations**
+- Deactivating an active user; reactivating an inactive one.
+- Reassigning a client from one trainer to another.
+
+### admin-subscriptions-list: Admin Subscriptions List
+- Module: admin
+- Priority: P2
+- Route: /admin-platform/subscriptions
+- Roles: admin
+- Coverage: **Missing**
+- Description: Browse all subscriptions across customers.
+
+**Steps**
+1. Navigate to /admin-platform/subscriptions.
+2. List loads (page size 10).
+3. Admin searches, filters by status, switches category tabs.
+4. Row → subscription detail; "new" CTA → create wizard.
+
+**Branches / Variations**
+- Status filter: all / active / expired / canceled.
+
+### admin-subscription-create: Admin Create Subscription
+- Module: admin
+- Priority: P1
+- Route: /admin-platform/subscriptions/new
+- Roles: admin
+- Coverage: **Missing**
+- Description: Create or evolve a subscription for a customer via a multi-step wizard.
+
+**Steps**
+1. Navigate to /admin-platform/subscriptions/new.
+2. Search and select a customer.
+3. Select a package.
+4. Select payment method; add manual notes.
+5. Confirm → POST /api/subscriptions/admin-create/.
+
+**Branches / Variations**
+- Customer already has an active sub → mode auto-switches to "evolve".
+
+### admin-subscription-detail: Admin Subscription Detail
+- Module: admin
+- Priority: P1
+- Route: /admin-platform/subscriptions/detail?id=[subId]
+- Roles: admin
+- Coverage: **Missing**
+- Description: Manage one subscription: change status, renew, or delete.
+
+**Steps**
+1. Open a subscription from the list.
+2. Change status via status buttons; Save/Discard.
+3. Renew (modal) for expired/canceled subs → POST /api/subscriptions/{id}/admin-renew/.
+4. Delete (modal) → DELETE /api/subscriptions/{id}/admin-delete/.
+
+**Branches / Variations**
+- Renew is only offered for expired/canceled subscriptions.
+- Delete requires modal confirmation.
+
+### admin-plans: Admin Plans CRUD
+- Module: admin
+- Priority: P1
+- Route: /admin-platform/plans
+- Roles: admin
+- Coverage: **Missing**
+- Description: Manage the package/plan catalog.
+
+**Steps**
+1. Navigate to /admin-platform/plans.
+2. Click "Create" → modal form (category picker, price, sessions, validity).
+3. Submit → POST /api/packages/; or edit an existing plan → PATCH /api/packages/{id}/.
+4. Close/overlay dismiss cancels.
+
+**Branches / Variations**
+- Create vs edit share the same modal.
+- Category picker: personalizado / semi_personalizado / terapeutico.
 
 ## Global UX Elements
 
@@ -1478,18 +1625,37 @@ These elements are present across multiple routes and affect the user experience
 | trainer-client-notes | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-week-notes.spec.ts |
 | profile-completion-cta | user | P2 | Covered | frontend/e2e/app/profile-completion-cta.spec.ts |
 | subscription-gated-routes | user | P2 | Covered | frontend/e2e/app/subscription-gated-routes.spec.ts |
-| customer-mi-programa | user | P1 | **Missing** | — |
-| customer-mi-programa-rutina | user | P1 | **Missing** | — |
-| customer-mi-programa-progreso | user | P2 | **Missing** | — |
-| customer-mi-programa-resumen | user | P2 | **Missing** | — |
-| customer-mi-programa-dia | user | P2 | **Missing** | — |
-| trainer-alerts | trainer | P1 | **Missing** | — |
-| trainer-client-program | trainer | P2 | **Missing** | — |
-| trainer-nutrition-catalog | trainer | P2 | **Missing** | — |
-| auth-accept-invite | guest, user | P2 | **Missing** | — |
-| auth-forced-password-change | user | P2 | **Missing** | — |
-| trainer-evidence | trainer | P3 | **Missing** | — |
-| trainer-metrics | trainer | P3 | **Missing** | — |
+| customer-mi-programa | user | P1 | Covered | frontend/e2e/program/mi-programa.spec.ts |
+| customer-mi-programa-rutina | user | P1 | Covered | frontend/e2e/program/mi-programa-rutina.spec.ts |
+| customer-mi-programa-progreso | user | P2 | Covered | frontend/e2e/program/mi-programa-progreso.spec.ts |
+| customer-mi-programa-resumen | user | P2 | Covered | frontend/e2e/program/mi-programa-resumen.spec.ts |
+| customer-mi-programa-dia | user | P2 | Covered | frontend/e2e/program/mi-programa-dia.spec.ts |
+| trainer-alerts | trainer | P1 | Covered | frontend/e2e/trainer/trainer-alerts.spec.ts |
+| trainer-client-program | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-program.spec.ts |
+| trainer-nutrition-catalog | trainer | P2 | Covered | frontend/e2e/trainer/trainer-nutrition-catalog.spec.ts |
+| auth-accept-invite | guest, user | P2 | Covered | frontend/e2e/auth/accept-invite.spec.ts |
+| auth-forced-password-change | user | P2 | Covered | frontend/e2e/auth/forced-password-change.spec.ts |
+| trainer-metrics | trainer | P3 | Covered | frontend/e2e/trainer/trainer-metrics.spec.ts |
+| auth-token-refresh | user | P2 | Covered | frontend/e2e/auth/auth-token-refresh.spec.ts |
+| subscription-billing-failed-recovery | user | P2 | Covered | frontend/e2e/app/subscription-billing-failed-recovery.spec.ts |
+| mobile-bottom-nav | user | P2 | Covered | frontend/e2e/app/mobile-bottom-nav.spec.ts |
+| trainer-mobile-bottom-nav | trainer | P3 | Covered | frontend/e2e/trainer/trainer-mobile-bottom-nav.spec.ts |
+| profile-mood-entry | user | P3 | Covered | frontend/e2e/app/profile-mood-entry.spec.ts |
+| admin-dashboard | admin | P2 | **Missing** | frontend/e2e/admin/admin-dashboard.spec.ts |
+| admin-users-list | admin | P1 | **Missing** | frontend/e2e/admin/admin-users-list.spec.ts |
+| admin-user-create | admin | P1 | **Missing** | frontend/e2e/admin/admin-user-create.spec.ts |
+| admin-user-detail | admin | P1 | **Missing** | frontend/e2e/admin/admin-user-detail.spec.ts |
+| admin-subscriptions-list | admin | P2 | **Missing** | frontend/e2e/admin/admin-subscriptions-list.spec.ts |
+| admin-subscription-create | admin | P1 | **Missing** | frontend/e2e/admin/admin-subscription-create.spec.ts |
+| admin-subscription-detail | admin | P1 | **Missing** | frontend/e2e/admin/admin-subscription-detail.spec.ts |
+| admin-plans | admin | P1 | **Missing** | frontend/e2e/admin/admin-plans.spec.ts |
+| customer-nutrition-daily | user | P2 | **Missing** | frontend/e2e/app/customer-nutrition-daily.spec.ts |
+| customer-nutrition-plan | user | P2 | **Missing** | frontend/e2e/app/customer-nutrition-plan.spec.ts |
+| subscription-duo-invite | user | P2 | **Missing** | frontend/e2e/app/subscription-duo-invite.spec.ts |
+| trainer-client-nutrition-plan | trainer | P2 | **Missing** | frontend/e2e/trainer/trainer-client-nutrition-plan.spec.ts |
+| trainer-client-booking | trainer | P2 | **Missing** | frontend/e2e/trainer/trainer-client-booking.spec.ts |
+| trainer-client-messaging | trainer | P2 | **Missing** | frontend/e2e/trainer/trainer-client-messaging.spec.ts |
+| customer-trainer-message | user | P3 | **Missing** | frontend/e2e/app/customer-trainer-message.spec.ts |
 
 ---
 
@@ -1500,7 +1666,7 @@ These elements are present across multiple routes and affect the user experience
 - Priority: P1
 - Route: /mi-programa
 - Roles: user
-- Coverage: **Missing**
+- Coverage: Covered
 - Description: Customer views their monthly training program: calendar heatmap with adherence dots, fitness level card, quick-access tabs (Rutina, Progreso, Resumen).
 
 **Steps**
@@ -1520,7 +1686,7 @@ These elements are present across multiple routes and affect the user experience
 - Priority: P1
 - Route: /mi-programa/rutina
 - Roles: user
-- Coverage: **Missing**
+- Coverage: Covered
 - Description: Customer sees today's workout routine, completes/skips individual exercises, and logs mood/notes.
 
 **Steps**
@@ -1563,7 +1729,7 @@ These elements are present across multiple routes and affect the user experience
 - Priority: P2
 - Route: /mi-programa/progreso
 - Roles: user
-- Coverage: **Missing**
+- Coverage: Covered
 - Description: Customer views program-wide adherence charts, streak, and training/nutrition breakdown.
 
 **Steps**
@@ -1579,7 +1745,7 @@ These elements are present across multiple routes and affect the user experience
 - Priority: P2
 - Route: /mi-programa/resumen
 - Roles: user
-- Coverage: **Missing**
+- Coverage: Covered
 - Description: Customer views program summary: goal, fitness level, start/end dates, completion %, and projected outcome.
 
 ---
@@ -1589,7 +1755,7 @@ These elements are present across multiple routes and affect the user experience
 - Priority: P2
 - Route: /mi-programa/dia/[date]
 - Roles: user
-- Coverage: **Missing**
+- Coverage: Covered
 - Description: Customer navigates to a specific program day via calendar tap or direct URL. Views exercises, completion state, trainer notes.
 
 **Branches / Variations**
@@ -1604,7 +1770,7 @@ These elements are present across multiple routes and affect the user experience
 - Priority: P1
 - Route: /trainer/alerts
 - Roles: trainer
-- Coverage: **Missing**
+- Coverage: Covered
 - Description: Trainer views all behavioral and clinical risk alerts across their client roster, filters by severity, and resolves alerts.
 
 **Steps**
@@ -1627,7 +1793,7 @@ These elements are present across multiple routes and affect the user experience
 - Priority: P2
 - Route: /trainer/clients/client/programa?id=[clientId]
 - Roles: trainer
-- Coverage: **Missing**
+- Coverage: Covered
 - Description: Trainer views and manages a client's monthly program from the trainer-side tab.
 
 **Steps**
@@ -1644,7 +1810,7 @@ These elements are present across multiple routes and affect the user experience
 - Priority: P2
 - Route: /trainer/nutrition-catalog
 - Roles: trainer
-- Coverage: **Missing**
+- Coverage: Covered
 - Description: Trainer browses and searches the global meal suggestion catalog; adds new meal suggestions.
 
 **Steps**
@@ -1661,7 +1827,7 @@ These elements are present across multiple routes and affect the user experience
 - Priority: P2
 - Route: /accept-invite?token=[token]
 - Roles: guest, user
-- Coverage: **Missing**
+- Coverage: Covered
 - Description: Accept a duo-plan subscription invite via token.
 
 **Branches / Variations**
@@ -1677,7 +1843,7 @@ These elements are present across multiple routes and affect the user experience
 - Priority: P2
 - Route: /change-password-required
 - Roles: user
-- Coverage: **Missing**
+- Coverage: Covered
 - Description: When `must_change_password=true` on the user object, the app redirects to this page and enforces a password change before allowing access to any other route.
 
 **Steps**
@@ -1694,20 +1860,161 @@ These elements are present across multiple routes and affect the user experience
 
 ---
 
-### trainer-evidence: Trainer Evidence Gallery
-- Module: trainer
-- Priority: P3
-- Route: /trainer/evidence
-- Roles: trainer
-- Coverage: **Missing**
-- Description: Trainer browses client progress photos, filters by date/client, and comments on individual photos.
-
----
-
 ### trainer-metrics: Trainer Metrics
 - Module: trainer
 - Priority: P3
 - Route: /trainer/metrics
 - Roles: trainer
-- Coverage: **Missing**
+- Coverage: Covered
 - Description: Trainer views comparative metrics across all clients: adherence trends, evaluation expiry summary, risk distribution ring chart, global KORE score average.
+
+---
+
+## Missing Flows — Registered 2026-07-04
+
+Non-admin flows surfaced by the E2E user-flows audit. Each maps to a real user
+action whose existing spec (if any) did not exercise it. Admin flows are in the
+`## Admin Flows` section above.
+
+### customer-nutrition-daily: Daily Nutrition Tracking
+- Module: nutrition
+- Priority: P2
+- Route: /my-nutrition
+- Roles: user
+- Coverage: **Missing**
+- Description: The write side of /my-nutrition. The existing `customer-nutrition` spec is render-only; this flow covers the daily tracker interactions.
+
+**Steps**
+1. Navigate to /my-nutrition.
+2. Mark an individual meal as done (PATCH /api/my-nutrition-daily/{log}/meals/{meal}/).
+3. Upload a meal photo via CameraCapture (POST .../meals/{meal}/photo/).
+4. Log water glasses (POST .../{log}/water-glasses/).
+5. Review the daily history.
+
+**Branches / Variations**
+- No active program: "Sin plan activo" hero, tracker hidden.
+- Water goal reached vs below goal.
+
+### customer-nutrition-plan: Customer Nutrition Plan
+- Module: nutrition
+- Priority: P2
+- Route: /my-nutrition
+- Roles: user
+- Coverage: **Missing**
+- Description: Customer views the trainer-authored weekly nutrition plan on /my-nutrition — the collapsible coach-note strip on the daily hero, sourced from GET /api/my-nutrition-plans/. (There is no separate customer plan page; the per-day meals come from the daily `today/` endpoint.)
+
+**Steps**
+1. Navigate to /my-nutrition.
+2. Expand the "Nota de tu coach" strip to see the weekly plan range + note.
+3. Review the plan-derived meal for the day.
+
+**Branches / Variations**
+- No plan authored yet: "Sin plan activo" empty state.
+
+### subscription-duo-invite: Subscription DUO Guest Invite
+- Module: subscription
+- Priority: P2
+- Route: /subscription
+- Roles: user
+- Coverage: **Missing**
+- Description: The plan owner manages a DUO guest from the subscription page (distinct from `auth-accept-invite`, which is the invitee redeeming a token).
+
+**Steps**
+1. Navigate to /subscription with a DUO-eligible plan.
+2. Invite a guest by email (POST /api/subscriptions/{id}/invite-guest/).
+3. Revoke a guest (POST /api/subscriptions/{id}/revoke-guest/).
+4. Accept a pending invitation, if present (GET /api/subscriptions/pending-invitation/).
+
+**Branches / Variations**
+- Guest already invited: shows guest card, invite disabled.
+- Guest is read-only on their own subscription view.
+
+### trainer-client-nutrition-plan: Trainer Client Nutrition Plan
+- Module: trainer
+- Priority: P2
+- Route: /trainer/clients/client?id=[clientId] (Nutrición tab / ClientNutritionTab)
+- Roles: trainer
+- Coverage: **Missing**
+- Description: Trainer authors a client's weekly nutrition plan. Distinct from the read-only `trainer-client-nutrition` (habits viewer) and from `trainer-nutrition-catalog` (food browser).
+
+**Steps**
+1. Open client detail → Nutrición tab.
+2. Generate a plan (POST /api/nutrition-plans/generate/).
+3. Edit meals per day (PATCH .../days/{day}/meals/{meal}/).
+4. Publish/approve (POST /api/nutrition-plans/{id}/approve/).
+
+**Branches / Variations**
+- Regenerate replaces a draft; delete removes it.
+
+### trainer-client-booking: Trainer Books For Client
+- Module: trainer
+- Priority: P2
+- Route: /trainer/clients + /trainer/clients/client?id=[clientId] (TrainerBookingDialog)
+- Roles: trainer
+- Coverage: **Missing**
+- Description: Trainer books or reschedules a session on behalf of an assigned client.
+
+**Steps**
+1. From the client list or client detail, open the TrainerBookingDialog.
+2. Pick date + slot (2-step).
+3. Confirm → createBooking, or reschedule an existing one.
+
+**Branches / Variations**
+- No sessions remaining on the client's plan.
+- Reschedule vs new booking.
+
+### trainer-client-messaging: Trainer Post-Session Message
+- Module: trainer
+- Priority: P2
+- Route: /trainer/clients/client?id=[clientId] (Notas → Sesiones message composer)
+- Roles: trainer
+- Coverage: **Missing**
+- Description: Trainer sends a message to a client via the client-detail Notas → Sesiones composer (POST /api/trainer/messages/). Note: the `PostSessionMessageSheet` component exists but has no wired trigger on the current client-detail page (its `onMessage` is never passed to `SessionRow`); the reachable surface is `MessageComposerCard`.
+
+**Steps**
+1. Open client detail.
+2. Switch to the Notas tab → Sesiones.
+3. Compose a message in the MessageComposerCard; send.
+
+**Branches / Variations**
+- `PostSessionMessageSheet` is currently unreachable (dead trigger) — candidate cleanup or wiring.
+
+### customer-trainer-message: Customer Trainer Message
+- Module: dashboard
+- Priority: P3
+- Route: (app) shell overlay — TrainerMessageModal
+- Roles: user
+- Coverage: **Missing**
+- Description: The customer-side counterpart of `trainer-client-messaging`: receive and dismiss a trainer message (GET /api/my-trainer-messages/, dismiss).
+
+**Steps**
+1. Customer loads any (app) route with a pending trainer message.
+2. TrainerMessageModal overlay appears.
+3. Customer reads and dismisses/acknowledges it (POST /api/my-trainer-messages/{id}/dismiss/).
+
+**Branches / Variations**
+- No pending messages: overlay does not appear.
+
+---
+
+## Future / Not-Built Flows
+
+Flows that have been discussed or referenced but have **no implementation yet**:
+no route under `frontend/app/(app)/trainer/`, no page component, and no E2E
+spec. They are intentionally **omitted from `frontend/e2e/flow-definitions.json`**
+(the registry tracks only defined/taggable flows; the schema's `coverage` enum
+has no "not-built"/"deferred" value). Do not add specs or coverage flags for
+these until the corresponding page ships.
+
+### trainer-evidence: Trainer Evidence (Future / not-built)
+- Module: trainer
+- Priority: TBD
+- Route: (proposed) /trainer/evidence — **not implemented**
+- Roles: trainer
+- Coverage: **Not built** — no page, no component, no spec, not in registry.
+- Description: Proposed trainer-facing view to review client-submitted evidence
+  (photos/media) attached to program days or evaluations. No `trainer/evidence`
+  route exists in the app router (current trainer routes: `alerts`, `clients`,
+  `dashboard`, `metrics`, `nutrition-catalog`). Registered here only to record
+  the gap; excluded from the Coverage Summary table and flow-definitions.json
+  until the page is built.
