@@ -1,6 +1,6 @@
 {
-  "version": "1.0.6",
-  "lastUpdated": "2026-06-05",
+  "version": "1.0.7",
+  "lastUpdated": "2026-07-04",
   "documentation": "Step-by-step user journeys (branches, variations) are maintained in docs/USER_FLOW_MAP.md. This file defines flow IDs and metadata for Playwright @flow: tags and e2e/reporters/flow-coverage-reporter.mjs.",
   "flows": {
     "auth-login": {
@@ -450,7 +450,7 @@
       "priority": "P1",
       "roles": ["user"],
       "description": "View the customer's monthly training program overview: calendar heatmap, fitness level card, weekly adherence strip, and navigation to sub-routes (rutina, progreso, resumen).",
-      "coverage": "missing"
+      "coverage": "covered"
     },
     "customer-mi-programa-rutina": {
       "name": "Mi Programa — Rutina del Día",
@@ -458,7 +458,7 @@
       "priority": "P1",
       "roles": ["user"],
       "description": "View today's routine: exercise list, complete/skip individual exercises, log mood/notes, and see day-level adherence.",
-      "coverage": "missing"
+      "coverage": "covered"
     },
     "customer-mi-programa-progreso": {
       "name": "Mi Programa — Progreso",
@@ -466,7 +466,7 @@
       "priority": "P2",
       "roles": ["user"],
       "description": "View program-wide adherence charts, streak, and training/nutrition breakdown over the program duration.",
-      "coverage": "missing"
+      "coverage": "covered"
     },
     "customer-mi-programa-resumen": {
       "name": "Mi Programa — Resumen",
@@ -474,7 +474,7 @@
       "priority": "P2",
       "roles": ["user"],
       "description": "View program summary card with goal, fitness level, dates, completion %, and projected outcome.",
-      "coverage": "missing"
+      "coverage": "covered"
     },
     "customer-mi-programa-dia": {
       "name": "Mi Programa — Día Específico",
@@ -482,7 +482,7 @@
       "priority": "P2",
       "roles": ["user"],
       "description": "Navigate to a past or future program day via /mi-programa/dia/detail?date=YYYY-MM-DD: view exercises, completion state, and trainer notes.",
-      "coverage": "missing"
+      "coverage": "covered"
     },
     "trainer-alerts": {
       "name": "Trainer Alerts Center",
@@ -490,7 +490,7 @@
       "priority": "P1",
       "roles": ["trainer"],
       "description": "View and filter behavioral/clinical risk alerts per client (alto/medio/bajo); resolve an alert and mark it as addressed.",
-      "coverage": "missing"
+      "coverage": "covered"
     },
     "trainer-client-program": {
       "name": "Trainer Client Program Tab",
@@ -498,7 +498,7 @@
       "priority": "P2",
       "roles": ["trainer"],
       "description": "View and manage a client's monthly training program from the trainer perspective: generate, publish, and review program days and exercise logs.",
-      "coverage": "missing"
+      "coverage": "covered"
     },
     "trainer-client-notes": {
       "name": "Trainer Client Notes Tab",
@@ -513,7 +513,7 @@
       "priority": "P3",
       "roles": ["trainer"],
       "description": "View trainer-wide comparative metrics: adherence trends, evaluation expiry summary, risk distribution, and global KORE score across all clients.",
-      "coverage": "missing"
+      "coverage": "covered"
     },
     "trainer-nutrition-catalog": {
       "name": "Trainer Nutrition Catalog",
@@ -521,7 +521,7 @@
       "priority": "P2",
       "roles": ["trainer"],
       "description": "Browse and search the global meal suggestion catalog; add new meal suggestions with block, calories, NOVA, fitness level, and goal tags.",
-      "coverage": "missing"
+      "coverage": "covered"
     },
     "auth-accept-invite": {
       "name": "Accept Duo Invite",
@@ -529,7 +529,7 @@
       "priority": "P2",
       "roles": ["guest", "user"],
       "description": "Accept a duo-plan subscription invite via /accept-invite?token=: resolve token → accept (logged-in), redirect to login (wrong account), or redirect to register (new user).",
-      "coverage": "missing"
+      "coverage": "covered"
     },
     "auth-forced-password-change": {
       "name": "Forced Password Change",
@@ -537,7 +537,120 @@
       "priority": "P2",
       "roles": ["user"],
       "description": "When must_change_password=true, redirect to /change-password-required and enforce password update before accessing any other route.",
-      "coverage": "missing"
+      "coverage": "covered"
+    },
+    "admin-dashboard": {
+      "name": "Admin Platform Dashboard",
+      "module": "admin",
+      "priority": "P2",
+      "roles": ["admin"],
+      "description": "View the admin overview dashboard at /admin-platform/dashboard: aggregate subscription stat tiles (total, active, expired, canceled).",
+      "coverage": "covered"
+    },
+    "admin-users-list": {
+      "name": "Admin Users List",
+      "module": "admin",
+      "priority": "P1",
+      "roles": ["admin"],
+      "description": "Browse the platform user list at /admin-platform/users: search by name/email, filter by role, paginate, and open the Inscribir usuario CTA.",
+      "coverage": "covered"
+    },
+    "admin-user-create": {
+      "name": "Admin Create User",
+      "module": "admin",
+      "priority": "P1",
+      "roles": ["admin"],
+      "description": "Enroll a new user from /admin-platform/users/new: fill email, first/last name, phone, select role (customer/trainer), and submit.",
+      "coverage": "covered"
+    },
+    "admin-user-detail": {
+      "name": "Admin User Detail",
+      "module": "admin",
+      "priority": "P1",
+      "roles": ["admin"],
+      "description": "Manage a single user at /admin-platform/users/detail: edit role, toggle active/inactive, reset password, assign a trainer, and manage assigned clients.",
+      "coverage": "covered"
+    },
+    "admin-subscriptions-list": {
+      "name": "Admin Subscriptions List",
+      "module": "admin",
+      "priority": "P2",
+      "roles": ["admin"],
+      "description": "Browse all subscriptions at /admin-platform/subscriptions: search, filter by status, switch category tabs, and paginate.",
+      "coverage": "covered"
+    },
+    "admin-subscription-create": {
+      "name": "Admin Create Subscription",
+      "module": "admin",
+      "priority": "P1",
+      "roles": ["admin"],
+      "description": "Create or evolve a subscription via the /admin-platform/subscriptions/new wizard: pick customer, package, and payment method, add notes, and confirm.",
+      "coverage": "covered"
+    },
+    "admin-subscription-detail": {
+      "name": "Admin Subscription Detail",
+      "module": "admin",
+      "priority": "P1",
+      "roles": ["admin"],
+      "description": "Manage a subscription at /admin-platform/subscriptions/detail: change status, renew (expired/canceled only), or delete via confirmation modals.",
+      "coverage": "covered"
+    },
+    "admin-plans": {
+      "name": "Admin Plans CRUD",
+      "module": "admin",
+      "priority": "P1",
+      "roles": ["admin"],
+      "description": "Manage the package/plan catalog at /admin-platform/plans: create and edit packages via a modal with category, price, sessions, and validity fields.",
+      "coverage": "covered"
+    },
+    "customer-nutrition-daily": {
+      "name": "Daily Nutrition Tracking",
+      "module": "nutrition",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "Track daily nutrition on /my-nutrition: mark individual meals as done, upload a meal photo via the camera, log water glasses, and view the daily history."
+    },
+    "customer-nutrition-plan": {
+      "name": "Customer Nutrition Plan",
+      "module": "nutrition",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "View the trainer-authored weekly nutrition plan on /my-nutrition — the coach-note strip on the daily hero, sourced from /api/my-nutrition-plans/."
+    },
+    "subscription-duo-invite": {
+      "name": "Subscription DUO Guest Invite",
+      "module": "subscription",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "From the subscription page, the plan owner invites a DUO guest by email, revokes a guest, and accepts a pending invitation."
+    },
+    "trainer-client-nutrition-plan": {
+      "name": "Trainer Client Nutrition Plan",
+      "module": "trainer",
+      "priority": "P2",
+      "roles": ["trainer"],
+      "description": "From the client detail Nutrición tab, generate, edit meals, and publish a weekly nutrition plan (distinct from the read-only nutrition-habits viewer)."
+    },
+    "trainer-client-booking": {
+      "name": "Trainer Books For Client",
+      "module": "trainer",
+      "priority": "P2",
+      "roles": ["trainer"],
+      "description": "Book or reschedule a session on behalf of an assigned client via the TrainerBookingDialog on the client list and client detail."
+    },
+    "trainer-client-messaging": {
+      "name": "Trainer Post-Session Message",
+      "module": "trainer",
+      "priority": "P2",
+      "roles": ["trainer"],
+      "description": "Send a message to a client from the client detail (Notas → Sesiones message composer), POST /api/trainer/messages/. Note: the PostSessionMessageSheet component has no wired trigger on the current client-detail page; the reachable surface is the MessageComposerCard."
+    },
+    "customer-trainer-message": {
+      "name": "Customer Trainer Message",
+      "module": "dashboard",
+      "priority": "P3",
+      "roles": ["user"],
+      "description": "Customer receives and dismisses trainer messages via the TrainerMessageModal overlay in the app shell (my-trainer-messages)."
     }
   }
 }

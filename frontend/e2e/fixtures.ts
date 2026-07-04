@@ -383,6 +383,12 @@ export async function mockLoginAsTrainer(page: Page) {
 }
 
 /**
+ * Admin auth helpers (E2E_ADMIN, injectAdminAuthCookies, mockLoginAsAdmin) live in
+ * `helpers/admin-auth.ts` so the admin surface has a dedicated auth helper analogous
+ * to the trainer one.
+ */
+
+/**
  * Catch-all fallback for any /api/** request not intercepted by a specific mock.
  * Prevents requests from reaching the Next.js proxy (which would fail with
  * ECONNREFUSED when no backend is running).

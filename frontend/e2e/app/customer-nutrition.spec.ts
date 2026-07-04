@@ -171,4 +171,28 @@ test.describe('Customer Nutrition Page', { tag: [...FlowTags.CUSTOMER_NUTRITION,
     await expect(page.getByRole('heading', { name: 'Actualizar hábitos' })).toBeVisible();
     await expect(page.getByText('Proteína de calidad')).toBeVisible();
   });
+
+  test('submitting the habits form posts to /my-nutrition/ and closes the modal', async ({ page }) => {
+    await mockNutrition(page, { daily: todayLog, habits: [approvedHabitsEntry] });
+    await goToNutrition(page);
+
+    await page.getByRole('button', { name: /Actualizar hábitos de la semana/ }).click();
+    await expect(page.getByRole('heading', { name: 'Actualizar hábitos' })).toBeVisible();
+
+    // Fill a couple of fields: bump the first stepper ("Comidas al día") and add notes.
+    await page.getByRole('button', { name: 'Aumentar' }).first().click();
+    await page.getByPlaceholder(/Algo que quieras contarle a tu coach/).fill('Buena semana, subí la proteína.');
+
+    // mockNutrition already fulfills POST /api/my-nutrition/ with a 201 entry.
+    const habitsPost = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/my-nutrition/') && response.request().method() === 'POST',
+    );
+    await page.getByRole('button', { name: 'Guardar registro' }).click();
+    const response = await habitsPost;
+    expect(response.ok()).toBe(true);
+
+    // Success: createEntry resolved truthy so the modal closes.
+    await expect(page.getByRole('heading', { name: 'Actualizar hábitos' })).not.toBeVisible();
+  });
 });
