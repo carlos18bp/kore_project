@@ -71,6 +71,11 @@ const CreditsIcon = (
     <path d="M12 8v8M9.5 10.5a2.5 2 0 0 1 5 0c0 1.5-2.5 1.3-2.5 3" />
   </svg>
 );
+const StoreIcon = (
+  <svg {...iconProps}>
+    <path d="M3 9l1-5h16l1 5M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9M4 9h16M9 13h6" />
+  </svg>
+);
 
 export default function MobileBottomNav() {
   const { user } = useAuthStore();
@@ -113,6 +118,12 @@ export default function MobileBottomNav() {
     const locked = (href: string) =>
       subscriptionExpired && href !== '/subscription' && href !== '/profile';
     return [
+      {
+        key: 'store',
+        label: 'Tienda',
+        icon: StoreIcon,
+        href: '/tienda',
+      },
       {
         key: 'credits',
         label: 'Mis créditos',
