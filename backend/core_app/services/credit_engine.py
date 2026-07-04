@@ -330,3 +330,25 @@ def apply_penalty(customer, action, reference_type, reference_id, description) -
             return None
         CreditWallet.objects.filter(customer=customer).update(balance=F('balance') - effective)
     return tx
+
+
+def refund_redemption(request_obj, reviewer, note: str = '') -> bool:
+    """Reject a redemption and refund its credits. Idempotent on non-pending."""
+    from core_app.models.store import RedemptionRequest
+    updated = RedemptionRequest.objects.filter(
+        pk=request_obj.pk, status=RedemptionRequest.Status.PENDING,
+    ).update(
+        status=RedemptionRequest.Status.REJECTED,
+        trainer_note=note,
+        resolved_by=reviewer,
+        resolved_at=timezone.now(),
+    )
+    if not updated:
+        return False
+    award(
+        request_obj.customer, CreditTransaction.Action.REDEMPTION_REFUND,
+        'redemption_request', request_obj.pk,
+        f'Canje rechazado: {request_obj.item.name} — créditos devueltos',
+        amount=request_obj.credits_spent,
+    )
+    return True
