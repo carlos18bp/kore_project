@@ -47,3 +47,27 @@ Register every missing flow in BOTH:
 3. Proposed updates to flow definitions
 4. Summary of flows added
 5. Open questions / unknowns
+
+---
+
+## Output final
+
+Reportar siguiendo [[_output-protocol]]. Plantilla específica de esta skill (una fila por flujo auditado):
+
+🟡 e2e-user-flows-check OK con N warning(s)   (🟢 si todos los flujos están cubiertos; ⚠️ por cada gap)
+
+| Dimensión | Estado | Detalle |
+|---|---|---|
+| Login / registro | ✅ | cubierto por `frontend/e2e/auth.spec.ts` |
+| Checkout / pago | ⚠️ | sin test E2E — registrado P1 |
+| Editar perfil | ⚠️ | parcial: happy-path sí, validaciones no |
+| ... (una fila por flujo: ✅ cubierto / ⚠️ gap o parcial) | | |
+
+Cerrar con el conteo agregado (flujos totales / cubiertos / parciales / faltantes)
+y confirmar el registro de los faltantes en `docs/USER_FLOW_MAP.md` +
+`frontend/e2e/flow-definitions.json`. Si la tabla supera 15 flujos, anteponer
+`### Top 3 acciones prioritarias` con los P1/P2 sin cobertura y su ID sugerido.
+
+## Next steps
+- (por cada ⚠️ sin test) `npx playwright codegen <url>` — generar el flujo faltante con su ID sugerido
+- confirmar que los flujos nuevos quedaron en `docs/USER_FLOW_MAP.md` + `frontend/e2e/flow-definitions.json`
