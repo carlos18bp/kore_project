@@ -125,6 +125,10 @@ from core_app.views.credit_views import (
 )
 from core_app.views.physical_test_views import PhysicalTestViewSet
 from core_app.views.monthly_program_views import ExerciseCaptureUploadView
+from core_app.views.store_views import (
+    StoreItemViewSet, StoreCatalogView, RedemptionView,
+    TrainerRedemptionView, TrainerRedemptionReviewView,
+)
 
 router = DefaultRouter()
 router.register('packages', PackageViewSet, basename='package')
@@ -139,6 +143,7 @@ router.register('contact-messages', ContactMessageViewSet, basename='contact-mes
 router.register('analytics-events', AnalyticsEventViewSet, basename='analytics-event')
 router.register('admin/users', AdminUserViewSet, basename='admin-user')
 router.register('trainer/physical-tests', PhysicalTestViewSet, basename='physical-test')
+router.register('trainer/store-items', StoreItemViewSet, basename='store-item')
 
 urlpatterns = [
     path('subscriptions/accept-invite/', accept_invite, name='subscription-accept-invite'),
@@ -235,5 +240,9 @@ urlpatterns = [
     path('credits/settings/', CreditSettingsView.as_view(), name='credits-settings'),
     path('trainer/credits/pending-reviews/', TrainerPendingReviewsView.as_view(), name='trainer-credits-pending-reviews'),
     path('trainer/credits/transactions/<int:tx_id>/review/', TrainerReviewTransactionView.as_view(), name='trainer-credits-review'),
+    path('store/items/', StoreCatalogView.as_view(), name='store-items'),
+    path('store/redemptions/', RedemptionView.as_view(), name='store-redemptions'),
+    path('trainer/store/redemptions/', TrainerRedemptionView.as_view(), name='trainer-store-redemptions'),
+    path('trainer/store/redemptions/<int:pk>/review/', TrainerRedemptionReviewView.as_view(), name='trainer-store-redemption-review'),
     path('my-program/logs/<int:log_id>/exercises/<int:ex_log_id>/captures/', ExerciseCaptureUploadView.as_view(), name='my-program-exercise-captures'),
 ]
