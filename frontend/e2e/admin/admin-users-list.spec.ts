@@ -60,9 +60,12 @@ test.describe('Admin Users List', { tag: [...FlowTags.ADMIN_USERS_LIST, RoleTags
     await page.goto('/admin-platform/users');
 
     await expect(page.getByPlaceholder('Buscar por nombre o email…')).toBeVisible();
-    await expect(page.getByText('Ana García')).toBeVisible();
-    await expect(page.getByText('ana@kore.com')).toBeVisible();
-    await expect(page.getByText('Luis Pérez')).toBeVisible();
+    // Each row renders identity twice (desktop grid + mobile card) inside one
+    // link, so scope to the row link to avoid strict-mode violations.
+    const anaRow = page.getByRole('link', { name: /Ana García/ });
+    await expect(anaRow).toBeVisible();
+    await expect(anaRow).toContainText('ana@kore.com');
+    await expect(page.getByRole('link', { name: /Luis Pérez/ })).toBeVisible();
   });
 
   test('filtering by role refetches with the role param', async ({ page }) => {
@@ -75,7 +78,7 @@ test.describe('Admin Users List', { tag: [...FlowTags.ADMIN_USERS_LIST, RoleTags
       }),
     );
     await page.goto('/admin-platform/users');
-    await expect(page.getByText('Ana García')).toBeVisible();
+    await expect(page.getByRole('link', { name: /Ana García/ })).toBeVisible();
 
     const req = page.waitForRequest(
       (r) => r.url().includes('/api/admin/users/') && r.url().includes('role=trainer'),
