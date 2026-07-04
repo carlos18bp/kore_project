@@ -464,3 +464,20 @@ class WaterGlassLogAdmin(admin.ModelAdmin):
     list_display = ('daily_log', 'created_at')
     list_filter = ('created_at',)
     search_fields = ('daily_log__customer__email',)
+
+
+from core_app.models.store import StoreItem, RedemptionRequest
+
+
+@admin.register(StoreItem)
+class StoreItemAdmin(admin.ModelAdmin):
+    list_display = ('name', 'price_credits', 'item_type', 'is_active')
+    list_filter = ('item_type', 'is_active')
+    search_fields = ('name', 'description')
+
+
+@admin.register(RedemptionRequest)
+class RedemptionRequestAdmin(admin.ModelAdmin):
+    list_display = ('customer', 'item', 'credits_spent', 'status', 'created_at')
+    list_filter = ('status',)
+    raw_id_fields = ('customer', 'item', 'resolved_by')
