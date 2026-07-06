@@ -317,6 +317,8 @@ canjes que piden los clientes: entregarlos o rechazarlos (devolviendo los crédi
 2. En **"Solicitudes de canje"** verás los canjes pendientes con el artículo, el cliente y los créditos.
 3. Toca **"Entregar"** cuando ya le diste el artículo al cliente, o **"Rechazar"** si no puedes cumplirlo.
 4. En **"Catálogo"** agrega un artículo nuevo (nombre, precio en créditos y tipo) y usa el botón de estado para activarlo o desactivarlo.
+5. Para **editar** un artículo, toca **Editar**, cambia nombre/descr./precio/imagen y guarda.
+6. Al **Entregar** un producto o servicio, el sistema **exige una foto** de verificación; súbela para confirmar. El cliente la verá como **"Ver comprobante"** en *Mis créditos → Mis canjes*.
 
 #### 4. Cómo sabes que funcionó
 

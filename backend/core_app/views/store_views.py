@@ -1,7 +1,9 @@
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
+from rest_framework import serializers as drf_serializers
 from rest_framework import status, viewsets
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,7 +12,9 @@ from core_app.models import TrainerMessage
 from core_app.models.credit import CreditTransaction
 from core_app.models.store import StoreItem, RedemptionRequest
 from core_app.permissions import IsTrainerRole, is_admin_user
-from core_app.serializers.store_serializers import StoreItemSerializer, RedemptionRequestSerializer
+from core_app.serializers.store_serializers import (
+    StoreItemSerializer, RedemptionRequestSerializer, MAX_IMAGE_BYTES,
+)
 from core_app.services import credit_engine
 
 
@@ -92,6 +96,7 @@ class TrainerRedemptionView(APIView):
 
 class TrainerRedemptionReviewView(APIView):
     permission_classes = [IsTrainerRole]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def post(self, request, pk):
         qs = RedemptionRequest.objects.filter(pk=pk).select_related('item', 'customer')
@@ -106,11 +111,28 @@ class TrainerRedemptionReviewView(APIView):
         trainer_profile = getattr(request.user, 'trainer_profile', None)
         decision = request.data.get('decision')
         if decision == 'fulfill':
+            requires_photo = req.item.item_type in (StoreItem.ItemType.PRODUCTO, StoreItem.ItemType.SERVICIO)
+            # Only accept a photo for producto/servicio; ignore any upload otherwise.
+            photo = request.FILES.get('delivery_photo') if requires_photo else None
+            if requires_photo:
+                if photo is None:
+                    return Response({'detail': 'La foto de entrega es obligatoria.'}, status=status.HTTP_400_BAD_REQUEST)
+                if photo.size > MAX_IMAGE_BYTES:
+                    return Response({'detail': 'La foto no puede superar 5MB.'}, status=status.HTTP_400_BAD_REQUEST)
+                try:
+                    drf_serializers.ImageField().run_validation(photo)
+                except Exception:
+                    return Response({'detail': 'El archivo debe ser una imagen válida.'}, status=status.HTTP_400_BAD_REQUEST)
+                photo.seek(0)
             req.status = RedemptionRequest.Status.FULFILLED
             req.trainer_note = request.data.get('note', '')
             req.resolved_by = request.user
             req.resolved_at = timezone.now()
-            req.save(update_fields=['status', 'trainer_note', 'resolved_by', 'resolved_at', 'updated_at'])
+            if photo is not None:
+                req.delivery_photo = photo
+                req.save(update_fields=['status', 'trainer_note', 'resolved_by', 'resolved_at', 'delivery_photo', 'updated_at'])
+            else:
+                req.save(update_fields=['status', 'trainer_note', 'resolved_by', 'resolved_at', 'updated_at'])
             _notify(req.customer, trainer_profile, f'Tu canje "{req.item.name}" fue entregado. ¡Disfrútalo!', req.pk)
         elif decision == 'reject':
             credit_engine.refund_redemption(req, request.user, request.data.get('note', ''))

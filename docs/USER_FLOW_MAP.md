@@ -538,6 +538,7 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Insufficient funds at confirm time returns a backend error surfaced inline.
 - Empty catalog shows "Aún no hay productos en la tienda.".
 - Only approved (disponibles) credits count toward affordability; pending credits do not.
+- Fulfilled producto/servicio redemptions show a "Ver comprobante" link in Mis canjes.
 
 ### trainer-store-management: Trainer — Gestión de tienda
 - Module: trainer
@@ -550,11 +551,12 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 **Steps**
 1. Open /trainer/tienda from the trainer nav "Tienda" link.
 2. See "Solicitudes de canje": each pending request shows item, customer and credits spent.
-3. Click "Entregar" to fulfill (client notified) or "Rechazar" to reject (credits refunded, client notified).
-4. In "Catálogo", add an item (name, price, type) and toggle any item Activo/Inactivo.
+3. Click "Entregar" → for producto/servicio a dialog requires a verification photo; upload it and confirm. "Rechazar" refunds the credits.
+4. In "Catálogo", create or edit an item (name, description, price, type, image) and toggle Activo/Inactivo.
 
 **Branches / Variations**
-- Empty inbox shows "Sin solicitudes pendientes.".
+- Fulfilling producto/servicio without a photo is blocked with an inline error.
+- Sesión adicional is fulfilled without a photo (transitional; auto-grant lands in Part 6).
 - Rejecting a redemption refunds the spent credits to the client's balance.
 - Non-admin trainers only see redemptions from their assigned customers; admins see all.
 - Item creation requires a name and a price greater than 0.

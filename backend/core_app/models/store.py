@@ -11,7 +11,6 @@ class StoreItem(TimestampedModel):
         SERVICIO = 'servicio', 'Servicio'
         PRODUCTO = 'producto', 'Producto físico'
         SESION = 'sesion_adicional', 'Sesión adicional'
-        DESCUENTO = 'descuento', 'Descuento'
 
     name = models.CharField(max_length=120)
     description = models.TextField(blank=True)
@@ -47,6 +46,7 @@ class RedemptionRequest(TimestampedModel):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
     )
     resolved_at = models.DateTimeField(null=True, blank=True)
+    delivery_photo = models.ImageField(upload_to='redemption_deliveries/', null=True, blank=True)
 
     class Meta:
         ordering = ('-created_at',)

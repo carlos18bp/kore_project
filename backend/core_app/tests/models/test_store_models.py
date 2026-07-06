@@ -23,3 +23,14 @@ def test_redemption_ledger_actions_exist():
     from core_app.models.credit import CreditTransaction
     assert CreditTransaction.Action.REDEMPTION == 'redemption'
     assert CreditTransaction.Action.REDEMPTION_REFUND == 'redemption_refund'
+
+
+def test_item_type_has_no_descuento():
+    assert 'descuento' not in StoreItem.ItemType.values
+
+
+@pytest.mark.django_db
+def test_redemption_has_delivery_photo_field(existing_user):
+    item = StoreItem.objects.create(name='X', price_credits=10, item_type='servicio')
+    req = RedemptionRequest.objects.create(customer=existing_user, item=item, credits_spent=10)
+    assert req.delivery_photo.name in (None, '')  # unset by default

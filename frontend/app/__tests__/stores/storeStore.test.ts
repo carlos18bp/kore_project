@@ -37,4 +37,22 @@ describe('storeStore', () => {
     expect(ok).toBe(false);
     expect(useStoreStore.getState().error).toBe('No tienes créditos suficientes para este canje.');
   });
+
+  it('reviewRedemption sends FormData when a photo is passed', async () => {
+    (api.post as jest.Mock).mockResolvedValue({ data: { id: 7, status: 'fulfilled' } });
+    const file = new File([new Uint8Array([1, 2, 3])], 'd.png', { type: 'image/png' });
+    useStoreStore.setState({ pendingReviews: [{ id: 7 } as never] });
+    const ok = await useStoreStore.getState().reviewRedemption(7, 'fulfill', undefined, file);
+    expect(ok).toBe(true);
+    const body = (api.post as jest.Mock).mock.calls[0][1];
+    expect(body instanceof FormData).toBe(true);
+  });
+
+  it('reviewRedemption sends JSON when no photo is passed', async () => {
+    (api.post as jest.Mock).mockResolvedValue({ data: { id: 8, status: 'rejected' } });
+    await useStoreStore.getState().reviewRedemption(8, 'reject', 'no hay');
+    const body = (api.post as jest.Mock).mock.calls[0][1];
+    expect(body instanceof FormData).toBe(false);
+    expect(body).toEqual({ decision: 'reject', note: 'no hay' });
+  });
 });

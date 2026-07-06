@@ -102,6 +102,8 @@ no técnica para el cliente; esta es el setup reproducible para probar).
 3. Toca **Entregar** → desaparece de pendientes (al cliente le llega aviso y su canje pasa a **Entregado**).
 4. Alterno: **Rechazar** → al cliente se le **devuelven** los créditos y su canje pasa a **Rechazado**.
 5. En **Catálogo** agrega un artículo (nombre, precio, tipo) y usa el botón de estado para **Activo/Inactivo**.
+6. Al **Entregar** un producto/servicio se abre un diálogo que **pide foto obligatoria**; sube una imagen y confirma.
+7. Entra como el cliente a **Mis créditos → Mis canjes**: el canje entregado muestra **"Ver comprobante"** con la foto.
 
 ---
 

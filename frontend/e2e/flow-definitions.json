@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "lastUpdated": "2026-07-04",
   "documentation": "Step-by-step user journeys (branches, variations) are maintained in docs/USER_FLOW_MAP.md. This file defines flow IDs and metadata for Playwright @flow: tags and e2e/reporters/flow-coverage-reporter.mjs.",
   "flows": {
@@ -148,14 +148,14 @@
       "module": "app",
       "priority": "P2",
       "roles": ["user"],
-      "description": "El cliente ve el catálogo de la tienda, su saldo disponible y canjea un artículo (confirmación) usando solo créditos aprobados."
+      "description": "El cliente ve el catálogo, su saldo disponible, canjea un artículo y ve el estado de sus canjes con el comprobante de entrega cuando aplica."
     },
     "trainer-store-management": {
       "name": "Trainer — Gestión de tienda",
       "module": "trainer",
       "priority": "P2",
       "roles": ["trainer"],
-      "description": "El entrenador ve las solicitudes de canje pendientes, las entrega o rechaza (con devolución de créditos) y gestiona el catálogo (crear ítems y activar/desactivar)."
+      "description": "El entrenador gestiona el catálogo (crear/editar con imagen, activar/desactivar) y resuelve canjes: entrega productos/servicios subiendo una foto de verificación obligatoria, o rechaza (con devolución de créditos)."
     },
     "dashboard-reminder": {
       "name": "Dashboard Reminder",
