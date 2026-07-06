@@ -38,6 +38,14 @@ test.describe('Mis créditos', { tag: [...FlowTags.CUSTOMER_CREDITS, RoleTags.US
     await expect(page.getByText('Por aprobar', { exact: true })).toBeVisible();
   });
 
+  test('shows the delivery comprobante link for a fulfilled redemption', async ({ page }) => {
+    await page.route('**/api/store/redemptions/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([
+      { id: 5, item: 1, item_name: 'Camiseta', item_type: 'producto', item_image_url: null, credits_spent: 50, status: 'fulfilled', trainer_note: '', delivery_photo_url: 'http://x/media/redemption_deliveries/d.png', created_at: '2026-07-03T10:00:00Z', resolved_at: '2026-07-04T10:00:00Z' },
+    ]) }));
+    await page.goto('/mis-creditos');
+    await expect(page.getByRole('link', { name: 'Ver comprobante' })).toBeVisible({ timeout: 15_000 });
+  });
+
   test('empty history shows the starter message', async ({ page }) => {
     await page.route('**/api/credits/transactions/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0, results: [] }) }));
     await page.goto('/mis-creditos');
