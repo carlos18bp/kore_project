@@ -8,9 +8,10 @@ export type StoreItem = {
 };
 
 export type Redemption = {
-  id: number; item: number; item_name: string; item_image_url: string | null;
+  id: number; item: number; item_name: string; item_type: string; item_image_url: string | null;
   credits_spent: number; status: 'pending' | 'fulfilled' | 'rejected';
-  trainer_note: string; created_at: string; resolved_at: string | null;
+  trainer_note: string; delivery_photo_url: string | null;
+  created_at: string; resolved_at: string | null;
 };
 
 type StoreState = {
@@ -25,7 +26,7 @@ type StoreState = {
   redeem: (itemId: number) => Promise<boolean>;
   fetchMyRedemptions: () => Promise<void>;
   fetchPendingReviews: () => Promise<void>;
-  reviewRedemption: (pk: number, decision: 'fulfill' | 'reject', note?: string) => Promise<boolean>;
+  reviewRedemption: (pk: number, decision: 'fulfill' | 'reject', note?: string, deliveryPhoto?: File) => Promise<boolean>;
 };
 
 function authHeaders() {
@@ -76,9 +77,19 @@ export const useStoreStore = create<StoreState>((set, get) => ({
     }
   },
 
-  reviewRedemption: async (pk, decision, note) => {
+  reviewRedemption: async (pk, decision, note, deliveryPhoto) => {
     try {
-      await api.post(`/trainer/store/redemptions/${pk}/review/`, { decision, note }, { headers: authHeaders() });
+      let body: FormData | { decision: string; note?: string };
+      if (deliveryPhoto) {
+        const fd = new FormData();
+        fd.append('decision', decision);
+        if (note) fd.append('note', note);
+        fd.append('delivery_photo', deliveryPhoto);
+        body = fd;
+      } else {
+        body = { decision, note };
+      }
+      await api.post(`/trainer/store/redemptions/${pk}/review/`, body, { headers: authHeaders() });
       set((s) => ({ pendingReviews: s.pendingReviews.filter((r) => r.id !== pk) }));
       return true;
     } catch (err) {
