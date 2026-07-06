@@ -28,11 +28,13 @@ class StoreItemSerializer(serializers.ModelSerializer):
 
 class RedemptionRequestSerializer(serializers.ModelSerializer):
     item_name = serializers.CharField(source='item.name', read_only=True)
+    item_type = serializers.CharField(source='item.item_type', read_only=True)
     item_image_url = serializers.SerializerMethodField(read_only=True)
+    delivery_photo_url = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = RedemptionRequest
-        fields = ('id', 'item', 'item_name', 'item_image_url', 'credits_spent', 'status', 'trainer_note', 'created_at', 'resolved_at')
+        fields = ('id', 'item', 'item_name', 'item_type', 'item_image_url', 'credits_spent', 'status', 'trainer_note', 'delivery_photo_url', 'created_at', 'resolved_at')
         read_only_fields = ('credits_spent', 'status', 'trainer_note', 'resolved_at')
 
     def get_item_image_url(self, obj):
@@ -40,4 +42,11 @@ class RedemptionRequestSerializer(serializers.ModelSerializer):
             return None
         request = self.context.get('request')
         url = obj.item.image.url
+        return request.build_absolute_uri(url) if request else url
+
+    def get_delivery_photo_url(self, obj):
+        if not obj.delivery_photo:
+            return None
+        request = self.context.get('request')
+        url = obj.delivery_photo.url
         return request.build_absolute_uri(url) if request else url
