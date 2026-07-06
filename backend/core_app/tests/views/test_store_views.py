@@ -119,6 +119,32 @@ def test_fulfill_producto_with_photo_ok(api_client, trainer_user, assigned_custo
 
 
 @pytest.mark.django_db
+def test_fulfill_producto_oversized_photo_400(api_client, trainer_user, assigned_customer):
+    item = StoreItem.objects.create(name='P', price_credits=20, item_type='producto')
+    credit_engine.award(assigned_customer, CreditTransaction.Action.SESSION_ATTENDED, 'seed', '1', 'x', amount=100)
+    req = RedemptionRequest.objects.create(customer=assigned_customer, item=item, credits_spent=20)
+    big = SimpleUploadedFile('big.png', b'\x89PNG' + b'0' * (5 * 1024 * 1024 + 1), content_type='image/png')
+    api_client.force_authenticate(trainer_user)
+    resp = api_client.post(f'/api/trainer/store/redemptions/{req.id}/review/', {'decision': 'fulfill', 'delivery_photo': big}, format='multipart')
+    assert resp.status_code == 400
+    req.refresh_from_db()
+    assert req.status == 'pending'
+
+
+@pytest.mark.django_db
+def test_fulfill_producto_non_image_400(api_client, trainer_user, assigned_customer):
+    item = StoreItem.objects.create(name='P', price_credits=20, item_type='producto')
+    credit_engine.award(assigned_customer, CreditTransaction.Action.SESSION_ATTENDED, 'seed', '1', 'x', amount=100)
+    req = RedemptionRequest.objects.create(customer=assigned_customer, item=item, credits_spent=20)
+    fake = SimpleUploadedFile('x.txt', b'not an image at all', content_type='text/plain')
+    api_client.force_authenticate(trainer_user)
+    resp = api_client.post(f'/api/trainer/store/redemptions/{req.id}/review/', {'decision': 'fulfill', 'delivery_photo': fake}, format='multipart')
+    assert resp.status_code == 400
+    req.refresh_from_db()
+    assert req.status == 'pending'
+
+
+@pytest.mark.django_db
 def test_fulfill_sesion_adicional_no_photo_ok(api_client, trainer_user, assigned_customer):
     item = StoreItem.objects.create(name='S', price_credits=20, item_type='sesion_adicional')
     credit_engine.award(assigned_customer, CreditTransaction.Action.SESSION_ATTENDED, 'seed', '1', 'x', amount=100)
