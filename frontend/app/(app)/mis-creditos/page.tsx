@@ -135,6 +135,9 @@ export default function MisCreditosPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-medium text-kore-gray-dark truncate">{r.item_name}</p>
                     <p className="text-[11px] text-kore-gray-dark/40">{new Date(r.created_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })} · {r.credits_spent} créditos</p>
+                    {r.delivery_photo_url && (
+                      <a href={r.delivery_photo_url} target="_blank" rel="noopener noreferrer" className="text-[11px] font-semibold text-kore-sage-deep underline">Ver comprobante</a>
+                    )}
                   </div>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tone}`}>{label}</span>
                 </div>
