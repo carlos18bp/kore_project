@@ -503,3 +503,24 @@ class CreditPurchaseAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False
+
+
+from core_app.models.nutrition_product import NutritionProduct
+from core_app.models.nutrition_upgrade import NutritionUpgrade
+
+
+@admin.register(NutritionProduct)
+class NutritionProductAdmin(admin.ModelAdmin):
+    list_display = ('name', 'price_cop', 'is_active')
+    list_editable = ('price_cop', 'is_active')
+
+
+@admin.register(NutritionUpgrade)
+class NutritionUpgradeAdmin(admin.ModelAdmin):
+    list_display = ('reference', 'customer', 'amount_cop', 'status', 'resolved_at')
+    list_filter = ('status',)
+    search_fields = ('reference', 'customer__email')
+    readonly_fields = ('customer', 'subscription', 'amount_cop', 'reference', 'wompi_transaction_id', 'status', 'resolved_at')
+
+    def has_add_permission(self, request):
+        return False
