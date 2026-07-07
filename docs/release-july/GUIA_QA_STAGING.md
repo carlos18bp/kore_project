@@ -117,6 +117,12 @@ no técnica para el cliente; esta es el setup reproducible para probar).
 2. Login cliente → **Mis créditos → Comprar créditos** → elige un paquete → **Comprar**.
 3. Completa el pago en Wompi (sandbox). Al volver a `/comprar-creditos?ref=…`, verifica **"¡Pago aprobado!"** y que el saldo subió.
 
+### 3.10 Cliente — Comprar nutrición (Parte 8)
+1. (Admin) crea un `NutritionProduct` activo con `price_cop` (o usa el seed).
+2. Cliente con plan activo **sin nutrición** → **Mi Nutrición** muestra el candado con el botón "Agrega nutrición a tu plan".
+3. **Agrega nutrición** → paga el prorrateo en Wompi (sandbox) → al volver a `/my-nutrition?ref=…` se desbloquea.
+4. Verifica en admin que la `Subscription` quedó con `includes_nutrition=True` (y que la próxima renovación cobra plan + nutrición).
+
 ---
 
 ## 4. Verificación del efecto en créditos (backend)
@@ -198,6 +204,10 @@ print('OK — store items:', StoreItem.objects.filter(is_active=True).count())
 from core_app.models.credit_package import CreditPackage
 CreditPackage.objects.get_or_create(name='Impulso', defaults={'credits': 100, 'price_cop': 20000})
 CreditPackage.objects.get_or_create(name='Pro', defaults={'credits': 300, 'price_cop': 50000})
+
+# Precio de nutrición (Parte 8)
+from core_app.models.nutrition_product import NutritionProduct
+NutritionProduct.objects.get_or_create(name='Nutrición', defaults={'price_cop': 30000, 'is_active': True})
 ```
 
 > Ajusta emails/contraseñas si en staging los usuarios de prueba son otros.

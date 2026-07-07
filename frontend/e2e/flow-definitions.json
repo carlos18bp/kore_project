@@ -1,5 +1,5 @@
 {
-  "version": "1.4.0",
+  "version": "1.5.0",
   "lastUpdated": "2026-07-07",
   "documentation": "Step-by-step user journeys (branches, variations) are maintained in docs/USER_FLOW_MAP.md. This file defines flow IDs and metadata for Playwright @flow: tags and e2e/reporters/flow-coverage-reporter.mjs.",
   "flows": {
@@ -149,6 +149,13 @@
       "priority": "P2",
       "roles": ["user"],
       "description": "El cliente ve el catálogo, su saldo disponible, canjea un artículo y ve el estado de sus canjes con el comprobante de entrega cuando aplica."
+    },
+    "customer-buy-nutrition": {
+      "name": "Cliente — Comprar nutrición",
+      "module": "app",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "La nutrición es de pago: si el plan no la incluye, el cliente ve un candado y puede agregarla pagando el prorrateo del mes; desde la renovación se cobra junto al plan."
     },
     "customer-session-grants": {
       "name": "Cliente — Sesiones adicionales",
