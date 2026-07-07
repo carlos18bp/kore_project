@@ -105,6 +105,13 @@ no técnica para el cliente; esta es el setup reproducible para probar).
 6. Al **Entregar** un producto/servicio se abre un diálogo que **pide foto obligatoria**; sube una imagen y confirma.
 7. Entra como el cliente a **Mis créditos → Mis canjes**: el canje entregado muestra **"Ver comprobante"** con la foto.
 
+### 3.8 Cliente — Sesiones adicionales (Parte 6)
+1. Login cliente → **Tienda** → canjea el artículo **"sesión adicional"** (pack).
+2. El canje se marca **Entregado** de inmediato (no pasa por el entrenador).
+3. **Mis créditos** → aparece **"Sesiones adicionales"** con la cantidad y **"vencen el …"** (1 mes).
+4. **Reservar sesión** → arriba elige la fuente **"Sesiones adicionales"** y agenda; el contador baja al reservar.
+5. Cancela esa reserva → la sesión vuelve al grant (el contador sube de nuevo).
+
 ---
 
 ## 4. Verificación del efecto en créditos (backend)
@@ -179,8 +186,7 @@ print('OK — balance:', bal)
 from core_app.models.store import StoreItem
 StoreItem.objects.get_or_create(name='Camiseta KÓRE', defaults={'description': 'Algodón premium', 'price_credits': 50, 'item_type': 'producto'})
 StoreItem.objects.get_or_create(name='Botella KÓRE', defaults={'description': 'Termo 750ml', 'price_credits': 30, 'item_type': 'producto'})
-StoreItem.objects.get_or_create(name='Sesión extra', defaults={'description': 'Una sesión adicional', 'price_credits': 40, 'item_type': 'sesion_adicional'})
-StoreItem.objects.get_or_create(name='Descuento 10%', defaults={'description': 'En tu próxima renovación', 'price_credits': 500, 'item_type': 'descuento'})
+StoreItem.objects.get_or_create(name='Sesión adicional (pack 3)', defaults={'description': '3 sesiones extra, 1 mes de vigencia', 'price_credits': 40, 'item_type': 'sesion_adicional', 'sessions_granted': 3})
 print('OK — store items:', StoreItem.objects.filter(is_active=True).count())
 ```
 

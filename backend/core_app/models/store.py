@@ -17,6 +17,7 @@ class StoreItem(TimestampedModel):
     image = models.ImageField(upload_to='store_items/', null=True, blank=True)
     price_credits = models.PositiveIntegerField()
     item_type = models.CharField(max_length=20, choices=ItemType.choices, default=ItemType.SERVICIO)
+    sessions_granted = models.PositiveIntegerField(default=1)
     is_active = models.BooleanField(default=True, db_index=True)
 
     class Meta:

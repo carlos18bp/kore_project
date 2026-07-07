@@ -540,6 +540,25 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Only approved (disponibles) credits count toward affordability; pending credits do not.
 - Fulfilled producto/servicio redemptions show a "Ver comprobante" link in Mis canjes.
 
+### customer-session-grants: Cliente — Sesiones adicionales
+- Module: app
+- Priority: P2
+- Route: /mis-creditos, /book-session
+- Roles: user
+- Description: Redeeming a `sesion_adicional` item grants bookable sessions (valid 1 month) that appear in Mis créditos and can be used to book, separate from the plan.
+- E2E Coverage: Covered (frontend/e2e/app/session-grants.spec.ts)
+
+**Steps**
+1. Redeem a "sesión adicional" item in /tienda (auto-fulfilled, credits deducted).
+2. In /mis-creditos see "Sesiones adicionales" with remaining count and expiry.
+3. In /book-session pick "Sesiones adicionales" as the source and book a slot.
+
+**Branches / Variations**
+- A grant expires 30 days after redemption; expired/used-up grants stop appearing and are rejected at booking.
+- A booking uses exactly one source: the plan subscription OR a grant.
+- Canceling a booking paid with a grant returns the session to the grant.
+- Booking with a grant reuses the plan's package; a client with grants but no active plan is not yet supported (follow-up).
+
 ### trainer-store-management: Trainer — Gestión de tienda
 - Module: trainer
 - Priority: P2

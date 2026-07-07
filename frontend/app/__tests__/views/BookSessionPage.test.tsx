@@ -75,6 +75,8 @@ function setupStore(overrides = {}) {
     createBooking: mockCreateBooking,
     reset: mockReset,
     subscriptions: [],
+    sessionGrants: [],
+    fetchSessionGrants: jest.fn(),
     setTrainerFromAssigned: mockSetTrainerFromAssigned,
     ...overrides,
   };

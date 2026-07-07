@@ -4,7 +4,7 @@ import { api, extractApiError } from '@/lib/services/http';
 
 export type StoreItem = {
   id: number; name: string; description: string; image_url: string | null;
-  price_credits: number; item_type: string; is_active: boolean;
+  price_credits: number; item_type: string; sessions_granted: number; is_active: boolean;
 };
 
 export type Redemption = {

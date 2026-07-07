@@ -5,6 +5,7 @@ import { Flame, ArrowDownLeft, ArrowUpRight, Clock } from 'lucide-react';
 import GlowRing from '@/app/components/shared/GlowRing';
 import { useWalletStore, type CreditTransaction } from '@/lib/stores/walletStore';
 import { useStoreStore } from '@/lib/stores/storeStore';
+import { useBookingStore } from '@/lib/stores/bookingStore';
 
 const WEEK = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
@@ -50,11 +51,13 @@ function TxRow({ tx }: { tx: CreditTransaction }) {
 export default function MisCreditosPage() {
   const { wallet, walletLoaded, fetchWallet, transactions, txLoading, fetchTransactions } = useWalletStore();
   const { redemptions, fetchMyRedemptions } = useStoreStore();
+  const { sessionGrants, fetchSessionGrants } = useBookingStore();
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { fetchWallet(true); }, [fetchWallet]);
   useEffect(() => { fetchTransactions(true); }, [fetchTransactions]);
   useEffect(() => { fetchMyRedemptions(); }, [fetchMyRedemptions]);
+  useEffect(() => { fetchSessionGrants(); }, [fetchSessionGrants]);
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -120,6 +123,21 @@ export default function MisCreditosPage() {
           <p className="text-[11px] text-kore-gray-dark/40 mt-1">Tu récord: {wallet.longest_streak} días</p>
         )}
       </div>
+
+      {/* Sesiones adicionales */}
+      {sessionGrants.length > 0 && (
+        <div className="bg-white rounded-2xl p-4 border border-kore-gray-light/40 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-kore-gray-dark/50 mb-1 px-1">Sesiones adicionales</p>
+          <div className="divide-y divide-kore-gray-light/40">
+            {sessionGrants.map((g) => (
+              <div key={g.id} className="flex items-center justify-between py-2.5">
+                <p className="text-[13px] font-medium text-kore-gray-dark">{g.sessions_remaining} {g.sessions_remaining === 1 ? 'sesión' : 'sesiones'}</p>
+                <p className="text-[11px] text-kore-gray-dark/40">vencen el {new Date(g.expires_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Mis canjes */}
       {redemptions.length > 0 && (

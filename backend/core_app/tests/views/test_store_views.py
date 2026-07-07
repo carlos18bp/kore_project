@@ -154,3 +154,24 @@ def test_fulfill_sesion_adicional_no_photo_ok(api_client, trainer_user, assigned
     assert resp.status_code == 200
     req.refresh_from_db()
     assert req.status == 'fulfilled'
+
+
+from datetime import timedelta
+from django.utils import timezone as dj_timezone
+from core_app.models.session_grant import SessionGrant
+
+
+@pytest.mark.django_db
+def test_redeem_sesion_adicional_creates_grant_and_auto_fulfills(api_client, existing_user):
+    item = StoreItem.objects.create(name='Pack 3', price_credits=30, item_type='sesion_adicional', sessions_granted=3)
+    credit_engine.award(existing_user, CreditTransaction.Action.SESSION_ATTENDED, 'seed', '1', 'x', amount=100)
+    api_client.force_authenticate(existing_user)
+    resp = api_client.post('/api/store/redemptions/', {'item_id': item.id}, format='json')
+    assert resp.status_code == 201
+    grant = SessionGrant.objects.filter(customer=existing_user).first()
+    assert grant is not None
+    assert grant.sessions_total == 3
+    assert grant.expires_at > dj_timezone.now() + timedelta(days=29)
+    req = RedemptionRequest.objects.get(customer=existing_user, item=item)
+    assert req.status == 'fulfilled'
+    assert req.resolved_at is not None

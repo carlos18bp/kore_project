@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from core_app.models import Booking, Subscription, SubscriptionGuest, TrainerProfile
+from core_app.models.session_grant import SessionGrant
 from core_app.permissions import IsAdminRole, IsTrainerRole, is_admin_user
 from core_app.serializers.booking_serializers import BookingSerializer
 from core_app.services.slot_schedule import is_start_time_available, session_window
@@ -180,6 +181,11 @@ class BookingViewSet(viewsets.ModelViewSet):
                 sub = Subscription.objects.select_for_update().get(pk=booking.subscription_id)
                 sub.sessions_used = db_models.F('sessions_used') - 1
                 sub.save(update_fields=['sessions_used', 'updated_at'])
+
+            if booking.session_grant_id:
+                grant = SessionGrant.objects.select_for_update().get(pk=booking.session_grant_id)
+                grant.sessions_used = db_models.F('sessions_used') - 1
+                grant.save(update_fields=['sessions_used', 'updated_at'])
 
             _cancel_guest_booking_for_slot(booking)
 

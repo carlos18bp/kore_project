@@ -49,6 +49,13 @@ class Booking(TimestampedModel):
         null=True,
         blank=True,
     )
+    session_grant = models.ForeignKey(
+        'core_app.SessionGrant',
+        on_delete=models.SET_NULL,
+        related_name='bookings',
+        null=True,
+        blank=True,
+    )
 
     starts_at = models.DateTimeField(db_index=True)
     ends_at = models.DateTimeField(db_index=True)

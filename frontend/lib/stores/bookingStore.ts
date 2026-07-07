@@ -59,6 +59,14 @@ export type Subscription = {
   guest_info?: GuestInfo | null;
 };
 
+export type SessionGrant = {
+  id: number;
+  sessions_total: number;
+  sessions_used: number;
+  sessions_remaining: number;
+  expires_at: string;
+};
+
 export type ProgramDayExercise = {
   name: string;
   sets: number;
@@ -113,6 +121,7 @@ type BookingState = {
   availability: AvailabilityMap;
   availabilityLoading: boolean;
   subscriptions: Subscription[];
+  sessionGrants: SessionGrant[];
   bookings: BookingData[];
   bookingDetail: BookingData | null;
   bookingsPagination: { count: number; next: string | null; previous: string | null };
@@ -133,6 +142,7 @@ type BookingState = {
   fetchTrainers: () => Promise<void>;
   fetchAvailability: (dateFrom?: string, dateTo?: string, trainerId?: number) => Promise<void>;
   fetchSubscriptions: () => Promise<void>;
+  fetchSessionGrants: () => Promise<void>;
   fetchBookings: (subscriptionId?: number, page?: number) => Promise<void>;
   fetchBookingById: (bookingId: number) => Promise<BookingData | null>;
   fetchUpcomingReminder: () => Promise<void>;
@@ -141,6 +151,7 @@ type BookingState = {
     starts_at: string;
     trainer_id?: number;
     subscription_id?: number;
+    session_grant_id?: number;
     customer_id?: number;
     notes?: string;
   }) => Promise<BookingData | null>;
@@ -167,7 +178,7 @@ function extractErrorMessage(errData: Record<string, unknown> | undefined): stri
     if (Array.isArray(errData.non_field_errors) && typeof errData.non_field_errors[0] === 'string') return errData.non_field_errors[0];
   }
 
-  const fieldKeys = ['starts_at', 'subscription_id', 'package_id', 'trainer_id'];
+  const fieldKeys = ['starts_at', 'subscription_id', 'session_grant_id', 'package_id', 'trainer_id'];
   for (const key of fieldKeys) {
     const val = errData[key];
     if (typeof val === 'string') return val;
@@ -189,6 +200,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
   availability: {},
   availabilityLoading: false,
   subscriptions: [],
+  sessionGrants: [],
   bookings: [],
   bookingDetail: null,
   bookingsPagination: { count: 0, next: null, previous: null },
@@ -289,6 +301,15 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       set({ error: 'No se pudieron cargar las suscripciones.' });
     } finally {
       set({ loading: false });
+    }
+  },
+
+  fetchSessionGrants: async () => {
+    try {
+      const { data } = await api.get<SessionGrant[]>('/session-grants/', { headers: authHeaders() });
+      set({ sessionGrants: Array.isArray(data) ? data : [] });
+    } catch {
+      set({ sessionGrants: [] });
     }
   },
 

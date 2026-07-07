@@ -1,6 +1,6 @@
 {
-  "version": "1.2.0",
-  "lastUpdated": "2026-07-04",
+  "version": "1.3.0",
+  "lastUpdated": "2026-07-06",
   "documentation": "Step-by-step user journeys (branches, variations) are maintained in docs/USER_FLOW_MAP.md. This file defines flow IDs and metadata for Playwright @flow: tags and e2e/reporters/flow-coverage-reporter.mjs.",
   "flows": {
     "auth-login": {
@@ -149,6 +149,13 @@
       "priority": "P2",
       "roles": ["user"],
       "description": "El cliente ve el catálogo, su saldo disponible, canjea un artículo y ve el estado de sus canjes con el comprobante de entrega cuando aplica."
+    },
+    "customer-session-grants": {
+      "name": "Cliente — Sesiones adicionales",
+      "module": "app",
+      "priority": "P2",
+      "roles": ["user"],
+      "description": "Tras canjear una sesión adicional, el cliente ve sus sesiones extra (cantidad y vencimiento a 1 mes) y puede reservarlas desde la agenda como una fuente aparte del plan."
     },
     "trainer-store-management": {
       "name": "Trainer — Gestión de tienda",
