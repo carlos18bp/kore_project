@@ -335,8 +335,36 @@ canjes que piden los clientes: entregarlos o rechazarlos (devolviendo los crédi
 
 ---
 
+## Parte 6 — Sesiones adicionales
+
+### Funcionalidad 9: Canjear y usar sesiones adicionales
+
+#### 1. ¿Qué es y para qué sirve?
+Con tus créditos puedes canjear **sesiones adicionales** (fuera de tu plan). Se te acreditan al instante y las puedes reservar durante **1 mes**.
+
+#### 2. Antes de empezar
+- Cuenta **cliente** con créditos disponibles y un entrenador asignado.
+- Un artículo de tipo "sesión adicional" publicado en la tienda.
+
+#### 3. Paso a paso para probarlo
+1. Entra a **Tienda** y canjea el artículo de sesión adicional.
+2. Ve a **Mis créditos**: verás **"Sesiones adicionales"** con la cantidad y **"vencen el …"**.
+3. Entra a **Reservar sesión**: elige **"Sesiones adicionales"** como origen y agenda un horario.
+
+#### 4. Cómo sabes que funcionó
+- El canje se marca **Entregado** de inmediato (sin intervención del entrenador).
+- Aparece la tarjeta de sesiones adicionales con su vencimiento.
+- Al reservar usando esa fuente, el contador de sesiones adicionales baja.
+
+#### 5. Si algo no sale como esperabas
+- **No veo la sesión adicional** → confirma que el canje se hizo y que no venció (dura 1 mes).
+- **No me deja reservar** → revisa que el horario esté disponible con tu entrenador.
+- Si persiste, avísale al equipo técnico con una captura.
+
+---
+
 ## Próximas secciones (se agregarán al entregar cada parte)
 
-- **Parte 5** — Calificación de sesiones.
-- **Parte 6** — Configuración de dificultad y revisión de fotos del entrenador.
-- **Parte 7** — Analítica y KPIs de la economía de créditos.
+- **Parte 7** — Comprar créditos con dinero (Wompi).
+- **Parte 8** — Comprar packs (entrenamiento / nutrición) con dinero.
+- Calificación de sesiones · configuración de dificultad · analítica y KPIs.
