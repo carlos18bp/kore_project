@@ -78,7 +78,7 @@ def apply_recurring_renewal(subscription, payment):
         payload={
             'subscription_id': subscription.id,
             'payment_id': payment.id,
-            'amount': str(package.price),
+            'amount': str(payment.amount),
             'currency': package.currency,
             'reference': payment.provider_reference,
         },

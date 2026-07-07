@@ -90,7 +90,9 @@ def _bill_subscription(sub):
     # A scheduled plan change (downgrade / lateral) takes effect at renewal: bill
     # the pending package's price and apply it below once the charge is approved.
     package = sub.pending_package or sub.package
-    amount_in_cents = int(Decimal(str(package.price)) * 100)
+    from core_app.services.nutrition_access import nutrition_surcharge
+    charge = Decimal(str(package.price)) + Decimal(nutrition_surcharge(sub.includes_nutrition))
+    amount_in_cents = int(charge * 100)
     reference = generate_reference()
 
     txn_data = create_transaction(
@@ -108,7 +110,7 @@ def _bill_subscription(sub):
         payment = Payment.objects.create(
             customer=sub.customer,
             subscription=sub,
-            amount=package.price,
+            amount=charge,
             currency=package.currency,
             provider=Payment.Provider.WOMPI,
             provider_reference=reference,

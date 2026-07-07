@@ -11,3 +11,10 @@ def active_nutrition_price():
     from core_app.models.nutrition_product import NutritionProduct
     product = NutritionProduct.objects.filter(is_active=True).first()
     return product.price_cop if product else None
+
+
+def nutrition_surcharge(includes_nutrition) -> int:
+    """Whole-COP monthly nutrition surcharge to add to a recurring charge."""
+    if not includes_nutrition:
+        return 0
+    return active_nutrition_price() or 0
