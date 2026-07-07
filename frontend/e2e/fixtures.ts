@@ -151,6 +151,16 @@ export async function setupDefaultApiMocks(page: Page, exclude: string[] = []) {
   await mockCaptchaSiteKey(page);
   await mockAuthProfile(page);
 
+  // Nutrition access — granted by default so gated nutrition views don't show
+  // the paywall lock. Specs testing the paywall override this route.
+  await page.route('**/api/nutrition/access/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ has_nutrition_access: true, price_cop: 30000 }),
+    });
+  });
+
   // Subscriptions — one active subscription by default so gated views don't show locked state
   const defaultActiveSub = {
     id: 1,

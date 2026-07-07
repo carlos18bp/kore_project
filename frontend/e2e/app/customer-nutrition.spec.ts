@@ -77,6 +77,7 @@ test.describe('Customer Nutrition Page', { tag: [...FlowTags.CUSTOMER_NUTRITION,
   ) {
     await injectAuthCookies(page);
     await setupDefaultApiMocks(page, ['my-nutrition']);
+    await page.route('**/api/nutrition/access/**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ has_nutrition_access: true, price_cop: 30000 }) }));
     await page.route('**/api/my-nutrition/', async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
