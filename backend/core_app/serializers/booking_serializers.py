@@ -6,6 +6,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import APIException
 
 from core_app.models import Booking, Package, ProgramDay, Subscription, TrainerProfile, User
+from core_app.models.session_grant import SessionGrant
 from core_app.permissions import is_admin_user
 from core_app.serializers.package_serializers import PackageSerializer
 from core_app.serializers.trainer_profile_serializers import TrainerProfileSerializer
@@ -77,6 +78,16 @@ class BookingSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
+    session_grant_id = serializers.PrimaryKeyRelatedField(
+        queryset=SessionGrant.objects.all(),
+        write_only=True,
+        source='session_grant',
+        required=False,
+        allow_null=True,
+    )
+    session_grant_id_display = serializers.IntegerField(
+        source='session_grant.id', read_only=True, allow_null=True,
+    )
 
     class Meta:
         model = Booking
@@ -86,11 +97,13 @@ class BookingSerializer(serializers.ModelSerializer):
             'package',
             'trainer',
             'subscription_id_display',
+            'session_grant_id_display',
             'package_id',
             'starts_at',
             'ends_at',
             'trainer_id',
             'subscription_id',
+            'session_grant_id',
             'status',
             'notes',
             'canceled_reason',
@@ -178,6 +191,24 @@ class BookingSerializer(serializers.ModelSerializer):
         if trainer is None:
             raise serializers.ValidationError({'trainer_id': 'Se requiere un entrenador.'})
 
+        # Validate the capacity source (subscription XOR grant) before the
+        # slot-availability check so source errors surface first.
+        session_grant = attrs.get('session_grant')
+        if attrs.get('subscription') and session_grant:
+            raise serializers.ValidationError(
+                {'session_grant_id': 'No puedes usar el plan y una sesión adicional a la vez.'}
+            )
+        if session_grant:
+            booking_customer = attrs.get('customer')
+            if booking_customer and session_grant.customer_id != booking_customer.id:
+                raise serializers.ValidationError(
+                    {'session_grant_id': 'La sesión adicional no pertenece al cliente.'}
+                )
+            if not session_grant.is_active():
+                raise serializers.ValidationError(
+                    {'session_grant_id': 'Esa sesión adicional ya no está disponible.'}
+                )
+
         if not is_start_time_available(trainer, starts_at, min_advance_hours=min_advance_hours):
             raise serializers.ValidationError({'starts_at': 'Ese horario no está disponible.'})
 
@@ -234,6 +265,17 @@ class BookingSerializer(serializers.ModelSerializer):
                 sub.sessions_used = db_models.F('sessions_used') + 1
                 sub.save(update_fields=['sessions_used'])
                 validated_data['subscription'] = sub
+
+            session_grant = validated_data.get('session_grant')
+            if session_grant:
+                grant = SessionGrant.objects.select_for_update().get(pk=session_grant.pk)
+                if not grant.is_active():
+                    raise serializers.ValidationError(
+                        {'session_grant_id': 'Esa sesión adicional ya no está disponible.'}
+                    )
+                grant.sessions_used = db_models.F('sessions_used') + 1
+                grant.save(update_fields=['sessions_used', 'updated_at'])
+                validated_data['session_grant'] = grant
 
             booking = Booking.objects.create(
                 customer=customer,
