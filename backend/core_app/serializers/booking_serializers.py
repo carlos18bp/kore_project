@@ -199,8 +199,12 @@ class BookingSerializer(serializers.ModelSerializer):
                 {'session_grant_id': 'No puedes usar el plan y una sesión adicional a la vez.'}
             )
         if session_grant:
-            booking_customer = attrs.get('customer')
-            if booking_customer and session_grant.customer_id != booking_customer.id:
+            # Fail closed: resolve the effective booking customer (the acting
+            # user, or the client a trainer/admin books for) and always compare.
+            request = self.context.get('request')
+            effective_customer = attrs.get('customer') or (getattr(request, 'user', None) if request else None)
+            effective_customer_id = getattr(effective_customer, 'id', None)
+            if not effective_customer_id or session_grant.customer_id != effective_customer_id:
                 raise serializers.ValidationError(
                     {'session_grant_id': 'La sesión adicional no pertenece al cliente.'}
                 )

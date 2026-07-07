@@ -55,6 +55,16 @@ def test_booking_rejects_expired_grant(customer):
 
 
 @pytest.mark.django_db
+def test_booking_rejects_other_users_grant(customer):
+    pkg = _pkg()
+    other = User.objects.create_user(email='ob@example.com', password='x', first_name='O', last_name='B')
+    grant = SessionGrant.objects.create(customer=other, sessions_total=2, sessions_used=0, expires_at=timezone.now() + timedelta(days=10))
+    ser = _ser(customer, {'package_id': pkg.id, 'starts_at': (timezone.now() + timedelta(days=3)).isoformat(), 'session_grant_id': grant.id})
+    assert ser.is_valid() is False
+    assert 'session_grant_id' in ser.errors
+
+
+@pytest.mark.django_db
 def test_booking_rejects_both_sources(customer):
     pkg = _pkg()
     sub = Subscription.objects.create(customer=customer, package=pkg, sessions_total=5, starts_at=timezone.now(), expires_at=timezone.now() + timedelta(days=30))
