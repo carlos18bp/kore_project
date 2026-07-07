@@ -129,6 +129,7 @@ from core_app.views.store_views import (
     StoreItemViewSet, StoreCatalogView, RedemptionView,
     TrainerRedemptionView, TrainerRedemptionReviewView,
 )
+from core_app.views.session_grant_views import SessionGrantListView
 
 router = DefaultRouter()
 router.register('packages', PackageViewSet, basename='package')
@@ -240,6 +241,7 @@ urlpatterns = [
     path('credits/settings/', CreditSettingsView.as_view(), name='credits-settings'),
     path('trainer/credits/pending-reviews/', TrainerPendingReviewsView.as_view(), name='trainer-credits-pending-reviews'),
     path('trainer/credits/transactions/<int:tx_id>/review/', TrainerReviewTransactionView.as_view(), name='trainer-credits-review'),
+    path('session-grants/', SessionGrantListView.as_view(), name='session-grants'),
     path('store/items/', StoreCatalogView.as_view(), name='store-items'),
     path('store/redemptions/', RedemptionView.as_view(), name='store-redemptions'),
     path('trainer/store/redemptions/', TrainerRedemptionView.as_view(), name='trainer-store-redemptions'),
