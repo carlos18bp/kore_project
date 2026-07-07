@@ -21,6 +21,7 @@ from rest_framework.response import Response
 from core_app.models import Payment, PaymentIntent, Subscription, SubscriptionRenewal, User, WompiEvent
 from core_app.models.credit import CreditTransaction
 from core_app.models.credit_purchase import CreditPurchase
+from core_app.models.nutrition_upgrade import NutritionUpgrade
 from core_app.services import credit_engine
 
 TERMINAL_TXN_STATUSES = frozenset({'APPROVED', 'DECLINED', 'ERROR', 'VOIDED'})
@@ -223,6 +224,13 @@ def _handle_transaction_updated(data):
             _resolve_credit_purchase(purchase, txn_id, txn_status)
             return
 
+    # --- Path 1.6: Resolve a NutritionUpgrade (prorated nutrition add-on) ---
+    if txn_reference:
+        upgrade = NutritionUpgrade.objects.select_related('subscription').filter(reference=txn_reference).first()
+        if upgrade is not None:
+            _resolve_nutrition_upgrade(upgrade, txn_id, txn_status)
+            return
+
     # --- Path 2: Update an existing Payment (recurring billing) ---
     # Recurring Payments are keyed by the reference we generated when creating the
     # transaction (stored in provider_reference), NOT the Wompi transaction id.
@@ -267,6 +275,26 @@ def _resolve_credit_purchase(purchase, txn_id, txn_status):
         purchase.wompi_transaction_id = txn_id
         purchase.resolved_at = timezone.now()
         purchase.save(update_fields=['status', 'wompi_transaction_id', 'resolved_at', 'updated_at'])
+
+
+def _resolve_nutrition_upgrade(upgrade, txn_id, txn_status):
+    """Grant nutrition on APPROVED; mark declined otherwise. Idempotent."""
+    if upgrade.status != NutritionUpgrade.Status.PENDING:
+        return
+    if txn_status == 'APPROVED':
+        with db_transaction.atomic():
+            upgrade.status = NutritionUpgrade.Status.APPROVED
+            upgrade.wompi_transaction_id = txn_id
+            upgrade.resolved_at = timezone.now()
+            upgrade.save(update_fields=['status', 'wompi_transaction_id', 'resolved_at', 'updated_at'])
+            sub = upgrade.subscription
+            sub.includes_nutrition = True
+            sub.save(update_fields=['includes_nutrition', 'updated_at'])
+    elif txn_status in ('DECLINED', 'ERROR', 'VOIDED'):
+        upgrade.status = NutritionUpgrade.Status.DECLINED
+        upgrade.wompi_transaction_id = txn_id
+        upgrade.resolved_at = timezone.now()
+        upgrade.save(update_fields=['status', 'wompi_transaction_id', 'resolved_at', 'updated_at'])
 
 
 def _resolve_payment_intent(intent, txn_status, payment_method_type=''):
