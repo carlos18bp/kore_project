@@ -38,6 +38,8 @@ from .nutrition_week_note import NutritionWeekNote
 from .credit import CreditSettings, CreditWallet, CreditTransaction
 from .store import StoreItem, RedemptionRequest
 from .session_grant import SessionGrant
+from .credit_package import CreditPackage
+from .credit_purchase import CreditPurchase
 
 __all__ = [
     'User',
@@ -93,6 +95,8 @@ __all__ = [
     'StoreItem',
     'RedemptionRequest',
     'SessionGrant',
+    'CreditPackage',
+    'CreditPurchase',
     'ExerciseCapture',
     'PhysicalTest',
 ]

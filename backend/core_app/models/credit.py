@@ -67,6 +67,7 @@ class CreditTransaction(TimestampedModel):
         ADJUSTMENT = 'adjustment', 'Manual adjustment'
         REDEMPTION = 'redemption', 'Store redemption'
         REDEMPTION_REFUND = 'redemption_refund', 'Redemption refund'
+        PURCHASE = 'purchase', 'Credit purchase'
 
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'
