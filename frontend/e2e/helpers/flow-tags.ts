@@ -28,6 +28,7 @@ export const FlowTags = {
   CUSTOMER_CREDITS: ['@flow:customer-credits', '@module:app', '@priority:P2'],
   CUSTOMER_STORE: ['@flow:customer-store', '@module:app', '@priority:P2'],
   CUSTOMER_SESSION_GRANTS: ['@flow:customer-session-grants', '@module:app', '@priority:P2'],
+  CUSTOMER_BUY_CREDITS: ['@flow:customer-buy-credits', '@module:app', '@priority:P2'],
   TRAINER_STORE_MANAGEMENT: ['@flow:trainer-store-management', '@module:trainer', '@priority:P2'],
   DASHBOARD_REMINDER: ['@flow:dashboard-reminder', '@module:dashboard', '@priority:P2'],
 

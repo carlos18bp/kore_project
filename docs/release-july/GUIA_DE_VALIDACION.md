@@ -363,8 +363,35 @@ Con tus créditos puedes canjear **sesiones adicionales** (fuera de tu plan). Se
 
 ---
 
+## Parte 7 — Comprar créditos
+
+### Funcionalidad 10: Comprar créditos con dinero
+
+#### 1. ¿Qué es y para qué sirve?
+Además de ganarlos, puedes **comprar créditos** con dinero (tarjeta / Nequi / Bancolombia) vía Wompi. Se acreditan apenas se aprueba el pago.
+
+#### 2. Antes de empezar
+- Cuenta **cliente**.
+- Al menos un **paquete de créditos** publicado por el admin.
+
+#### 3. Paso a paso para probarlo
+1. En **Mis créditos**, toca **"Comprar créditos"**.
+2. Elige un paquete y toca **"Comprar"** → te lleva al checkout de Wompi.
+3. Paga (en sandbox usa los datos de prueba). Al volver, la página confirma el pago.
+
+#### 4. Cómo sabes que funcionó
+- Vuelves a **Comprar créditos** con el mensaje **"¡Pago aprobado!"**.
+- Tu **saldo** en Mis créditos sube por la cantidad comprada.
+- En el historial aparece **"Compraste N créditos"**.
+
+#### 5. Si algo no sale como esperabas
+- **Pagué pero no veo los créditos** → espera unos segundos (la confirmación llega por webhook) y refresca.
+- **El pago fue rechazado** → verás un mensaje de error; intenta con otro método.
+- Si persiste, avísale al equipo técnico con una captura.
+
+---
+
 ## Próximas secciones (se agregarán al entregar cada parte)
 
-- **Parte 7** — Comprar créditos con dinero (Wompi).
 - **Parte 8** — Comprar packs (entrenamiento / nutrición) con dinero.
 - Calificación de sesiones · configuración de dificultad · analítica y KPIs.

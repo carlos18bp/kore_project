@@ -540,6 +540,25 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Only approved (disponibles) credits count toward affordability; pending credits do not.
 - Fulfilled producto/servicio redemptions show a "Ver comprobante" link in Mis canjes.
 
+### customer-buy-credits: Cliente — Comprar créditos
+- Module: app
+- Priority: P2
+- Route: /comprar-creditos
+- Roles: user
+- Description: The client buys credits with money via Wompi; on approval the credits are added as confirmed and marked as purchased in the ledger.
+- E2E Coverage: Covered (frontend/e2e/app/comprar-creditos.spec.ts)
+
+**Steps**
+1. From /mis-creditos tap "Comprar créditos".
+2. Pick a credit package and tap "Comprar" → redirect to Wompi checkout.
+3. Pay; Wompi returns to /comprar-creditos?ref=…; the page polls the purchase status.
+4. On approval, the success message shows and the wallet balance rises.
+
+**Branches / Variations**
+- The webhook is the source of truth; the credit is awarded once (idempotent), even if Wompi retransmits.
+- DECLINED/ERROR/VOIDED → purchase declined, no credits, failure message.
+- Purchased credits use the `purchase` ledger action (distinguishable from earned credits).
+
 ### customer-session-grants: Cliente — Sesiones adicionales
 - Module: app
 - Priority: P2
