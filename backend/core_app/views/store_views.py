@@ -67,6 +67,18 @@ class RedemptionView(APIView):
             if tx is None:
                 transaction.set_rollback(True)
                 return Response({'detail': 'No tienes créditos suficientes para este canje.'}, status=status.HTTP_400_BAD_REQUEST)
+            if item.item_type == StoreItem.ItemType.SESION:
+                from datetime import timedelta
+                from core_app.models.session_grant import SessionGrant
+                SessionGrant.objects.create(
+                    customer=request.user,
+                    sessions_total=item.sessions_granted,
+                    expires_at=timezone.now() + timedelta(days=30),
+                    source_redemption=req,
+                )
+                req.status = RedemptionRequest.Status.FULFILLED
+                req.resolved_at = timezone.now()
+                req.save(update_fields=['status', 'resolved_at', 'updated_at'])
         return Response(RedemptionRequestSerializer(req, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
