@@ -10,7 +10,7 @@ class StoreItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = StoreItem
-        fields = ('id', 'name', 'description', 'image', 'image_url', 'price_credits', 'item_type', 'is_active')
+        fields = ('id', 'name', 'description', 'image', 'image_url', 'price_credits', 'item_type', 'sessions_granted', 'is_active')
         extra_kwargs = {'image': {'write_only': True, 'required': False}}
 
     def get_image_url(self, obj):
