@@ -75,6 +75,7 @@ def create_subscription_for_admin(
         expires_at=expires_at,
         is_recurring=False,
         payment_method_type='',
+        includes_nutrition=package.includes_nutrition,
     )
 
     payment = Payment.objects.create(

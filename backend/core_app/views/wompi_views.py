@@ -383,6 +383,7 @@ def _resolve_payment_intent(intent, txn_status, payment_method_type=''):
                     is_recurring=is_recurring,
                     wompi_transaction_id=locked_intent.wompi_transaction_id,
                     next_billing_date=next_billing_date,
+                    includes_nutrition=package.includes_nutrition,
                 )
 
                 payment = Payment.objects.create(

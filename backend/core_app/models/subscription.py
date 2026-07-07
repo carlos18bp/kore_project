@@ -43,6 +43,7 @@ class Subscription(TimestampedModel):
 
     sessions_total = models.PositiveIntegerField()
     sessions_used = models.PositiveIntegerField(default=0)
+    includes_nutrition = models.BooleanField(default=False, db_index=True)
 
     status = models.CharField(
         max_length=20,
