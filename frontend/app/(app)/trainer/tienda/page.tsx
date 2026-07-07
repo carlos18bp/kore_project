@@ -10,7 +10,7 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-type AdminItem = { id: number; name: string; description: string; price_credits: number; item_type: string; is_active: boolean; image_url: string | null };
+type AdminItem = { id: number; name: string; description: string; price_credits: number; item_type: string; is_active: boolean; image_url: string | null; sessions_granted: number };
 
 const TYPES = [
   { value: 'servicio', label: 'Servicio' },
@@ -26,6 +26,7 @@ export default function TrainerTiendaPage() {
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
   const [type, setType] = useState('servicio');
+  const [sessionsGranted, setSessionsGranted] = useState('1');
   const [image, setImage] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -41,12 +42,12 @@ export default function TrainerTiendaPage() {
   useEffect(() => { loadItems(); fetchPendingReviews(); }, [fetchPendingReviews]);
 
   function resetForm() {
-    setEditing(null); setName(''); setDescription(''); setPrice(''); setType('servicio'); setImage(null);
+    setEditing(null); setName(''); setDescription(''); setPrice(''); setType('servicio'); setSessionsGranted('1'); setImage(null);
   }
 
   function startEdit(it: AdminItem) {
     setEditing(it); setName(it.name); setDescription(it.description || '');
-    setPrice(String(it.price_credits)); setType(it.item_type); setImage(null); setError('');
+    setPrice(String(it.price_credits)); setType(it.item_type); setSessionsGranted(String(it.sessions_granted ?? 1)); setImage(null); setError('');
   }
 
   async function saveItem() {
@@ -60,6 +61,7 @@ export default function TrainerTiendaPage() {
       fd.append('description', description);
       fd.append('price_credits', String(p));
       fd.append('item_type', type);
+      if (type === 'sesion_adicional') fd.append('sessions_granted', String(parseInt(sessionsGranted, 10) || 1));
       if (image) fd.append('image', image);
       if (editing) {
         await api.patch(`/trainer/store-items/${editing.id}/`, fd, { headers: authHeaders() });
@@ -128,6 +130,9 @@ export default function TrainerTiendaPage() {
           <select value={type} onChange={(e) => setType(e.target.value)} className="rounded-xl border border-kore-gray-light/60 px-3 py-2 text-[13px]">
             {TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
+          {type === 'sesion_adicional' && (
+            <input value={sessionsGranted} onChange={(e) => setSessionsGranted(e.target.value)} placeholder="Sesiones" type="number" min={1} className="w-28 rounded-xl border border-kore-gray-light/60 px-3 py-2 text-[13px]" data-testid="sessions-granted-input" />
+          )}
         </div>
         <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descripción" rows={2} className="w-full rounded-xl border border-kore-gray-light/60 px-3 py-2 text-[13px]" />
         <div className="flex items-center gap-2 flex-wrap">
