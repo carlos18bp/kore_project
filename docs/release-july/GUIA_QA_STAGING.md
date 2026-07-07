@@ -112,6 +112,11 @@ no técnica para el cliente; esta es el setup reproducible para probar).
 4. **Reservar sesión** → arriba elige la fuente **"Sesiones adicionales"** y agenda; el contador baja al reservar.
 5. Cancela esa reserva → la sesión vuelve al grant (el contador sube de nuevo).
 
+### 3.9 Cliente — Comprar créditos (Parte 7)
+1. (Admin) crea un `CreditPackage` activo en el Django admin (o usa el seed).
+2. Login cliente → **Mis créditos → Comprar créditos** → elige un paquete → **Comprar**.
+3. Completa el pago en Wompi (sandbox). Al volver a `/comprar-creditos?ref=…`, verifica **"¡Pago aprobado!"** y que el saldo subió.
+
 ---
 
 ## 4. Verificación del efecto en créditos (backend)
@@ -188,6 +193,11 @@ StoreItem.objects.get_or_create(name='Camiseta KÓRE', defaults={'description': 
 StoreItem.objects.get_or_create(name='Botella KÓRE', defaults={'description': 'Termo 750ml', 'price_credits': 30, 'item_type': 'producto'})
 StoreItem.objects.get_or_create(name='Sesión adicional (pack 3)', defaults={'description': '3 sesiones extra, 1 mes de vigencia', 'price_credits': 40, 'item_type': 'sesion_adicional', 'sessions_granted': 3})
 print('OK — store items:', StoreItem.objects.filter(is_active=True).count())
+
+# Paquetes de crédito (Parte 7)
+from core_app.models.credit_package import CreditPackage
+CreditPackage.objects.get_or_create(name='Impulso', defaults={'credits': 100, 'price_cop': 20000})
+CreditPackage.objects.get_or_create(name='Pro', defaults={'credits': 300, 'price_cop': 50000})
 ```
 
 > Ajusta emails/contraseñas si en staging los usuarios de prueba son otros.
