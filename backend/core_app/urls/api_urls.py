@@ -133,6 +133,9 @@ from core_app.views.session_grant_views import SessionGrantListView
 from core_app.views.credit_purchase_views import (
     CreditPackageListView, CreditPurchaseCreateView, CreditPurchaseStatusView,
 )
+from core_app.views.nutrition_upgrade_views import (
+    NutritionAccessView, NutritionUpgradeCreateView, NutritionUpgradeStatusView,
+)
 
 router = DefaultRouter()
 router.register('packages', PackageViewSet, basename='package')
@@ -245,6 +248,9 @@ urlpatterns = [
     path('trainer/credits/pending-reviews/', TrainerPendingReviewsView.as_view(), name='trainer-credits-pending-reviews'),
     path('trainer/credits/transactions/<int:tx_id>/review/', TrainerReviewTransactionView.as_view(), name='trainer-credits-review'),
     path('session-grants/', SessionGrantListView.as_view(), name='session-grants'),
+    path('nutrition/access/', NutritionAccessView.as_view(), name='nutrition-access'),
+    path('nutrition/upgrade/', NutritionUpgradeCreateView.as_view(), name='nutrition-upgrade'),
+    path('nutrition/upgrade/<str:reference>/', NutritionUpgradeStatusView.as_view(), name='nutrition-upgrade-status'),
     path('credits/packages/', CreditPackageListView.as_view(), name='credit-packages'),
     path('credits/purchases/', CreditPurchaseCreateView.as_view(), name='credit-purchases'),
     path('credits/purchases/<str:reference>/', CreditPurchaseStatusView.as_view(), name='credit-purchase-status'),

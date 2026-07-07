@@ -16,6 +16,7 @@ import hashlib
 import logging
 import time
 import uuid
+from urllib.parse import quote
 
 import requests
 from django.conf import settings
@@ -670,3 +671,15 @@ def verify_event_checksum(event_body):
     except Exception:
         logger.exception('Error verifying Wompi event checksum')
         return False
+
+
+def build_wompi_checkout_url(reference, amount_in_cents, redirect_path):
+    """Build a Wompi Web Checkout redirect URL for a one-time payment."""
+    signature = generate_integrity_signature(reference, amount_in_cents, 'COP')
+    redirect_url = f'{settings.FRONTEND_BASE_URL}{redirect_path}'
+    return (
+        f'https://checkout.wompi.co/p/?public-key={settings.WOMPI_PUBLIC_KEY}'
+        f'&currency=COP&amount-in-cents={amount_in_cents}'
+        f'&reference={reference}&signature:integrity={signature}'
+        f'&redirect-url={quote(redirect_url, safe="")}'
+    )
