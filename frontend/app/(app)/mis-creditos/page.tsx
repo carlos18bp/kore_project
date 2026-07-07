@@ -99,6 +99,10 @@ export default function MisCreditosPage() {
         </p>
       </div>
 
+      <a href="/comprar-creditos" className="block text-center text-[13px] font-semibold text-kore-red bg-kore-red/10 rounded-xl py-2.5" data-testid="buy-credits-link">
+        Comprar créditos
+      </a>
+
       {/* Streak */}
       <div className="bg-white rounded-2xl p-6 border border-kore-gray-light/40 shadow-sm text-center">
         <p className="text-xs font-semibold uppercase tracking-wide text-kore-gray-dark/50 mb-4">Tu racha</p>
