@@ -40,6 +40,8 @@ from .store import StoreItem, RedemptionRequest
 from .session_grant import SessionGrant
 from .credit_package import CreditPackage
 from .credit_purchase import CreditPurchase
+from .nutrition_product import NutritionProduct
+from .nutrition_upgrade import NutritionUpgrade
 
 __all__ = [
     'User',
@@ -97,6 +99,8 @@ __all__ = [
     'SessionGrant',
     'CreditPackage',
     'CreditPurchase',
+    'NutritionProduct',
+    'NutritionUpgrade',
     'ExerciseCapture',
     'PhysicalTest',
 ]
