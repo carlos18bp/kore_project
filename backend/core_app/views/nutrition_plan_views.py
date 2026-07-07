@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from core_app.models import MealSuggestion, User, WeeklyNutritionPlan, WeeklyPlanDay, WeeklyPlanMeal
-from core_app.permissions import IsTrainerRole
+from core_app.permissions import IsTrainerRole, HasNutritionAccess
 from core_app.services.nutrition_plan_generator import generate_weekly_plan
 from core_app.utils.renderers import NullableJSONRenderer
 
@@ -401,7 +401,7 @@ class CustomerNutritionPlanWeekView(APIView):
     Used by TodayNutritionView to override auto-rotation with trainer-curated meals.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasNutritionAccess]
     renderer_classes = [NullableJSONRenderer]
 
     def get(self, request):
@@ -429,7 +429,7 @@ class CustomerNutritionPlanHistoryView(APIView):
     customer can see the coach's note per cycle plus the historical trail.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasNutritionAccess]
 
     def get(self, request):
         plans = (
