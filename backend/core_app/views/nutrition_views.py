@@ -16,7 +16,7 @@ from rest_framework.views import APIView
 
 from core_app.models import Booking, User
 from core_app.models.nutrition_habit import NutritionHabit
-from core_app.permissions import IsTrainerRole
+from core_app.permissions import IsTrainerRole, HasNutritionAccess
 
 
 NUTRITION_COOLDOWN_DAYS = 7
@@ -65,7 +65,7 @@ class ClientNutritionListCreateView(APIView):
     POST /api/my-nutrition/
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasNutritionAccess]
 
     def get(self, request):
         entries = NutritionHabit.objects.filter(
@@ -105,7 +105,7 @@ class ClientNutritionDetailView(APIView):
     GET /api/my-nutrition/<eval_id>/
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasNutritionAccess]
 
     def get(self, request, eval_id):
         try:

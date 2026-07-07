@@ -2,6 +2,8 @@ from datetime import date
 
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+
+from core_app.permissions import HasNutritionAccess
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -57,7 +59,7 @@ class TodayNutritionView(APIView):
     meal suggestions are used instead of the auto-rotation.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasNutritionAccess]
 
     def get(self, request):
         today = date.today()
@@ -90,7 +92,7 @@ class TodayNutritionView(APIView):
 class UpdateMealEntryView(APIView):
     """PATCH — update status and/or notes for a single MealEntry."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasNutritionAccess]
 
     def patch(self, request, log_id, meal_id):
         try:
@@ -122,7 +124,7 @@ class UpdateMealEntryView(APIView):
 class MealEntryPhotoView(APIView):
     """POST — upload or replace a photo for a MealEntry."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasNutritionAccess]
 
     def post(self, request, log_id, meal_id):
         try:
@@ -153,7 +155,7 @@ class MealEntryPhotoView(APIView):
 class WaterGlassLogCreateView(APIView):
     """POST — register one glass of water with a selfie photo for today's log."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasNutritionAccess]
 
     def post(self, request, log_id):
         try:
@@ -185,7 +187,7 @@ class WaterGlassLogCreateView(APIView):
 class NutritionHistoryView(APIView):
     """GET — last 30 days of NutritionDailyLog for the authenticated customer."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasNutritionAccess]
 
     def get(self, request):
         from datetime import timedelta

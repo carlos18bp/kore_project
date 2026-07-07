@@ -5,8 +5,12 @@ import pytest
 from django.urls import reverse
 from rest_framework import status
 
+from django.utils import timezone as dj_tz
+
 from core_app.models import (
     MealSuggestion,
+    Package,
+    Subscription,
     TrainerProfile,
     User,
     WeeklyNutritionPlan,
@@ -25,9 +29,15 @@ MEAL_BLOCKS = [
 
 @pytest.fixture
 def customer(db):
-    return User.objects.create_user(
+    user = User.objects.create_user(
         email='np-customer@test.com', password='pass', first_name='Carla', last_name='Diaz', role=User.Role.CUSTOMER,
     )
+    pkg = Package.objects.create(title='Nutri', sessions_count=1, price=1, includes_nutrition=True)
+    Subscription.objects.create(
+        customer=user, package=pkg, sessions_total=1, status='active',
+        starts_at=dj_tz.now(), expires_at=dj_tz.now() + timedelta(days=30), includes_nutrition=True,
+    )
+    return user
 
 
 @pytest.fixture

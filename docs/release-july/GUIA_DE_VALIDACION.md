@@ -391,7 +391,33 @@ Además de ganarlos, puedes **comprar créditos** con dinero (tarjeta / Nequi / 
 
 ---
 
+## Parte 8 — Comprar nutrición
+
+### Funcionalidad 11: Agregar nutrición a tu plan
+
+#### 1. ¿Qué es y para qué sirve?
+La nutrición ahora es un beneficio de pago. Si tu plan no la incluye, puedes **agregarla**; pagas solo lo que resta del mes (prorrateado) y desde la siguiente renovación se cobra junto con tu plan en un solo pago.
+
+#### 2. Antes de empezar
+- Cuenta **cliente** con un **plan activo** sin nutrición.
+- El admin configuró el **precio de nutrición**.
+
+#### 3. Paso a paso para probarlo
+1. Entra a **Mi Nutrición**: verás un **candado** con el precio y el botón **"Agrega nutrición a tu plan"**.
+2. Tócalo → te lleva al checkout de Wompi por el **monto prorrateado**.
+3. Paga (sandbox). Al volver, la sección se **desbloquea**.
+
+#### 4. Cómo sabes que funcionó
+- Mi Nutrición muestra el contenido (plan, seguimiento) en vez del candado.
+- Tu próxima renovación cobrará plan **+ nutrición** en un solo pago.
+
+#### 5. Si algo no sale como esperabas
+- **Sigo viendo el candado tras pagar** → espera unos segundos (confirma por webhook) y refresca.
+- **No tengo plan activo** → primero necesitas un plan para agregar nutrición.
+- Si persiste, avísale al equipo técnico con una captura.
+
+---
+
 ## Próximas secciones (se agregarán al entregar cada parte)
 
-- **Parte 8** — Comprar packs (entrenamiento / nutrición) con dinero.
 - Calificación de sesiones · configuración de dificultad · analítica y KPIs.

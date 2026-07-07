@@ -32,6 +32,7 @@ class Package(TimestampedModel):
     terms_and_conditions = models.TextField(blank=True)
 
     is_active = models.BooleanField(default=True, db_index=True)
+    includes_nutrition = models.BooleanField(default=False)
     order = models.PositiveIntegerField(default=0, db_index=True)
 
     class Meta:

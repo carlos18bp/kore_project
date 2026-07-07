@@ -559,6 +559,24 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - DECLINED/ERROR/VOIDED → purchase declined, no credits, failure message.
 - Purchased credits use the `purchase` ledger action (distinguishable from earned credits).
 
+### customer-buy-nutrition: Cliente — Comprar nutrición
+- Module: app
+- Priority: P2
+- Route: /my-nutrition
+- Roles: user
+- Description: Nutrition is gated by payment. Without access the client sees a lock and can add nutrition to the current plan for a prorated charge; renewals then bill training + nutrition together.
+- E2E Coverage: Covered (frontend/e2e/app/nutrition-upgrade.spec.ts)
+
+**Steps**
+1. Open /my-nutrition. Without access, a lock + "Agrega nutrición a tu plan" CTA shows.
+2. Tap the CTA → redirect to Wompi for the prorated amount.
+3. On return (?ref=NU-…) the page polls status and unlocks on approval.
+
+**Branches / Variations**
+- Existing training-only clients are locked out (retroactive paywall).
+- The upgrade charge is prorated by days left in the cycle; from the next renewal the plan + nutrition bill as one payment.
+- No active plan → the upgrade is rejected (need a plan first).
+
 ### customer-session-grants: Cliente — Sesiones adicionales
 - Module: app
 - Priority: P2

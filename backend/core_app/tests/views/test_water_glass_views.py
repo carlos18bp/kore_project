@@ -1,20 +1,30 @@
 """Tests for the water-glass photo upload endpoint."""
 
 import io
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.utils import timezone as dj_tz
 from PIL import Image
 from rest_framework.test import APIClient
 
-from core_app.models import NutritionDailyLog, User, WaterGlassLog
+from core_app.models import NutritionDailyLog, Package, Subscription, User, WaterGlassLog
 
 
 def _auth(client, user):
     from rest_framework_simplejwt.tokens import RefreshToken
     token = RefreshToken.for_user(user)
     client.credentials(HTTP_AUTHORIZATION=f'Bearer {token.access_token}')
+
+
+def _grant_nutrition(customer):
+    """Give the customer an active subscription that includes nutrition (Part 8 paywall)."""
+    pkg = Package.objects.create(title='Nutri', sessions_count=1, price=1, includes_nutrition=True)
+    Subscription.objects.create(
+        customer=customer, package=pkg, sessions_total=1, status='active',
+        starts_at=dj_tz.now(), expires_at=dj_tz.now() + timedelta(days=30), includes_nutrition=True,
+    )
 
 
 def _make_image(name='selfie.jpg', size=(200, 200), color=(120, 180, 240)):
@@ -30,6 +40,7 @@ class TestWaterGlassCreate:
         client = APIClient()
         customer = User.objects.create_user(email='hydra@test.com', password='pass', role='customer')
         _auth(client, customer)
+        _grant_nutrition(customer)
         log = NutritionDailyLog.objects.create(customer=customer, date=date.today())
         return client, customer, log
 
@@ -50,6 +61,7 @@ class TestWaterGlassCreate:
     def test_other_customer_cannot_post_to_log(self):
         client_a, _, log_a = self._setup()
         intruder = User.objects.create_user(email='intruder@test.com', password='pass', role='customer')
+        _grant_nutrition(intruder)
 
         client_b = APIClient()
         _auth(client_b, intruder)

@@ -7,9 +7,20 @@ from decimal import Decimal
 import pytest
 from rest_framework.test import APIClient
 
-from core_app.models import Booking, Package, User
+from django.utils import timezone as dj_tz
+
+from core_app.models import Booking, Package, Subscription, User
 from core_app.models.nutrition_habit import NutritionHabit
 from core_app.models.trainer_profile import TrainerProfile
+
+
+def _grant_nutrition(customer):
+    """Give the customer an active subscription that includes nutrition (Part 8 paywall)."""
+    pkg = Package.objects.create(title='Nutri plan', sessions_count=1, price=1, includes_nutrition=True)
+    Subscription.objects.create(
+        customer=customer, package=pkg, sessions_total=1, status='active',
+        starts_at=dj_tz.now(), expires_at=dj_tz.now() + timedelta(days=30), includes_nutrition=True,
+    )
 
 FIXED_NOW = datetime(2026, 6, 15, 12, 0, 0, tzinfo=dt_timezone.utc)
 
@@ -40,6 +51,7 @@ class TestClientNutritionListCreate:
         client = APIClient()
         customer = User.objects.create_user(email='nutri@test.com', password='pass', role='customer')
         _auth(client, customer)
+        _grant_nutrition(customer)
 
         resp = client.post('/api/my-nutrition/', _valid_payload(), format='json')
         assert resp.status_code == 201
@@ -51,6 +63,7 @@ class TestClientNutritionListCreate:
         client = APIClient()
         customer = User.objects.create_user(email='nutri2@test.com', password='pass', role='customer')
         _auth(client, customer)
+        _grant_nutrition(customer)
 
         NutritionHabit.objects.create(
             customer=customer, meals_per_day=3, water_liters=Decimal('2.0'),
@@ -66,6 +79,7 @@ class TestClientNutritionListCreate:
         client = APIClient()
         customer = User.objects.create_user(email='nutri3@test.com', password='pass', role='customer')
         _auth(client, customer)
+        _grant_nutrition(customer)
 
         NutritionHabit.objects.create(
             customer=customer, meals_per_day=3, water_liters=Decimal('2.0'),
@@ -83,6 +97,7 @@ class TestClientNutritionListCreate:
         client = APIClient()
         customer = User.objects.create_user(email='nutri4@test.com', password='pass', role='customer')
         _auth(client, customer)
+        _grant_nutrition(customer)
 
         old = NutritionHabit.objects.create(
             customer=customer, meals_per_day=3, water_liters=Decimal('2.0'),
@@ -108,6 +123,7 @@ class TestClientNutritionDetail:
         client = APIClient()
         customer = User.objects.create_user(email='nutri5@test.com', password='pass', role='customer')
         _auth(client, customer)
+        _grant_nutrition(customer)
 
         entry = NutritionHabit.objects.create(
             customer=customer, meals_per_day=3, water_liters=Decimal('2.0'),
@@ -124,6 +140,7 @@ class TestClientNutritionDetail:
         customer1 = User.objects.create_user(email='nutri6@test.com', password='pass', role='customer')
         customer2 = User.objects.create_user(email='nutri7@test.com', password='pass', role='customer')
         _auth(client, customer1)
+        _grant_nutrition(customer1)
 
         entry = NutritionHabit.objects.create(
             customer=customer2, meals_per_day=3, water_liters=Decimal('2.0'),
