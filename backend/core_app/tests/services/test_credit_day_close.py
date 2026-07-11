@@ -71,6 +71,23 @@ def test_training_day_with_capture_mints_pending_workout_credit(existing_user):
 
 
 @pytest.mark.django_db
+def test_overdue_pending_credit_is_not_auto_confirmed(existing_user, frozen_now):
+    today = timezone.localdate()
+    credit_engine.award(
+        existing_user, CreditTransaction.Action.MEAL_PHOTO, 'meal_entry', 1,
+        'Almuerzo', status=CreditTransaction.Status.PENDING,
+        review_deadline=timezone.now() - timedelta(hours=1),
+    )
+
+    process_credits_day_close(today=today)
+
+    tx = CreditTransaction.objects.get(
+        customer=existing_user, action=CreditTransaction.Action.MEAL_PHOTO,
+    )
+    assert tx.status == CreditTransaction.Status.PENDING
+
+
+@pytest.mark.django_db
 def test_active_day_increments_streak_and_milestone_bonus(existing_user):
     today = timezone.localdate()
     wallet = credit_engine.get_wallet(existing_user)
