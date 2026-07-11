@@ -1,8 +1,40 @@
-import pytest
+import io
 
-from core_app.models import TrainerProfile, User
+import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
+from PIL import Image
+
+from core_app.models import (
+    DailyLog, Exercise, ExerciseLog, MonthlyProgram, ProgramDay,
+    ProgramExercise, TrainerProfile, User,
+)
 from core_app.models.credit import CreditTransaction
+from core_app.models.monthly_program import ExerciseCapture
 from core_app.services import credit_engine
+
+
+def _tiny_image(name='cap.jpg'):
+    buf = io.BytesIO()
+    Image.new('RGB', (10, 10), (90, 90, 90)).save(buf, 'JPEG')
+    return SimpleUploadedFile(name, buf.getvalue(), content_type='image/jpeg')
+
+
+def _training_log_with_capture(customer, today):
+    program = MonthlyProgram.objects.create(
+        customer=customer, fitness_level=3, goal='fuerza',
+        start_date=today, end_date=today, status=MonthlyProgram.Status.PUBLISHED,
+    )
+    day = ProgramDay.objects.create(
+        program=program, day_number=1, date=today, day_type=ProgramDay.DayType.TRAINING,
+    )
+    exercise = Exercise.objects.create(name='Sentadilla', youtube_url='https://youtu.be/x')
+    pe = ProgramExercise.objects.create(program_day=day, exercise=exercise)
+    log = DailyLog.objects.create(customer=customer, program=program, date=today, is_closed=True)
+    el = ExerciseLog.objects.create(
+        daily_log=log, program_exercise=pe, status=ExerciseLog.Status.COMPLETED,
+    )
+    ExerciseCapture.objects.create(exercise_log=el, image=_tiny_image())
+    return log
 
 
 @pytest.fixture
@@ -62,6 +94,45 @@ def test_review_approve_and_reject(api_client, trainer_user, assigned_customer, 
         {'decision': 'reject', 'note': 'Foto borrosa'}, format='json',
     ).status_code == 200
     assert credit_engine.get_wallet(assigned_customer).balance == 5
+
+
+@pytest.mark.django_db
+def test_pending_reviews_attaches_workout_capture_photos(api_client, trainer_user, assigned_customer, frozen_now):
+    log = _training_log_with_capture(assigned_customer, frozen_now.date())
+    credit_engine.award(
+        assigned_customer, CreditTransaction.Action.WORKOUT_DAY, 'daily_log', log.pk,
+        'Entrenamiento', status=CreditTransaction.Status.PENDING, review_deadline=frozen_now,
+    )
+
+    api_client.force_authenticate(trainer_user)
+    resp = api_client.get('/api/trainer/credits/pending-reviews/')
+
+    assert resp.status_code == 200
+    row = next(r for r in resp.json()['results'] if r['reference_type'] == 'daily_log')
+    assert len(row['photos']) == 1
+    assert row['photos'][0].endswith('.jpg')
+    assert row['photo_url'] == row['photos'][0]
+
+
+@pytest.mark.django_db
+def test_pending_reviews_meal_photo_uses_photos_list(api_client, trainer_user, assigned_customer, frozen_now):
+    from core_app.models import MealEntry, NutritionDailyLog
+    dlog = NutritionDailyLog.objects.create(customer=assigned_customer, date=frozen_now.date())
+    meal = MealEntry.objects.create(
+        daily_log=dlog, meal_block='almuerzo', status=MealEntry.Status.COMPLETED,
+        photo=_tiny_image('meal.jpg'),
+    )
+    credit_engine.award(
+        assigned_customer, CreditTransaction.Action.MEAL_PHOTO, 'meal_entry', meal.pk,
+        'Almuerzo', status=CreditTransaction.Status.PENDING, review_deadline=frozen_now,
+    )
+
+    api_client.force_authenticate(trainer_user)
+    resp = api_client.get('/api/trainer/credits/pending-reviews/')
+
+    row = next(r for r in resp.json()['results'] if r['reference_type'] == 'meal_entry')
+    assert row['photos'] == [row['photo_url']]
+    assert row['photo_url'].endswith('.jpg')
 
 
 @pytest.mark.django_db
