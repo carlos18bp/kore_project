@@ -123,13 +123,22 @@ no técnica para el cliente; esta es el setup reproducible para probar).
 3. **Agrega nutrición** → paga el prorrateo en Wompi (sandbox) → al volver a `/my-nutrition?ref=…` se desbloquea.
 4. Verifica en admin que la `Subscription` quedó con `includes_nutrition=True` (y que la próxima renovación cobra plan + nutrición).
 
+### 3.11 Entrenador — Hub "Tareas pendientes" (Gap)
+1. Login **entrenador** → menú lateral **Tareas pendientes** (el ítem muestra un contador).
+2. Pestaña **Créditos**: aparecen los puntos `pending` de tus clientes con su foto (comida o **captura de entrenamiento**). Toca **Aprobar** → el punto pasa a `confirmed` y suma al balance; **Rechazar** con nota → queda `rejected`.
+3. Pestaña **Canjes**: **Entregar** (con foto) o **Rechazar** solicitudes de la tienda.
+4. En el **detalle de un cliente** verás la etiqueta **"Tareas pendientes (N)"** que enlaza al hub.
+5. Verifica que el punto ya **NO se auto-confirma**: aunque pase el `review_deadline`, sigue `pending` hasta que el entrenador lo revise.
+
 ---
 
 ## 4. Verificación del efecto en créditos (backend)
 
 El crédito de rutina (`workout_day`) no aparece al instante: se genera en el
-**cierre del día** (tarea Huey 23:57) como `pending`, y se **auto-confirma a los
-3 días** si el trainer no lo revisa. Para forzar el cierre en QA:
+**cierre del día** (tarea Huey 23:57) como `pending`. **Ya no se auto-confirma**:
+permanece `pending` hasta que el entrenador lo apruebe o rechace desde el hub
+**Tareas pendientes**. Para forzar el cierre en QA (y que se generen los
+`workout_day` pendientes):
 
 ```python
 from django.utils import timezone
