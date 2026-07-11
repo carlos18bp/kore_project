@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useTrainerStore } from '@/lib/stores/trainerStore';
+import { useTrainerTasksStore } from '@/lib/stores/trainerTasksStore';
 import { useBookingStore } from '@/lib/stores/bookingStore';
 import TabBar from '@/app/components/trainer/TabBar';
 import AdherenceRing from '@/app/components/trainer/AdherenceRing';
@@ -117,8 +118,14 @@ function TrainerClientDetailPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelLoading, setCancelLoading] = useState(false);
   const cancelBooking = useBookingStore((s) => s.cancelBooking);
+  const creditReviews = useTrainerTasksStore((s) => s.creditReviews);
+  const fetchCreditReviews = useTrainerTasksStore((s) => s.fetchPendingCreditReviews);
   const sectionRef = useRef<HTMLElement>(null);
   useHeroAnimation(sectionRef);
+
+  useEffect(() => {
+    fetchCreditReviews();
+  }, [fetchCreditReviews]);
 
   useEffect(() => {
     if (!clientId) return;
@@ -200,6 +207,9 @@ function TrainerClientDetailPage() {
   }
 
   const topAlert = alerts.find(a => a.level === 'alto') ?? alerts.find(a => a.level === 'medio');
+  const clientTaskCount = creditReviews.filter(
+    (r) => r.customer_email && r.customer_email === client?.email,
+  ).length;
 
   return (
     <section ref={sectionRef} className="min-h-screen bg-kore-cream">
@@ -267,6 +277,16 @@ function TrainerClientDetailPage() {
                   </svg>
                   Agendar sesión
                 </button>
+
+                {clientTaskCount > 0 && (
+                  <Link
+                    href="/trainer/tareas"
+                    className="mt-2 ml-2 inline-flex items-center gap-1.5 text-[11px] font-semibold text-kore-red bg-kore-red/10 rounded-full px-3 py-1.5"
+                    data-testid="client-pending-tasks"
+                  >
+                    Tareas pendientes ({clientTaskCount}) →
+                  </Link>
+                )}
               </div>
             </div>
 
