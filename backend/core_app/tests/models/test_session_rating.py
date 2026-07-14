@@ -4,7 +4,7 @@ from datetime import timedelta
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from core_app.models import Booking, Package
@@ -31,10 +31,13 @@ def test_one_rating_per_booking_and_role(attended_booking):
         booking=attended_booking, rater_role=SessionRating.RaterRole.CUSTOMER, score=5,
     )
     # The same role cannot rate the same booking twice — this is what caps the credit.
-    with pytest.raises(IntegrityError):
+    # atomic() keeps the failed INSERT from poisoning the outer test transaction.
+    with pytest.raises(IntegrityError), transaction.atomic():
         SessionRating.objects.create(
             booking=attended_booking, rater_role=SessionRating.RaterRole.CUSTOMER, score=3,
         )
+
+    assert attended_booking.ratings.count() == 1
 
 
 @pytest.mark.django_db
@@ -53,13 +56,16 @@ def test_score_outside_one_to_five_is_rejected(attended_booking):
     rating = SessionRating(
         booking=attended_booking, rater_role=SessionRating.RaterRole.CUSTOMER, score=6,
     )
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError) as exc:
         rating.full_clean()
+
+    assert 'score' in exc.value.message_dict
 
 
 @pytest.mark.django_db
 def test_session_rated_has_a_credit_value_without_settings_migration(db):
-    # value_for() falls back to the difficulty preset, so a new action needs no
+    # action_value() falls back to the difficulty preset, so a new action needs no
     # CreditSettings migration.
-    value = credit_engine.value_for(CreditTransaction.Action.SESSION_RATED)
+    settings_obj = credit_engine.get_settings()
+    value = credit_engine.action_value(settings_obj, CreditTransaction.Action.SESSION_RATED)
     assert value > 0

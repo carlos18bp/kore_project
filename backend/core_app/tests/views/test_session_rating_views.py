@@ -52,7 +52,10 @@ def test_customer_rating_creates_it_and_awards_credits(api_client, existing_user
     tx = CreditTransaction.objects.get(
         customer=existing_user, action=CreditTransaction.Action.SESSION_RATED,
     )
-    assert tx.amount == credit_engine.value_for(CreditTransaction.Action.SESSION_RATED)
+    expected = credit_engine.action_value(
+        credit_engine.get_settings(), CreditTransaction.Action.SESSION_RATED,
+    )
+    assert tx.amount == expected
 
 
 @pytest.mark.django_db
