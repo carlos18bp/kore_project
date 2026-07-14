@@ -1,15 +1,25 @@
+import io
 from datetime import timedelta
 
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
+from PIL import Image
 
 from core_app.models import (
     Booking, DailyLog, Exercise, ExerciseLog, MealEntry, MonthlyProgram,
     NutritionDailyLog, Package, ProgramDay, ProgramExercise,
 )
 from core_app.models.credit import CreditTransaction
+from core_app.models.monthly_program import ExerciseCapture
 from core_app.services import credit_engine
 from core_app.services.credit_day_close import process_credits_day_close
+
+
+def _tiny_image(name='cap.jpg'):
+    buf = io.BytesIO()
+    Image.new('RGB', (10, 10), (90, 90, 90)).save(buf, 'JPEG')
+    return SimpleUploadedFile(name, buf.getvalue(), content_type='image/jpeg')
 
 
 def _training_day(customer, today, completed=True):
@@ -40,6 +50,41 @@ def _nutrition_day(customer, today, completed_meals=3):
             status=MealEntry.Status.COMPLETED if i < completed_meals else MealEntry.Status.NOT_DONE,
         )
     return nlog
+
+
+@pytest.mark.django_db
+def test_training_day_with_capture_mints_pending_workout_credit(existing_user):
+    today = timezone.localdate()
+    log = _training_day(existing_user, today, completed=True)
+    exercise_log = log.exercise_logs.first()
+    ExerciseCapture.objects.create(exercise_log=exercise_log, image=_tiny_image())
+
+    process_credits_day_close(today=today)
+
+    tx = CreditTransaction.objects.filter(
+        customer=existing_user, action=CreditTransaction.Action.WORKOUT_DAY,
+    ).first()
+    assert tx is not None
+    assert tx.status == CreditTransaction.Status.PENDING
+    assert tx.reference_type == 'daily_log'
+    assert str(tx.reference_id) == str(log.pk)
+
+
+@pytest.mark.django_db
+def test_overdue_pending_credit_is_not_auto_confirmed(existing_user, frozen_now):
+    today = timezone.localdate()
+    credit_engine.award(
+        existing_user, CreditTransaction.Action.MEAL_PHOTO, 'meal_entry', 1,
+        'Almuerzo', status=CreditTransaction.Status.PENDING,
+        review_deadline=timezone.now() - timedelta(hours=1),
+    )
+
+    process_credits_day_close(today=today)
+
+    tx = CreditTransaction.objects.get(
+        customer=existing_user, action=CreditTransaction.Action.MEAL_PHOTO,
+    )
+    assert tx.status == CreditTransaction.Status.PENDING
 
 
 @pytest.mark.django_db
@@ -92,16 +137,3 @@ def test_unconfirmed_booking_marked_no_show_with_penalty(existing_user, frozen_n
     booking.refresh_from_db()
     assert booking.attendance_status == Booking.AttendanceStatus.NO_SHOW
     assert credit_engine.get_wallet(existing_user).balance == 60  # 100 - 40
-
-
-@pytest.mark.django_db
-def test_expired_pending_transactions_autoconfirm(existing_user, frozen_now):
-    tx = credit_engine.award(
-        existing_user, CreditTransaction.Action.MEAL_PHOTO, 'meal_entry', 9,
-        'Registraste tu cena', status=CreditTransaction.Status.PENDING,
-        review_deadline=frozen_now - timedelta(hours=1),
-    )
-    process_credits_day_close(today=frozen_now.date())
-    tx.refresh_from_db()
-    assert tx.status == CreditTransaction.Status.CONFIRMED
-    assert credit_engine.get_wallet(existing_user).balance == 5

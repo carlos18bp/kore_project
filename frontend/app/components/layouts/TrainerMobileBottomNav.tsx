@@ -48,6 +48,11 @@ const StoreIcon = (
     <path d="M3 9l1-5h16l1 5M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9M4 9h16M9 13h6" />
   </svg>
 );
+const TasksIcon = (
+  <svg {...iconProps}>
+    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4" />
+  </svg>
+);
 
 export default function TrainerMobileBottomNav() {
   const { riskDashboard } = useTrainerStore();
@@ -64,6 +69,7 @@ export default function TrainerMobileBottomNav() {
   );
 
   const moreItems: MobileNavMoreItem[] = [
+    { key: 'tasks', label: 'Tareas', icon: TasksIcon, href: '/trainer/tareas' },
     { key: 'store', label: 'Tienda', icon: StoreIcon, href: '/trainer/tienda' },
     { key: 'support', label: 'Soporte', icon: ChatIcon, href: WHATSAPP_URL, external: true },
   ];

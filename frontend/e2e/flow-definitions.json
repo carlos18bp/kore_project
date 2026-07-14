@@ -1,8 +1,15 @@
 {
-  "version": "1.5.0",
-  "lastUpdated": "2026-07-07",
+  "version": "1.6.0",
+  "lastUpdated": "2026-07-10",
   "documentation": "Step-by-step user journeys (branches, variations) are maintained in docs/USER_FLOW_MAP.md. This file defines flow IDs and metadata for Playwright @flow: tags and e2e/reporters/flow-coverage-reporter.mjs.",
   "flows": {
+    "trainer-tasks": {
+      "name": "Trainer Task Hub",
+      "module": "trainer",
+      "priority": "P1",
+      "roles": ["trainer"],
+      "description": "Review pending credit reviews (meal photos + workout captures) and store redemptions; approve or reject each with a note."
+    },
     "auth-login": {
       "name": "Login",
       "module": "auth",

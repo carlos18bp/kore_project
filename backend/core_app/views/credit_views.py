@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 
 from core_app.models import MealEntry
 from core_app.models.credit import CreditTransaction
+from core_app.models.monthly_program import ExerciseCapture
 from core_app.permissions import IsTrainerRole, is_admin_user
 from core_app.serializers.credit_serializers import (
     CreditSettingsSerializer,
@@ -82,20 +83,44 @@ class TrainerPendingReviewsView(APIView):
             ).select_related('customer'),
             request,
         ))
+
         meal_ids = [
             int(t.reference_id) for t in qs
             if t.reference_type == 'meal_entry' and t.reference_id
         ]
-        photos = {
-            str(m.pk): (m.photo.url if m.photo else None)
+        meal_photos = {
+            str(m.pk): ([m.photo.url] if m.photo else [])
             for m in MealEntry.objects.filter(pk__in=meal_ids)
         }
+
+        workout_ids = [
+            int(t.reference_id) for t in qs
+            if t.reference_type == 'daily_log' and t.reference_id
+        ]
+        workout_photos: dict[str, list] = {}
+        if workout_ids:
+            captures = ExerciseCapture.objects.filter(
+                exercise_log__daily_log_id__in=workout_ids,
+            ).select_related('exercise_log')
+            for cap in captures:
+                if not cap.image:
+                    continue
+                key = str(cap.exercise_log.daily_log_id)
+                workout_photos.setdefault(key, []).append(cap.image.url)
+
         results = []
         for tx in qs:
             row = CreditTransactionSerializer(tx).data
             row['customer_email'] = tx.customer.email
             row['customer_name'] = f'{tx.customer.first_name} {tx.customer.last_name}'.strip()
-            row['photo_url'] = photos.get(tx.reference_id)
+            if tx.reference_type == 'meal_entry':
+                photos = meal_photos.get(tx.reference_id, [])
+            elif tx.reference_type == 'daily_log':
+                photos = workout_photos.get(tx.reference_id, [])
+            else:
+                photos = []
+            row['photos'] = photos
+            row['photo_url'] = photos[0] if photos else None
             results.append(row)
         return Response({'count': len(results), 'results': results})
 

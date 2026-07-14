@@ -115,20 +115,10 @@ def process_credits_day_close(today=None) -> dict:
             logger.exception('credits day close: no-show failed for booking %s', booking.pk)
             errors += 1
 
-    confirmed = 0
-    expired = CreditTransaction.objects.filter(
-        status=CreditTransaction.Status.PENDING,
-        review_deadline__lte=timezone.now(),
-    )
-    for tx in expired:
-        if credit_engine.confirm_transaction(tx):
-            confirmed += 1
-
     summary = {
         'evaluated': evaluated,
         'streaks_reset': streaks_reset,
         'no_shows': no_shows,
-        'pending_confirmed': confirmed,
         'errors': errors,
     }
     logger.info('process_credits_day_close: %s', summary)

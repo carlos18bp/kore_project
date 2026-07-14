@@ -31,6 +31,7 @@ export const FlowTags = {
   CUSTOMER_BUY_CREDITS: ['@flow:customer-buy-credits', '@module:app', '@priority:P2'],
   CUSTOMER_BUY_NUTRITION: ['@flow:customer-buy-nutrition', '@module:app', '@priority:P2'],
   TRAINER_STORE_MANAGEMENT: ['@flow:trainer-store-management', '@module:trainer', '@priority:P2'],
+  TRAINER_TASKS: ['@flow:trainer-tasks', '@module:trainer', '@priority:P1'],
   DASHBOARD_REMINDER: ['@flow:dashboard-reminder', '@module:dashboard', '@priority:P2'],
 
   MY_PROGRAMS_LIST: ['@flow:my-programs-list', '@module:programs', '@priority:P1'],

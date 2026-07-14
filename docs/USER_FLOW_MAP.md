@@ -1,7 +1,7 @@
 # User Flow Map
 
-Version: 1.8
-Last Updated: 2026-07-04
+Version: 1.9
+Last Updated: 2026-07-10
 Description: End-to-end user flows for the Kore frontend, grouped by role with branches for form variants and alternate outcomes.
 Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, frontend/e2e specs, frontend/app routes. Canonical customer subscription URL is `/subscription` (flow IDs `my-programs-*` are historical).
 
@@ -1247,6 +1247,24 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Modules available count reflects completed vs total assessments.
 
 ## Trainer Flows
+
+### trainer-tasks: Trainer Task Hub
+- Module: trainer
+- Priority: P1
+- Route: /trainer/tareas
+- Roles: trainer
+- Description: Review pending credit reviews (meal photos + workout captures) and store redemptions; approve or reject each with a note.
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-tasks.spec.ts)
+
+**Steps**
+1. Open /trainer/tareas after login as trainer.
+2. On the Créditos tab, see pending credit reviews with evidence photos.
+3. Approve a review (row disappears) or Reject with a note.
+4. Switch to the Canjes tab to fulfill or reject store redemptions.
+
+**Branches / Variations**
+- Empty states per tab when there is nothing to review.
+- Overdue badge when a review is past its review_deadline.
 
 ### trainer-dashboard: Trainer Dashboard
 - Module: trainer

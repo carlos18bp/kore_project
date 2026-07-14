@@ -27,7 +27,7 @@ class CreditSettings(SingletonModel, TimestampedModel):
     water_goal_glasses = models.PositiveSmallIntegerField(default=8)
     meal_review_days = models.PositiveSmallIntegerField(default=3)
     reschedule_window_hours = models.PositiveSmallIntegerField(default=24)
-    require_workout_captures = models.BooleanField(default=False)
+    require_workout_captures = models.BooleanField(default=True)
 
     def __str__(self):
         return f'CreditSettings ({self.difficulty})'

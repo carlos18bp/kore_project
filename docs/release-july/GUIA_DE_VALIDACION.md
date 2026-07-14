@@ -418,6 +418,36 @@ La nutrición ahora es un beneficio de pago. Si tu plan no la incluye, puedes **
 
 ---
 
+## Extra — Hub de tareas del entrenador
+
+### Funcionalidad 12 (entrenador): Revisar puntos y canjes desde "Tareas pendientes"
+
+#### 1. ¿Qué es y para qué sirve?
+Un nuevo módulo en el menú del entrenador, **"Tareas pendientes"**, reúne en un solo lugar todo lo que necesita tu decisión: los **puntos por revisar** (fotos de comida y **fotos de la cámara del entrenamiento**) y las **solicitudes de canje** de la tienda. Desde aquí apruebas o rechazas cada cosa, con una nota. **Importante:** ahora el punto del entrenamiento **ya no se acredita solo** — queda pendiente hasta que lo revises.
+
+#### 2. Antes de empezar
+- Cuenta **entrenador** con clientes asignados.
+- Que algún cliente haya registrado comidas con foto y/o entrenado con capturas de cámara, o tenga un canje pendiente.
+
+#### 3. Paso a paso para probarlo
+1. En el menú lateral (o en "Más" en móvil) entra a **Tareas pendientes**. El ítem muestra un **contador** con lo que falta por revisar.
+2. En la pestaña **Créditos** verás una tarjeta por cada punto pendiente: nombre del cliente, tipo (Comida / Entrenamiento), puntos y la **foto de evidencia**.
+3. Toca **Aprobar** (se acredita el punto) o **Rechazar** (escribe el motivo y confirma). La tarjeta desaparece.
+4. Cambia a la pestaña **Canjes** para **Entregar** (con foto de verificación) o **Rechazar** solicitudes de la tienda.
+5. Desde el **detalle de un cliente** también verás una etiqueta **"Tareas pendientes (N)"** que te lleva al hub.
+
+#### 4. Cómo sabes que funcionó
+- Al aprobar, el punto pasa a confirmado y suma al balance del cliente.
+- La tarjeta revisada desaparece y el contador del menú baja.
+- Los pendientes atrasados muestran una etiqueta **"Atrasado"**.
+
+#### 5. Si algo no sale como esperabas
+- **No veo fotos de entrenamiento** → el cliente debe haber entrenado con capturas de cámara ese día.
+- **El contador no baja** → refresca; el hub se recarga al entrar.
+- Si persiste, avísale al equipo técnico con una captura.
+
+---
+
 ## Próximas secciones (se agregarán al entregar cada parte)
 
 - Calificación de sesiones · configuración de dificultad · analítica y KPIs.

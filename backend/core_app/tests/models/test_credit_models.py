@@ -20,7 +20,7 @@ def test_credit_settings_default_thresholds():
     assert s.water_goal_glasses == 8
     assert s.meal_review_days == 3
     assert s.reschedule_window_hours == 24
-    assert s.require_workout_captures is False
+    assert s.require_workout_captures is True
 
 
 @pytest.mark.django_db
