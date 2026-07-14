@@ -21,6 +21,7 @@ class TestPackageSerializer:
         expected_fields = {
             'id', 'title', 'short_description', 'description', 'category',
             'sessions_count', 'session_duration_minutes', 'price', 'currency',
+            'includes_nutrition',
             'validity_days', 'terms_and_conditions', 'is_active', 'order',
             'created_at', 'updated_at',
         }

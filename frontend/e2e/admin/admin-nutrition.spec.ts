@@ -82,11 +82,12 @@ test.describe('Admin Nutrition', { tag: [...FlowTags.ADMIN_NUTRITION, RoleTags.A
     await page.getByTestId('nutrition-save').click();
 
     // The impact of the change is stated before it is committed.
-    await expect(page.getByTestId('nutrition-confirm-dialog')).toBeVisible();
-    await expect(page.getByText('7 suscripción(es) activa(s)')).toBeVisible();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText('7 suscripción(es) activa(s)')).toBeVisible();
 
     await page.getByRole('button', { name: 'Confirmar cambio' }).click();
-    await expect(page.getByTestId('nutrition-confirm-dialog')).not.toBeVisible();
+    await expect(dialog).not.toBeVisible();
     expect(patched).toEqual({ price_cop: 45000, is_active: true });
   });
 

@@ -162,22 +162,20 @@ export default function NutritionAdminClient() {
       </div>
 
       {confirmOpen && (
-        <div data-testid="nutrition-confirm-dialog">
-          <Modal
-            title="Confirmar cambio de precio"
-            body={
-              <p className="text-[13px] text-kore-burgundy/80">
-                Esto cambiará el cobro de {activeSubscriptions} suscripción(es) activa(s) con
-                nutrición en su próxima renovación.
-              </p>
-            }
-            confirmLabel="Confirmar cambio"
-            cancelLabel="Cancelar"
-            loading={actionLoading}
-            onClose={() => setConfirmOpen(false)}
-            onConfirm={persist}
-          />
-        </div>
+        <Modal
+          title="Confirmar cambio de precio"
+          body={
+            <p className="text-[13px] text-kore-burgundy/80">
+              Esto cambiará el cobro de {activeSubscriptions} suscripción(es) activa(s) con
+              nutrición en su próxima renovación.
+            </p>
+          }
+          confirmLabel="Confirmar cambio"
+          cancelLabel="Cancelar"
+          loading={actionLoading}
+          onClose={() => setConfirmOpen(false)}
+          onConfirm={persist}
+        />
       )}
     </AdminShell>
   );
