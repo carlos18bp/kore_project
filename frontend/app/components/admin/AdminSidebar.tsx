@@ -44,6 +44,13 @@ const ChartIcon = (
   </svg>
 );
 
+const NutritionIcon = (
+  <svg {...iconProps}>
+    <path d="M12 21c-4 0-7-3.5-7-8 0-3 2-6 5-6 1.2 0 2 .5 2 .5s.8-.5 2-.5c3 0 5 3 5 6 0 4.5-3 8-7 8z" />
+    <path d="M12 7V3M12 3l2.5 1.5" />
+  </svg>
+);
+
 const NAV_GROUPS: SidebarNavGroup[] = [
   {
     label: 'Operación',
@@ -52,6 +59,7 @@ const NAV_GROUPS: SidebarNavGroup[] = [
       { key: 'users', label: 'Usuarios', href: '/admin-platform/users', icon: PeopleIcon },
       { key: 'subscriptions', label: 'Suscripciones', href: '/admin-platform/subscriptions', icon: CardIcon },
       { key: 'plans', label: 'Planes', href: '/admin-platform/plans', icon: PlansIcon },
+      { key: 'nutrition', label: 'Nutrición', href: '/admin-platform/nutricion', icon: NutritionIcon },
       { key: 'reports', label: 'Reportes', href: '#', icon: ChartIcon, soon: true },
     ],
   },
