@@ -37,37 +37,37 @@ export default function AttendanceActions({ session }: { session: AttendanceSess
   }
 
   if (localStatus === 'attended') {
-    if (rating && !rated) {
-      return (
-        <div
-          data-testid={`trainer-rating-${session.id}`}
-          className="flex items-center gap-1 flex-shrink-0"
-        >
-          {[1, 2, 3, 4, 5].map((n) => (
-            <button
-              key={n}
-              type="button"
-              aria-label={`${n} estrella${n > 1 ? 's' : ''}`}
-              onClick={() => handleRate(n)}
-              className="text-base leading-none text-kore-gray-dark/30 hover:text-kore-red transition-colors"
-            >
-              ★
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => setRated(true)}
-            className="font-body text-[10px] text-kore-gray-dark/40 px-1"
-          >
-            Omitir
-          </button>
-        </div>
-      );
-    }
     return (
-      <span className="font-body text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 bg-kore-sage/20 text-kore-sage-deep">
-        Asistió
-      </span>
+      <div className="flex items-center gap-1.5 flex-shrink-0">
+        <span className="font-body text-[10px] font-bold px-2 py-0.5 rounded-full bg-kore-sage/20 text-kore-sage-deep">
+          Asistió
+        </span>
+        {rating && !rated && (
+          <span
+            data-testid={`trainer-rating-${session.id}`}
+            className="flex items-center gap-1"
+          >
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                type="button"
+                aria-label={`${n} estrella${n > 1 ? 's' : ''}`}
+                onClick={() => handleRate(n)}
+                className="text-base leading-none text-kore-gray-dark/30 hover:text-kore-red transition-colors"
+              >
+                ★
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setRated(true)}
+              className="font-body text-[10px] text-kore-gray-dark/40 px-1"
+            >
+              Omitir
+            </button>
+          </span>
+        )}
+      </div>
     );
   }
   if (localStatus === 'no_show') {
