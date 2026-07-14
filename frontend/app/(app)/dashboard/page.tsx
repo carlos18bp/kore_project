@@ -25,6 +25,7 @@ import { useProgressStore } from '@/lib/stores/progressStore';
 import UpcomingSessionReminder from '@/app/components/booking/UpcomingSessionReminder';
 import UpcomingSessionsCard from '@/app/components/booking/UpcomingSessionsCard';
 import SessionDetailModal from '@/app/components/booking/SessionDetailModal';
+import SessionRatingCard from '@/app/components/booking/SessionRatingCard';
 import type { BookingData } from '@/lib/stores/bookingStore';
 import SubscriptionExpiryReminder from '@/app/components/subscription/SubscriptionExpiryReminder';
 import SubscriptionDashboardToast from '@/app/components/subscription/SubscriptionDashboardToast';
@@ -1337,6 +1338,8 @@ export default function DashboardPage() {
       <UpcomingSessionReminder />
       <SubscriptionExpiryReminder />
       <SubscriptionDashboardToast />
+
+      <SessionRatingCard />
 
       {showUpcoming && createPortal(
         <div
