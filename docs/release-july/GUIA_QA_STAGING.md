@@ -148,6 +148,15 @@ no técnica para el cliente; esta es el setup reproducible para probar).
 6. Una sesión **no** asistida (`attendance_status != 'attended'`) devuelve 400 al intentar calificarla.
 7. **Entrenador:** el bloque **Calificaciones** de su dashboard (`GET /api/trainer/ratings/summary/`) muestra el promedio de lo que le dejaron **los clientes** — nunca sus propias calificaciones. En el detalle de un cliente, el mismo bloque va filtrado por `?customer_id=`.
 
+### 3.14 Entrenador — Configuración (Parte 10)
+1. Login **entrenador** → menú lateral **Configuración** (`/trainer/configuracion`). Los valores cargan de `GET /api/credits/settings/`.
+2. Cambia el preset a **Difícil** → confirma. El `PUT` manda `action_values: {}` y el backend **re-siembra** desde el preset: verifica en el shell que `CreditSettings.load().action_values['workout_day'] == 10`.
+3. Un `PUT` con `reschedule_window_hours: 200` devuelve **400** (rango válido: 0–168).
+4. **La prueba clave — una sola ventana.** Pon la ventana en **48** y guarda. Con un **cliente**, intenta cancelar una sesión que empieza en **30 horas**: se rechaza con **400** y el mensaje cita **48** (antes, con la constante fija en 24, esto pasaba). En la app del cliente, la modal de la sesión muestra los botones **deshabilitados** y el aviso "a menos de 48h" — lee `reschedule_window_hours` de `GET /api/credits/values/`.
+5. La misma ventana dispara la **penalización** de créditos (`late_reschedule_penalty`) al reprogramar dentro de ella: ya no hay dos umbrales distintos.
+6. **Entrenador y admin siguen saltándose la ventana**: pueden cancelar una sesión que empieza en 2 horas.
+7. Deja la ventana de vuelta en **24** al terminar, que es el valor por defecto de producción.
+
 ---
 
 ## 4. Verificación del efecto en créditos (backend)
