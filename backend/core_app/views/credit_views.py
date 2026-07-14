@@ -170,6 +170,9 @@ class CreditValuesView(APIView):
             'water_goal_glasses': settings_obj.water_goal_glasses,
             'meal_review_days': settings_obj.meal_review_days,
             'require_workout_captures': settings_obj.require_workout_captures,
+            # The client's SessionDetailModal gates its cancel/reschedule buttons
+            # on this, so it must be the same number booking_views enforces.
+            'reschedule_window_hours': settings_obj.reschedule_window_hours,
         })
 
 
