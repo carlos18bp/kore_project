@@ -123,3 +123,85 @@ def test_a_score_outside_one_to_five_is_rejected(api_client, existing_user, atte
     response = api_client.post(rate_url(attended_booking), {'score': 9}, format='json')
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+# ── Read endpoints ─────────────────────────────────────────────────────────
+
+@pytest.mark.django_db
+def test_pending_rating_lists_attended_unrated_sessions(api_client, existing_user, attended_booking):
+    api_client.force_authenticate(user=existing_user)
+
+    response = api_client.get(reverse('booking-pending-rating'))
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data['count'] == 1
+    assert response.data['results'][0]['id'] == attended_booking.pk
+
+
+@pytest.mark.django_db
+def test_pending_rating_drops_a_session_once_rated(api_client, existing_user, attended_booking):
+    SessionRating.objects.create(
+        booking=attended_booking, rater_role=SessionRating.RaterRole.CUSTOMER, score=5,
+    )
+    api_client.force_authenticate(user=existing_user)
+
+    response = api_client.get(reverse('booking-pending-rating'))
+
+    assert response.data['count'] == 0
+
+
+@pytest.mark.django_db
+def test_pending_rating_ignores_a_trainer_only_rating(api_client, existing_user, attended_booking):
+    # The trainer rated, the customer did not — the customer is still owed a prompt.
+    SessionRating.objects.create(
+        booking=attended_booking, rater_role=SessionRating.RaterRole.TRAINER, score=4,
+    )
+    api_client.force_authenticate(user=existing_user)
+
+    response = api_client.get(reverse('booking-pending-rating'))
+
+    assert response.data['count'] == 1
+
+
+@pytest.mark.django_db
+def test_trainer_summary_averages_the_customer_ratings(api_client, trainer_user, attended_booking):
+    SessionRating.objects.create(
+        booking=attended_booking, rater_role=SessionRating.RaterRole.CUSTOMER,
+        score=4, comment='Muy bien',
+    )
+    api_client.force_authenticate(user=trainer_user)
+
+    response = api_client.get(reverse('trainer-ratings-summary'))
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data['count'] == 1
+    assert response.data['average'] == 4.0
+    assert response.data['recent'][0]['comment'] == 'Muy bien'
+
+
+@pytest.mark.django_db
+def test_trainer_summary_excludes_the_trainers_own_ratings(api_client, trainer_user, attended_booking):
+    # The summary is the feedback the trainer RECEIVED, not what he gave.
+    SessionRating.objects.create(
+        booking=attended_booking, rater_role=SessionRating.RaterRole.TRAINER, score=1,
+    )
+    api_client.force_authenticate(user=trainer_user)
+
+    response = api_client.get(reverse('trainer-ratings-summary'))
+
+    assert response.data['count'] == 0
+    assert response.data['average'] is None
+
+
+@pytest.mark.django_db
+def test_trainer_summary_can_be_scoped_to_one_customer(api_client, trainer_user, attended_booking, existing_user):
+    SessionRating.objects.create(
+        booking=attended_booking, rater_role=SessionRating.RaterRole.CUSTOMER, score=5,
+    )
+    api_client.force_authenticate(user=trainer_user)
+
+    hit = api_client.get(reverse('trainer-ratings-summary'), {'customer_id': existing_user.pk})
+    miss = api_client.get(reverse('trainer-ratings-summary'), {'customer_id': 999999})
+
+    assert hit.data['count'] == 1
+    assert miss.data['count'] == 0

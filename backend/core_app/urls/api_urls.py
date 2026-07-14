@@ -14,6 +14,7 @@ from core_app.views.content_views import (
 from core_app.views.notification_views import NotificationViewSet
 from core_app.views.package_views import PackageViewSet
 from core_app.views.payment_views import PaymentViewSet
+from core_app.views.session_rating_views import TrainerRatingsSummaryView
 from core_app.views.subscription_views import SubscriptionViewSet
 from core_app.views.admin_user_views import AdminUserViewSet
 from core_app.views.duo_invite_views import accept_invite, pending_invitation
@@ -161,6 +162,7 @@ urlpatterns = [
     path('site-settings/', SiteSettingsView.as_view(), name='site-settings'),
     path('terms-acceptance/status/', TermsAcceptanceStatusView.as_view(), name='terms-acceptance-status'),
     path('terms-acceptance/accept/', TermsAcceptanceCreateView.as_view(), name='terms-acceptance-accept'),
+    path('trainer/ratings/summary/', TrainerRatingsSummaryView.as_view(), name='trainer-ratings-summary'),
     path('trainer/my-clients/', TrainerClientListView.as_view(), name='trainer-client-list'),
     path('trainer/my-clients/<int:customer_id>/', TrainerClientDetailView.as_view(), name='trainer-client-detail'),
     path('trainer/my-clients/<int:customer_id>/sessions/', TrainerClientSessionsView.as_view(), name='trainer-client-sessions'),
