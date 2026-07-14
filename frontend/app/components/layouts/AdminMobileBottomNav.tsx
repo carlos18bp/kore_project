@@ -47,6 +47,13 @@ const ChartIcon = (
   </svg>
 );
 
+const NutritionIcon = (
+  <svg {...iconProps}>
+    <path d="M12 21c-4 0-7-3.5-7-8 0-3 2-6 5-6 1.2 0 2 .5 2 .5s.8-.5 2-.5c3 0 5 3 5 6 0 4.5-3 8-7 8z" />
+    <path d="M12 7V3M12 3l2.5 1.5" />
+  </svg>
+);
+
 const TABS: MobileNavTab[] = [
   {
     key: 'dashboard',
@@ -79,6 +86,7 @@ const TABS: MobileNavTab[] = [
 ];
 
 const MORE_ITEMS: MobileNavMoreItem[] = [
+  { key: 'nutrition', label: 'Nutrición', icon: NutritionIcon, href: '/admin-platform/nutricion' },
   { key: 'reports', label: 'Reportes', icon: ChartIcon, disabled: true },
 ];
 
