@@ -7,6 +7,7 @@ import { useTrainerStore } from '@/lib/stores/trainerStore';
 import { useTrainerTasksStore } from '@/lib/stores/trainerTasksStore';
 import { useBookingStore } from '@/lib/stores/bookingStore';
 import TabBar from '@/app/components/trainer/TabBar';
+import RatingsSummaryCard from '@/app/components/trainer/RatingsSummaryCard';
 import AdherenceRing from '@/app/components/trainer/AdherenceRing';
 import KPIGrid from '@/app/components/trainer/KPIGrid';
 import RiskBadge from '@/app/components/trainer/RiskBadge';
@@ -292,6 +293,8 @@ function TrainerClientDetailPage() {
 
           </div>
         )}
+
+        {!!clientId && <RatingsSummaryCard customerId={clientId} />}
 
         {/* ── Tabs + contenido ── */}
         <div className="xl:grid xl:grid-cols-[220px_1fr] xl:gap-8">
