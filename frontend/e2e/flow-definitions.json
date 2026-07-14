@@ -1,5 +1,5 @@
 {
-  "version": "1.8.0",
+  "version": "1.9.0",
   "lastUpdated": "2026-07-14",
   "documentation": "Step-by-step user journeys (branches, variations) are maintained in docs/USER_FLOW_MAP.md. This file defines flow IDs and metadata for Playwright @flow: tags and e2e/reporters/flow-coverage-reporter.mjs.",
   "flows": {
@@ -9,6 +9,14 @@
       "priority": "P1",
       "roles": ["trainer"],
       "description": "Review pending credit reviews (meal photos + workout captures) and store redemptions; approve or reject each with a note."
+    },
+    "trainer-settings": {
+      "name": "Trainer Settings Panel",
+      "module": "trainer",
+      "priority": "P2",
+      "roles": ["trainer"],
+      "description": "Configure the credit economy at /trainer/configuracion: pick the difficulty preset (reseeding the per-action values behind a confirmation), set the activity thresholds, and set the reschedule window that blocks late cancels and triggers the penalty.",
+      "coverage": "covered"
     },
     "auth-login": {
       "name": "Login",
