@@ -477,6 +477,35 @@ Un nuevo módulo **"Nutrición"** en el panel de administración. Hasta ahora, e
 
 ---
 
+## Parte 9 — Calificar la sesión
+
+### Funcionalidad 14 (cliente y entrenador): Calificar la sesión
+
+#### 1. ¿Qué es y para qué sirve?
+Cuando termina una sesión y el entrenador confirma que asististe, ambos pueden **calificarla de 1 a 5 estrellas** y dejar un comentario. Tú calificas cómo estuvo la sesión (y **ganas puntos** por hacerlo); el entrenador califica tu desempeño y lee tu comentario.
+
+#### 2. Antes de empezar
+- Una sesión ya iniciada y **confirmada como asistida** por el entrenador.
+- Cuenta de cliente y cuenta de entrenador.
+
+#### 3. Paso a paso para probarlo
+1. **Entrenador:** en la agenda o en el detalle del cliente, pulsa **✓ Asistió**. En el lugar del botón aparecen **5 estrellas**: califica al cliente, o pulsa **Omitir** si no quieres hacerlo.
+2. **Cliente:** entra a tu **dashboard**. Arriba aparece la tarjeta **"Califica tu sesión"** con la fecha y el nombre del entrenador.
+3. Toca las estrellas (1 a 5), escribe un comentario si quieres, y pulsa **Enviar**. También puedes pulsar **Omitir**.
+4. **Entrenador:** en tu dashboard verás el bloque **Calificaciones** con tu promedio y los últimos comentarios; en el detalle de cada cliente, las calificaciones de ese cliente.
+
+#### 4. Cómo sabes que funcionó
+- Al enviar, la tarjeta desaparece y **suman los puntos** a tu balance (una sola vez por sesión).
+- El promedio del entrenador se actualiza con tu calificación.
+- Si pulsas **Omitir**, la sesión queda sin calificar y **no vuelve a preguntarte**.
+
+#### 5. Si algo no sale como esperabas
+- **No veo la tarjeta** → el entrenador todavía no confirmó tu asistencia; solo se puede calificar una sesión a la que asististe.
+- **No me deja calificar otra vez** → es correcto: cada sesión se califica una sola vez por lado.
+- **El entrenador no ve estrellas** → solo aparecen al marcar **✓ Asistió**; si ya pasó, la sesión queda sin su calificación.
+
+---
+
 ## Próximas secciones (se agregarán al entregar cada parte)
 
-- Calificación de sesiones · configuración de dificultad · analítica y KPIs.
+- Configuración de dificultad · analítica y KPIs.

@@ -1,5 +1,5 @@
 {
-  "version": "1.7.0",
+  "version": "1.8.0",
   "lastUpdated": "2026-07-14",
   "documentation": "Step-by-step user journeys (branches, variations) are maintained in docs/USER_FLOW_MAP.md. This file defines flow IDs and metadata for Playwright @flow: tags and e2e/reporters/flow-coverage-reporter.mjs.",
   "flows": {
@@ -672,6 +672,14 @@
       "priority": "P2",
       "roles": ["admin"],
       "description": "Manage the nutrition add-on at /admin-platform/nutricion: edit the monthly COP price (confirming the impact on active subscriptions), toggle the add-on active, and flip includes_nutrition per plan.",
+      "coverage": "covered"
+    },
+    "customer-session-rating": {
+      "name": "Post-Session Rating",
+      "module": "booking",
+      "priority": "P2",
+      "roles": ["customer"],
+      "description": "After a trainer confirms attendance, the customer rates the session from a dashboard card (1-5 stars + optional comment), earning session_rated credits. Skipping leaves it unrated.",
       "coverage": "covered"
     },
     "customer-nutrition-daily": {

@@ -9,9 +9,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from core_app.models import Booking, Subscription, SubscriptionGuest, TrainerProfile
+from core_app.models.credit import CreditTransaction
 from core_app.models.session_grant import SessionGrant
+from core_app.models.session_rating import SessionRating
 from core_app.permissions import IsAdminRole, IsTrainerRole, is_admin_user
 from core_app.serializers.booking_serializers import BookingSerializer
+from core_app.serializers.session_rating_serializers import SessionRatingSerializer
 from core_app.services.slot_schedule import is_start_time_available, session_window
 from core_app.services.email_service import (
     send_booking_cancellation,
@@ -346,6 +349,81 @@ class BookingViewSet(viewsets.ModelViewSet):
         credit_engine.record_attendance(booking, attended=attended)
         serializer = self.get_serializer(booking)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='rate')
+    def rate(self, request, pk=None):
+        """Rate an attended session. The rater's role is derived from the user.
+
+        Body: ``{"score": 1..5, "comment": "..."}``. The customer's rating awards
+        `session_rated` credits once; the unique constraint on (booking, rater_role)
+        is what caps it.
+        """
+        try:
+            booking = Booking.objects.select_related('trainer', 'customer').get(pk=pk)
+        except Booking.DoesNotExist:
+            return Response({'detail': 'Sesión no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if booking.customer_id == request.user.pk:
+            rater_role = SessionRating.RaterRole.CUSTOMER
+        elif _is_trainer_owner(request.user, booking) or is_admin_user(request.user):
+            rater_role = SessionRating.RaterRole.TRAINER
+        else:
+            return Response({'detail': 'No autorizado.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if booking.attendance_status != Booking.AttendanceStatus.ATTENDED:
+            return Response(
+                {'detail': 'Solo se puede calificar una sesión a la que se asistió.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if SessionRating.objects.filter(booking=booking, rater_role=rater_role).exists():
+            return Response(
+                {'detail': 'Ya calificaste esta sesión.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = SessionRatingSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        rating = serializer.save(booking=booking, rater_role=rater_role)
+
+        if rater_role == SessionRating.RaterRole.CUSTOMER:
+            from core_app.services import credit_engine
+            credit_engine.award(
+                booking.customer,
+                CreditTransaction.Action.SESSION_RATED,
+                'booking',
+                booking.pk,
+                'Calificaste tu sesión',
+            )
+
+        return Response(SessionRatingSerializer(rating).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'], url_path='pending-rating')
+    def pending_rating(self, request):
+        """Attended sessions of the requesting customer that they have not rated yet."""
+        rated_ids = SessionRating.objects.filter(
+            rater_role=SessionRating.RaterRole.CUSTOMER,
+        ).values_list('booking_id', flat=True)
+        bookings = (
+            Booking.objects.filter(
+                customer=request.user,
+                attendance_status=Booking.AttendanceStatus.ATTENDED,
+            )
+            .exclude(pk__in=rated_ids)
+            .select_related('trainer__user')
+            .order_by('-starts_at')
+        )
+        results = [
+            {
+                'id': b.pk,
+                'starts_at': b.starts_at,
+                'trainer_name': (
+                    f'{b.trainer.user.first_name} {b.trainer.user.last_name}'.strip()
+                    if b.trainer_id else ''
+                ),
+            }
+            for b in bookings
+        ]
+        return Response({'count': len(results), 'results': results})
 
     @action(detail=False, methods=['get'], url_path='upcoming-reminder')
     def upcoming_reminder(self, request):

@@ -42,6 +42,7 @@ from .credit_package import CreditPackage
 from .credit_purchase import CreditPurchase
 from .nutrition_product import NutritionProduct
 from .nutrition_upgrade import NutritionUpgrade
+from .session_rating import SessionRating
 
 __all__ = [
     'User',
@@ -103,4 +104,5 @@ __all__ = [
     'NutritionUpgrade',
     'ExerciseCapture',
     'PhysicalTest',
+    'SessionRating',
 ]

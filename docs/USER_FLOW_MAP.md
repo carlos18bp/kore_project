@@ -1,6 +1,6 @@
 # User Flow Map
 
-Version: 2.0
+Version: 2.1
 Last Updated: 2026-07-14
 Description: End-to-end user flows for the Kore frontend, grouped by role with branches for form variants and alternate outcomes.
 Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, frontend/e2e specs, frontend/app routes. Canonical customer subscription URL is `/subscription` (flow IDs `my-programs-*` are historical).
@@ -403,6 +403,26 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Registration token is cleared from sessionStorage after payment success or failure.
 
 ## User Flows
+
+### customer-session-rating: Post-Session Rating
+- Module: booking
+- Priority: P2
+- Route: /dashboard
+- Roles: customer
+- Coverage: **Covered** (`e2e/customer/session-rating.spec.ts`)
+- Description: The customer rates an attended session; the trainer rates the same session inline when confirming attendance.
+
+**Steps**
+1. The trainer marks the session as attended (`POST /api/bookings/{id}/confirm-attendance/`), which is what makes it rateable.
+2. On the customer's dashboard, a "Califica tu sesión" card appears, fed by `GET /api/bookings/pending-rating/`.
+3. The customer picks 1–5 stars, optionally writes a comment, and sends: `POST /api/bookings/{id}/rate/`. This awards `session_rated` credits, once per session.
+4. The card disappears. The trainer reads the feedback on his dashboard (`GET /api/trainer/ratings/summary/`) and on the client detail.
+
+**Branches / Variations**
+- *Omitir* dismisses the card and leaves the session unrated — there is no second prompt.
+- Rating twice is rejected (400); the unique constraint `(booking, rater_role)` caps the credit at one per session.
+- A session that was not attended cannot be rated (400).
+- The trainer rates with the stars that replace the "✓ Asistió" button; his rating awards no credits and is optional.
 
 ### auth-logout: Logout
 - Module: auth

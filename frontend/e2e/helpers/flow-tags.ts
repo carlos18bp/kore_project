@@ -97,6 +97,7 @@ export const FlowTags = {
   AUTH_ACCEPT_INVITE: ['@flow:auth-accept-invite', '@module:auth', '@priority:P2'],
   AUTH_FORCED_PASSWORD_CHANGE: ['@flow:auth-forced-password-change', '@module:auth', '@priority:P2'],
 
+  CUSTOMER_SESSION_RATING: ['@flow:customer-session-rating', '@module:booking', '@priority:P2'],
   ADMIN_DASHBOARD: ['@flow:admin-dashboard', '@module:admin', '@priority:P2'],
   ADMIN_USERS_LIST: ['@flow:admin-users-list', '@module:admin', '@priority:P1'],
   ADMIN_USER_CREATE: ['@flow:admin-user-create', '@module:admin', '@priority:P1'],

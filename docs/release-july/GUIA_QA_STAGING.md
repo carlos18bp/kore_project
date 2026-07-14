@@ -139,6 +139,15 @@ no técnica para el cliente; esta es el setup reproducible para probar).
 6. En **Planes que incluyen nutrición**, activa el interruptor de un plan → `PATCH /api/packages/{id}/`. Recarga y confirma que persiste.
 7. Efecto en facturación: `nutrition_surcharge()` lee el precio **activo al momento del cobro**, así que la próxima renovación de los suscriptores con nutrición usa el precio nuevo. Desactivar el add-on deja el recargo en 0 pero **no** revoca el acceso.
 
+### 3.13 Cliente y entrenador — Calificar la sesión (Parte 9)
+1. Login **entrenador** → marca **✓ Asistió** en una sesión ya iniciada. En lugar del botón aparecen 5 estrellas (más **Omitir**). Al elegir una: `POST /api/bookings/{id}/rate/` con `rater_role='trainer'` derivado en el backend, y **sin** créditos.
+2. **Confirmar asistencia sin calificar sigue funcionando**: pulsar Omitir deja la sesión con `attendance_status='attended'` y sin `SessionRating` del entrenador.
+3. Login **cliente** → en `/dashboard` aparece la tarjeta **"Califica tu sesión"**, alimentada por `GET /api/bookings/pending-rating/` (solo lista sesiones con `attendance_status='attended'` sin calificación del cliente).
+4. Envía 1–5 estrellas + comentario → crea **un** `SessionRating` (`rater_role='customer'`) y **un** `CreditTransaction` con `action='session_rated'`. La tarjeta desaparece.
+5. Un segundo intento sobre la misma sesión devuelve **400** y **no** vuelve a acreditar: la constraint única `(booking, rater_role)` es la que lo impide.
+6. Una sesión **no** asistida (`attendance_status != 'attended'`) devuelve 400 al intentar calificarla.
+7. **Entrenador:** el bloque **Calificaciones** de su dashboard (`GET /api/trainer/ratings/summary/`) muestra el promedio de lo que le dejaron **los clientes** — nunca sus propias calificaciones. En el detalle de un cliente, el mismo bloque va filtrado por `?customer_id=`.
+
 ---
 
 ## 4. Verificación del efecto en créditos (backend)

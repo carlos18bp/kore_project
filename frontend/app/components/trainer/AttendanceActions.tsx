@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useBookingStore } from '@/lib/stores/bookingStore';
 import { useTrainerStore } from '@/lib/stores/trainerStore';
+import { useSessionRatingStore } from '@/lib/stores/sessionRatingStore';
 
 export type AttendanceSessionInput = {
   id: number;
@@ -19,17 +20,54 @@ export type AttendanceSessionInput = {
 export default function AttendanceActions({ session }: { session: AttendanceSessionInput }) {
   const confirmAttendance = useBookingStore((s) => s.confirmAttendance);
   const markSessionAttendance = useTrainerStore((s) => s.markSessionAttendance);
+  const submitRating = useSessionRatingStore((s) => s.submitRating);
   const [submitting, setSubmitting] = useState<boolean | null>(null);
   const [localStatus, setLocalStatus] = useState(session.attendance_status ?? 'unset');
+  // The rating is offered only right after the trainer marks attendance, and only
+  // once: attendance already succeeded, so dismissing this leaves the session unrated.
+  const [rating, setRating] = useState(false);
+  const [rated, setRated] = useState(false);
 
   const started = !!session.starts_at && new Date(session.starts_at) <= new Date();
   if (!started || session.status === 'canceled') return null;
 
+  async function handleRate(score: number) {
+    setRated(true);
+    await submitRating(session.id, score);
+  }
+
   if (localStatus === 'attended') {
     return (
-      <span className="font-body text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 bg-kore-sage/20 text-kore-sage-deep">
-        Asistió
-      </span>
+      <div className="flex items-center gap-1.5 flex-shrink-0">
+        <span className="font-body text-[10px] font-bold px-2 py-0.5 rounded-full bg-kore-sage/20 text-kore-sage-deep">
+          Asistió
+        </span>
+        {rating && !rated && (
+          <span
+            data-testid={`trainer-rating-${session.id}`}
+            className="flex items-center gap-1"
+          >
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                type="button"
+                aria-label={`${n} estrella${n > 1 ? 's' : ''}`}
+                onClick={() => handleRate(n)}
+                className="text-base leading-none text-kore-gray-dark/30 hover:text-kore-red transition-colors"
+              >
+                ★
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setRated(true)}
+              className="font-body text-[10px] text-kore-gray-dark/40 px-1"
+            >
+              Omitir
+            </button>
+          </span>
+        )}
+      </div>
     );
   }
   if (localStatus === 'no_show') {
@@ -47,6 +85,7 @@ export default function AttendanceActions({ session }: { session: AttendanceSess
       const status = attended ? 'attended' : 'no_show';
       setLocalStatus(status);
       markSessionAttendance(session.id, status);
+      if (attended) setRating(true);
     }
     setSubmitting(null);
   }
