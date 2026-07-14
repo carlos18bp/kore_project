@@ -22,7 +22,11 @@ from core_app.services.email_service import (
     send_booking_reschedule,
 )
 
-CANCEL_RESCHEDULE_HOURS = 24
+def _reschedule_window_hours() -> int:
+    """The single window that blocks a late cancel/reschedule AND triggers the
+    credit penalty (`credit_engine.on_reschedule` reads the same field)."""
+    from core_app.services import credit_engine
+    return credit_engine.get_settings().reschedule_window_hours
 
 
 def _is_trainer_owner(user, booking):
@@ -168,10 +172,11 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         bypass_window = is_admin_user(request.user) or _is_trainer_owner(request.user, booking)
         if not bypass_window:
+            window = _reschedule_window_hours()
             time_until = booking.starts_at - timezone.now()
-            if time_until < timedelta(hours=CANCEL_RESCHEDULE_HOURS):
+            if time_until < timedelta(hours=window):
                 return Response(
-                    {'detail': f'No puedes cancelar con menos de {CANCEL_RESCHEDULE_HOURS} horas de anticipación.'},
+                    {'detail': f'No puedes cancelar con menos de {window} horas de anticipación.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -222,10 +227,11 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         bypass_window = is_admin_user(request.user) or _is_trainer_owner(request.user, booking)
         if not bypass_window:
+            window = _reschedule_window_hours()
             time_until = booking.starts_at - timezone.now()
-            if time_until < timedelta(hours=CANCEL_RESCHEDULE_HOURS):
+            if time_until < timedelta(hours=window):
                 return Response(
-                    {'detail': f'No puedes reprogramar con menos de {CANCEL_RESCHEDULE_HOURS} horas de anticipación.'},
+                    {'detail': f'No puedes reprogramar con menos de {window} horas de anticipación.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
