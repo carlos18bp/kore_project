@@ -32,7 +32,9 @@ Trainers and admins keep bypassing the window entirely (`bypass_window`, line 17
 
 ### 2. The customer must be able to read the window
 
-`CreditSettingsView` is `IsTrainerRole` today, so the customer's UI has no way to learn the window. Split the permission by method via `get_permissions()`: **`GET` → `IsAuthenticated`, `PUT` → `IsTrainerRole`**. Nothing there is secret — it is the rules of the game the customer already lives under.
+`CreditSettingsView` is `IsTrainerRole`, so the customer's UI cannot learn the window from it. It does not need to: **`GET /api/credits/values/` (`CreditValuesView`, `IsAuthenticated`) already exists** for exactly this — *"read-only credit configuration for any authenticated user; exposes no trainer-only data"* — and already feeds the client's "+X créditos" chips through `creditValuesStore`.
+
+So: **add `reschedule_window_hours` to that payload and to `creditValuesStore`**, and leave `CreditSettingsView` trainer-only. This keeps the permission surface untouched and reuses the store's existing default-fallback pattern.
 
 ### 3. Range validation
 
@@ -52,11 +54,11 @@ The endpoint itself already exists (`GET`/`PUT /api/credits/settings/`) and alre
 
 Plus a "Configuración" entry in `TrainerSidebar` and in the mobile *Más* menu.
 
-**`SessionDetailModal` stops hardcoding `CANCEL_HOURS = 24`** and reads the window from the store, **falling back to 24 while it has not loaded**. The fallback is load-bearing: it keeps the existing test (`SessionDetailModal.test.tsx:113`) honest without mocking the store into it, and it stops a failed request from enabling buttons the backend will reject anyway.
+**`SessionDetailModal` stops hardcoding `CANCEL_HOURS = 24`** and reads `rescheduleWindowHours` from `creditValuesStore`, **falling back to 24 while it has not loaded**. The fallback is load-bearing: it keeps the existing test (`SessionDetailModal.test.tsx:113`) honest without mocking the store into it, and it stops a failed request from enabling buttons the backend will reject anyway.
 
 ## Tests
 
-- **Backend:** with the window at 48, cancelling and rescheduling a session 30h out are rejected (today they would pass) and 60h out are allowed; the trainer still bypasses the window; a customer can `GET` the settings but gets 403 on `PUT`; a 200-hour value is rejected.
+- **Backend:** with the window at 48, cancelling and rescheduling a session 30h out are rejected (today they would pass) and 60h out are allowed; the trainer still bypasses the window; `GET /api/credits/values/` carries `reschedule_window_hours`; a 200-hour value is rejected by the settings serializer.
 - **Frontend:** store tests, and an E2E for the `trainer-settings` flow with its triplet (`e2e/flow-definitions.json`, `e2e/helpers/flow-tags.ts`, `docs/USER_FLOW_MAP.md`).
 
 ## Risk
