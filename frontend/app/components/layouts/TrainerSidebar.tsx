@@ -62,6 +62,13 @@ const TasksIcon = (
   </svg>
 );
 
+const SettingsIcon = (
+  <svg {...iconProps}>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+  </svg>
+);
+
 export default function TrainerSidebar() {
   const { riskDashboard } = useTrainerStore();
   const alertCount =
@@ -92,6 +99,7 @@ export default function TrainerSidebar() {
           { key: 'nutrition-catalog', label: 'Catálogo comidas', href: '/trainer/nutrition-catalog', icon: FoodCatalogIcon },
           { key: 'store', label: 'Tienda', href: '/trainer/tienda', icon: StoreIcon },
           { key: 'messages', label: 'Mensajes', href: '/trainer/messages', icon: ChatIcon, soon: true },
+          { key: 'settings', label: 'Configuración', href: '/trainer/configuracion', icon: SettingsIcon },
         ],
       },
     ],

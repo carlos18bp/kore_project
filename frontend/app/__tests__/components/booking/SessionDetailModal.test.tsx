@@ -14,6 +14,13 @@ jest.mock('@/lib/stores/bookingStore', () => ({
   useBookingStore: jest.fn(),
 }));
 
+// The modal now reads the cancel window from /credits/values/ via creditValuesStore.
+// Stub the HTTP layer so the store keeps its default of 24h — the same number the
+// backend enforces by default, which is what these tests assert against.
+jest.mock('@/lib/services/http', () => ({
+  api: { get: jest.fn().mockResolvedValue({ data: {} }) },
+}));
+
 const mockedUseBookingStore = useBookingStore as unknown as jest.Mock;
 
 const mockCancelBooking = jest.fn();

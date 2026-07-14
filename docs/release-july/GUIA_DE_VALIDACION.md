@@ -506,6 +506,36 @@ Cuando termina una sesión y el entrenador confirma que asististe, ambos pueden 
 
 ---
 
+## Parte 10 — Configuración del entrenador
+
+### Funcionalidad 15 (entrenador): Dificultad, reglas y reagendamiento
+
+#### 1. ¿Qué es y para qué sirve?
+Un módulo **Configuración** en tu menú donde defines las reglas del juego: **qué tan difícil** es ganar puntos, **qué tiene que cumplir** el cliente para que su día cuente, y **con cuánta anticipación** puede cancelar o reprogramar. Hasta ahora esto solo se tocaba desde el panel técnico.
+
+#### 2. Antes de empezar
+- Cuenta de **entrenador**.
+- Ideal: un cliente con una sesión agendada, para comprobar el efecto del reagendamiento.
+
+#### 3. Paso a paso para probarlo
+1. En el menú lateral (o en "Más" en móvil) entra a **Configuración**.
+2. **Dificultad:** elige Fácil, Medio o Difícil. Aparece una confirmación avisando que **se reescriben los puntos de cada acción**. Abajo ves la tabla con lo que otorga cada acción en el preset activo.
+3. **Reglas de actividad:** ajusta el umbral de entrenamiento (%), las comidas mínimas, la meta de vasos de agua, los días de revisión, y si exiges fotos de cámara.
+4. **Reagendamiento:** pon las horas de anticipación (por ejemplo, 48) y pulsa **Guardar cambios**.
+
+#### 4. Cómo sabes que funcionó
+- Al recargar, la dificultad y los valores quedan como los dejaste.
+- **Los puntos que tus clientes ya ganaron NO cambian** — solo cambia lo que se otorga de aquí en adelante.
+- Con la ventana en 48h: si un cliente intenta cancelar una sesión que empieza en 30 horas, la app se lo impide y le dice "con menos de 48 horas". En su app, los botones de cancelar/reprogramar salen deshabilitados.
+- **Tú y los administradores siempre pueden** cancelar o reprogramar, sin importar la ventana.
+
+#### 5. Si algo no sale como esperabas
+- **No me deja guardar la ventana** → tiene que estar entre 0 y 168 horas (una semana).
+- **Cambié la dificultad y los puntos viejos siguen iguales** → es correcto: el historial no se toca.
+- **El cliente aún ve la ventana anterior** → que cierre y vuelva a abrir la sesión; la app lee la configuración al entrar.
+
+---
+
 ## Próximas secciones (se agregarán al entregar cada parte)
 
-- Configuración de dificultad · analítica y KPIs.
+- Analítica y KPIs.

@@ -1,6 +1,6 @@
 # User Flow Map
 
-Version: 2.1
+Version: 2.2
 Last Updated: 2026-07-14
 Description: End-to-end user flows for the Kore frontend, grouped by role with branches for form variants and alternate outcomes.
 Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, frontend/e2e specs, frontend/app routes. Canonical customer subscription URL is `/subscription` (flow IDs `my-programs-*` are historical).
@@ -1267,6 +1267,25 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Modules available count reflects completed vs total assessments.
 
 ## Trainer Flows
+
+### trainer-settings: Trainer Settings Panel
+- Module: trainer
+- Priority: P2
+- Route: /trainer/configuracion
+- Roles: trainer
+- Coverage: **Covered** (`e2e/trainer/trainer-settings.spec.ts`)
+- Description: The trainer configures the credit economy: difficulty preset, activity thresholds, and the reschedule window.
+
+**Steps**
+1. The trainer opens **Configuración** from the sidebar (or *Más* on mobile). `GET /api/credits/settings/` loads the current values.
+2. **Dificultad**: picking another preset opens a confirmation, then `PUT /api/credits/settings/` with `{difficulty, action_values: {}, streak_bonuses: {}}` — the empty maps are what make the backend reseed the per-action values. A read-only table shows what each action grants.
+3. **Reglas de actividad**: training-day threshold, minimum meals, water goal, meal review days, require-captures toggle.
+4. **Reagendamiento**: the window in hours (0–168). This single number blocks a late cancel/reschedule in `booking_views`, triggers the `late_reschedule_penalty` in `credit_engine.on_reschedule`, and gates the buttons in the customer's `SessionDetailModal` (which reads it from `GET /api/credits/values/`).
+
+**Branches / Variations**
+- Trainers and admins bypass the reschedule window entirely.
+- A window outside 0–168 is rejected with a 400.
+- Changing the difficulty does not touch credits customers already earned; the ledger is append-only.
 
 ### trainer-tasks: Trainer Task Hub
 - Module: trainer
