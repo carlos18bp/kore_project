@@ -56,3 +56,18 @@ def test_package_list_returns_all_for_admin(api_client, admin_user):
     assert response.status_code == status.HTTP_200_OK
     titles = {item['title'] for item in get_results(response.data)}
     assert titles == {'Active', 'Inactive'}
+
+
+@pytest.mark.django_db
+def test_package_admin_can_toggle_includes_nutrition(api_client, admin_user):
+    """The nutrition flag round-trips through PackageSerializer."""
+    package = Package.objects.create(title='Plan', sessions_count=4, includes_nutrition=False)
+    api_client.force_authenticate(user=admin_user)
+
+    url = reverse('package-detail', args=[package.pk])
+    response = api_client.patch(url, {'includes_nutrition': True}, format='json')
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data['includes_nutrition'] is True
+    package.refresh_from_db()
+    assert package.includes_nutrition is True

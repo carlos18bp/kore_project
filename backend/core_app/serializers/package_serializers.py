@@ -16,6 +16,7 @@ class PackageSerializer(serializers.ModelSerializer):
             'session_duration_minutes',
             'price',
             'currency',
+            'includes_nutrition',
             'validity_days',
             'terms_and_conditions',
             'is_active',
