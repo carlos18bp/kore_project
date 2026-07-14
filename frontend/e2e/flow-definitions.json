@@ -1,6 +1,6 @@
 {
-  "version": "1.6.0",
-  "lastUpdated": "2026-07-10",
+  "version": "1.7.0",
+  "lastUpdated": "2026-07-14",
   "documentation": "Step-by-step user journeys (branches, variations) are maintained in docs/USER_FLOW_MAP.md. This file defines flow IDs and metadata for Playwright @flow: tags and e2e/reporters/flow-coverage-reporter.mjs.",
   "flows": {
     "trainer-tasks": {
@@ -664,6 +664,14 @@
       "priority": "P1",
       "roles": ["admin"],
       "description": "Manage the package/plan catalog at /admin-platform/plans: create and edit packages via a modal with category, price, sessions, and validity fields.",
+      "coverage": "covered"
+    },
+    "admin-nutrition": {
+      "name": "Admin Nutrition Add-on",
+      "module": "admin",
+      "priority": "P2",
+      "roles": ["admin"],
+      "description": "Manage the nutrition add-on at /admin-platform/nutricion: edit the monthly COP price (confirming the impact on active subscriptions), toggle the add-on active, and flip includes_nutrition per plan.",
       "coverage": "covered"
     },
     "customer-nutrition-daily": {

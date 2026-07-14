@@ -1,7 +1,7 @@
 # User Flow Map
 
-Version: 1.9
-Last Updated: 2026-07-10
+Version: 2.0
+Last Updated: 2026-07-14
 Description: End-to-end user flows for the Kore frontend, grouped by role with branches for form variants and alternate outcomes.
 Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, frontend/e2e specs, frontend/app routes. Canonical customer subscription URL is `/subscription` (flow IDs `my-programs-*` are historical).
 
@@ -1477,6 +1477,25 @@ Admin operates the `admin-platform/` route group, which has its own layout guard
 and its own bottom nav (`AdminMobileBottomNav`). Detail pages are addressed by
 `?id=` query param (no `[id]` segments, consistent with static export). Registered
 2026-07-04 after the E2E user-flows audit found the whole group unmapped.
+
+### admin-nutrition: Admin Nutrition Add-on
+- Module: admin
+- Priority: P2
+- Route: /admin-platform/nutricion
+- Roles: admin
+- Coverage: **Covered** (`e2e/admin/admin-nutrition.spec.ts`)
+- Description: Manage the paid nutrition add-on: its monthly COP price and which plans include it. Both levers previously lived only in the Django admin.
+
+**Steps**
+1. Admin opens **Nutrición** from the sidebar (or from *Más* in the mobile bottom nav).
+2. **Add-on Nutrición** loads the monthly price and the active/inactive toggle from `GET /api/admin/nutrition-product/`, along with how many active subscriptions carry nutrition.
+3. Editing the price and saving opens a confirmation dialog stating that impact — `nutrition_surcharge()` reads the active price at charge time, so the change lands on every nutrition subscriber's next renewal. Confirming issues `PATCH /api/admin/nutrition-product/`.
+4. **Planes que incluyen nutrición** lists every plan with a per-row switch that issues `PATCH /api/packages/{id}/` with `includes_nutrition`.
+
+**Branches / Variations**
+- Saving without changing the price skips the dialog and patches directly.
+- A non-integer or negative price is rejected inline; nothing is sent.
+- Deactivating the add-on drops the surcharge to 0 while existing subscribers keep access.
 
 ### admin-dashboard: Admin Platform Dashboard
 - Module: admin

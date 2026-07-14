@@ -105,6 +105,7 @@ export const FlowTags = {
   ADMIN_SUBSCRIPTION_CREATE: ['@flow:admin-subscription-create', '@module:admin', '@priority:P1'],
   ADMIN_SUBSCRIPTION_DETAIL: ['@flow:admin-subscription-detail', '@module:admin', '@priority:P1'],
   ADMIN_PLANS: ['@flow:admin-plans', '@module:admin', '@priority:P1'],
+  ADMIN_NUTRITION: ['@flow:admin-nutrition', '@module:admin', '@priority:P2'],
 
   CUSTOMER_NUTRITION_DAILY: ['@flow:customer-nutrition-daily', '@module:nutrition', '@priority:P2'],
   CUSTOMER_NUTRITION_PLAN: ['@flow:customer-nutrition-plan', '@module:nutrition', '@priority:P2'],
