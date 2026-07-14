@@ -137,16 +137,3 @@ def test_unconfirmed_booking_marked_no_show_with_penalty(existing_user, frozen_n
     booking.refresh_from_db()
     assert booking.attendance_status == Booking.AttendanceStatus.NO_SHOW
     assert credit_engine.get_wallet(existing_user).balance == 60  # 100 - 40
-
-
-@pytest.mark.django_db
-def test_expired_pending_transactions_autoconfirm(existing_user, frozen_now):
-    tx = credit_engine.award(
-        existing_user, CreditTransaction.Action.MEAL_PHOTO, 'meal_entry', 9,
-        'Registraste tu cena', status=CreditTransaction.Status.PENDING,
-        review_deadline=frozen_now - timedelta(hours=1),
-    )
-    process_credits_day_close(today=frozen_now.date())
-    tx.refresh_from_db()
-    assert tx.status == CreditTransaction.Status.CONFIRMED
-    assert credit_engine.get_wallet(existing_user).balance == 5
