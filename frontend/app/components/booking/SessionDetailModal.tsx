@@ -1,17 +1,16 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useBookingStore } from '@/lib/stores/bookingStore';
 import type { BookingData } from '@/lib/stores/bookingStore';
+import { useCreditValuesStore } from '@/lib/stores/creditValuesStore';
 
 const BOOKING_STATUS_BADGE: Record<string, { label: string; className: string }> = {
   pending: { label: 'Pendiente', className: 'bg-amber-100 text-amber-700' },
   confirmed: { label: 'Confirmada', className: 'bg-green-100 text-green-700' },
   canceled: { label: 'Cancelada', className: 'bg-red-100 text-red-700' },
 };
-
-const CANCEL_HOURS = 24;
 
 type Props = {
   booking: BookingData;
@@ -24,6 +23,14 @@ export default function SessionDetailModal({ booking, subscriptionId, onClose, o
   const router = useRouter();
   const { loading, error, cancelBooking } = useBookingStore();
 
+  // The same window booking_views enforces; 24 until /credits/values/ answers.
+  const cancelHours = useCreditValuesStore((s) => s.rescheduleWindowHours);
+  const fetchValues = useCreditValuesStore((s) => s.fetchValues);
+
+  useEffect(() => {
+    fetchValues();
+  }, [fetchValues]);
+
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
 
@@ -31,7 +38,7 @@ export default function SessionDetailModal({ booking, subscriptionId, onClose, o
   const slotEnd = new Date(booking.ends_at);
   const now = new Date();
   const hoursUntil = (slotStart.getTime() - now.getTime()) / (1000 * 60 * 60);
-  const canModify = booking.status !== 'canceled' && hoursUntil >= CANCEL_HOURS;
+  const canModify = booking.status !== 'canceled' && hoursUntil >= cancelHours;
   const isUpcoming = slotStart > now;
 
   const badge = BOOKING_STATUS_BADGE[booking.status] ?? BOOKING_STATUS_BADGE.pending;
@@ -99,7 +106,7 @@ export default function SessionDetailModal({ booking, subscriptionId, onClose, o
             </span>
             {!canModify && isUpcoming && booking.status !== 'canceled' && (
               <span className="text-xs text-amber-600">
-                No se puede modificar a menos de {CANCEL_HOURS}h de la sesión
+                No se puede modificar a menos de {cancelHours}h de la sesión
               </span>
             )}
           </div>
@@ -198,7 +205,7 @@ export default function SessionDetailModal({ booking, subscriptionId, onClose, o
               <button
                 onClick={handleReschedule}
                 disabled={!canModify || loading}
-                title={!canModify ? `No se puede reprogramar a menos de ${CANCEL_HOURS}h` : ''}
+                title={!canModify ? `No se puede reprogramar a menos de ${cancelHours}h` : ''}
                 className="flex-1 py-3 rounded-xl border border-kore-gray-light/50 text-sm font-medium text-kore-gray-dark/60 hover:bg-kore-cream transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
                 Reprogramar
@@ -206,7 +213,7 @@ export default function SessionDetailModal({ booking, subscriptionId, onClose, o
               <button
                 onClick={() => setShowCancelConfirm(true)}
                 disabled={!canModify || loading}
-                title={!canModify ? `No se puede cancelar a menos de ${CANCEL_HOURS}h` : ''}
+                title={!canModify ? `No se puede cancelar a menos de ${cancelHours}h` : ''}
                 className="flex-1 py-3 rounded-xl bg-red-50 border border-red-200 text-sm font-semibold text-red-600 hover:bg-red-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
                 Cancelar
