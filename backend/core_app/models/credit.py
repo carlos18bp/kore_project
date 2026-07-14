@@ -56,6 +56,7 @@ class CreditTransaction(TimestampedModel):
     class Action(models.TextChoices):
         PHYSICAL_TEST_PASSED = 'physical_test_passed', 'Physical test passed'
         SESSION_ATTENDED = 'session_attended', 'Session attended'
+        SESSION_RATED = 'session_rated', 'Session rated'
         WORKOUT_DAY = 'workout_day', 'Workout day'
         MEAL_PHOTO = 'meal_photo', 'Meal with photo'
         CHECKIN = 'checkin', 'Daily check-in'

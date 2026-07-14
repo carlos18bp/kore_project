@@ -23,6 +23,7 @@ DIFFICULTY_PRESETS = {
         'actions': {
             'physical_test_passed': 150,
             'session_attended': 75,
+            'session_rated': 10,
             'workout_day': 25,
             'meal_photo': 8,
             'checkin': 8,
@@ -36,6 +37,7 @@ DIFFICULTY_PRESETS = {
         'actions': {
             'physical_test_passed': 100,
             'session_attended': 50,
+            'session_rated': 5,
             'workout_day': 15,
             'meal_photo': 5,
             'checkin': 5,
@@ -49,6 +51,7 @@ DIFFICULTY_PRESETS = {
         'actions': {
             'physical_test_passed': 75,
             'session_attended': 40,
+            'session_rated': 3,
             'workout_day': 10,
             'meal_photo': 4,
             'checkin': 4,
