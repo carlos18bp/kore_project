@@ -448,6 +448,35 @@ Un nuevo módulo en el menú del entrenador, **"Tareas pendientes"**, reúne en 
 
 ---
 
+## Extra — Nutrición en el panel de administración
+
+### Funcionalidad 13 (admin): Precio de nutrición y planes que la incluyen
+
+#### 1. ¿Qué es y para qué sirve?
+Un nuevo módulo **"Nutrición"** en el panel de administración. Hasta ahora, el **precio mensual del add-on** y la marca de **qué planes incluyen nutrición** solo se podían tocar desde el admin técnico de Django. Ahora se gestionan desde el panel.
+
+#### 2. Antes de empezar
+- Cuenta **administrador**.
+- Al menos un plan cargado en el catálogo.
+
+#### 3. Paso a paso para probarlo
+1. En el menú lateral (o en "Más" en móvil) entra a **Nutrición**.
+2. En **Add-on Nutrición** verás el **precio mensual en COP** y un interruptor de activo/inactivo. Debajo del campo se indica **cuántas suscripciones activas** tienen nutrición hoy.
+3. Cambia el precio y pulsa **Guardar precio**. Aparece una **confirmación** que te avisa a cuántas suscripciones les cambiará el cobro en su próxima renovación. Acepta con **Confirmar cambio**.
+4. En **Planes que incluyen nutrición**, activa o desactiva el interruptor de cualquier plan.
+
+#### 4. Cómo sabes que funcionó
+- Al recargar la página, el precio y los interruptores conservan lo que dejaste.
+- Un plan con nutrición activada entrega nutrición a quien lo contrate, sin pagar el add-on aparte.
+- Los clientes que ya tienen nutrición pagan el **nuevo precio** en su próxima renovación (no se les cobra retroactivo).
+
+#### 5. Si algo no sale como esperabas
+- **No me deja guardar** → el precio debe ser un número entero en COP, sin puntos ni decimales.
+- **No aparece la confirmación** → solo se abre si de verdad cambiaste el precio.
+- Si persiste, avísale al equipo técnico con una captura.
+
+---
+
 ## Próximas secciones (se agregarán al entregar cada parte)
 
 - Calificación de sesiones · configuración de dificultad · analítica y KPIs.

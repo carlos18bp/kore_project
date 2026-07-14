@@ -130,6 +130,15 @@ no técnica para el cliente; esta es el setup reproducible para probar).
 4. En el **detalle de un cliente** verás la etiqueta **"Tareas pendientes (N)"** que enlaza al hub.
 5. Verifica que el punto ya **NO se auto-confirma**: aunque pase el `review_deadline`, sigue `pending` hasta que el entrenador lo revise.
 
+### 3.12 Admin — Nutrición: precio del add-on y planes (Gap)
+1. Login **admin** → menú lateral **Nutrición** (`/admin-platform/nutricion`).
+2. El precio y el estado activo/inactivo cargan de `GET /api/admin/nutrition-product/`. El hint bajo el campo muestra las suscripciones activas con nutrición; contrástalo con `Subscription.objects.filter(status='active', includes_nutrition=True).count()`.
+3. **Guardar precio** sin haberlo cambiado → **no** abre diálogo, patchea directo.
+4. Cambia el precio → se abre la confirmación con el número de suscripciones afectadas. **Confirmar cambio** dispara `PATCH /api/admin/nutrition-product/`. Recarga: el precio persiste.
+5. Un precio no entero o negativo se rechaza en el formulario y no se envía nada.
+6. En **Planes que incluyen nutrición**, activa el interruptor de un plan → `PATCH /api/packages/{id}/`. Recarga y confirma que persiste.
+7. Efecto en facturación: `nutrition_surcharge()` lee el precio **activo al momento del cobro**, así que la próxima renovación de los suscriptores con nutrición usa el precio nuevo. Desactivar el add-on deja el recargo en 0 pero **no** revoca el acceso.
+
 ---
 
 ## 4. Verificación del efecto en créditos (backend)
