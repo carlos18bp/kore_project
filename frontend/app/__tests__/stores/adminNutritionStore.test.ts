@@ -1,5 +1,6 @@
 import { api } from '@/lib/services/http';
 import { useAdminNutritionStore } from '@/lib/stores/adminNutritionStore';
+import { useAdminPackageStore } from '@/lib/stores/adminPackageStore';
 
 jest.mock('@/lib/services/http', () => ({
   api: { get: jest.fn(), patch: jest.fn() },
@@ -73,4 +74,50 @@ test('updateProduct surfaces an error and returns false on failure', async () =>
   expect(ok).toBe(false);
   expect(useAdminNutritionStore.getState().error).not.toBe('');
   expect(useAdminNutritionStore.getState().actionLoading).toBe(false);
+});
+
+// ── includes_nutrition per plan (adminPackageStore) ─────────────────────────
+
+const PACKAGE = {
+  id: 101,
+  title: 'Plan Base',
+  short_description: '',
+  description: '',
+  category: 'personalizado' as const,
+  sessions_count: 8,
+  session_duration_minutes: 60,
+  price: '300000',
+  currency: 'COP',
+  includes_nutrition: false,
+  validity_days: 30,
+  terms_and_conditions: '',
+  is_active: true,
+  order: 1,
+  created_at: '2026-06-01T10:00:00Z',
+  updated_at: '2026-06-01T10:00:00Z',
+};
+
+test('toggleNutrition patches the package and keeps the new value', async () => {
+  useAdminPackageStore.setState({ packages: [PACKAGE] });
+  mockApi.patch.mockResolvedValue({ data: { ...PACKAGE, includes_nutrition: true } });
+
+  const ok = await useAdminPackageStore.getState().toggleNutrition(101, true);
+
+  expect(ok).toBe(true);
+  expect(mockApi.patch).toHaveBeenCalledWith(
+    '/packages/101/',
+    { includes_nutrition: true },
+    expect.anything(),
+  );
+  expect(useAdminPackageStore.getState().packages[0].includes_nutrition).toBe(true);
+});
+
+test('toggleNutrition rolls back when the request fails', async () => {
+  useAdminPackageStore.setState({ packages: [PACKAGE] });
+  mockApi.patch.mockRejectedValue(new Error('boom'));
+
+  const ok = await useAdminPackageStore.getState().toggleNutrition(101, true);
+
+  expect(ok).toBe(false);
+  expect(useAdminPackageStore.getState().packages[0].includes_nutrition).toBe(false);
 });
