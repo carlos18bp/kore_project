@@ -1,6 +1,6 @@
 {
-  "version": "1.9.0",
-  "lastUpdated": "2026-07-14",
+  "version": "1.10.0",
+  "lastUpdated": "2026-07-15",
   "documentation": "Step-by-step user journeys (branches, variations) are maintained in docs/USER_FLOW_MAP.md. This file defines flow IDs and metadata for Playwright @flow: tags and e2e/reporters/flow-coverage-reporter.mjs.",
   "flows": {
     "trainer-tasks": {
@@ -680,6 +680,14 @@
       "priority": "P2",
       "roles": ["admin"],
       "description": "Manage the nutrition add-on at /admin-platform/nutricion: edit the monthly COP price (confirming the impact on active subscriptions), toggle the add-on active, and flip includes_nutrition per plan.",
+      "coverage": "covered"
+    },
+    "admin-reports": {
+      "name": "Admin Reports / KPIs",
+      "module": "admin",
+      "priority": "P2",
+      "roles": ["admin"],
+      "description": "Business KPI panel at /admin-platform/reports: revenue (subscriptions + Wompi credit top-ups) with a fixed 6-month trend, subscription status counts, credit economy (earned/spent/redemptions) and rating quality, filtered by a preset window (today/30d/90d/all).",
       "coverage": "covered"
     },
     "customer-session-rating": {

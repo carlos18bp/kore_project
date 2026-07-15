@@ -157,6 +157,14 @@ no técnica para el cliente; esta es el setup reproducible para probar).
 6. **Entrenador y admin siguen saltándose la ventana**: pueden cancelar una sesión que empieza en 2 horas.
 7. Deja la ventana de vuelta en **24** al terminar, que es el valor por defecto de producción.
 
+### 3.15 Admin — Reportes / KPIs (Parte 11a)
+1. Login **admin** → menú lateral **Reportes** (`/admin-platform/reports`). Los datos cargan de `GET /api/admin/reports/?window=30d`.
+2. Verifica los cuatro bloques: **Ingresos** (total COP = pagos `confirmed` por `confirmed_at` + top-ups `approved` por `resolved_at`, con tendencia fija de 6 meses), **Suscripciones** (activas/expiradas/canceladas + % nutrición), **Créditos** (ganados/gastados confirmados + canjes por estado) y **Calidad** (promedio de `SessionRating` + volumen).
+3. Cambia la ventana a **90 días** → la request repite con `?window=90d` y los tiles se recalculan. La tendencia de ingresos **no** cambia (siempre 6 meses).
+4. Un `GET` con `?window=year` devuelve **400** (`Invalid window.`).
+5. Con un usuario **no-admin** autenticado, `GET /api/admin/reports/` devuelve **403**.
+6. Chequeo de ventana: un pago `confirmed` con `confirmed_at` de hace **45 días** aparece en **Todo**/**90 días** pero **no** en **30 días**.
+
 ---
 
 ## 4. Verificación del efecto en créditos (backend)

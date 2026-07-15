@@ -87,7 +87,7 @@ const TABS: MobileNavTab[] = [
 
 const MORE_ITEMS: MobileNavMoreItem[] = [
   { key: 'nutrition', label: 'Nutrición', icon: NutritionIcon, href: '/admin-platform/nutricion' },
-  { key: 'reports', label: 'Reportes', icon: ChartIcon, disabled: true },
+  { key: 'reports', label: 'Reportes', icon: ChartIcon, href: '/admin-platform/reports' },
 ];
 
 export default function AdminMobileBottomNav() {

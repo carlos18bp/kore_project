@@ -60,7 +60,7 @@ const NAV_GROUPS: SidebarNavGroup[] = [
       { key: 'subscriptions', label: 'Suscripciones', href: '/admin-platform/subscriptions', icon: CardIcon },
       { key: 'plans', label: 'Planes', href: '/admin-platform/plans', icon: PlansIcon },
       { key: 'nutrition', label: 'Nutrición', href: '/admin-platform/nutricion', icon: NutritionIcon },
-      { key: 'reports', label: 'Reportes', href: '#', icon: ChartIcon, soon: true },
+      { key: 'reports', label: 'Reportes', href: '/admin-platform/reports', icon: ChartIcon },
     ],
   },
 ];
