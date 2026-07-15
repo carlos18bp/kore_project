@@ -2,6 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from core_app.views.admin_nutrition_views import AdminNutritionProductView
+from core_app.views.admin_reports_views import AdminReportsView
 from core_app.views.analytics_views import AnalyticsEventViewSet
 from core_app.views.availability_views import AvailabilityView
 from core_app.views.booking_views import BookingViewSet
@@ -231,6 +232,7 @@ urlpatterns = [
     path('my-nutrition-daily/history/', NutritionHistoryView.as_view(), name='my-nutrition-daily-history'),
     path('admin/trainers/assignment-summary/', TrainerAssignmentSummaryView.as_view(), name='admin-trainer-assignment-summary'),
     path('admin/nutrition-product/', AdminNutritionProductView.as_view(), name='admin-nutrition-product'),
+    path('admin/reports/', AdminReportsView.as_view(), name='admin-reports'),
     # Nutrition plans (trainer-curated weekly plans)
     path('nutrition-plans/customer/<int:customer_id>/', CustomerNutritionPlanListView.as_view(), name='nutrition-plan-list'),
     path('nutrition-plans/generate/', GenerateNutritionPlanView.as_view(), name='nutrition-plan-generate'),
