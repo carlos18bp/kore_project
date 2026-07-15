@@ -60,10 +60,12 @@ beforeEach(() => {
 
 it('renders the four KPI block headings', () => {
   render(<ReportsPage />);
-  expect(screen.getByText('Ingresos')).toBeInTheDocument();
-  expect(screen.getByText('Suscripciones')).toBeInTheDocument();
-  expect(screen.getByText('Créditos')).toBeInTheDocument();
-  expect(screen.getByText('Calidad')).toBeInTheDocument();
+  // Target the <h2> headings — "Suscripciones"/"Créditos" also appear as
+  // StatTile kickers and sidebar nav items, so getByText is ambiguous.
+  expect(screen.getByRole('heading', { name: 'Ingresos' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Suscripciones' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Créditos' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Calidad' })).toBeInTheDocument();
 });
 
 it('renders the window selector pills', () => {
