@@ -1,5 +1,5 @@
 {
-  "version": "1.10.0",
+  "version": "1.11.0",
   "lastUpdated": "2026-07-15",
   "documentation": "Step-by-step user journeys (branches, variations) are maintained in docs/USER_FLOW_MAP.md. This file defines flow IDs and metadata for Playwright @flow: tags and e2e/reporters/flow-coverage-reporter.mjs.",
   "flows": {
@@ -16,6 +16,14 @@
       "priority": "P2",
       "roles": ["trainer"],
       "description": "Configure the credit economy at /trainer/configuracion: pick the difficulty preset (reseeding the per-action values behind a confirmation), set the activity thresholds, and set the reschedule window that blocks late cancels and triggers the penalty.",
+      "coverage": "covered"
+    },
+    "trainer-engagement": {
+      "name": "Trainer Engagement Analytics",
+      "module": "trainer",
+      "priority": "P2",
+      "roles": ["trainer"],
+      "description": "Fase 2 engagement over the trainer's client portfolio at /trainer/metrics: summary tiles (active streaks, check-in-today %, credits earned/spent 30d, attendance 30d) plus a per-client roster (streak, last check-in, attendance, rating). Replaces the ComingSoon placeholder.",
       "coverage": "covered"
     },
     "auth-login": {
