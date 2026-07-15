@@ -64,8 +64,9 @@ def test_resolve_since_all_is_none():
 
 
 def test_resolve_since_unknown_raises():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as exc:
         reports_service.resolve_since('year', NOW)
+    assert 'year' in str(exc.value)
 
 
 # ── revenue ─────────────────────────────────────────────────────────────────
@@ -194,5 +195,6 @@ def test_build_admin_report_shape():
 
 
 def test_build_admin_report_unknown_window_raises():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as exc:
         reports_service.build_admin_report('year', NOW)
+    assert 'year' in str(exc.value)

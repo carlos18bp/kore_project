@@ -78,16 +78,11 @@ describe('AdminSidebar', () => {
     expect(screen.getByText('Planes')).toBeInTheDocument();
   });
 
-  it('renders the Reportes item as a span (not a link) when it is marked soon', () => {
+  it('renders the Reportes item as an active link to the reports page', () => {
     renderSidebar();
-    // "Reportes" nav item is soon:true — rendered as <span aria-disabled>
-    const reportesEl = screen.getByText('Reportes').closest('[aria-disabled]');
-    expect(reportesEl?.tagName).toBe('SPAN');
-  });
-
-  it('renders a "Pronto" pill for the soon nav item', () => {
-    renderSidebar();
-    expect(screen.getByText('Pronto')).toBeInTheDocument();
+    // "Reportes" was activated in Parte 11a — now a real link, no longer soon.
+    const link = screen.getByText('Reportes').closest('a');
+    expect(link).toHaveAttribute('href', '/admin-platform/reports');
   });
 
   it('renders the logout button', () => {

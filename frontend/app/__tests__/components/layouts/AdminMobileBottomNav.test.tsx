@@ -52,11 +52,11 @@ describe('AdminMobileBottomNav', () => {
     expect(screen.getByText('Usuarios').closest('a')).toHaveClass('text-kore-gold');
   });
 
-  it('shows Reportes (Pronto) and Cerrar sesión in the More sheet', async () => {
+  it('shows Reportes as a link and Cerrar sesión in the More sheet', async () => {
     render(<AdminMobileBottomNav />);
     await userEvent.click(screen.getByText('Más'));
-    expect(screen.getByText('Reportes')).toBeInTheDocument();
-    expect(screen.getByText('Pronto')).toBeInTheDocument();
+    // Reportes was activated in Parte 11a — now a real link, no longer "Pronto".
+    expect(screen.getByText('Reportes').closest('a')).toHaveAttribute('href', '/admin-platform/reports');
     expect(screen.getByText('Cerrar sesión')).toBeInTheDocument();
   });
 });
