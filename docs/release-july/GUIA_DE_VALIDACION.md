@@ -536,6 +536,37 @@ Un módulo **Configuración** en tu menú donde defines las reglas del juego: **
 
 ---
 
+## Parte 11a — Reportes del administrador
+
+### Funcionalidad 16 (admin): Panel de KPIs del negocio
+
+#### 1. ¿Qué es y para qué sirve?
+Un panel de **Reportes** en el menú de administración que muestra cómo va el negocio de un vistazo: **ingresos**, **suscripciones**, **economía de créditos** y **calidad** (calificaciones), con un selector para ver el periodo que te interese. Antes esta información solo se sacaba a mano desde la base de datos.
+
+#### 2. Antes de empezar
+- Cuenta de **administrador**.
+- Ideal: que ya existan pagos confirmados, compras de créditos, suscripciones y algunas sesiones calificadas, para ver números reales.
+
+#### 3. Paso a paso para probarlo
+1. En el menú lateral (o en la barra inferior en móvil) entra a **Reportes**.
+2. **Ingresos:** ves el total en COP (suscripciones + compras de créditos Wompi) y una barra de **tendencia de los últimos 6 meses**.
+3. **Suscripciones:** activas, expiradas, canceladas y el **% con nutrición**.
+4. **Créditos:** puntos ganados vs. gastados y los canjes por estado (pendiente/entregado/rechazado).
+5. **Calidad:** promedio de calificación y cuántas sesiones se calificaron.
+6. Cambia el periodo con los botones **Hoy / 30 días / 90 días / Todo** y observa cómo se actualizan los números.
+
+#### 4. Cómo sabes que funcionó
+- Al cambiar el periodo, los tiles de ingresos, suscripciones, créditos y calidad se recalculan.
+- La barra de tendencia de ingresos **siempre muestra los últimos 6 meses**, sin importar el periodo elegido (es contexto histórico).
+- Si no hay datos en el periodo, ves ceros (no un error).
+
+#### 5. Si algo no sale como esperabas
+- **No veo "Reportes" en el menú** → asegúrate de entrar con una cuenta de administrador.
+- **Los ingresos salen en cero** → revisa que existan pagos **confirmados** y compras de créditos **aprobadas**; los pendientes no cuentan.
+- **El % de nutrición sale 0** → solo cuenta suscripciones **activas** con nutrición; si no hay activas, es 0.
+
+---
+
 ## Próximas secciones (se agregarán al entregar cada parte)
 
-- Analítica y KPIs.
+- Analítica del entrenador (engagement de su cartera) — Parte 11b.
