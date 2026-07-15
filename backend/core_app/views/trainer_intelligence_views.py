@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 
 from core_app.models import Booking, ClientRiskScore, TrainerAlertResolution, TrainerMessage, User
 from core_app.permissions import IsTrainerRole
+from core_app.services import trainer_engagement_service
 
 
 def _get_trainer_profile(request):
@@ -40,6 +41,21 @@ def _trainer_customer_ids(trainer_profile):
         .values_list('customer_id', flat=True)
         .distinct()
     )
+
+
+# ── Engagement (Fase 2 — Parte 11b) ───────────────────────────────────────────
+
+
+class TrainerEngagementView(APIView):
+    """GET /api/trainer/engagement/ — Fase 2 engagement over the trainer's portfolio."""
+
+    permission_classes = [IsAuthenticated, IsTrainerRole]
+
+    def get(self, request):
+        trainer = _get_trainer_profile(request)
+        if trainer is None:
+            return Response({'detail': 'Not a trainer.'}, status=status.HTTP_403_FORBIDDEN)
+        return Response(trainer_engagement_service.build_engagement(trainer, timezone.now()))
 
 
 # ── Risk Dashboard ────────────────────────────────────────────────────────────
