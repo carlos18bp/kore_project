@@ -1,7 +1,7 @@
 # User Flow Map
 
-Version: 2.2
-Last Updated: 2026-07-14
+Version: 2.3
+Last Updated: 2026-07-15
 Description: End-to-end user flows for the Kore frontend, grouped by role with branches for form variants and alternate outcomes.
 Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, frontend/e2e specs, frontend/app routes. Canonical customer subscription URL is `/subscription` (flow IDs `my-programs-*` are historical).
 
@@ -1535,6 +1535,24 @@ and its own bottom nav (`AdminMobileBottomNav`). Detail pages are addressed by
 - Saving without changing the price skips the dialog and patches directly.
 - A non-integer or negative price is rejected inline; nothing is sent.
 - Deactivating the add-on drops the surcharge to 0 while existing subscribers keep access.
+
+### admin-reports: Admin Reports / KPIs
+- Module: admin
+- Priority: P2
+- Route: /admin-platform/reports
+- Roles: admin
+- Coverage: **Covered** (`e2e/admin/admin-reports.spec.ts`)
+- Description: Business KPI panel for the Fase 2 economy: revenue, subscriptions, credit economy and rating quality, filtered by a preset time window. Activates the previously disabled "Reportes" nav slot.
+
+**Steps**
+1. Admin opens **Reportes** from the sidebar (or from the mobile bottom nav).
+2. The panel loads `GET /api/admin/reports/?window=30d` and renders four KPI blocks: **Ingresos** (total + suscripciones + créditos Wompi, with a fixed 6-month trend strip), **Suscripciones** (activas/expiradas/canceladas + % con nutrición), **Créditos** (ganados/gastados + canjes por estado) and **Calidad** (promedio de rating + sesiones calificadas).
+3. Selecting a window pill (Hoy / 30 días / 90 días / Todo) refetches with `?window=` and refreshes the KPI tiles.
+
+**Branches / Variations**
+- The revenue trend strip is fixed to the last 6 months, independent of the selected window.
+- Subscription status counts are a present snapshot, not time-windowed.
+- Empty/zero data renders zeros (no empty-state illustration); a fetch error shows an inline message and keeps any prior data visible.
 
 ### admin-dashboard: Admin Platform Dashboard
 - Module: admin
