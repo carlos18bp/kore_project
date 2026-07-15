@@ -8,7 +8,7 @@ import SectionLabel from '@/app/components/shared/SectionLabel';
 import EmptyState from '@/app/components/shared/EmptyState';
 import GlowRing from '@/app/components/shared/GlowRing';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
-import ComingSoon from '@/app/components/shared/ComingSoon';
+import TrainerEngagementView from '@/app/components/trainer/TrainerEngagementView';
 
 // Fase 3 — la vista de Métricas no está lista para este release. La lógica
 // queda intacta; para reactivarla, poner PHASE_3_READY = true.
@@ -49,10 +49,10 @@ export default function TrainerMetricsPage() {
   useHeroAnimation(sectionRef);
 
   useEffect(() => {
-    fetchComparativeMetrics();
+    if (PHASE_3_READY) fetchComparativeMetrics();
   }, [fetchComparativeMetrics]);
 
-  if (!PHASE_3_READY) return <ComingSoon section="Métricas" />;
+  if (!PHASE_3_READY) return <TrainerEngagementView />;
 
   const gp = comparativeMetrics?.global_patterns;
   const trainAdh = gp?.avg_training_adherence ?? 0;
