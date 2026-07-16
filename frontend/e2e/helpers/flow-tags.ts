@@ -33,6 +33,7 @@ export const FlowTags = {
   TRAINER_STORE_MANAGEMENT: ['@flow:trainer-store-management', '@module:trainer', '@priority:P2'],
   TRAINER_TASKS: ['@flow:trainer-tasks', '@module:trainer', '@priority:P1'],
   TRAINER_SETTINGS: ['@flow:trainer-settings', '@module:trainer', '@priority:P2'],
+  TRAINER_ENGAGEMENT: ['@flow:trainer-engagement', '@module:trainer', '@priority:P2'],
   DASHBOARD_REMINDER: ['@flow:dashboard-reminder', '@module:dashboard', '@priority:P2'],
 
   MY_PROGRAMS_LIST: ['@flow:my-programs-list', '@module:programs', '@priority:P1'],

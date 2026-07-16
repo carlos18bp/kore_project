@@ -75,6 +75,7 @@ from core_app.views.trainer_client_views import (
 )
 from core_app.views.trainer_unavailability_views import TrainerUnavailabilityView
 from core_app.views.trainer_intelligence_views import (
+    TrainerEngagementView,
     TrainerRiskDashboardView,
     TrainerClientKPIView,
     TrainerComparativeMetricsView,
@@ -209,6 +210,7 @@ urlpatterns = [
     path('my-program/monthly-summary/', MonthlySummaryView.as_view(), name='my-program-monthly-summary'),
     # Trainer Intelligence Center
     path('trainer/risk-dashboard/', TrainerRiskDashboardView.as_view(), name='trainer-risk-dashboard'),
+    path('trainer/engagement/', TrainerEngagementView.as_view(), name='trainer-engagement'),
     path('trainer/comparative-metrics/', TrainerComparativeMetricsView.as_view(), name='trainer-comparative-metrics'),
     path('trainer/alerts/', TrainerAlertCenterView.as_view(), name='trainer-alerts'),
     path('trainer/alerts/<int:risk_score_id>/resolve/', TrainerAlertResolveView.as_view(), name='trainer-alert-resolve'),

@@ -1,6 +1,6 @@
 # User Flow Map
 
-Version: 2.3
+Version: 2.4
 Last Updated: 2026-07-15
 Description: End-to-end user flows for the Kore frontend, grouped by role with branches for form variants and alternate outcomes.
 Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, frontend/e2e specs, frontend/app routes. Canonical customer subscription URL is `/subscription` (flow IDs `my-programs-*` are historical).
@@ -1286,6 +1286,25 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Trainers and admins bypass the reschedule window entirely.
 - A window outside 0–168 is rejected with a 400.
 - Changing the difficulty does not touch credits customers already earned; the ledger is append-only.
+
+### trainer-engagement: Trainer Engagement Analytics
+- Module: trainer
+- Priority: P2
+- Route: /trainer/metrics
+- Roles: trainer
+- Coverage: **Covered** (`e2e/trainer/trainer-engagement.spec.ts`)
+- Description: Fase 2 engagement over the trainer's client portfolio. Replaces the ComingSoon placeholder at `/trainer/metrics` (the Fase 3 "Métricas Comparativas" view stays gated behind `PHASE_3_READY`).
+
+**Steps**
+1. The trainer opens **Métricas** from the sidebar. The page (with `PHASE_3_READY` false) renders the engagement view, which calls `GET /api/trainer/engagement/`.
+2. **Summary tiles**: active streaks, check-in-today %, credits earned/spent (30d), attendance rate (30d) — all scoped to the trainer's clients.
+3. **Calificaciones**: the portfolio `RatingsSummaryCard` (reused from Part 9, `GET /api/trainer/ratings/summary/`).
+4. **Roster**: one row per client (streak, last check-in, attendance 30d, average rating), ordered by streak descending; a row links to `/trainer/clients/client?id=<id>`.
+
+**Branches / Variations**
+- Attendance and per-client rate are `null` (shown as "—") when the client has no attended/no-show sessions in the window — distinct from 0%.
+- A customer not booked with this trainer never appears in the roster nor affects the summary.
+- Empty state ("Sin clientes todavía.") when the trainer has no clients.
 
 ### trainer-tasks: Trainer Task Hub
 - Module: trainer

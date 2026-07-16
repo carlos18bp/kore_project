@@ -567,6 +567,35 @@ Un panel de **Reportes** en el menú de administración que muestra cómo va el 
 
 ---
 
+## Parte 11b — Analítica del entrenador
+
+### Funcionalidad 17 (entrenador): Engagement de tu cartera
+
+#### 1. ¿Qué es y para qué sirve?
+Una vista de **Métricas** que te muestra, de un vistazo, cómo va el engagement de **tus** clientes con la economía de puntos: cuántos tienen racha activa, quién hizo check-in hoy, cuántos puntos ganó y gastó el grupo, y qué tan seguido asisten. Abajo, una lista con cada cliente para ver quién se está quedando. Antes esta pantalla mostraba "Próximamente".
+
+#### 2. Antes de empezar
+- Cuenta de **entrenador** con clientes asignados (con reservas contigo).
+- Ideal: clientes con racha, check-ins recientes y sesiones marcadas como asistió/no asistió, para ver números reales.
+
+#### 3. Paso a paso para probarlo
+1. En el menú lateral entra a **Métricas**.
+2. Arriba ves los tiles de resumen: **Rachas activas**, **Check-in hoy (%)**, **Créditos 30d** (ganados/gastados) y **Asistencia 30d**.
+3. Debajo, la tarjeta de **Calificaciones** (promedio y volumen que te dejaron tus clientes).
+4. Más abajo, **Tus clientes**: una fila por cliente con su racha (🔥), asistencia y rating. Tocá una fila para abrir el detalle de ese cliente.
+
+#### 4. Cómo sabes que funcionó
+- Los tiles reflejan solo a **tus** clientes; un cliente de otro entrenador no aparece.
+- Si un cliente no tiene sesiones marcadas en los últimos 30 días, su asistencia sale como "—" (no 0%).
+- La lista está ordenada por racha, de mayor a menor.
+
+#### 5. Si algo no sale como esperabas
+- **No veo "Métricas" o sale Próximamente** → confirmá que entraste como entrenador; la vista de engagement reemplaza el "Próximamente" anterior.
+- **La lista sale vacía** → todavía no tenés clientes con reservas contigo.
+- **Un cliente no aparece** → solo se listan los que tienen al menos una reserva contigo.
+
+---
+
 ## Próximas secciones (se agregarán al entregar cada parte)
 
-- Analítica del entrenador (engagement de su cartera) — Parte 11b.
+- **Ninguna — Fase 2 completa.** Con la Parte 11b se cierra la fase de créditos/gamificación/monetización.

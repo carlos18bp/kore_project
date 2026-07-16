@@ -165,6 +165,14 @@ no técnica para el cliente; esta es el setup reproducible para probar).
 5. Con un usuario **no-admin** autenticado, `GET /api/admin/reports/` devuelve **403**.
 6. Chequeo de ventana: un pago `confirmed` con `confirmed_at` de hace **45 días** aparece en **Todo**/**90 días** pero **no** en **30 días**.
 
+### 3.16 Entrenador — Engagement de cartera (Parte 11b)
+1. Login **entrenador** → menú lateral **Métricas** (`/trainer/metrics`). Con `PHASE_3_READY=false`, la página carga `GET /api/trainer/engagement/` (ya no muestra ComingSoon).
+2. Verifica los tiles: **Rachas activas** (`CreditWallet.current_streak > 0`), **Check-in hoy** (`MoodEntry` de hoy / total clientes), **Créditos 30d** (`CreditTransaction` confirmed, ganados/gastados) y **Asistencia 30d** (`attended / (attended + no_show)` de tus sesiones).
+3. **Scoping:** un cliente con reserva con **otro** entrenador no aparece en el roster ni suma en el resumen.
+4. **Null vs 0:** un cliente sin sesiones marcadas (attended/no_show) en 30 días muestra asistencia **"—"**, no 0%.
+5. El roster ordena por racha descendente; cada fila enlaza a `/trainer/clients/client?id=<id>`.
+6. `GET /api/trainer/engagement/` como **no-entrenador** (cliente) devuelve **403**.
+
 ---
 
 ## 4. Verificación del efecto en créditos (backend)
