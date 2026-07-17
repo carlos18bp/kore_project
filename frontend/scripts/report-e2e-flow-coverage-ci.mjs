@@ -29,13 +29,26 @@ if (!fs.existsSync(reportPath)) {
 }
 
 const data = JSON.parse(fs.readFileSync(reportPath, 'utf-8'));
-const s = data.summary || {};
-const flows = data.flows || {};
+// The reporter (e2e/reporters/flow-coverage-reporter.mjs) emits counts under
+// summary.totals and flows as an ARRAY with the definition fields spread into
+// each entry. Also accept the older object-keyed shape documented in
+// docs/E2E_FLOW_COVERAGE_REPORT_STANDARD.md so both formats gate correctly.
+const s = data.summary?.totals || data.summary || {};
+const flowsRaw = data.flows || [];
+const flowList = Array.isArray(flowsRaw)
+  ? flowsRaw
+  : Object.entries(flowsRaw).map(([id, f]) => ({
+      id,
+      name: f.definition?.name,
+      priority: f.definition?.priority,
+      status: f.status,
+      tests: f.tests,
+    }));
 
 const byStatus = (status) =>
-  Object.entries(flows)
-    .filter(([, f]) => f.status === status)
-    .map(([id, f]) => ({ id, name: f.definition?.name || id, priority: f.definition?.priority || 'P4' }));
+  flowList
+    .filter((f) => f.status === status)
+    .map((f) => ({ id: f.id, name: f.name || f.id, priority: f.priority || 'P4', tests: f.tests || {} }));
 
 const missing = byStatus('missing');
 const failing = byStatus('failing');
@@ -76,7 +89,7 @@ if (missing.length > 0) {
 if (failing.length > 0) {
   md += '### Failing flows\n\n';
   for (const f of failing.slice(0, 20)) {
-    const t = flows[f.id]?.tests || {};
+    const t = f.tests;
     md += `- \`${f.id}\` — ${f.name} (${t.failed ?? 0}/${t.total ?? 0} failed)\n`;
   }
   if (failing.length > 20) md += `- _…and ${failing.length - 20} more_\n`;
@@ -86,13 +99,15 @@ if (failing.length > 0) {
 if (partial.length > 0 && partial.length <= 15) {
   md += '### Partial coverage\n\n';
   for (const f of partial) {
-    const t = flows[f.id]?.tests || {};
+    const t = f.tests;
     md += `- \`${f.id}\` — ${f.name} (${t.passed ?? 0}/${t.total ?? 0} passed)\n`;
   }
   md += '\n';
 }
 
-const unmapped = data.unmappedTests?.count ?? 0;
+const unmapped = Array.isArray(data.unmappedTests)
+  ? data.unmappedTests.length
+  : data.unmappedTests?.count ?? 0;
 if (unmapped > 0) {
   md += `### Tests without \`@flow:\` tag\n\n${unmapped} test(s) — see full JSON artifact.\n\n`;
 }
