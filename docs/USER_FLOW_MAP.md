@@ -1,7 +1,7 @@
 # User Flow Map
 
-Version: 2.4
-Last Updated: 2026-07-15
+Version: 2.5
+Last Updated: 2026-07-17
 Description: End-to-end user flows for the Kore frontend, grouped by role with branches for form variants and alternate outcomes.
 Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, frontend/e2e specs, frontend/app routes. Canonical customer subscription URL is `/subscription` (flow IDs `my-programs-*` are historical).
 
@@ -1578,7 +1578,7 @@ and its own bottom nav (`AdminMobileBottomNav`). Detail pages are addressed by
 - Priority: P2
 - Route: /admin-platform/dashboard
 - Roles: admin
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Landing overview for admins: aggregate subscription stat tiles (total, active, expired, canceled).
 
 **Steps**
@@ -1594,7 +1594,7 @@ and its own bottom nav (`AdminMobileBottomNav`). Detail pages are addressed by
 - Priority: P1
 - Route: /admin-platform/users
 - Roles: admin
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Browse and manage the platform user roster.
 
 **Steps**
@@ -1612,7 +1612,7 @@ and its own bottom nav (`AdminMobileBottomNav`). Detail pages are addressed by
 - Priority: P1
 - Route: /admin-platform/users/new
 - Roles: admin
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Enroll a new user (customer or trainer) from the admin panel.
 
 **Steps**
@@ -1630,7 +1630,7 @@ and its own bottom nav (`AdminMobileBottomNav`). Detail pages are addressed by
 - Priority: P1
 - Route: /admin-platform/users/detail?id=[userId]
 - Roles: admin
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Manage a single user: role, active state, password reset, trainer assignment, assigned clients.
 
 **Steps**
@@ -1649,7 +1649,7 @@ and its own bottom nav (`AdminMobileBottomNav`). Detail pages are addressed by
 - Priority: P2
 - Route: /admin-platform/subscriptions
 - Roles: admin
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Browse all subscriptions across customers.
 
 **Steps**
@@ -1666,7 +1666,7 @@ and its own bottom nav (`AdminMobileBottomNav`). Detail pages are addressed by
 - Priority: P1
 - Route: /admin-platform/subscriptions/new
 - Roles: admin
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Create or evolve a subscription for a customer via a multi-step wizard.
 
 **Steps**
@@ -1684,7 +1684,7 @@ and its own bottom nav (`AdminMobileBottomNav`). Detail pages are addressed by
 - Priority: P1
 - Route: /admin-platform/subscriptions/detail?id=[subId]
 - Roles: admin
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Manage one subscription: change status, renew, or delete.
 
 **Steps**
@@ -1702,7 +1702,7 @@ and its own bottom nav (`AdminMobileBottomNav`). Detail pages are addressed by
 - Priority: P1
 - Route: /admin-platform/plans
 - Roles: admin
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Manage the package/plan catalog.
 
 **Steps**
@@ -1734,6 +1734,15 @@ These elements are present across multiple routes and affect the user experience
 - Branches / Variations: Alternative user paths, edge cases, and form options.
 
 ## Coverage Summary
+
+> **Reconciliation note (2026-07-17):** this table is documentation, not the coverage
+> source of truth. Runtime status comes from `e2e-results/flow-coverage.json`
+> (flow-coverage-reporter, merged in the CI job `e2e-merge-reports`); at reconciliation
+> time it reported **104/104 flows covered**. The 15 rows previously marked
+> **Missing** had shipped their specs without this file being updated.
+> Redirect-only routes are aliases, not flows: `/mi-programa/hoy` →
+> `/mi-programa/rutina` (flow `customer-mi-programa-rutina`) and
+> `/mi-nutricion-diaria` → `/my-nutrition` (flow `customer-nutrition-daily`).
 
 | Flow ID | Roles | Priority | Coverage | E2E Spec |
 | --- | --- | --- | --- | --- |
@@ -1812,25 +1821,27 @@ These elements are present across multiple routes and affect the user experience
 | mobile-bottom-nav | user | P2 | Covered | frontend/e2e/app/mobile-bottom-nav.spec.ts |
 | trainer-mobile-bottom-nav | trainer | P3 | Covered | frontend/e2e/trainer/trainer-mobile-bottom-nav.spec.ts |
 | profile-mood-entry | user | P3 | Covered | frontend/e2e/app/profile-mood-entry.spec.ts |
-| admin-dashboard | admin | P2 | **Missing** | frontend/e2e/admin/admin-dashboard.spec.ts |
-| admin-users-list | admin | P1 | **Missing** | frontend/e2e/admin/admin-users-list.spec.ts |
-| admin-user-create | admin | P1 | **Missing** | frontend/e2e/admin/admin-user-create.spec.ts |
-| admin-user-detail | admin | P1 | **Missing** | frontend/e2e/admin/admin-user-detail.spec.ts |
-| admin-subscriptions-list | admin | P2 | **Missing** | frontend/e2e/admin/admin-subscriptions-list.spec.ts |
-| admin-subscription-create | admin | P1 | **Missing** | frontend/e2e/admin/admin-subscription-create.spec.ts |
-| admin-subscription-detail | admin | P1 | **Missing** | frontend/e2e/admin/admin-subscription-detail.spec.ts |
-| admin-plans | admin | P1 | **Missing** | frontend/e2e/admin/admin-plans.spec.ts |
-| customer-nutrition-daily | user | P2 | **Missing** | frontend/e2e/app/customer-nutrition-daily.spec.ts |
-| customer-nutrition-plan | user | P2 | **Missing** | frontend/e2e/app/customer-nutrition-plan.spec.ts |
-| subscription-duo-invite | user | P2 | **Missing** | frontend/e2e/app/subscription-duo-invite.spec.ts |
-| trainer-client-nutrition-plan | trainer | P2 | **Missing** | frontend/e2e/trainer/trainer-client-nutrition-plan.spec.ts |
-| trainer-client-booking | trainer | P2 | **Missing** | frontend/e2e/trainer/trainer-client-booking.spec.ts |
-| trainer-client-messaging | trainer | P2 | **Missing** | frontend/e2e/trainer/trainer-client-messaging.spec.ts |
-| customer-trainer-message | user | P3 | **Missing** | frontend/e2e/app/customer-trainer-message.spec.ts |
+| admin-dashboard | admin | P2 | Covered | frontend/e2e/admin/admin-dashboard.spec.ts |
+| admin-users-list | admin | P1 | Covered | frontend/e2e/admin/admin-users-list.spec.ts |
+| admin-user-create | admin | P1 | Covered | frontend/e2e/admin/admin-user-create.spec.ts |
+| admin-user-detail | admin | P1 | Covered | frontend/e2e/admin/admin-user-detail.spec.ts |
+| admin-subscriptions-list | admin | P2 | Covered | frontend/e2e/admin/admin-subscriptions-list.spec.ts |
+| admin-subscription-create | admin | P1 | Covered | frontend/e2e/admin/admin-subscription-create.spec.ts |
+| admin-subscription-detail | admin | P1 | Covered | frontend/e2e/admin/admin-subscription-detail.spec.ts |
+| admin-plans | admin | P1 | Covered | frontend/e2e/admin/admin-plans.spec.ts |
+| customer-nutrition-daily | user | P2 | Covered | frontend/e2e/app/customer-nutrition-daily.spec.ts |
+| customer-nutrition-plan | user | P2 | Covered | frontend/e2e/app/customer-nutrition-plan.spec.ts |
+| subscription-duo-invite | user | P2 | Covered | frontend/e2e/app/subscription-duo-invite.spec.ts |
+| trainer-client-nutrition-plan | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-nutrition-plan.spec.ts |
+| trainer-client-booking | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-booking.spec.ts |
+| trainer-client-messaging | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-messaging.spec.ts |
+| customer-trainer-message | user | P3 | Covered | frontend/e2e/app/customer-trainer-message.spec.ts |
 
 ---
 
 ## Missing Flows — Registered 2026-05-11
+
+> Historical registry — all flows in this section have shipped their specs (see Coverage Summary).
 
 ### customer-mi-programa: Mi Programa Overview
 - Module: program
@@ -2043,6 +2054,8 @@ These elements are present across multiple routes and affect the user experience
 
 ## Missing Flows — Registered 2026-07-04
 
+> Historical registry — all flows in this section have shipped their specs (see Coverage Summary).
+
 Non-admin flows surfaced by the E2E user-flows audit. Each maps to a real user
 action whose existing spec (if any) did not exercise it. Admin flows are in the
 `## Admin Flows` section above.
@@ -2052,7 +2065,7 @@ action whose existing spec (if any) did not exercise it. Admin flows are in the
 - Priority: P2
 - Route: /my-nutrition
 - Roles: user
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: The write side of /my-nutrition. The existing `customer-nutrition` spec is render-only; this flow covers the daily tracker interactions.
 
 **Steps**
@@ -2071,7 +2084,7 @@ action whose existing spec (if any) did not exercise it. Admin flows are in the
 - Priority: P2
 - Route: /my-nutrition
 - Roles: user
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Customer views the trainer-authored weekly nutrition plan on /my-nutrition — the collapsible coach-note strip on the daily hero, sourced from GET /api/my-nutrition-plans/. (There is no separate customer plan page; the per-day meals come from the daily `today/` endpoint.)
 
 **Steps**
@@ -2087,7 +2100,7 @@ action whose existing spec (if any) did not exercise it. Admin flows are in the
 - Priority: P2
 - Route: /subscription
 - Roles: user
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: The plan owner manages a DUO guest from the subscription page (distinct from `auth-accept-invite`, which is the invitee redeeming a token).
 
 **Steps**
@@ -2105,7 +2118,7 @@ action whose existing spec (if any) did not exercise it. Admin flows are in the
 - Priority: P2
 - Route: /trainer/clients/client?id=[clientId] (Nutrición tab / ClientNutritionTab)
 - Roles: trainer
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Trainer authors a client's weekly nutrition plan. Distinct from the read-only `trainer-client-nutrition` (habits viewer) and from `trainer-nutrition-catalog` (food browser).
 
 **Steps**
@@ -2122,7 +2135,7 @@ action whose existing spec (if any) did not exercise it. Admin flows are in the
 - Priority: P2
 - Route: /trainer/clients + /trainer/clients/client?id=[clientId] (TrainerBookingDialog)
 - Roles: trainer
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Trainer books or reschedules a session on behalf of an assigned client.
 
 **Steps**
@@ -2139,7 +2152,7 @@ action whose existing spec (if any) did not exercise it. Admin flows are in the
 - Priority: P2
 - Route: /trainer/clients/client?id=[clientId] (Notas → Sesiones message composer)
 - Roles: trainer
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Trainer sends a message to a client via the client-detail Notas → Sesiones composer (POST /api/trainer/messages/). Note: the `PostSessionMessageSheet` component exists but has no wired trigger on the current client-detail page (its `onMessage` is never passed to `SessionRow`); the reachable surface is `MessageComposerCard`.
 
 **Steps**
@@ -2155,7 +2168,7 @@ action whose existing spec (if any) did not exercise it. Admin flows are in the
 - Priority: P3
 - Route: (app) shell overlay — TrainerMessageModal
 - Roles: user
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: The customer-side counterpart of `trainer-client-messaging`: receive and dismiss a trainer message (GET /api/my-trainer-messages/, dismiss).
 
 **Steps**

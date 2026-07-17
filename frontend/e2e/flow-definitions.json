@@ -1,7 +1,7 @@
 {
-  "version": "1.11.0",
-  "lastUpdated": "2026-07-15",
-  "documentation": "Step-by-step user journeys (branches, variations) are maintained in docs/USER_FLOW_MAP.md. This file defines flow IDs and metadata for Playwright @flow: tags and e2e/reporters/flow-coverage-reporter.mjs.",
+  "version": "1.12.0",
+  "lastUpdated": "2026-07-17",
+  "documentation": "Step-by-step user journeys (branches, variations) are maintained in docs/USER_FLOW_MAP.md. This file defines flow IDs and metadata for Playwright @flow: tags and e2e/reporters/flow-coverage-reporter.mjs. Coverage status is NOT stored here: the single source of truth is the runtime artifact e2e-results/flow-coverage.json emitted by the reporter (CI job e2e-merge-reports). Flows registered before their spec exists must carry expectedSpecs: 0 so scripts/check-flow-definitions-sync.mjs keeps passing; remove that field in the PR that ships the spec.",
   "flows": {
     "trainer-tasks": {
       "name": "Trainer Task Hub",
@@ -15,16 +15,14 @@
       "module": "trainer",
       "priority": "P2",
       "roles": ["trainer"],
-      "description": "Configure the credit economy at /trainer/configuracion: pick the difficulty preset (reseeding the per-action values behind a confirmation), set the activity thresholds, and set the reschedule window that blocks late cancels and triggers the penalty.",
-      "coverage": "covered"
+      "description": "Configure the credit economy at /trainer/configuracion: pick the difficulty preset (reseeding the per-action values behind a confirmation), set the activity thresholds, and set the reschedule window that blocks late cancels and triggers the penalty."
     },
     "trainer-engagement": {
       "name": "Trainer Engagement Analytics",
       "module": "trainer",
       "priority": "P2",
       "roles": ["trainer"],
-      "description": "Fase 2 engagement over the trainer's client portfolio at /trainer/metrics: summary tiles (active streaks, check-in-today %, credits earned/spent 30d, attendance 30d) plus a per-client roster (streak, last check-in, attendance, rating). Replaces the ComingSoon placeholder.",
-      "coverage": "covered"
+      "description": "Fase 2 engagement over the trainer's client portfolio at /trainer/metrics: summary tiles (active streaks, check-in-today %, credits earned/spent 30d, attendance 30d) plus a per-client roster (streak, last check-in, attendance, rating). Replaces the ComingSoon placeholder."
     },
     "auth-login": {
       "name": "Login",
@@ -521,16 +519,14 @@
       "module": "program",
       "priority": "P1",
       "roles": ["user"],
-      "description": "View the customer's monthly training program overview: calendar heatmap, fitness level card, weekly adherence strip, and navigation to sub-routes (rutina, progreso, resumen).",
-      "coverage": "covered"
+      "description": "View the customer's monthly training program overview: calendar heatmap, fitness level card, weekly adherence strip, and navigation to sub-routes (rutina, progreso, resumen)."
     },
     "customer-mi-programa-rutina": {
       "name": "Mi Programa — Rutina del Día",
       "module": "program",
       "priority": "P1",
       "roles": ["user"],
-      "description": "View today's routine: exercise list, complete/skip individual exercises, log mood/notes, and see day-level adherence.",
-      "coverage": "covered"
+      "description": "View today's routine: exercise list, complete/skip individual exercises, log mood/notes, and see day-level adherence."
     },
     "program-workout-captures": {
       "name": "Workout Camera Validation",
@@ -544,40 +540,35 @@
       "module": "program",
       "priority": "P2",
       "roles": ["user"],
-      "description": "View program-wide adherence charts, streak, and training/nutrition breakdown over the program duration.",
-      "coverage": "covered"
+      "description": "View program-wide adherence charts, streak, and training/nutrition breakdown over the program duration."
     },
     "customer-mi-programa-resumen": {
       "name": "Mi Programa — Resumen",
       "module": "program",
       "priority": "P2",
       "roles": ["user"],
-      "description": "View program summary card with goal, fitness level, dates, completion %, and projected outcome.",
-      "coverage": "covered"
+      "description": "View program summary card with goal, fitness level, dates, completion %, and projected outcome."
     },
     "customer-mi-programa-dia": {
       "name": "Mi Programa — Día Específico",
       "module": "program",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Navigate to a past or future program day via /mi-programa/dia/detail?date=YYYY-MM-DD: view exercises, completion state, and trainer notes.",
-      "coverage": "covered"
+      "description": "Navigate to a past or future program day via /mi-programa/dia/detail?date=YYYY-MM-DD: view exercises, completion state, and trainer notes."
     },
     "trainer-alerts": {
       "name": "Trainer Alerts Center",
       "module": "trainer",
       "priority": "P1",
       "roles": ["trainer"],
-      "description": "View and filter behavioral/clinical risk alerts per client (alto/medio/bajo); resolve an alert and mark it as addressed.",
-      "coverage": "covered"
+      "description": "View and filter behavioral/clinical risk alerts per client (alto/medio/bajo); resolve an alert and mark it as addressed."
     },
     "trainer-client-program": {
       "name": "Trainer Client Program Tab",
       "module": "trainer",
       "priority": "P2",
       "roles": ["trainer"],
-      "description": "View and manage a client's monthly training program from the trainer perspective: generate, publish, and review program days and exercise logs.",
-      "coverage": "covered"
+      "description": "View and manage a client's monthly training program from the trainer perspective: generate, publish, and review program days and exercise logs."
     },
     "trainer-client-notes": {
       "name": "Trainer Client Notes Tab",
@@ -591,120 +582,105 @@
       "module": "trainer",
       "priority": "P3",
       "roles": ["trainer"],
-      "description": "View trainer-wide comparative metrics: adherence trends, evaluation expiry summary, risk distribution, and global KORE score across all clients.",
-      "coverage": "covered"
+      "description": "View trainer-wide comparative metrics: adherence trends, evaluation expiry summary, risk distribution, and global KORE score across all clients."
     },
     "trainer-nutrition-catalog": {
       "name": "Trainer Nutrition Catalog",
       "module": "trainer",
       "priority": "P2",
       "roles": ["trainer"],
-      "description": "Browse and search the global meal suggestion catalog; add new meal suggestions with block, calories, NOVA, fitness level, and goal tags.",
-      "coverage": "covered"
+      "description": "Browse and search the global meal suggestion catalog; add new meal suggestions with block, calories, NOVA, fitness level, and goal tags."
     },
     "auth-accept-invite": {
       "name": "Accept Duo Invite",
       "module": "auth",
       "priority": "P2",
       "roles": ["guest", "user"],
-      "description": "Accept a duo-plan subscription invite via /accept-invite?token=: resolve token → accept (logged-in), redirect to login (wrong account), or redirect to register (new user).",
-      "coverage": "covered"
+      "description": "Accept a duo-plan subscription invite via /accept-invite?token=: resolve token → accept (logged-in), redirect to login (wrong account), or redirect to register (new user)."
     },
     "auth-forced-password-change": {
       "name": "Forced Password Change",
       "module": "auth",
       "priority": "P2",
       "roles": ["user"],
-      "description": "When must_change_password=true, redirect to /change-password-required and enforce password update before accessing any other route.",
-      "coverage": "covered"
+      "description": "When must_change_password=true, redirect to /change-password-required and enforce password update before accessing any other route."
     },
     "admin-dashboard": {
       "name": "Admin Platform Dashboard",
       "module": "admin",
       "priority": "P2",
       "roles": ["admin"],
-      "description": "View the admin overview dashboard at /admin-platform/dashboard: aggregate subscription stat tiles (total, active, expired, canceled).",
-      "coverage": "covered"
+      "description": "View the admin overview dashboard at /admin-platform/dashboard: aggregate subscription stat tiles (total, active, expired, canceled)."
     },
     "admin-users-list": {
       "name": "Admin Users List",
       "module": "admin",
       "priority": "P1",
       "roles": ["admin"],
-      "description": "Browse the platform user list at /admin-platform/users: search by name/email, filter by role, paginate, and open the Inscribir usuario CTA.",
-      "coverage": "covered"
+      "description": "Browse the platform user list at /admin-platform/users: search by name/email, filter by role, paginate, and open the Inscribir usuario CTA."
     },
     "admin-user-create": {
       "name": "Admin Create User",
       "module": "admin",
       "priority": "P1",
       "roles": ["admin"],
-      "description": "Enroll a new user from /admin-platform/users/new: fill email, first/last name, phone, select role (customer/trainer), and submit.",
-      "coverage": "covered"
+      "description": "Enroll a new user from /admin-platform/users/new: fill email, first/last name, phone, select role (customer/trainer), and submit."
     },
     "admin-user-detail": {
       "name": "Admin User Detail",
       "module": "admin",
       "priority": "P1",
       "roles": ["admin"],
-      "description": "Manage a single user at /admin-platform/users/detail: edit role, toggle active/inactive, reset password, assign a trainer, and manage assigned clients.",
-      "coverage": "covered"
+      "description": "Manage a single user at /admin-platform/users/detail: edit role, toggle active/inactive, reset password, assign a trainer, and manage assigned clients."
     },
     "admin-subscriptions-list": {
       "name": "Admin Subscriptions List",
       "module": "admin",
       "priority": "P2",
       "roles": ["admin"],
-      "description": "Browse all subscriptions at /admin-platform/subscriptions: search, filter by status, switch category tabs, and paginate.",
-      "coverage": "covered"
+      "description": "Browse all subscriptions at /admin-platform/subscriptions: search, filter by status, switch category tabs, and paginate."
     },
     "admin-subscription-create": {
       "name": "Admin Create Subscription",
       "module": "admin",
       "priority": "P1",
       "roles": ["admin"],
-      "description": "Create or evolve a subscription via the /admin-platform/subscriptions/new wizard: pick customer, package, and payment method, add notes, and confirm.",
-      "coverage": "covered"
+      "description": "Create or evolve a subscription via the /admin-platform/subscriptions/new wizard: pick customer, package, and payment method, add notes, and confirm."
     },
     "admin-subscription-detail": {
       "name": "Admin Subscription Detail",
       "module": "admin",
       "priority": "P1",
       "roles": ["admin"],
-      "description": "Manage a subscription at /admin-platform/subscriptions/detail: change status, renew (expired/canceled only), or delete via confirmation modals.",
-      "coverage": "covered"
+      "description": "Manage a subscription at /admin-platform/subscriptions/detail: change status, renew (expired/canceled only), or delete via confirmation modals."
     },
     "admin-plans": {
       "name": "Admin Plans CRUD",
       "module": "admin",
       "priority": "P1",
       "roles": ["admin"],
-      "description": "Manage the package/plan catalog at /admin-platform/plans: create and edit packages via a modal with category, price, sessions, and validity fields.",
-      "coverage": "covered"
+      "description": "Manage the package/plan catalog at /admin-platform/plans: create and edit packages via a modal with category, price, sessions, and validity fields."
     },
     "admin-nutrition": {
       "name": "Admin Nutrition Add-on",
       "module": "admin",
       "priority": "P2",
       "roles": ["admin"],
-      "description": "Manage the nutrition add-on at /admin-platform/nutricion: edit the monthly COP price (confirming the impact on active subscriptions), toggle the add-on active, and flip includes_nutrition per plan.",
-      "coverage": "covered"
+      "description": "Manage the nutrition add-on at /admin-platform/nutricion: edit the monthly COP price (confirming the impact on active subscriptions), toggle the add-on active, and flip includes_nutrition per plan."
     },
     "admin-reports": {
       "name": "Admin Reports / KPIs",
       "module": "admin",
       "priority": "P2",
       "roles": ["admin"],
-      "description": "Business KPI panel at /admin-platform/reports: revenue (subscriptions + Wompi credit top-ups) with a fixed 6-month trend, subscription status counts, credit economy (earned/spent/redemptions) and rating quality, filtered by a preset window (today/30d/90d/all).",
-      "coverage": "covered"
+      "description": "Business KPI panel at /admin-platform/reports: revenue (subscriptions + Wompi credit top-ups) with a fixed 6-month trend, subscription status counts, credit economy (earned/spent/redemptions) and rating quality, filtered by a preset window (today/30d/90d/all)."
     },
     "customer-session-rating": {
       "name": "Post-Session Rating",
       "module": "booking",
       "priority": "P2",
       "roles": ["customer"],
-      "description": "After a trainer confirms attendance, the customer rates the session from a dashboard card (1-5 stars + optional comment), earning session_rated credits. Skipping leaves it unrated.",
-      "coverage": "covered"
+      "description": "After a trainer confirms attendance, the customer rates the session from a dashboard card (1-5 stars + optional comment), earning session_rated credits. Skipping leaves it unrated."
     },
     "customer-nutrition-daily": {
       "name": "Daily Nutrition Tracking",
