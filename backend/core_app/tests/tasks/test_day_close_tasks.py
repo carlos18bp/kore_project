@@ -221,6 +221,7 @@ class TestOnDemandAndCreditTasks:
             process_credit_event.call_local('daily_log_closed', 42)
 
         mock_handle.assert_called_once_with('daily_log_closed', 42)
+        assert mock_handle.call_count == 1
 
     def test_recompute_risk_score_task_returns_service_result(self, customer):
         """The reactive task resolves the customer and returns the service verdict."""

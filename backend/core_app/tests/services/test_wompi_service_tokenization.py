@@ -8,6 +8,8 @@ Covers:
 - ``create_payment_source`` payload includes ``accept_personal_auth`` and
   routes ``extra_fields`` (e.g. ``payment_description`` for Bancolombia).
 """
+# quality: disable unverified_mock (response MagicMocks are canned Wompi payloads; the mocked transport call itself is asserted)
+
 
 from unittest.mock import MagicMock, patch
 

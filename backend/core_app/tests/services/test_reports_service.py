@@ -22,12 +22,17 @@ from core_app.services import reports_service
 NOW = datetime(2026, 7, 15, 14, 30, tzinfo=dt_timezone.utc)
 
 
+@pytest.fixture(autouse=True)
+def freeze_now(monkeypatch):
+    monkeypatch.setattr('django.utils.timezone.now', lambda: NOW)
+
+
 def _credit_pkg():
     return CreditPackage.objects.create(name='P', credits=50, price_cop=20000).id
 
 
 def _sub(user, status, nutrition=False):
-    now = timezone.now()
+    now = NOW
     pkg = Package.objects.create(title='Plan', sessions_count=4)
     return Subscription.objects.create(
         customer=user, package=pkg, sessions_total=4, includes_nutrition=nutrition,
@@ -36,7 +41,7 @@ def _sub(user, status, nutrition=False):
 
 
 def _rating(user, score):
-    now = timezone.now()
+    now = NOW
     pkg = Package.objects.create(title='Plan', sessions_count=4)
     booking = Booking.objects.create(
         customer=user, package=pkg, starts_at=now, ends_at=now + timedelta(hours=1),
@@ -73,7 +78,7 @@ def test_resolve_since_unknown_raises():
 
 @pytest.mark.django_db
 def test_revenue_sums_confirmed_payments_and_approved_topups(existing_user):
-    now = timezone.now()
+    now = NOW
     Payment.objects.create(
         customer=existing_user, status=Payment.Status.CONFIRMED,
         amount=100000, confirmed_at=now - timedelta(days=2),
@@ -97,7 +102,7 @@ def test_revenue_sums_confirmed_payments_and_approved_topups(existing_user):
 
 @pytest.mark.django_db
 def test_revenue_window_excludes_older_rows(existing_user):
-    now = timezone.now()
+    now = NOW
     Payment.objects.create(
         customer=existing_user, status=Payment.Status.CONFIRMED,
         amount=100000, confirmed_at=now - timedelta(days=45),
@@ -108,7 +113,7 @@ def test_revenue_window_excludes_older_rows(existing_user):
 
 @pytest.mark.django_db
 def test_revenue_trend_has_six_month_buckets(existing_user):
-    result = reports_service._revenue(None, timezone.now())
+    result = reports_service._revenue(None, NOW)
     assert len(result['trend']) == 6
     assert all(set(b) == {'month', 'cop'} for b in result['trend'])
 
@@ -139,7 +144,7 @@ def test_subscriptions_nutrition_pct_zero_when_no_active():
 
 @pytest.mark.django_db
 def test_credits_earned_spent_and_redemptions(existing_user):
-    now = timezone.now()
+    now = NOW
     CreditTransaction.objects.create(
         customer=existing_user, action=CreditTransaction.Action.WORKOUT_DAY,
         amount=30, status=CreditTransaction.Status.CONFIRMED, description='earn',
@@ -171,7 +176,7 @@ def test_credits_earned_spent_and_redemptions(existing_user):
 def test_quality_average_and_distribution(existing_user):
     for s in (5, 5, 4, 4):  # mean 4.5 — unambiguous under round()
         _rating(existing_user, s)
-    result = reports_service._quality(timezone.now() - timedelta(days=30))
+    result = reports_service._quality(NOW - timedelta(days=30))
     assert result['rated_count'] == 4
     assert result['average_score'] == 4.5
     assert result['distribution']['5'] == 2
@@ -189,7 +194,7 @@ def test_quality_zero_when_no_ratings():
 
 @pytest.mark.django_db
 def test_build_admin_report_shape():
-    report = reports_service.build_admin_report('all', timezone.now())
+    report = reports_service.build_admin_report('all', NOW)
     assert report['window'] == 'all'
     assert set(report) == {'window', 'revenue', 'subscriptions', 'credits', 'quality'}
 

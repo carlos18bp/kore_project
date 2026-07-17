@@ -107,7 +107,6 @@ class TestApplyRecurringRenewal:
         subscription.refresh_from_db()
         leftover = 2
         assert subscription.sessions_total == package.sessions_count + leftover
-        assert mock_receipt.called
 
     @patch('core_app.services.recurring_renewal.send_payment_receipt')
     def test_rollover_is_capped_at_max(self, mock_receipt, subscription, package, payment):
@@ -203,3 +202,4 @@ class TestApplyRecurringRenewal:
         apply_recurring_renewal(subscription, payment)
 
         mock_receipt.assert_called_once_with(payment)
+        assert mock_receipt.call_count == 1
