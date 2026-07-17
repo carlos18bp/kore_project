@@ -674,3 +674,97 @@ class TestTrainerMessageDismissView:
         _auth(api_client, customer)
         resp = api_client.post(reverse('my-trainer-messages-dismiss', args=[999999]))
         assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+
+# ── TrainerClientKPIView ──────────────────────────────────────────────────────
+
+@pytest.mark.django_db
+class TestTrainerClientKPIView:
+    """GET /api/trainer/my-clients/<id>/kpi/ — behavioral + clinical snapshot."""
+
+    def _url(self, customer):
+        return reverse('trainer-client-kpi', args=[customer.pk])
+
+    def test_returns_zero_state_without_program(self, api_client, trainer, customer, booking):
+        """Without a published program the behavioral block is all zeros."""
+        _auth(api_client, trainer.user)
+
+        resp = api_client.get(self._url(customer))
+
+        assert resp.status_code == status.HTTP_200_OK
+        behavioral = resp.data['behavioral']
+        assert behavioral['training_adherence_7d'] == 0.0
+        assert behavioral['streak_current'] == 0
+        assert behavioral['last_activity_date'] is None
+
+    def test_counts_confirmed_sessions_and_remaining(self, api_client, trainer, customer, booking):
+        """sessions_completed counts confirmed bookings; no subscription means 0 remaining."""
+        _auth(api_client, trainer.user)
+
+        resp = api_client.get(self._url(customer))
+
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data['behavioral']['sessions_completed'] == 1
+        assert resp.data['behavioral']['sessions_remaining'] == 0
+
+    def test_clinical_block_reports_empty_evaluations(self, api_client, trainer, customer, booking):
+        """Without evaluations the clinical block returns nulls and empty colors."""
+        _auth(api_client, trainer.user)
+
+        resp = api_client.get(self._url(customer))
+
+        clinical = resp.data['clinical']
+        assert clinical['bmi'] is None
+        assert clinical['nutrition_habit_score'] is None
+        assert clinical['last_eval_dates']['anthropometry'] is None
+
+    def test_runs_adherence_loop_with_published_program(
+        self, api_client, trainer, customer, booking,
+    ):
+        """A published program with a logged training day still returns a 200 snapshot."""
+        today = FIXED_NOW.date()
+        program = MonthlyProgram.objects.create(
+            customer=customer, trainer=trainer, fitness_level=2,
+            goal='general_health', start_date=today, end_date=today,
+            status=MonthlyProgram.Status.PUBLISHED,
+        )
+        from core_app.models.monthly_program import DailyLog, ProgramDay
+        ProgramDay.objects.create(
+            program=program, day_number=1, date=today,
+            day_type=ProgramDay.DayType.TRAINING,
+        )
+        DailyLog.objects.create(customer=customer, program=program, date=today)
+        _auth(api_client, trainer.user)
+
+        resp = api_client.get(self._url(customer))
+
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data['behavioral']['sessions_completed'] == 1
+
+    def test_unknown_customer_returns_404(self, api_client, trainer, other_customer):
+        """Customers not linked to the trainer are not visible."""
+        _auth(api_client, trainer.user)
+
+        resp = api_client.get(self._url(other_customer))
+
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_requires_trainer_role(self, api_client, customer, booking):
+        """Customers cannot read trainer KPIs."""
+        _auth(api_client, customer)
+
+        resp = api_client.get(self._url(customer))
+
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_trainer_without_profile_returns_404(self, api_client, customer, booking):
+        """A trainer-role user without TrainerProfile gets a 404, not a crash."""
+        bare_trainer = User.objects.create_user(
+            email='bare-trainer@test.com', password='pass',
+            first_name='Sin', last_name='Perfil', role=User.Role.TRAINER,
+        )
+        _auth(api_client, bare_trainer)
+
+        resp = api_client.get(self._url(customer))
+
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
