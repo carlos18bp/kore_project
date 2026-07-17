@@ -13,7 +13,8 @@ This file captures important patterns, preferences, and project intelligence tha
 
 - **Static export + Django serving**: Next.js builds to `out/` → moved to `backend/templates/`. Django serves HTML via catch-all `serve_nextjs_page` view. No Node.js in production.
 - **Webhook-driven state machine**: PaymentIntent starts as `pending` → Wompi webhook confirms → creates Payment + Subscription atomically. Never create subscriptions on the client side.
-- **Service layer**: Business logic lives in `core_app/services/` (12 services), not in views or serializers. Views orchestrate; services decide.
+- **Service layer**: Business logic lives in `core_app/services/` (29 services), not in views or serializers. Views orchestrate; services decide.
+- **Credit engine listens, never refactors**: Fase 2 (credit economy) hooks onto existing Fase 1 signals (`ProgramProgress`, daily logs, bookings) via listeners and Huey day-close tasks (23:55 logs / 23:57 credits). Never modify Fase 1 code paths to feed the engine.
 - **Calculator service pattern**: Pure-function calculators for each diagnostic module (anthropometry, posturometry, physical_evaluation, nutrition, parq, kore_index). They receive data as args, never access DB directly. Models call them in `save()`.
 - **Auto-computed on save**: All 5 diagnostic models compute their indices in `save()` — ensures data consistency. The model orchestrates: snapshot demographics → call calculator → set fields → super().save().
 - **Cross-module integration**: `PhysicalEvaluation._get_anthropometry_context()` and `._get_posturometry_context()` pull the latest eval from sibling modules to generate cross-module alerts.
@@ -31,7 +32,7 @@ This file captures important patterns, preferences, and project intelligence tha
 - **Model files**: One file per domain concept (e.g., `booking.py`, `payment.py`). Exception: `content.py` has 4 related models (SiteSettings, FAQCategory, FAQItem, ContactMessage).
 - **Base model**: All timestamped models inherit `TimestampedModel` (created_at, updated_at auto-fields).
 - **Status enums**: All status fields use Django `TextChoices` (not IntegerChoices). String values in DB.
-- **Frontend state**: Zustand stores in `lib/stores/`. 12 stores: auth, booking, checkout, subscription, profile, anthropometry, nutrition, parq, physicalEvaluation, posturometry, pendingAssessments, trainer.
+- **Frontend state**: Zustand stores in `lib/stores/`. 30 stores across domains: core (auth, booking, checkout, subscription, profile), assessments (5 + pendingAssessments), programs/nutrition (program, progress, physicalTest, nutritionDaily, nutritionUpgrade, nutrition), credit economy (wallet, creditPurchase, creditValues, storeStore, sessionRating), trainer ops (trainer, trainerSettings, trainerTasks, trainerEngagement), admin platform (adminUser, adminSubscription, adminPackage, adminNutrition, adminReports).
 - **HTTP client**: Centralized in `lib/services/http.ts` using Axios. All API calls go through this.
 - **Currency**: Default is `COP` (Colombian Pesos). Wompi amounts are in cents (multiply by 100).
 - **Naming**: Backend uses snake_case, frontend uses camelCase. API responses are snake_case (DRF default).
@@ -45,6 +46,7 @@ This file captures important patterns, preferences, and project intelligence tha
 - **Frontend build**: `npm run build` exports static files AND moves them to `backend/templates/`. This is destructive — it deletes the existing `templates/` directory first.
 - **API proxy in dev**: Next.js rewrites `/api/*` to `http://localhost:8000/api/*` — no CORS issues in development.
 - **Test execution**: Run specific files only, never full suites. Max 20 tests or 3 commands per cycle.
+- **Fleet skills are generic templates**: skills under `.claude/skills/` reference another project's layout (Pinia stores, `backend/content/`, `frontend/scripts/generate-coverage.js`). Apply their INTENT to KORE's real structure (`core_app`, Zustand in `lib/stores/`, `scripts/test_quality_gate.py --include-file`); never run their example commands blindly.
 - **Pre-commit**: `.pre-commit-config.yaml` exists — linting runs before commits.
 
 ---
@@ -53,7 +55,10 @@ This file captures important patterns, preferences, and project intelligence tha
 
 - **Backend tests** organized by layer: `tests/models/`, `tests/views/`, `tests/serializers/`, `tests/services/`, `tests/tasks/`, `tests/commands/`, `tests/permissions/`, `tests/utils/`.
 - **Frontend unit tests** in `app/__tests__/` mirroring component structure.
-- **E2E tests** in `frontend/e2e/` split by `app/` (authenticated), `auth/`, `public/`.
+- **E2E tests** in `frontend/e2e/` split by `app/` (authenticated), `auth/`, `public/`, `trainer/`, `admin/`, `program/`, `customer/`.
+- **Coverage truth comes from CI artifacts, never local runs**: `backend/pytest.ini` `addopts` includes `--cov=core_app`, so any scoped local pytest rewrites `.coverage` with misleading partial data — always add `--no-cov` to scoped runs. Same for Playwright: the flow-coverage reporter is unconditional, so scoped runs rewrite `e2e-results/flow-coverage.json` marking non-run flows "missing". Download coverage from the latest green CI run (`gh run download`) instead.
+- **`check-flow-definitions-sync.mjs` is bidirectional**: every flow registered in `flow-definitions.json` must have a `@flow:` literal somewhere under `e2e/` OR carry `expectedSpecs: 0`. Register spec-less flows with `expectedSpecs: 0` and remove that field in the PR that ships the spec.
+- **Pushing to a branch cancels its in-flight CI run** (`concurrency: cancel-in-progress`) and destroys the run's artifacts — after pushing, `gh run watch` to completion before pushing again or reading artifacts.
 - **conftest.py** at backend root has shared fixtures. Per-directory conftest files exist (e.g., `tests/commands/conftest.py`).
 - **Quality gate**: `scripts/test_quality_gate.py` validates test quality. Run with `--semantic-rules strict`.
 - **Coverage tools**: pytest-cov for backend, Jest coverage for frontend unit, monocart-reporter for E2E.
@@ -91,7 +96,7 @@ This file captures important patterns, preferences, and project intelligence tha
 - **Wompi sandbox aliases**: The settings helper `_resolve_wompi_base_url()` accepts `test`, `sandbox`, `uat` — all resolve to sandbox URL.
 - **Huey immediate mode**: Set `HUEY_IMMEDIATE=true` in dev to run tasks synchronously (no Redis needed).
 - **Silk profiler**: Enable via `ENABLE_SILK=true`. Staff-only access. Has garbage collection management command.
-- **Django admin customization**: `SubscriptionAdmin` has custom `save_model()` that syncs `sessions_total` from the package. This is a business rule enforced at the admin layer. 23 Admin classes total (22 ModelAdmin + 1 Form).
+- **Django admin customization**: `SubscriptionAdmin` has custom `save_model()` that syncs `sessions_total` from the package. This is a business rule enforced at the admin layer. 39 Admin classes total (verified 2026-07-17).
 - **Redirects**: Old Spanish URLs (`/programas`, `/la-marca-kore`, `/calendario`) redirect to English equivalents in `next.config.ts`.
 - **Slot schedule service**: `services/slot_schedule.py` centralizes weekly availability windows, booking horizon, rollover cap, and slot-generation function used by both management commands and maintenance tasks.
 - **KORE General Index**: Composite score (0–100) aggregating all diagnostic modules. Weights: Anthropometry 20%, Metabolic risk 15%, Posture 20%, Physical condition 20%, Wellbeing 10%, Nutrition 15%. Served via `PendingAssessmentsView`.

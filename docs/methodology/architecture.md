@@ -508,6 +508,58 @@ erDiagram
     }
 ```
 
+### 4.1 Domain map — Fase 1 / Fase 2 additions (April–July 2026)
+
+The ERD above covers the core platform (still accurate). The 2026 releases added ~21 model files across five domains; their high-level data flow:
+
+```mermaid
+flowchart LR
+    subgraph Fase1["Fase 1 — Programs & Signals"]
+        MP["MonthlyProgram + week notes"]
+        DL["NutritionDailyLog / daily logs"]
+        PP["ProgramProgress signals"]
+        PT["PhysicalTest"]
+        EX["Exercise / Food catalogs"]
+    end
+
+    subgraph Credits["Fase 2 — Credit Economy"]
+        CE["Credit ledger + config (credit.py)"]
+        CP["CreditPackage / CreditPurchase (Wompi top-up)"]
+        SG["SessionGrant (sesión adicional)"]
+    end
+
+    subgraph Store["Fase 2 — Store & Rating"]
+        ST["Store catalog + redemptions"]
+        SR["SessionRating"]
+    end
+
+    subgraph Nutrition["Nutrition Suite"]
+        WNP["WeeklyNutritionPlan + MealSuggestion"]
+        NP["NutritionProduct / NutritionUpgrade (Wompi)"]
+    end
+
+    subgraph Intelligence["Trainer Intelligence"]
+        TA["ClientRiskScore + TrainerAlertResolution"]
+        RS["Risk scores / engagement / reports services"]
+    end
+
+    subgraph Subs["Subscription additions"]
+        SGst["SubscriptionGuest (duo)"]
+        SRen["SubscriptionRenewal history"]
+        WE["WompiEvent (webhook audit)"]
+    end
+
+    Fase1 -->|"signals (listen-only)"| Credits
+    Credits --> Store
+    Credits -->|"day close 23:57"| CE
+    Fase1 --> Intelligence
+    SR --> Intelligence
+    Credits --> Intelligence
+    Nutrition --> Fase1
+```
+
+Design rule: **the credit engine listens to Fase 1 signals — it never modifies Fase 1 code paths.**
+
 ---
 
 ## 5. Model Details
@@ -540,7 +592,18 @@ erDiagram
 | FAQItem | `models/content.py` | 5 | FAQCategory | — |
 | ContactMessage | `models/content.py` | 5 | — | — |
 
-**Total: 25 models** across 23 files (22 domain + 1 base; content.py has 4 models).
+The table above details the core-platform models. Later releases added these model files (grouped by domain):
+
+| Domain | Model files |
+|--------|-------------|
+| Programs (Fase 1) | `monthly_program.py`, `program_week_note.py`, `physical_test.py`, `exercise.py`, `food.py` |
+| Nutrition suite | `nutrition_daily_log.py`, `weekly_nutrition_plan.py`, `nutrition_week_note.py`, `meal_suggestion.py`, `nutrition_product.py`, `nutrition_upgrade.py` |
+| Credit economy (Fase 2) | `credit.py`, `credit_package.py`, `credit_purchase.py`, `session_grant.py` |
+| Store & rating (Fase 2) | `store.py`, `session_rating.py` |
+| Trainer intelligence | `trainer_alert.py`, `trainer_alert_resolution.py`, `trainer_message.py`, `trainer_unavailability.py` |
+| Subscription additions | `subscription_guest.py`, `subscription_renewal.py`, `wompi_event.py` |
+
+**Total: 63 model classes** across 46 files (verified 2026-07-17; `content.py` holds 4 models, `credit.py` and `store.py` hold several each).
 
 ---
 
@@ -560,8 +623,25 @@ erDiagram
 | `parq_calculator` | `services/parq_calculator.py` | PAR-Q+ risk classification from 7 general health questions |
 | `kore_index_calculator` | `services/kore_index_calculator.py` | Composite KORE score (0–100) aggregating all diagnostic modules with weighted contributions |
 | `slot_schedule` | `services/slot_schedule.py` | Weekly schedule constants and slot-generation helpers for availability management |
+| `billing_calendar` | `services/billing_calendar.py` | Billing-cycle date computations |
+| `recurring_renewal` | `services/recurring_renewal.py` | Renewal execution for recurring memberships (consumed by `process_recurring_billing`) |
+| `renewal_history_service` | `services/renewal_history_service.py` | `SubscriptionRenewal` history writing/reading |
+| `admin_subscription_service` | `services/admin_subscription_service.py` | Admin-platform subscription operations |
+| `credit_engine` | `services/credit_engine.py` | Credit earn/lose rules, streak bonuses, difficulty configs, ledger writes |
+| `credit_day_close` | `services/credit_day_close.py` | Day-close evaluation (no-show penalties, daily credit closure) |
+| `program_generator` | `services/program_generator.py` | Monthly program generation |
+| `progress_service` | `services/progress_service.py` | Program progress aggregation (Fase 1 signals) |
+| `adherence_calculator` | `services/adherence_calculator.py` | Adherence metrics from program/daily-log data |
+| `nutrition_access` | `services/nutrition_access.py` | Nutrition plan entitlement/access checks (incl. upgrades) |
+| `nutrition_plan_generator` | `services/nutrition_plan_generator.py` | Weekly nutrition plan generation |
+| `meal_suggestion_service` | `services/meal_suggestion_service.py` | Meal suggestion composition |
+| `clinical_alert_engine` | `services/clinical_alert_engine.py` | Clinical alerts from diagnostic data |
+| `behavioral_alert_engine` | `services/behavioral_alert_engine.py` | Behavioral alerts from engagement signals |
+| `risk_score_service` | `services/risk_score_service.py` | Composite per-client risk score |
+| `trainer_engagement_service` | `services/trainer_engagement_service.py` | Trainer engagement analytics (Parte 11b) |
+| `reports_service` | `services/reports_service.py` | Admin Reports/KPIs aggregations (Parte 11a) |
 
-**Total: 12 services.**
+**Total: 29 services.**
 
 ---
 
@@ -598,7 +678,9 @@ erDiagram
 | `(app)` | `/trainer/clients/client/physical-evaluation` | Client physical eval CRUD | Yes (trainer) |
 | `(app)` | `/trainer/clients/client/posturometry` | Client posturometry CRUD | Yes (trainer) |
 
-**Total: 28 pages** (10 public + 10 customer + 8 trainer).
+The table above lists the core routes. Later releases added: customer credits/wallet (`/mis-creditos`, `/comprar-creditos`), store (`/tienda`), program & nutrition daily views, session detail; trainer store management, tareas (`/trainer/tareas`), configuración (`/trainer/configuracion`), metrics; and the `admin-platform/` group (dashboard, users ×3, subscriptions ×3, plans, nutrición, reports).
+
+**Total: 57 pages** (11 public + 35 authenticated `(app)` + 10 `admin-platform` + 1 root-level `change-password-required`).
 
 ---
 
@@ -618,15 +700,44 @@ erDiagram
 | `posturometryStore` | `lib/stores/posturometryStore.ts` | Posturometry evaluations, regional postural analysis |
 | `pendingAssessmentsStore` | `lib/stores/pendingAssessmentsStore.ts` | KORE score, pending assessment module tracking |
 | `trainerStore` | `lib/stores/trainerStore.ts` | Trainer dashboard stats, client list, client detail, client sessions |
+| `programStore` | `lib/stores/programStore.ts` | Monthly program data, weekly structure, exercise detail |
+| `progressStore` | `lib/stores/progressStore.ts` | Program progress / adherence signals |
+| `physicalTestStore` | `lib/stores/physicalTestStore.ts` | Physical test records |
+| `nutritionDailyStore` | `lib/stores/nutritionDailyStore.ts` | Daily nutrition logs (meals, habits) |
+| `nutritionUpgradeStore` | `lib/stores/nutritionUpgradeStore.ts` | Nutrition plan upgrade purchase flow |
+| `walletStore` | `lib/stores/walletStore.ts` | Credit balance, streak, transaction history |
+| `creditPurchaseStore` | `lib/stores/creditPurchaseStore.ts` | Buy-credits (Wompi top-up) flow |
+| `creditValuesStore` | `lib/stores/creditValuesStore.ts` | Per-action credit value configuration |
+| `storeStore` | `lib/stores/storeStore.ts` | Internal store catalog + redemptions |
+| `sessionRatingStore` | `lib/stores/sessionRatingStore.ts` | Post-session rating prompt + submissions |
+| `trainerSettingsStore` | `lib/stores/trainerSettingsStore.ts` | Trainer difficulty/reschedule-window settings + simulator |
+| `trainerTasksStore` | `lib/stores/trainerTasksStore.ts` | Trainer pending-task hub |
+| `trainerEngagementStore` | `lib/stores/trainerEngagementStore.ts` | Trainer engagement analytics |
+| `adminUserStore` | `lib/stores/adminUserStore.ts` | Admin platform: users CRUD |
+| `adminSubscriptionStore` | `lib/stores/adminSubscriptionStore.ts` | Admin platform: subscriptions CRUD |
+| `adminPackageStore` | `lib/stores/adminPackageStore.ts` | Admin platform: plans/packages |
+| `adminNutritionStore` | `lib/stores/adminNutritionStore.ts` | Admin platform: nutrition management |
+| `adminReportsStore` | `lib/stores/adminReportsStore.ts` | Admin platform: Reports/KPIs |
+
+**Total: 30 stores.**
 
 ---
 
-## 9. Async Tasks (Huey)
+## 9. Async Tasks (Huey) — 11 tasks (verified 2026-07-17)
 
 | Task | Schedule | Description |
 |------|----------|-------------|
 | `process_recurring_billing` | Daily 08:00 UTC | Charges subscriptions due today via Wompi saved payment sources |
 | `send_expiring_subscription_reminders` | Daily 08:00 UTC | Emails reminders for non-recurring subscriptions expiring within 7 days |
+| `auto_complete_past_bookings` | Every 15 min | Marks past bookings as completed |
+| `send_nutrition_reminders` | Mondays 09:00 UTC | Weekly nutrition reminder emails |
+| `send_parq_reminders` | Day 1 of month, 09:00 UTC | Monthly PAR-Q renewal reminders |
+| `close_daily_logs` | Daily 23:55 UTC | Closes open daily logs; feeds no-show detection |
+| `close_credits_day` | Daily 23:57 UTC | Credit-economy day close (applies penalties/bonuses) |
+| `complete_finished_programs` | Daily 00:00 UTC | Completes programs past their end date |
+| `compute_daily_alerts` | Daily 06:00 UTC | Runs clinical/behavioral alert engines |
+| `recompute_risk_score_task` | On-demand (`@db_task`) | Recomputes a customer's risk score |
+| `process_credit_event` | On-demand (`@db_task`) | Processes a single credit-earning/losing event |
 
 ---
 

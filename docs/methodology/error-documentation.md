@@ -46,6 +46,20 @@ This file tracks known errors, their context, and resolutions. When a reusable f
 - **Resolution**: Added `exclude: string[]` parameter to `setupDefaultApiMocks` to skip default handlers for endpoints the test overrides. Fixed mock response shape to match store expectations (`data.kore_index`).
 - **Files Affected**: `frontend/e2e/fixtures.ts`, all customer assessment spec files
 
+### [ERROR-004] Dead "P1 missing" gate in E2E flow-coverage CI script
+- **Date**: 2026-07-17
+- **Context**: CI job `e2e-merge-reports` runs `frontend/scripts/report-e2e-flow-coverage-ci.mjs`, which is supposed to fail the build when P1 flows are missing coverage.
+- **Root Cause**: Schema drift. The script was written against `docs/E2E_FLOW_COVERAGE_REPORT_STANDARD.md` (flows as object keyed by id, nested `definition`, `summary.total`, `unmappedTests.count`), but `frontend/e2e/reporters/flow-coverage-reporter.mjs` actually emits `flows` as an **array** with the definition fields spread into each entry and `summary.totals.*`. `f.definition?.priority` is always `undefined` → falls back to `'P4'` → `missingP1` is always empty → the `process.exit(1)` branch is unreachable, and the summary table prints em-dashes.
+- **Resolution**: Align the CI script with the reporter's real output (read priority from the spread entry, use `summary.totals`). Fix only when runtime P1-missing count is 0, otherwise the revived gate reds CI. Tracked as TD-11.
+- **Files Affected**: `frontend/scripts/report-e2e-flow-coverage-ci.mjs` (bug), `frontend/e2e/reporters/flow-coverage-reporter.mjs` (source of truth)
+
+### [ERROR-005] Flow bookkeeping drift — static docs contradict runtime coverage
+- **Date**: 2026-07-17
+- **Context**: `docs/USER_FLOW_MAP.md` (v1.8) still marks ~15 flows as "Missing" whose spec files exist and pass (e.g. all 8 `frontend/e2e/admin/*.spec.ts`); `flow-definitions.json` carries stale static `coverage` fields (only 19 flagged "covered" while runtime reports 104/104).
+- **Root Cause**: Coverage state was duplicated in three places (USER_FLOW_MAP prose, static JSON field, runtime `e2e-results/flow-coverage.json`); the first two were not consistently updated when specs landed.
+- **Resolution**: Treat the **runtime artifact** (`flow-coverage.json` from CI) as the single source of truth for coverage status; reconcile USER_FLOW_MAP and drop/ignore static `coverage` fields (hardening pipeline fase 3). Register spec-less flows with `expectedSpecs: 0` so `check-flow-definitions-sync.mjs` (bidirectional) keeps passing.
+- **Files Affected**: `docs/USER_FLOW_MAP.md`, `frontend/e2e/flow-definitions.json`
+
 ---
 
 ## Resolved Issues
