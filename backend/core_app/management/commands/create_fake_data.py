@@ -68,6 +68,9 @@ class Command(BaseCommand):
         parser.add_argument('--trainer-messages-per-customer', type=int, default=2)
         parser.add_argument('--skip-trainer-intelligence', action='store_true', default=False)
 
+        parser.add_argument('--credit-days', type=int, default=7)
+        parser.add_argument('--skip-credits', action='store_true', default=False)
+
         parser.add_argument('--skip-tracking', action='store_true', default=False)
 
     def handle(self, *args, **options):
@@ -219,6 +222,16 @@ class Command(BaseCommand):
             executed.append('trainer_intelligence')
         else:
             self.stdout.write(self.style.WARNING('Skipped trainer intelligence'))
+
+        if not options['skip_credits']:
+            call_command(
+                'create_fake_credits',
+                days=options['credit_days'],
+                stdout=self.stdout,
+            )
+            executed.append('credits')
+        else:
+            self.stdout.write(self.style.WARNING('Skipped credits'))
 
         if not options['skip_tracking']:
             call_command('create_fake_tracking', stdout=self.stdout)

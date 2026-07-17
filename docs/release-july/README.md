@@ -12,13 +12,21 @@ Ruta de alto nivel de la Fase 2. Todos los módulos se construyen **sobre los da
 
 | # | Parte | Depende de | Estado |
 |---|-------|-----------|--------|
-| 1 | Motor de Créditos Core (backend) | Señales Fase 1 | 🔨 En desarrollo |
-| 2 | Check-in Diario + Hábitos | Parte 1 | ⏳ Pendiente |
-| 3 | Vistas Cliente de Créditos | Parte 1 | ⏳ Pendiente |
-| 4 | Tienda Interna | Parte 1 | ⏳ Pendiente |
-| 5 | Calificación Post-Sesión | Parte 1 (créditos por calificar) | ⏳ Pendiente |
-| 6 | Panel Trainer de Configuración | Partes 1 y 4 | ⏳ Pendiente |
-| 7 | Analítica + KPIs | Partes 1–5 (datos acumulados) | ⏳ Pendiente |
+| 1 | Motor de Créditos Core (backend) | Señales Fase 1 | ✅ Mergeado en `july-release` |
+| 2 | Check-in Diario + Hábitos | Parte 1 | ✅ Mergeado en `july-release` |
+| 3 | Vistas Cliente de Créditos | Parte 1 | ✅ Mergeado en `july-release` |
+| 4 | Tienda Interna | Parte 1 | ✅ Mergeado en `july-release` (enriquecida en #54) |
+| 5 | Calificación Post-Sesión | Parte 1 (créditos por calificar) | ✅ Mergeado en `july-release` (#60) |
+| 6 | Panel Trainer de Configuración | Partes 1 y 4 | ✅ Mergeado en `july-release` (#61) |
+| 7 | Analítica + KPIs | Partes 1–5 (datos acumulados) | ✅ Mergeado en `july-release` (#62 admin, #63 trainer) |
+
+> **Estado 2026-07-17:** las 7 partes del plan (que en la ejecución se
+> desglosaron como partes 1–8, gaps #1/#2 y partes 9, 10, 11a, 11b — PRs
+> #54–#63) están mergeadas en `july-release`, pendientes de promoción a
+> `master` vía el PR paraguas [#52](https://github.com/carlos18bp/kore_project/pull/52).
+> Se sumaron durante la ejecución: entitlement de sesión adicional (#55),
+> compra de créditos con Wompi (#56), compra de nutrición (#57), hub de
+> tareas del trainer (#58) y gestión de nutrición en admin (#59).
 
 ---
 

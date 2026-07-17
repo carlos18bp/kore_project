@@ -263,5 +263,10 @@ NutritionProduct.objects.get_or_create(name='Nutrición', defaults={'price_cop':
 ```
 
 > Ajusta emails/contraseñas si en staging los usuarios de prueba son otros.
-> Idealmente esto se empaqueta como management command (`seed_qa_credits`) para
-> correrlo con un solo comando en cada despliegue.
+>
+> **Actualización 2026-07-17:** la siembra masiva del dominio de créditos ya está
+> empaquetada como management command — `python manage.py create_fake_credits`
+> (catálogos, wallets/ledger vía `credit_engine`, asistencia, ratings, canjes y
+> top-ups; corre también dentro de `create_fake_data`). El snippet de arriba
+> sigue siendo útil para la preparación puntual de un usuario de prueba
+> (asignar trainer, limpiar los logs del día).
