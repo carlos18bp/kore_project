@@ -198,9 +198,9 @@ kore_project/
 │   │   ├── serializers/       # 22 serializer files
 │   │   ├── services/          # 29 service files (core ops, 6 calculators, billing, credit economy, nutrition, programs, intelligence)
 │   │   ├── urls/              # 4 URL config files (126 patterns)
-│   │   ├── management/commands/ # 28 management commands
+│   │   ├── management/commands/ # 29 management commands
 │   │   ├── migrations/        # 68 migrations (latest: 0068_session_rating)
-│   │   ├── tests/             # 179 test files
+│   │   ├── tests/             # 182 test files
 │   │   ├── templates/         # Email templates, admin overrides
 │   │   ├── admin.py           # 39 Admin classes
 │   │   ├── permissions.py     # Custom DRF permissions (IsAdminRole, IsAdminOrReadOnly, IsTrainerRole)
@@ -217,7 +217,7 @@ kore_project/
 │   │   ├── change-password-required/ # 1 root-level page
 │   │   ├── components/        # 131 React components (booking, checkout, dashboard, admin, trainer, program, nutrition-daily, layouts, profile, shared, subscription)
 │   │   ├── composables/       # 1 composable (useScrollAnimations)
-│   │   ├── __tests__/         # 201 unit/component test files
+│   │   ├── __tests__/         # 202 unit/component test files
 │   │   └── layout.tsx         # Root layout
 │   ├── lib/
 │   │   ├── stores/            # 30 Zustand stores

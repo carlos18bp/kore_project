@@ -13,18 +13,21 @@ The KÓRE platform is **fully functional in production** at `korehealths.com` (p
 - **Admin Platform (frontend)**: `admin-platform/` route group — users, subscriptions, plans, nutrition, reports (10 pages)
 - **Backend**: Django 6 + DRF + Huey (11 tasks: 9 periodic + 2 on-demand) + 29 services + MySQL (prod)
 - **Frontend**: Next.js 16 (static export) + 30 Zustand stores + 57 pages + 131 components
-- **Testing**: **483 test files** (179 backend + 201 frontend unit + 103 E2E) · 104 registered E2E flows, runtime coverage 104/104 (CI artifact 2026-07-16)
+- **Testing**: **487 test files** (182 backend + 202 frontend unit + 103 E2E) · 104 registered E2E flows, runtime coverage 104/104 (CI artifact 2026-07-16)
 - **Deployment**: Gunicorn + Nginx + systemd on Ubuntu; GitHub Actions CI (tests + quality gate) on push/PR
 
 ---
 
 ## 2. Recent Focus Areas
 
-- **Release hardening pipeline (2026-07-17)** (latest — in progress):
-  - Phased pipeline over `july-release` ahead of PR #52 merge: git-sync (fast-forward +6: PRs #58–#63), Memory Bank refresh (this update), `new-feature-checklist` over the 13 release functionalities, E2E flow map reconciliation, backend/frontend coverage passes, test-quality-gate sweep, E2E coverage closure
-  - Coverage baseline from CI artifacts @ `d7cf79b`: backend **89.90%**, frontend unit **86.75%** stmts / 77.04% branches, E2E flows 104/104, quality gate **99/100** (0 errors, 86 warnings, 131 info)
-  - Priority coverage targets identified: `core_app/tasks.py` (64.4%), `views/trainer_intelligence_views.py` (68.4%), `serializers/store_serializers.py` (72.9%), `views/booking_views.py` (79.0%); `services/recurring_renewal.py` has no direct unit tests (93.3% only via indirect execution)
-  - **Latent CI bug found**: the "P1 missing" gate in `frontend/scripts/report-e2e-flow-coverage-ci.mjs` is dead — schema drift vs the reporter output (see ERROR-004)
+- **Release hardening pipeline — pass 2 (2026-07-22)** (latest — in progress):
+  - 5-phase skill-driven pipeline over `july-release`: (1) Memory Bank refresh (this update), (2) `new-feature-checklist` + backend/frontend-unit coverage + quality gate, (3) `e2e-user-flows-check` + E2E coverage closure, (4) `fake-data-refresh` on staging, (5) `deploy-and-check` on staging
+  - Scope: close the inventoried coverage gaps (tasks_plan §3 weakest files), not a 100% push
+- **Release hardening pipeline — pass 1 (2026-07-17)** (completed — commits `0440992..9f2552b`):
+  - Delivered: Memory Bank refresh, `create_fake_credits` seeder (+ PROTECT-order fix in `delete_fake_data`), flow-map reconciliation (runtime artifact = coverage source of truth, `expectedSpecs: 0` convention), 40 backend tests (`recurring_renewal` direct contract tests, day-close tasks, store serializers, `TrainerClientKPIView`), quality-gate warning sweep (86 → 59), revived P1-missing CI gate (`a501f05`, closes TD-11/ERROR-004)
+  - Coverage baseline from CI artifacts @ `d7cf79b`: backend **89.90%**, frontend unit **86.75%** stmts / 77.04% branches, E2E flows 104/104, quality gate **99/100**
+  - Staging DB was 18 migrations behind — migrated to `0068` and fake data reseeded (543 ledger rows, 0 accounting inconsistencies)
+  - Remaining targets (pass 2): `import_food_catalog.py` (0%), `import_exercises.py` (57%), `physical_test_views.py` (59%), `tasks.py` non-day-close bodies (64%), `trainer_intelligence_views.py` (68%), `SubCardCompact` (38%), `UserRow` (38%), `NotesTab` (41%), `trainerStore` (50%), `programStore` (53%)
 - **Fase 2 parts 9–11b + gaps merged (2026-07-10 → 2026-07-15)** (previous):
   - #58 trainer pending-task hub, #59 admin nutrition management, #60 post-session rating, #61 trainer settings panel, #62 admin Reports/KPIs, #63 trainer engagement analytics
   - Each sub-PR shipped with backend tests, store unit tests, E2E specs and flow-definitions updates (flow registry now v1.11.0, 104 flows)
@@ -65,24 +68,23 @@ The KÓRE platform is **fully functional in production** at `korehealths.com` (p
 | Frontend (Next.js 16 / Node 22) | ✅ Running |
 | Database (SQLite dev / MySQL prod) | ✅ Available |
 | Redis (Huey broker) | ⚠️ Optional in dev (`HUEY_IMMEDIATE=true`) |
-| Fake data commands | ✅ Available (28 management commands) |
-| Testing tools | ✅ pytest (179 files), Jest (201 files), Playwright (103 files) |
+| Fake data commands | ✅ Available (29 management commands) |
+| Testing tools | ✅ pytest (182 files), Jest (202 files), Playwright (103 files) |
 | CI | ✅ GitHub Actions: `CI — Tests` (backend + unit + E2E sharded ×4 + coverage summary) and `Test Quality Gate` |
 
 ---
 
 ## 5. Next Steps
 
-1. **Finish the release hardening pipeline** (in progress): feature checklist evidence table, flow map reconciliation, coverage passes (targets in §2), quality-gate warning sweep, E2E closure
-2. **Fix the dead P1 gate** — align `frontend/scripts/report-e2e-flow-coverage-ci.mjs` with the reporter's actual output schema (ERROR-004)
-3. **Merge PR #52** (`july-release` → `master`) once the pipeline is green, then deploy to production
-4. **API rate limiting**: No throttling in place — security concern (TD-05)
-5. **Complete i18n**: Finish Spanish/English translation implementation with next-intl (TD-07)
-6. **Automated deploy (CD)**: CI tests exist; deployment is still manual (TD-08)
+1. **Finish hardening pass 2** (in progress): coverage passes on the remaining targets (§2), quality-gate no-regression check, E2E closure, fake-data refresh + staging deploy-and-check
+2. **Merge PR #52** (`july-release` → `master`) once the pipeline is green, then deploy to production
+3. **API rate limiting**: No throttling in place — security concern (TD-05)
+4. **Complete i18n**: Finish Spanish/English translation implementation with next-intl (TD-07)
+5. **Automated deploy (CD)**: CI tests exist; deployment is still manual (TD-08)
 
 ---
 
-## 6. Codebase Inventory (Verified 2026-07-17 @ `d7cf79b`)
+## 6. Codebase Inventory (Verified 2026-07-22 @ `9f2552b`)
 
 | Layer | Count |
 |-------|-------|
@@ -91,15 +93,15 @@ The KÓRE platform is **fully functional in production** at `korehealths.com` (p
 | Serializers | 22 files |
 | Services | 29 files |
 | URLs | 4 files (126 URL patterns) |
-| Management commands | 28 |
+| Management commands | 29 |
 | Admin classes | 39 |
 | Migrations | 68 (latest: `0068_session_rating`) |
 | Huey tasks | 11 (9 periodic + 2 on-demand) |
 | Frontend pages | 57 (11 public + 35 app + 10 admin-platform + 1 root-level) |
 | Frontend components | 131 |
 | Zustand stores | 30 |
-| Backend test files | 179 |
-| Frontend unit test files | 201 |
+| Backend test files | 182 |
+| Frontend unit test files | 202 |
 | E2E spec files | 103 |
 | Flow definitions | 104 (registry v1.11.0) |
-| **Total test files** | **483** |
+| **Total test files** | **487** |

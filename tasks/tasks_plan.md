@@ -80,33 +80,33 @@
 | TD-08 | No automated CD deploy (CI tests exist; deploy is manual git pull + restart) | Low | Open |
 | TD-09 | ~~Diagnostic assessment E2E tests not yet implemented~~ | Medium | ✅ Resolved |
 | TD-10 | ~~Trainer client management E2E tests not yet implemented~~ | Medium | ✅ Resolved |
-| TD-11 | **Dead "P1 missing" CI gate** — `frontend/scripts/report-e2e-flow-coverage-ci.mjs` expects `flows` as object with nested `definition`, but the reporter emits an array with spread definitions → `missingP1` always empty, `exit(1)` unreachable (see ERROR-004) | Medium | Open (fix planned in hardening pipeline fase 5) |
-| TD-12 | `core_app/tasks.py` at 64.4% coverage — billing-critical periodic tasks under-tested | Medium | Open (hardening pipeline fase 4 target) |
-| TD-13 | `services/recurring_renewal.py` has no direct unit tests (93.3% only via indirect execution through tasks/views tests) | Medium | Open (hardening pipeline fase 4 target) |
+| TD-11 | ~~Dead "P1 missing" CI gate — `report-e2e-flow-coverage-ci.mjs` schema drift vs reporter (see ERROR-004)~~ | Medium | ✅ Resolved (`a501f05`, 2026-07-17) |
+| TD-12 | `core_app/tasks.py` billing-critical periodic tasks under-tested — day-close bodies covered by `test_day_close_tasks.py` (`13b6d5c`), remaining task bodies pending | Medium | Partially addressed (hardening pass 2 target) |
+| TD-13 | ~~`services/recurring_renewal.py` has no direct unit tests~~ | Medium | ✅ Resolved (`13b6d5c` — direct contract tests in `tests/services/test_recurring_renewal.py`) |
 
 ---
 
-## 3. Testing Status (verified 2026-07-17 @ `d7cf79b`)
+## 3. Testing Status (verified 2026-07-22 @ `9f2552b`)
 
-### Backend (pytest) — 179 files
+### Backend (pytest) — 182 files
 
 | Category | Test Files |
 |----------|-----------|
 | Views | 69 |
-| Services | 35 |
+| Services | 36 |
 | Models | 30 |
-| Commands | 19 |
+| Commands | 20 |
 | Serializers | 18 |
-| Tasks | 5 |
+| Tasks | 6 |
 | Utils | 2 |
 | Permissions | 1 |
-| **Total** | **179** |
+| **Total** | **182** |
 
-CI coverage @ `d7cf79b`: **89.90%** (branch coverage on). Weakest files: `management/commands/import_food_catalog.py` (0%), `management/commands/import_exercises.py` (57%), `views/physical_test_views.py` (59%), `tasks.py` (64%), `views/trainer_intelligence_views.py` (68%), `serializers/store_serializers.py` (73%).
+CI coverage @ `d7cf79b`: **89.90%** (branch coverage on). Weakest files: `management/commands/import_food_catalog.py` (0%), `management/commands/import_exercises.py` (57%), `views/physical_test_views.py` (59%), `tasks.py` (64%), `views/trainer_intelligence_views.py` (68%), `serializers/store_serializers.py` (73%). Since that artifact, `13b6d5c` added coverage for `recurring_renewal`, day-close tasks, `store_serializers` and `TrainerClientKPIView` — CI artifact re-run pending to requantify.
 
-### Frontend Unit (Jest) — 201 files
+### Frontend Unit (Jest) — 202 files
 
-All under `frontend/app/__tests__/` (stores, components, views, hooks, services, lib, reporters, scripts, styles). CI coverage @ `d7cf79b`: **86.75% statements / 77.04% branches**. Weakest: `RatingsSummaryCard.tsx` (0%), `SubCardCompact.tsx` (38%), `UserRow.tsx` (38%), `NotesTab.tsx` (41%), `trainerStore.ts` (50%), `programStore.ts` (53%).
+All under `frontend/app/__tests__/` (stores, components, views, hooks, services, lib, reporters, scripts, styles). CI coverage @ `d7cf79b`: **86.75% statements / 77.04% branches**. Weakest: ~~`RatingsSummaryCard.tsx` (0%)~~ (covered in `9f2552b`), `SubCardCompact.tsx` (38%), `UserRow.tsx` (38%), `NotesTab.tsx` (41%), `trainerStore.ts` (50%), `programStore.ts` (53%).
 
 ### E2E (Playwright) — 103 files
 
@@ -121,10 +121,10 @@ All under `frontend/app/__tests__/` (stores, components, views, hooks, services,
 | Customer (rating) | 1 |
 | **Total** | **103** |
 
-### Grand Total: 483 test files
+### Grand Total: 487 test files
 ### Flow Definitions: 104 flows (registry v1.11.0, 2026-07-15) — runtime coverage **104/104 covered** (CI artifact 2026-07-16)
 
-### Quality Gate: 99/100 — 0 errors, 86 warnings, 131 info (CI 2026-07-16). Top categories: missing_docstring (97), nondeterministic (42), test_too_short (19), unverified_mock (14), fragile_locator (11).
+### Quality Gate: 99/100 — 0 errors, 86 warnings, 131 info (CI 2026-07-16, pre-sweep). The warning sweep `d3aa82a` (2026-07-17) reduced warnings 86 → 59 on the top-density backend files; CI artifact re-run pending to confirm the new breakdown.
 
 ---
 
@@ -135,14 +135,14 @@ All under `frontend/app/__tests__/` (stores, components, views, hooks, services,
 | PRD | `docs/methodology/product_requirement_docs.md` | ✅ Refreshed 2026-07-17 |
 | Technical | `docs/methodology/technical.md` | ✅ Refreshed 2026-07-17 |
 | Architecture | `docs/methodology/architecture.md` | ✅ Refreshed 2026-07-17 |
-| Tasks Plan | `tasks/tasks_plan.md` | ✅ Refreshed 2026-07-17 |
-| Active Context | `tasks/active_context.md` | ✅ Refreshed 2026-07-17 |
+| Tasks Plan | `tasks/tasks_plan.md` | ✅ Refreshed 2026-07-22 |
+| Active Context | `tasks/active_context.md` | ✅ Refreshed 2026-07-22 |
 | Error Documentation | `docs/methodology/error-documentation.md` | ✅ Maintained |
 | Lessons Learned | `docs/methodology/lessons-learned.md` | ✅ Maintained |
 | Release July (Fase 2) | `docs/release-july/{README,GUIA_DE_VALIDACION,GUIA_QA_STAGING}.md` | ✅ Existing |
 | Deployment Guide | `docs/deployment-guide.md` | ✅ Existing |
 | Testing Quality Standards | `docs/TESTING_QUALITY_STANDARDS.md` | ✅ Existing |
-| User Flow Map | `docs/USER_FLOW_MAP.md` | ✅ Existing (reconciliation pending — hardening pipeline fase 3) |
+| User Flow Map | `docs/USER_FLOW_MAP.md` | ✅ Reconciled 2026-07-17 (`0440992` — runtime artifact is coverage source of truth) |
 
 ---
 
@@ -151,9 +151,9 @@ All under `frontend/app/__tests__/` (stores, components, views, hooks, services,
 | Priority | Improvement | Impact |
 |----------|-------------|--------|
 | High | Add API rate limiting (django-ratelimit or DRF throttling) | Security (TD-05) |
-| High | Revive the P1-missing CI gate (align report script with reporter schema) | CI safety net (TD-11) |
+| ~~High~~ | ~~Revive the P1-missing CI gate (align report script with reporter schema)~~ | ✅ Done — `a501f05` (TD-11) |
 | Medium | Raise `tasks.py` and `trainer_intelligence_views.py` coverage | Billing/analytics reliability (TD-12) |
-| Medium | Direct unit tests for `recurring_renewal` service | Billing reliability (TD-13) |
+| ~~Medium~~ | ~~Direct unit tests for `recurring_renewal` service~~ | ✅ Done — `13b6d5c` (TD-13) |
 | Medium | Complete i18n with next-intl (Spanish/English) | Market reach (TD-07) |
 | Medium | Add CD pipeline for automated deployment | DevOps efficiency (TD-08) |
 | Medium | Migrate dev database to MySQL for parity with production | Reliability (TD-01) |
