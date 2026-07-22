@@ -121,6 +121,22 @@ class TestCloseDailyLogs:
         assert set(entries.values_list('status', flat=True)) == {MealEntry.Status.NOT_DONE}
 
     @patch('core_app.services.meal_suggestion_service.get_daily_suggestions', return_value={})
+    def test_nutrition_backfill_skips_vanished_customer(
+        self, mock_suggestions, customer, published_program,
+    ):
+        """A program customer id that no longer resolves to a User is skipped silently."""
+        with patch(
+            'core_app.models.User.objects.get',
+            side_effect=User.DoesNotExist,
+        ) as mock_get:
+            result = close_daily_logs.call_local()
+
+        mock_get.assert_called_once_with(pk=customer.pk)
+        mock_suggestions.assert_not_called()
+        assert result['nutrition_created_absent'] == 0
+        assert NutritionDailyLog.objects.filter(customer=customer).count() == 0
+
+    @patch('core_app.services.meal_suggestion_service.get_daily_suggestions', return_value={})
     def test_paused_program_is_not_backfilled(self, mock_suggestions, customer, published_program):
         """Paused programs are excluded from the absent-customer backfill."""
         published_program.is_paused = True

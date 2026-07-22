@@ -4,7 +4,7 @@ Covers: risk dashboard ordering, alert resolution, photo comment,
 program pause/resume, and basic permission checks.
 """
 
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from datetime import timezone as dt_tz
 
 import pytest
@@ -13,14 +13,24 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from core_app.models import (
+    AnthropometryEvaluation,
     Booking,
     ClientRiskScore,
+    Exercise,
     Package,
+    ParqAssessment,
     TrainerAlertResolution,
+    TrainerMessage,
     TrainerProfile,
     User,
 )
-from core_app.models.monthly_program import MonthlyProgram
+from core_app.models.monthly_program import (
+    DailyLog,
+    ExerciseLog,
+    MonthlyProgram,
+    ProgramDay,
+    ProgramExercise,
+)
 from core_app.models.nutrition_daily_log import MealEntry, NutritionDailyLog
 
 FIXED_NOW = datetime(2026, 5, 5, 8, 0, 0, tzinfo=dt_tz.utc)
@@ -83,6 +93,80 @@ def booking(trainer, customer, package):
         ends_at=slot_time.replace(hour=9),
         status=Booking.Status.CONFIRMED,
     )
+
+
+# ── TrainerEngagementView ─────────────────────────────────────────────────────
+
+@pytest.mark.django_db
+class TestTrainerEngagementView:
+    """GET /api/trainer/engagement/ — proxy over the engagement service."""
+
+    def test_returns_engagement_service_payload(self, api_client, trainer, monkeypatch):
+        """The endpoint returns exactly what build_engagement produces for the profile."""
+        from unittest.mock import Mock
+        payload = {'summary': {'active_clients': 0}, 'clients': []}
+        fake_build = Mock(return_value=payload)
+        monkeypatch.setattr(
+            'core_app.services.trainer_engagement_service.build_engagement', fake_build,
+        )
+        _auth(api_client, trainer.user)
+
+        resp = api_client.get(reverse('trainer-engagement'))
+
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data == payload
+        fake_build.assert_called_once_with(trainer, FIXED_NOW)
+
+    def test_returns_403_without_trainer_profile(self, api_client, db):
+        """A trainer-role user lacking a TrainerProfile is rejected with 403."""
+        bare = User.objects.create_user(
+            email='bare-engagement@test.com', password='pass', role=User.Role.TRAINER,
+        )
+        _auth(api_client, bare)
+
+        resp = api_client.get(reverse('trainer-engagement'))
+
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
+
+
+# ── Missing TrainerProfile guard across endpoints ─────────────────────────────
+
+@pytest.mark.django_db
+class TestTrainerEndpointsWithoutProfile:
+    """The intelligence endpoints guard against a missing TrainerProfile."""
+
+    @pytest.fixture
+    def bare_trainer(self, db):
+        return User.objects.create_user(
+            email='bare-intel@test.com', password='pass', role=User.Role.TRAINER,
+        )
+
+    @pytest.mark.parametrize('method, url_name, url_args', [
+        ('get', 'trainer-risk-dashboard', ()),
+        ('get', 'trainer-comparative-metrics', ()),
+        ('get', 'trainer-alerts', ()),
+        ('post', 'trainer-alert-resolve', (1,)),
+        ('get', 'trainer-messages', ()),
+        ('post', 'trainer-messages', ()),
+        ('patch', 'trainer-message-detail', (1,)),
+        ('delete', 'trainer-message-detail', (1,)),
+        ('get', 'trainer-client-resumen', (1,)),
+        ('get', 'trainer-client-alerts', (1,)),
+        ('post', 'trainer-program-pause', (1, 1)),
+        ('post', 'trainer-program-resume', (1, 1)),
+        ('get', 'trainer-client-daily-logs', (1,)),
+        ('get', 'trainer-client-nutrition-logs', (1,)),
+        ('get', 'trainer-client-sessions-full', (1,)),
+    ])
+    def test_trainer_role_without_profile_returns_404(
+        self, api_client, bare_trainer, method, url_name, url_args,
+    ):
+        """A trainer-role user without TrainerProfile receives 404, not a crash."""
+        _auth(api_client, bare_trainer)
+
+        resp = getattr(api_client, method)(reverse(url_name, args=url_args or None))
+
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
 
 
 # ── TrainerRiskDashboardView ──────────────────────────────────────────────────
@@ -290,6 +374,83 @@ class TestTrainerProgramPauseResume:
         url = reverse('trainer-program-pause', args=[customer.pk, program.pk])
         resp = api_client.post(url, {}, format='json')
         assert resp.status_code == status.HTTP_403_FORBIDDEN
+
+    @pytest.mark.parametrize('url_name', ['trainer-program-pause', 'trainer-program-resume'])
+    def test_unknown_program_returns_404(self, api_client, trainer, customer, booking, url_name):
+        """An unknown program id for a linked client yields 404."""
+        _auth(api_client, trainer.user)
+
+        resp = api_client.post(reverse(url_name, args=[customer.pk, 999999]), {}, format='json')
+
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+
+# ── TrainerComparativeMetricsView ─────────────────────────────────────────────
+
+@pytest.mark.django_db
+class TestTrainerComparativeMetricsView:
+    """GET /api/trainer/comparative-metrics/ — ranking, patterns, expired evals."""
+
+    def test_ranks_client_with_current_week_program(self, api_client, trainer, customer, booking):
+        """A client with a published program appears in the adherence ranking."""
+        week_day = FIXED_NOW.date()
+        program = MonthlyProgram.objects.create(
+            customer=customer, trainer=trainer, fitness_level=2, goal='general_health',
+            start_date=week_day - timedelta(days=6), end_date=week_day + timedelta(days=21),
+            status=MonthlyProgram.Status.PUBLISHED,
+        )
+        program_day = ProgramDay.objects.create(
+            program=program, day_number=7, date=week_day,
+            day_type=ProgramDay.DayType.TRAINING,
+        )
+        exercise = Exercise.objects.create(name='Plancha CM', pattern='core')
+        program_exercise = ProgramExercise.objects.create(
+            program_day=program_day, exercise=exercise,
+            sets=3, reps=10, rest_seconds=60, order=0,
+        )
+        daily_log = DailyLog.objects.create(customer=customer, program=program, date=week_day)
+        ExerciseLog.objects.create(
+            daily_log=daily_log, program_exercise=program_exercise,
+            status=ExerciseLog.Status.COMPLETED,
+        )
+        _auth(api_client, trainer.user)
+
+        resp = api_client.get(reverse('trainer-comparative-metrics'))
+
+        assert resp.status_code == status.HTTP_200_OK
+        entry = resp.data['adherence_ranking'][0]
+        assert entry['customer_id'] == customer.pk
+        assert entry['combined_7d'] == 0.6
+        assert entry['trend'] == 'stable'
+        assert resp.data['global_patterns']['avg_training_adherence'] == 1.0
+
+    def test_flags_never_evaluated_client_as_expired(self, api_client, trainer, customer, booking):
+        """A linked client with no evaluations gets the four modules flagged expired."""
+        _auth(api_client, trainer.user)
+
+        resp = api_client.get(reverse('trainer-comparative-metrics'))
+
+        assert resp.status_code == status.HTTP_200_OK
+        modules = {e['module'] for e in resp.data['expired_evaluations']}
+        assert modules == {'anthropometry', 'posturometry', 'physical', 'parq'}
+        assert resp.data['expired_evaluations'][0]['urgency'] == 'medio'
+
+    def test_recent_parq_not_flagged_expired(self, api_client, trainer, customer, booking):
+        """A recently answered PAR-Q keeps that module out of expired evaluations."""
+        ParqAssessment.objects.create(
+            customer=customer,
+            q1_heart_condition=False, q2_chest_pain=False,
+            q3_dizziness=False, q4_chronic_condition=False,
+            q5_prescribed_medication=False, q6_bone_joint_problem=False,
+            q7_medical_supervision=False,
+        )
+        _auth(api_client, trainer.user)
+
+        resp = api_client.get(reverse('trainer-comparative-metrics'))
+
+        assert resp.status_code == status.HTTP_200_OK
+        modules = {e['module'] for e in resp.data['expired_evaluations']}
+        assert 'parq' not in modules
 
 
 # ── Helper function unit tests ────────────────────────────────────────────────
@@ -533,6 +694,77 @@ class TestTrainerMessagesView:
         }, format='json')
         assert resp.status_code == status.HTTP_404_NOT_FOUND
 
+    def test_get_filters_messages_by_customer_id(self, api_client, trainer, customer, other_customer):
+        """?customer_id= narrows the message list to that customer only."""
+        TrainerMessage.objects.create(customer=customer, trainer=trainer, message='Para Carlos')
+        TrainerMessage.objects.create(customer=other_customer, trainer=trainer, message='Para Pedro')
+        _auth(api_client, trainer.user)
+
+        resp = api_client.get(reverse('trainer-messages'), {'customer_id': customer.pk})
+
+        assert resp.status_code == status.HTTP_200_OK
+        assert [m['customer_id'] for m in resp.data['messages']] == [customer.pk]
+
+
+# ── TrainerMessageDetailView ──────────────────────────────────────────────────
+
+@pytest.mark.django_db
+class TestTrainerMessageDetailView:
+    """PATCH/DELETE /api/trainer/messages/<message_id>/"""
+
+    @pytest.fixture
+    def message(self, trainer, customer):
+        return TrainerMessage.objects.create(
+            customer=customer, trainer=trainer,
+            trigger_type=TrainerMessage.TriggerType.MANUAL,
+            message='Texto original',
+        )
+
+    def test_patch_updates_message_content(self, api_client, trainer, message):
+        """PATCH persists the edited text plus trigger type."""
+        _auth(api_client, trainer.user)
+
+        resp = api_client.patch(reverse('trainer-message-detail', args=[message.pk]), {
+            'message': 'Texto editado',
+            'trigger_type': TrainerMessage.TriggerType.POST_SESSION,
+        }, format='json')
+
+        assert resp.status_code == status.HTTP_200_OK
+        message.refresh_from_db()
+        assert message.message == 'Texto editado'
+        assert message.trigger_type == TrainerMessage.TriggerType.POST_SESSION
+
+    @pytest.mark.parametrize('payload', [{'message': '   '}, {}])
+    def test_patch_invalid_payload_returns_400(self, api_client, trainer, message, payload):
+        """Whitespace-only text or an empty body is rejected with 400."""
+        _auth(api_client, trainer.user)
+
+        resp = api_client.patch(
+            reverse('trainer-message-detail', args=[message.pk]), payload, format='json',
+        )
+
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_patch_unknown_message_returns_404(self, api_client, trainer):
+        """A message id outside the trainer's ownership yields 404."""
+        _auth(api_client, trainer.user)
+
+        resp = api_client.patch(
+            reverse('trainer-message-detail', args=[999999]), {'message': 'x'}, format='json',
+        )
+
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_delete_hides_message_from_customer(self, api_client, trainer, message):
+        """DELETE soft-hides the message via is_visible=False."""
+        _auth(api_client, trainer.user)
+
+        resp = api_client.delete(reverse('trainer-message-detail', args=[message.pk]))
+
+        assert resp.status_code == status.HTTP_204_NO_CONTENT
+        message.refresh_from_db()
+        assert message.is_visible is False
+
 
 # ── TrainerClientResumenView ──────────────────────────────────────────────────
 
@@ -590,6 +822,42 @@ class TestTrainerClientDailyLogsView:
         resp = api_client.get(reverse('trainer-client-daily-logs', args=[other_customer.pk]))
         assert resp.status_code == status.HTTP_404_NOT_FOUND
 
+    def test_returns_program_day_with_exercise_statuses(self, api_client, trainer, customer, booking):
+        """Each program day lists its exercises with the logged status per exercise."""
+        real_today = date.today()
+        program = MonthlyProgram.objects.create(
+            customer=customer, trainer=trainer, fitness_level=2, goal='general_health',
+            start_date=real_today - timedelta(days=3), end_date=real_today + timedelta(days=24),
+            status=MonthlyProgram.Status.PUBLISHED,
+        )
+        program_day = ProgramDay.objects.create(
+            program=program, day_number=4, date=real_today,
+            day_type=ProgramDay.DayType.TRAINING,
+        )
+        done = Exercise.objects.create(name='Remo DL', pattern='pull')
+        pending = Exercise.objects.create(name='Curl DL', pattern='pull')
+        done_pe = ProgramExercise.objects.create(
+            program_day=program_day, exercise=done, sets=3, reps=10, rest_seconds=60, order=0,
+        )
+        ProgramExercise.objects.create(
+            program_day=program_day, exercise=pending, sets=3, reps=10, rest_seconds=60, order=1,
+        )
+        daily_log = DailyLog.objects.create(customer=customer, program=program, date=real_today)
+        ExerciseLog.objects.create(
+            daily_log=daily_log, program_exercise=done_pe,
+            status=ExerciseLog.Status.COMPLETED,
+        )
+        _auth(api_client, trainer.user)
+
+        resp = api_client.get(reverse('trainer-client-daily-logs', args=[customer.pk]))
+
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data['program_id'] == program.pk
+        day = resp.data['days'][0]
+        assert day['training_adherence'] == 0.5
+        statuses = {e['exercise_name']: e['status'] for e in day['exercises']}
+        assert statuses == {'Remo DL': 'completed', 'Curl DL': 'not_done'}
+
 
 # ── TrainerClientNutritionLogsView ────────────────────────────────────────────
 
@@ -606,6 +874,25 @@ class TestTrainerClientNutritionLogsView:
         _auth(api_client, trainer.user)
         resp = api_client.get(reverse('trainer-client-nutrition-logs', args=[other_customer.pk]))
         assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_returns_meal_entries_with_adherence(self, api_client, trainer, customer, booking):
+        """Nutrition days expose their meal entries with the computed adherence."""
+        real_today = date.today()
+        nutrition_log = NutritionDailyLog.objects.create(customer=customer, date=real_today)
+        MealEntry.objects.create(
+            daily_log=nutrition_log,
+            meal_block=MealEntry.MealBlock.BREAKFAST,
+            status=MealEntry.Status.COMPLETED,
+        )
+        _auth(api_client, trainer.user)
+
+        resp = api_client.get(reverse('trainer-client-nutrition-logs', args=[customer.pk]))
+
+        assert resp.status_code == status.HTTP_200_OK
+        day = resp.data['days'][0]
+        assert day['adherence'] == 0.2
+        assert day['meals'][0]['meal_block'] == MealEntry.MealBlock.BREAKFAST
+        assert day['meals'][0]['photo_url'] is None
 
 
 # ── TrainerClientSessionsFullView ─────────────────────────────────────────────
@@ -642,6 +929,20 @@ class TestTrainerMessagesForCustomerView:
         _auth(api_client, trainer.user)
         resp = api_client.get(reverse('my-trainer-messages'))
         assert resp.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_fetch_marks_unseen_message_as_seen(self, api_client, trainer, customer):
+        """Fetching the list flips seen_by_customer server-side for unseen messages."""
+        msg = TrainerMessage.objects.create(
+            customer=customer, trainer=trainer, message='Sigue así',
+        )
+        _auth(api_client, customer)
+
+        resp = api_client.get(reverse('my-trainer-messages'))
+
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data['messages'][0]['seen_by_customer'] is True
+        msg.refresh_from_db()
+        assert msg.seen_by_customer is True
 
 
 # ── TrainerMessageDismissView ─────────────────────────────────────────────────
@@ -768,3 +1069,50 @@ class TestTrainerClientKPIView:
         resp = api_client.get(self._url(customer))
 
         assert resp.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_reports_recent_activity_with_completed_exercise(self, api_client, trainer, customer, booking):
+        """A completed exercise today drives the 7-day adherence block."""
+        real_today = date.today()
+        program = MonthlyProgram.objects.create(
+            customer=customer, trainer=trainer, fitness_level=2, goal='general_health',
+            start_date=real_today - timedelta(days=3), end_date=real_today + timedelta(days=24),
+            status=MonthlyProgram.Status.PUBLISHED,
+        )
+        program_day = ProgramDay.objects.create(
+            program=program, day_number=4, date=real_today,
+            day_type=ProgramDay.DayType.TRAINING,
+        )
+        exercise = Exercise.objects.create(name='Sentadilla KPI', pattern='squat')
+        program_exercise = ProgramExercise.objects.create(
+            program_day=program_day, exercise=exercise,
+            sets=3, reps=10, rest_seconds=60, order=0,
+        )
+        daily_log = DailyLog.objects.create(customer=customer, program=program, date=real_today)
+        ExerciseLog.objects.create(
+            daily_log=daily_log, program_exercise=program_exercise,
+            status=ExerciseLog.Status.COMPLETED,
+        )
+        _auth(api_client, trainer.user)
+
+        resp = api_client.get(self._url(customer))
+
+        assert resp.status_code == status.HTTP_200_OK
+        behavioral = resp.data['behavioral']
+        assert behavioral['training_adherence_7d'] == 1.0
+        assert behavioral['combined_adherence_7d'] == 0.6
+        assert behavioral['last_activity_date'] == real_today.isoformat()
+
+    def test_computes_kore_score_from_latest_anthropometry(self, api_client, trainer, customer, booking):
+        """An anthropometry evaluation feeds the KORE index into the clinical block."""
+        AnthropometryEvaluation.objects.create(
+            customer=customer, trainer=trainer, weight_kg=75, height_cm=175,
+        )
+        _auth(api_client, trainer.user)
+
+        resp = api_client.get(self._url(customer))
+
+        assert resp.status_code == status.HTTP_200_OK
+        clinical = resp.data['clinical']
+        assert clinical['kore_score'] is not None
+        assert clinical['bmi'] == pytest.approx(24.49, abs=0.05)
+        assert clinical['last_eval_dates']['anthropometry'] is not None

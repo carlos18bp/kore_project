@@ -3,6 +3,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 
 from core_app.models import TrainerProfile, User
+from core_app.models.physical_test import PhysicalTest
 
 
 @pytest.fixture
@@ -10,6 +11,16 @@ def trainer_user(db):
     user = User.objects.create_user(
         email='trainer@example.com', password='x',
         first_name='T', last_name='R', role=User.Role.TRAINER,
+    )
+    TrainerProfile.objects.get_or_create(user=user)
+    return user
+
+
+@pytest.fixture
+def staff_trainer_user(db):
+    user = User.objects.create_user(
+        email='staff-trainer@example.com', password='x',
+        first_name='S', last_name='T', role=User.Role.TRAINER, is_staff=True,
     )
     TrainerProfile.objects.get_or_create(user=user)
     return user
@@ -60,6 +71,65 @@ def test_customer_cannot_create_physical_test(api_client, existing_user):
         'result': 'passed',
     }, format='json')
     assert resp.status_code == 403
+
+
+@pytest.mark.django_db
+def test_trainer_list_scoped_to_assigned_customers(api_client, trainer_user, assigned_customer):
+    """GET returns only tests belonging to the trainer's assigned customers."""
+    unassigned = User.objects.create_user(
+        email='loose-customer@example.com', password='x', role=User.Role.CUSTOMER,
+    )
+    visible = PhysicalTest.objects.create(
+        customer=assigned_customer, trainer=trainer_user.trainer_profile,
+        performed_at=timezone.localdate(), result=PhysicalTest.Result.PASSED,
+    )
+    PhysicalTest.objects.create(
+        customer=unassigned,
+        performed_at=timezone.localdate(), result=PhysicalTest.Result.FAILED,
+    )
+    api_client.force_authenticate(trainer_user)
+
+    resp = api_client.get('/api/trainer/physical-tests/')
+
+    assert resp.status_code == 200
+    assert [t['id'] for t in resp.json()['results']] == [visible.pk]
+
+
+@pytest.mark.django_db
+def test_staff_trainer_list_filters_by_customer_param(api_client, staff_trainer_user, existing_user):
+    """A staff trainer sees the unscoped queryset narrowed by ?customer=."""
+    other = User.objects.create_user(
+        email='second-customer@example.com', password='x', role=User.Role.CUSTOMER,
+    )
+    PhysicalTest.objects.create(
+        customer=existing_user,
+        performed_at=timezone.localdate(), result=PhysicalTest.Result.PASSED,
+    )
+    PhysicalTest.objects.create(
+        customer=other,
+        performed_at=timezone.localdate(), result=PhysicalTest.Result.PASSED,
+    )
+    api_client.force_authenticate(staff_trainer_user)
+
+    resp = api_client.get(f'/api/trainer/physical-tests/?customer={existing_user.pk}')
+
+    assert resp.status_code == 200
+    assert [t['customer'] for t in resp.json()['results']] == [existing_user.pk]
+
+
+@pytest.mark.django_db
+def test_staff_trainer_records_test_for_unassigned_customer(api_client, staff_trainer_user, existing_user):
+    """A staff (admin-privileged) trainer may record a test without assignment."""
+    api_client.force_authenticate(staff_trainer_user)
+
+    resp = api_client.post('/api/trainer/physical-tests/', {
+        'customer': existing_user.pk,
+        'performed_at': timezone.localdate().isoformat(),
+        'result': 'passed',
+    }, format='json')
+
+    assert resp.status_code == 201
+    assert resp.json()['trainer'] == staff_trainer_user.trainer_profile.pk
 
 
 def _png_upload(name='c.png'):
