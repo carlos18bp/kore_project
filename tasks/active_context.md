@@ -70,7 +70,7 @@ The KÓRE platform is **fully functional in production** at `korehealths.com` (p
 | Redis (Huey broker) | ⚠️ Optional in dev (`HUEY_IMMEDIATE=true`) |
 | Fake data commands | ✅ Available (29 management commands) |
 | Testing tools | ✅ pytest (182 files), Jest (202 files), Playwright (103 files) |
-| CI | ✅ GitHub Actions: `CI — Tests` (backend + unit + E2E sharded ×4 + coverage summary) and `Test Quality Gate` |
+| CI | ✅ GitHub Actions: `CI — Tests` (backend + unit + E2E sharded ×6, ~86 tests/shard + coverage summary) and `Test Quality Gate` |
 
 ---
 
