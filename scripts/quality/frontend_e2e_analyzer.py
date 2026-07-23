@@ -24,6 +24,13 @@ from .base import (
 )
 from .patterns import Patterns
 from .js_ast_bridge import JSASTBridge, JSFileResult, JSIssueInfo
+from .junk_detectors import (
+    analyze_e2e_source,
+    collect_blocks,
+    detect_duplicates,
+    extract_test_blocks,
+    findings_to_issues,
+)
 
 
 # Map AST parser issue types to our categories
@@ -81,24 +88,6 @@ ALLOW_FRAGILE_SELECTOR_PATTERN = re.compile(
     r"quality:\s*allow-fragile-selector\s*\(([^)]*)\)",
     re.IGNORECASE,
 )
-
-# Vacuous / synthetic-interaction patterns. These caused a whole class of E2E
-# tests to pass without proving anything (see the 2026-07-24 audit): guards that
-# skip every assertion, swallowed failures, DOM tampering that fakes an
-# interaction no real user could perform, and tautological assertions.
-SWALLOWED_FAILURE_PATTERN = re.compile(
-    r"\.(?:isVisible|isDisabled|isEnabled|isChecked|isEditable|count)\s*\([^)]*\)\s*\.catch\s*\(\s*\(\s*\)\s*=>",
-)
-SYNTHETIC_CLICK_PATTERN = re.compile(
-    r"\.evaluate\s*\(\s*\(?\s*\w+\s*\)?\s*=>\s*\(?\s*\(?\s*\w+\s*(?:as\s+HTMLElement)?\s*\)?\s*\.click\s*\(",
-)
-DOM_VALIDATION_TAMPER_PATTERN = re.compile(
-    r"removeAttribute\s*\(\s*['\"](?:disabled|minlength|maxlength|required|readonly)['\"]",
-)
-TAUTOLOGICAL_ASSERTION_PATTERN = re.compile(
-    r"expect\s*\(\s*!\s*\w+\s*\|\|\s*\w+(?:\.\w+)*\s*===?\s*['\"]?\s*['\"]?\s*\)",
-)
-CONDITIONAL_GUARD_PATTERN = re.compile(r"^\s*if\s*\(\s*(?:await\s+)?\w")
 
 # Recommended selector patterns
 GOOD_SELECTOR_PATTERNS = [
@@ -277,81 +266,72 @@ class FrontendE2EAnalyzer:
         
         return issues
     
-    def _check_vacuous_patterns(self, file_path: Path) -> list[Issue]:
-        """Flag tests that pass without proving anything, and fake interactions."""
-        issues: list[Issue] = []
+    def _check_junk(self, file_path: Path, rel_path: str) -> list[Issue]:
+        """
+        Run the junk-test detectors over the spec source.
+
+        Source-based rather than AST-based on purpose: these must keep working
+        on hosts where frontend dev dependencies are pruned and the Babel bridge
+        is unavailable, which is precisely where nobody is watching.
+        """
+        try:
+            source = file_path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return []
+        return findings_to_issues(analyze_e2e_source(source, rel_path, file_path))
+
+    def _analyze_file_source_only(self, file_path: Path) -> FileResult:
+        """
+        Junk detectors alone, for when the AST bridge is unavailable.
+
+        Tests are still enumerated from source so the report states how many
+        tests were examined. Reporting "219 files, 0 tests" would read as an
+        empty suite rather than a degraded run.
+        """
         rel_path = str(file_path.relative_to(self.repo_root))
         try:
-            lines = file_path.read_text(encoding="utf-8").split("\n")
-        except Exception:
-            return issues
+            source = file_path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            source = ""
 
-        # Track an open `if (await ...)` guard block by brace depth so we can
-        # flag assertions that only run conditionally.
-        guard_depth: int | None = None
+        tests = [
+            TestInfo(
+                name=block.name,
+                lineno=block.start_line,
+                end_lineno=block.end_line,
+                num_lines=block.end_line - block.start_line + 1,
+                num_assertions=len(re.findall(r"\bexpect\s*\(", block.source)),
+                test_type="test",
+            )
+            for block in extract_test_blocks(source, rel_path)
+        ]
 
-        for line_num, line in enumerate(lines, start=1):
-            stripped = line.strip()
-            if stripped.startswith("//") or stripped.startswith("*") or stripped.startswith("/*"):
-                continue
+        return FileResult(
+            file=rel_path,
+            area="e2e",
+            location_ok=True,
+            tests=tests,
+            issues=self._check_junk(file_path, rel_path),
+        )
 
-            if SWALLOWED_FAILURE_PATTERN.search(line):
-                issues.append(Issue(
-                    file=rel_path, line=line_num,
-                    message="Swallowed failure: .catch(() => …) hides a real check; the test can pass on error",
-                    severity=Severity.ERROR, category=IssueCategory.SILENT_EXCEPTION,
-                    rule_id="swallowed_failure",
-                    suggestion="Await the locator assertion directly (e.g. expect(locator).toBeVisible()).",
-                ))
-            if SYNTHETIC_CLICK_PATTERN.search(line):
-                issues.append(Issue(
-                    file=rel_path, line=line_num,
-                    message="Synthetic interaction: evaluate(el => el.click()) bypasses Playwright actionability",
-                    severity=Severity.ERROR, category=IssueCategory.IMPLEMENTATION_COUPLING,
-                    rule_id="synthetic_interaction",
-                    suggestion="Use a real .click(); if it fails on actionability that is a UX finding to report.",
-                ))
-            if DOM_VALIDATION_TAMPER_PATTERN.search(line):
-                issues.append(Issue(
-                    file=rel_path, line=line_num,
-                    message="DOM tampering: removing a native validation attribute fakes a state no user can reach",
-                    severity=Severity.ERROR, category=IssueCategory.IMPLEMENTATION_COUPLING,
-                    rule_id="synthetic_interaction",
-                    suggestion="Assert the real browser-blocked behavior, or use an input the native rule accepts.",
-                ))
-            if TAUTOLOGICAL_ASSERTION_PATTERN.search(line):
-                issues.append(Issue(
-                    file=rel_path, line=line_num,
-                    message="Tautological assertion: `!x || x === ''` holds even when the value was never set",
-                    severity=Severity.WARNING, category=IssueCategory.USELESS_ASSERTION,
-                    rule_id="tautological_assertion",
-                    suggestion="Assert the concrete expected value (e.g. that a cookie set earlier is now empty).",
-                ))
+    def _attach_duplicate_issues(self, result: SuiteResult, files: list[Path]) -> None:
+        """
+        Report duplicate coverage across the whole suite.
 
-            # Conditional-assertion tracking: enter on `if (await …) {`, exit when
-            # its brace balance returns to zero. An `expect(` inside is skippable.
-            if guard_depth is None and CONDITIONAL_GUARD_PATTERN.match(line) and "await" in line and "{" in line:
-                guard_depth = line.count("{") - line.count("}")
-                if guard_depth <= 0:
-                    guard_depth = None
-                continue
-            if guard_depth is not None:
-                if "else" in stripped:
-                    guard_depth = None
-                    continue
-                if "expect(" in line:
-                    issues.append(Issue(
-                        file=rel_path, line=line_num,
-                        message="Conditional assertion: expect() inside an if(await …) guard may never run",
-                        severity=Severity.WARNING, category=IssueCategory.USELESS_ASSERTION,
-                        rule_id="conditional_assertion",
-                        suggestion="Make the precondition deterministic so the assertion always executes.",
-                    ))
-                guard_depth += line.count("{") - line.count("}")
-                if guard_depth <= 0:
-                    guard_depth = None
+        Duplicates are invisible file by file - the second copy of a test
+        usually lives somewhere else entirely - so this runs once over every
+        spec and attaches each finding to the file that should give way.
+        """
+        blocks = collect_blocks(files, self.repo_root)
+        findings = detect_duplicates(blocks)
+        if not findings:
+            return
 
-        return issues
+        by_file: dict[str, FileResult] = {fr.file.replace("\\", "/"): fr for fr in result.files}
+        for issue in findings_to_issues(findings):
+            target = by_file.get(issue.file.replace("\\", "/"))
+            if target is not None:
+                target.issues.append(issue)
 
     def analyze_file(self, file_path: Path) -> FileResult:
         """Analyze a single E2E test file."""
@@ -386,7 +366,7 @@ class FrontendE2EAnalyzer:
         # E2E-specific checks
         issues.extend(self._check_file_location(file_path))
         issues.extend(self._check_selectors(file_path))
-        issues.extend(self._check_vacuous_patterns(file_path))
+        issues.extend(self._check_junk(file_path, rel_path))
         
         # Build TestInfo list from parsed tests
         tests = [
@@ -420,8 +400,13 @@ class FrontendE2EAnalyzer:
     ) -> SuiteResult:
         """Analyze all E2E test files."""
         result = SuiteResult(suite_name="frontend_e2e")
-        
-        if not self.bridge.is_available():
+        bridge_ok = self.bridge.is_available()
+
+        if not bridge_ok:
+            # The AST-based rules cannot run, and that is reported as an error so
+            # the run is never mistaken for a clean one. The source-based junk
+            # detectors still run below: hosts that prune frontend dev deps are
+            # exactly where nobody is checking these specs.
             error_file = str((Path("frontend") / self.config.frontend_e2e_dir).as_posix())
             result.add_file(FileResult(
                 file=error_file,
@@ -430,7 +415,10 @@ class FrontendE2EAnalyzer:
                 tests=[],
                 issues=[Issue(
                     file=error_file,
-                    message="AST bridge not available - frontend E2E tests were not analyzed",
+                    message=(
+                        "AST bridge not available - AST-based E2E rules were NOT run "
+                        f"(junk detectors still applied): {self.bridge.unavailable_reason()}"
+                    ),
                     severity=Severity.ERROR,
                     category=IssueCategory.PARSE_ERROR,
                     line=1,
@@ -438,21 +426,25 @@ class FrontendE2EAnalyzer:
                 )],
             ))
             if self.verbose:
-                print(f"  {Colors.YELLOW}AST bridge not available{Colors.RESET}")
-            return result
-        
+                print(f"  {Colors.YELLOW}AST bridge not available - source-only pass{Colors.RESET}")
+
         files = self.discover_files(test_root, file_matcher=file_matcher)
-        
+
         if self.verbose:
             print(f"  Found {len(files)} E2E test files")
-        
+
         for file_path in files:
-            file_result = self.analyze_file(file_path)
+            file_result = (
+                self.analyze_file(file_path) if bridge_ok
+                else self._analyze_file_source_only(file_path)
+            )
             result.add_file(file_result)
-            
+
             if self.verbose and file_result.issues:
                 print(f"    {file_path.name}: {len(file_result.issues)} issues")
-        
+
+        self._attach_duplicate_issues(result, files)
+
         if self.verbose:
             err = sum(1 for i in result.all_issues if i.severity == Severity.ERROR)
             warn = sum(1 for i in result.all_issues if i.severity == Severity.WARNING)
