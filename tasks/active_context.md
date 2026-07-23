@@ -20,7 +20,14 @@ The KÓRE platform is **fully functional in production** at `korehealths.com` (p
 
 ## 2. Recent Focus Areas
 
-- **Flow-depth round — pass 3 (2026-07-23)** (latest):
+- **E2E quality sweep — pass 4 (2026-07-24)** (latest):
+  - Audit (3 read-only agents) found the suite was wide but shallow-of-truth: 60% of tests passive (goto + assert, no interaction), 72% of specs never navigate via UI, ~45 tests whose assertions were fully skippable (if-guards, `.catch(()=>false)`, `.or()` accepting success AND failure), and ~20 faking interactions no user can perform (removing `disabled`/`minlength`, `evaluate(el=>el.click())`).
+  - Root cause of the worst cluster: `setupDefaultApiMocks` returned `{}` for `/api/availability/**`, disabling every calendar day; booking specs guarded every assertion behind `if(dayExists)` that never entered, and one spec stripped the `disabled` attribute. The page fetches a 30-day window up front — no chicken-and-egg. Fixed the fixture to serve realistic availability; **mutation-tested**: emptying availability now fails 5 booking tests that previously passed green.
+  - Added typed factories (`e2e/factories/`) importing app types so a serializer rename breaks `tsc`; `mockAvailability` helper; rewrote book-session-flow (dropped 11 `.catch`, all guards, and 2 phantom tests for a 12h/24h toggle and subscription selector that do not exist in the app).
+  - Replaced tautological/always-true assertions (`!token || value===''`), synthetic clicks, and DOM-tampering across auth/register/forgot-password/calendar specs; aligned lying titles with behavior; made admin filter tests assert the filtered list, not just the request URL.
+  - **New quality-gate rules** (`frontend_e2e_analyzer.py`): `swallowed_failure`, `synthetic_interaction` (ERROR); `conditional_assertion`, `tautological_assertion` (WARNING). They caught 2 sites the manual sweep missed. Full gate: 0 errors, 57 warnings (baseline 59). 549 E2E tests, ~91/shard.
+  - **Debt logged**: ~552 hand-written mock payloads still exist across specs; only booking/subscription shapes are now factory-backed. Migrating the rest to `e2e/factories/` is incremental follow-up (TD-14). Backend is 100% mocked in E2E — no job exercises a real FE↔BE contract (TD-15).
+- **Flow-depth round — pass 3 (2026-07-23)** (previous):
   - Audit finding: 104/104 flows had a spec but coverage was **wide and shallow** — 10 flows with a single test, 5 of 25 P1 flows with no error test, 66/103 specs never simulating an HTTP error, and no reusable error-injection helper.
   - Added `frontend/e2e/helpers/api-errors.ts` (`mockApiError`, `mockApiNetworkFailure`) and 32 E2E tests across 18 specs raising the P1 flows to the happy + error + edge standard (booking, dashboard, my-programs, trainer tasks/engagement/metrics/dashboard, the full admin platform).
   - Added 18 backend tests: `booking_views` cancel/complete/reschedule contracts and 4xx paths, plus the remaining `trainer_intelligence_views` branches.

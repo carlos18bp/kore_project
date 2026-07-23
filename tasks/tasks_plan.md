@@ -83,6 +83,8 @@
 | TD-11 | ~~Dead "P1 missing" CI gate — `report-e2e-flow-coverage-ci.mjs` schema drift vs reporter (see ERROR-004)~~ | Medium | ✅ Resolved (`a501f05`, 2026-07-17) |
 | TD-12 | `core_app/tasks.py` billing-critical periodic tasks under-tested — day-close bodies covered by `test_day_close_tasks.py` (`13b6d5c`), remaining task bodies pending | Medium | Partially addressed (hardening pass 2 target) |
 | TD-13 | ~~`services/recurring_renewal.py` has no direct unit tests~~ | Medium | ✅ Resolved (`13b6d5c` — direct contract tests in `tests/services/test_recurring_renewal.py`) |
+| TD-14 | ~552 hand-written E2E mock payloads with no link to backend serializers — a field rename cannot fail any E2E. `e2e/factories/` now covers booking/subscription/user/trainer shapes; migrate the rest incrementally | Medium | Open (pass 4, 2026-07-24) |
+| TD-15 | E2E backend is 100% mocked — no CI job exercises a real FE↔BE contract (Playwright job never starts Django). A real-backend smoke over P1 flows would catch mock drift | Medium | Open (pass 4) |
 
 ---
 
