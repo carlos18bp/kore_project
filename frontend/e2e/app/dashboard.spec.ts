@@ -32,9 +32,13 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
     await expect(sidebar.getByRole('link', { name: 'Mi Suscripción' })).toBeVisible();
   });
 
-  test('renders progress tabs', async ({ page }) => {
+  test('switching to the Resumen Mensual tab shows its monthly panel', async ({ page }) => {
     const main = page.getByRole('main');
-    await expect(main.getByText('Mi Progreso').filter({ visible: true })).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('Mi Progreso').filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
+
+    await main.getByRole('button', { name: 'Resumen Mensual' }).click();
+
+    await expect(main.getByText('Adherencia final').first()).toBeVisible({ timeout: 10_000 });
   });
 
   test('renders sidebar subscription link', async ({ page }) => {

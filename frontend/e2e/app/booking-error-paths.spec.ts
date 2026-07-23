@@ -1,5 +1,6 @@
 import { test, expect, mockLoginAsTestUser, setupDefaultApiMocks } from '../fixtures';
 import type { Page } from '@playwright/test';
+import { mockApiError } from '../helpers/api-errors';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 function buildCancelableBookingFixtures() {
@@ -86,36 +87,22 @@ async function mockCancelBookingFailureRoutes(
 test.describe('Booking Store Error Paths', { tag: [...FlowTags.BOOKING_ERROR_PATHS, RoleTags.USER] }, () => {
   test.describe.configure({ mode: 'serial' });
 
-  test('fetchTrainers error shows error loading trainers', async ({ page }) => {
-    await mockLoginAsTestUser(page);
-    await page.route('**/api/trainers/**', async (route) => {
-      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'Server error' }) });
+  // The booking page has no dedicated error banner for these endpoints; the
+  // observable contract on a 500 is graceful degradation — the page stays
+  // rendered and the calendar shell is still there. One case per endpoint.
+  for (const endpoint of ['trainers', 'subscriptions', 'availability'] as const) {
+    test(`book-session page stays usable when ${endpoint} returns 500`, async ({ page }) => {
+      await mockLoginAsTestUser(page);
+      await mockApiError(page, `**/api/${endpoint}/**`, 500);
+
+      await page.goto('/book-session');
+
+      await expect(page.getByText('Agenda tu sesión')).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByText('Selecciona un día')).toBeVisible({ timeout: 10_000 });
     });
+  }
 
-    await page.goto('/book-session');
-
-    // The page should still render even with trainer fetch failure
-    await expect(page.getByText('Agenda tu sesión')).toBeVisible({ timeout: 10_000 });
-  });
-
-  test('fetchSubscriptions error still renders booking page', async ({ page }) => {
-    await mockLoginAsTestUser(page);
-    await page.route('**/api/trainers/**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }) });
-    });
-    await page.route('**/api/subscriptions/**', async (route) => {
-      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'Server error' }) });
-    });
-    await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
-    });
-
-    await page.goto('/book-session');
-
-    await expect(page.getByText('Agenda tu sesión')).toBeVisible({ timeout: 10_000 });
-  });
-
-  test('fetchBookings error still renders subscription page', async ({ page }) => {
+  test('subscription page stays usable when the bookings endpoint returns 500', async ({ page }) => {
     await mockLoginAsTestUser(page);
     await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
@@ -134,7 +121,7 @@ test.describe('Booking Store Error Paths', { tag: [...FlowTags.BOOKING_ERROR_PAT
     await expect(page.getByRole('heading', { name: 'Mi Suscripción' })).toBeVisible({ timeout: 10_000 });
   });
 
-  test('fetchUpcomingReminder error does not break dashboard', async ({ page }) => {
+  test('dashboard stays usable when the upcoming-reminder endpoint returns 500', async ({ page }) => {
     await mockLoginAsTestUser(page);
     await page.route('**/api/bookings/upcoming-reminder/**', async (route) => {
       await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'Server error' }) });
@@ -166,24 +153,6 @@ test.describe('Booking Store Error Paths', { tag: [...FlowTags.BOOKING_ERROR_PAT
 
     // Error should be displayed in the modal
     await expect(page.getByText('No se puede cancelar esta sesión.')).toBeVisible({ timeout: 10_000 });
-  });
-
-  test('fetchAvailability error does not break book-session page', async ({ page }) => {
-    const mockTrainer = {
-      id: 1, first_name: 'Germán', last_name: 'Franco', specialty: 'Funcional',
-      session_duration_minutes: 60, location: 'Bogotá', email: 'g@kore.com', bio: '', user_id: 1,
-    };
-
-    await mockLoginAsTestUser(page);
-    await page.route('**/api/trainers/**', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 1, next: null, previous: null, results: [mockTrainer] }) });
-    });
-    await page.route('**/api/availability/**', async (route) => {
-      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'Server error' }) });
-    });
-
-    await page.goto('/book-session');
-    await expect(page.getByText('Agenda tu sesión')).toBeVisible({ timeout: 10_000 });
   });
 
   test('non-paginated API responses exercise fallback branches', async ({ page }) => {
@@ -219,13 +188,11 @@ test.describe('Booking Store Error Paths', { tag: [...FlowTags.BOOKING_ERROR_PAT
     await expect(page.getByRole('main').getByText(/Plan Kore/)).toBeVisible({ timeout: 10_000 });
   });
 
-  test('authHeaders without token sends request without Authorization', async ({ page }) => {
-    // Clear cookies before navigating
+  test('unauthenticated visit to book-session redirects to login', async ({ page }) => {
     await page.context().clearCookies();
     await setupDefaultApiMocks(page);
     await page.goto('/book-session');
 
-    // Should redirect to login (no auth)
     await expect(page).toHaveURL(/\/login$/);
   });
 

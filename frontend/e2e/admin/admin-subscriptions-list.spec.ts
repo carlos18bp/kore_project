@@ -86,10 +86,23 @@ async function mockSubscriptions(
       });
       return;
     }
+    // Honour the filter params so a refetch changes the visible rows, not just
+    // the request URL — lets specs assert the observable list update. Only a
+    // filtered response narrows the rows; the unfiltered case keeps `count`
+    // intact so pagination still exposes a next page.
+    let rows = results;
+    let total = count;
+    if (url.includes('status=expired')) {
+      rows = results.filter((s) => s.status === 'expired');
+      total = rows.length;
+    } else if (url.includes('category=personalizado')) {
+      rows = results.filter((s) => s.package.category === 'personalizado');
+      total = rows.length;
+    }
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ count, next: null, previous: null, results }),
+      body: JSON.stringify({ count: total, next: null, previous: null, results: rows }),
     });
   });
 }
@@ -124,6 +137,10 @@ test.describe(
       );
       await page.getByRole('button', { name: 'Expirada' }).click();
       await req;
+
+      // The list actually filtered: only the expired row remains.
+      await expect(page.getByText('Luis Pérez').first()).toBeVisible();
+      await expect(page.getByText('Ana García')).toHaveCount(0);
     });
 
     test('category tab refetches with the category param', async ({ page }) => {
@@ -137,6 +154,10 @@ test.describe(
       );
       await page.getByRole('button', { name: 'Personalizada' }).click();
       await req;
+
+      // The list actually filtered to the personalizado subscription.
+      await expect(page.getByText('Ana García').first()).toBeVisible();
+      await expect(page.getByText('Luis Pérez')).toHaveCount(0);
     });
 
     test('pagination refetches the next page', async ({ page }) => {

@@ -166,7 +166,7 @@ test.describe(
       await expect(page.getByRole('button', { name: /Plan Esencial/ })).toBeVisible();
     });
 
-    test('completing the wizard redirects to the subscriptions list', async ({ page }) => {
+    test('completing the wizard redirects to the new subscription detail', async ({ page }) => {
       await mockWizard(page);
       await page.goto('/admin-platform/subscriptions/new');
 

@@ -59,9 +59,12 @@ test.describe('Book Session Page', { tag: [...FlowTags.BOOKING_SESSION_PAGE, Rol
   });
 
   test('dashboard "Agendar sesión" link navigates to book-session', async ({ page }) => {
-    await mockLoginAsTestUser(page);
-    // booking entry point is now in the dashboard hero, not the sidebar
-    await page.goto('/book-session');
+    await mockLoginAsTestUser(page); // lands on /dashboard
+    await expect(page).toHaveURL(/\/dashboard/);
+
+    await page.getByRole('link', { name: /Agendar sesión/ }).first().click();
+
+    await expect(page).toHaveURL(/\/book-session/);
     await expect(page.getByText('Agenda tu sesión')).toBeVisible({ timeout: 10_000 });
   });
 
