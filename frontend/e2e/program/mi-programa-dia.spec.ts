@@ -68,31 +68,20 @@ test.describe('Mi Programa — Día Específico', { tag: [...FlowTags.CUSTOMER_M
     expect(response?.status()).not.toBe(404);
   });
 
-  test('spinner is shown while the redirect resolves', async ({ page }) => {
+  test('the detail page renders its loading spinner then redirects to the routine', async ({ page }) => {
     await injectAuthCookies(page);
     await setupDefaultApiMocks(page);
 
-    let resolve: () => void;
-    const delayPromise = new Promise<void>((r) => { resolve = r; });
-    await page.route('**/api/my-program/today/', async (route) => {
-      await delayPromise;
-      await route.fulfill({
-        status: 200, contentType: 'application/json',
-        body: JSON.stringify({ program_day: fakeProgramDay, daily_log: fakeDailyLog }),
-      });
-    });
-
     const today = new Date().toISOString().slice(0, 10);
+    // 'commit' returns as soon as the document loads, so we can observe the
+    // spinner DiaDetailPage renders before its redirect effect runs. That
+    // redirect is a pure client-side effect (awaits no API), so asserting a
+    // mid-flight detail URL is racy — assert the spinner render and the
+    // deterministic destination instead.
     await page.goto(`/mi-programa/dia/detail?date=${today}`, { waitUntil: 'commit' });
 
-    // While the redirect is blocked on the pending request, the loading spinner
-    // is on screen and we are still on the detail route.
     // quality: allow-fragile-selector (the loading spinner is a decorative div with no role or text to target)
     await expect(page.locator('.animate-spin')).toBeVisible({ timeout: 10_000 });
-    await expect(page).toHaveURL(/\/mi-programa\/dia\/detail/);
-
-    // Once the request resolves, the page redirects to the routine view.
-    resolve!();
     await page.waitForURL('**/mi-programa/rutina', { timeout: 15_000 });
   });
 });

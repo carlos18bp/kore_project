@@ -205,7 +205,9 @@ test.describe('Admin Plans', { tag: [...FlowTags.ADMIN_PLANS, RoleTags.ADMIN] },
     await page.getByPlaceholder('0').fill('250000');
     await page.getByRole('button', { name: 'Crear plan', exact: true }).click();
 
-    await expect(page.getByText('title: Ya existe un plan con este nombre.')).toBeVisible();
+    // The server message renders in both the modal-level and field-level error
+    // boxes; assert the first so it is unambiguous under strict mode.
+    await expect(page.getByText('title: Ya existe un plan con este nombre.').first()).toBeVisible();
     // The modal stays open so the admin can correct and retry.
     await expect(page.getByText('Crear plan de entrenamiento')).toBeVisible();
   });

@@ -149,6 +149,8 @@ test.describe('Trainer Client Messaging', { tag: [...FlowTags.TRAINER_CLIENT_MES
     await composer.fill(sentText);
     await page.getByRole('button', { name: 'Enviar mensaje' }).click();
 
-    await expect(page.getByText(sentText)).toBeVisible({ timeout: 10_000 });
+    // The composer also holds this text until it resets, so scope the assertion
+    // to the history paragraph — that is what "appears in the history" means.
+    await expect(page.getByRole('paragraph').filter({ hasText: sentText })).toBeVisible({ timeout: 10_000 });
   });
 });

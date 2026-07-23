@@ -38,7 +38,9 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
 
     await main.getByRole('button', { name: 'Resumen Mensual' }).click();
 
-    await expect(main.getByText('Adherencia final').first()).toBeVisible({ timeout: 10_000 });
+    // The default mock has no monthly data, so the resumen panel renders its
+    // empty state — proving the tab switched to the resumen view.
+    await expect(main.getByText('No hay datos de resumen todavía.')).toBeVisible({ timeout: 10_000 });
   });
 
   test('renders sidebar subscription link', async ({ page }) => {
