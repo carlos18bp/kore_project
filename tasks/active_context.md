@@ -20,6 +20,14 @@ The KÓRE platform is **fully functional in production** at `korehealths.com` (p
 
 ## 2. Recent Focus Areas
 
+- **Flow-depth round — pass 3 (2026-07-23)** (latest):
+  - Audit finding: 104/104 flows had a spec but coverage was **wide and shallow** — 10 flows with a single test, 5 of 25 P1 flows with no error test, 66/103 specs never simulating an HTTP error, and no reusable error-injection helper.
+  - Added `frontend/e2e/helpers/api-errors.ts` (`mockApiError`, `mockApiNetworkFailure`) and 32 E2E tests across 18 specs raising the P1 flows to the happy + error + edge standard (booking, dashboard, my-programs, trainer tasks/engagement/metrics/dashboard, the full admin platform).
+  - Added 18 backend tests: `booking_views` cancel/complete/reschedule contracts and 4xx paths, plus the remaining `trainer_intelligence_views` branches.
+  - Suite now **549 E2E tests** (~91 per CI shard, matching the ~90 target); flow registry unchanged at 104 tagged = 104 defined. Quality gate 0 errors / 59 warnings.
+  - `trainer-alerts` (P1) intentionally left with its placeholder tests: the page ships `ComingSoon` behind `PHASE_3_READY = false`, so the placeholder IS the current behaviour.
+  - **Local E2E verification is unreliable on this VPS** (3 GB RAM, no free memory): running Playwright against the dev server produces rotating false failures in *pre-existing* specs — reproduced with the changes stashed. Use `--workers=1`, warm routes first, and treat CI as the arbiter.
+
 - **Release hardening pipeline — pass 2 (2026-07-22/23)** (latest — completed):
   - 5-phase skill-driven pipeline over `july-release`: (1) Memory Bank refresh, (2) `new-feature-checklist` + backend/frontend-unit coverage + quality gate, (3) `e2e-user-flows-check` + E2E closure (no gaps, 104/104), (4) `fake-data-refresh` on staging, (5) `deploy-and-check` on staging
   - Coverage closed: `import_food_catalog` 0→100%, `import_exercises` 57→99%, `physical_test_views` 59→100%, `trainer_intelligence_views` 60→97.5%, `tasks.py` 100%; frontend `trainerStore` 50→79%, `programStore` 53→94%, `SubCardCompact` 0→92%, `UserRow` 38→88%, `NotesTab` 41→65%. Quality gate 0 errors / 59 warnings (no regression). CI green @ `e814983` (Tests + Quality Gate)

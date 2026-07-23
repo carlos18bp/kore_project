@@ -150,7 +150,9 @@ test.describe('Admin User Create', { tag: [...FlowTags.ADMIN_USER_CREATE, RoleTa
   }) => {
     await page.goto('/admin-platform/users/new');
 
-    await page.getByPlaceholder('usuario@ejemplo.com').fill('no-es-un-correo');
+    // A domain without a TLD passes the browser's native type="email" check,
+    // so submission reaches the form's own rule (/.+@.+\..+/) and is rejected there.
+    await page.getByPlaceholder('usuario@ejemplo.com').fill('ana@dominio');
     await page.getByPlaceholder('Ana').fill('Ana');
     await page.getByPlaceholder('Martínez').fill('Martínez');
     await page.getByRole('button', { name: 'Crear y enviar credenciales' }).click();
