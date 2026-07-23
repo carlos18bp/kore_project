@@ -90,11 +90,10 @@ test.describe('Login Page', { tag: [...FlowTags.AUTH_LOGIN, RoleTags.GUEST] }, (
     const passwordInput = page.getByLabel(/Contraseña/i);
     await expect(passwordInput).toHaveAttribute('type', 'password');
 
-    // Use evaluate to bypass GSAP animation overlay
-    await page.getByRole('button', { name: /^Ver$/ }).evaluate((el) => (el as HTMLElement).click());
+    await page.getByRole('button', { name: /^Ver$/ }).click();
     await expect(passwordInput).toHaveAttribute('type', 'text');
 
-    await page.getByRole('button', { name: /^Ocultar$/ }).evaluate((el) => (el as HTMLElement).click());
+    await page.getByRole('button', { name: /^Ocultar$/ }).click();
     await expect(passwordInput).toHaveAttribute('type', 'password');
   });
 

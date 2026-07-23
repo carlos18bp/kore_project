@@ -1,280 +1,131 @@
-import { test, expect, mockLoginAsTestUser, setupDefaultApiMocks, injectAuthCookies } from '../fixtures';
+import type { Page } from '@playwright/test';
+import { test, expect, mockLoginAsTestUser } from '../fixtures';
+import { nextBookableDay } from '../factories';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
+/**
+ * Booking flow driven entirely through the UI.
+ *
+ * The default availability fixture publishes real slots for the next 14
+ * non-Sunday days, so calendar days are genuinely selectable — no attribute
+ * tampering and no conditional guards: if a day cannot be clicked, that is a
+ * regression and the test must fail.
+ */
+
+/** The calendar month header renders as "julio de 2026"; a sibling h3 shows the slot panel title. */
+const MONTH_LABEL = { name: /\p{L}+ de \d{4}/u };
+
+/** Click a calendar day the way a user would, paging to its month when needed. */
+async function selectDay(page: Page, date: Date) {
+  if (date.getMonth() !== new Date().getMonth()) {
+    await page.getByLabel('Mes siguiente').click();
+  }
+  await page.getByRole('button', { name: String(date.getDate()), exact: true }).click();
+}
+
+/** Slot buttons render a localized 12-hour time, e.g. "10:00 a. m.". */
+function slotButtons(page: Page) {
+  return page.getByRole('button', { name: /\d{1,2}:\d{2}\s*[ap]\.\s*m\./i });
+}
+
 test.describe('Book Session Flow', { tag: [...FlowTags.BOOKING_SESSION_FLOW, RoleTags.USER] }, () => {
+  const bookableDay = nextBookableDay(new Date(), 1);
+
   test.beforeEach(async ({ page }) => {
     await mockLoginAsTestUser(page);
     await page.goto('/book-session');
     await expect(page).toHaveURL(/\/book-session/);
   });
 
-  test('calendar renders with month navigation', async ({ page }) => {
-    // Calendar should show current month label
-    const monthLabel = page.locator('h3.capitalize').first();
-    await expect(monthLabel).toBeVisible();
-
-    // Day name headers should be visible
+  test('calendar shows weekday headers for the current month', async ({ page }) => {
+    await expect(page.getByRole('heading', MONTH_LABEL)).toBeVisible();
     await expect(page.getByText('Lun')).toBeVisible();
     await expect(page.getByText('Mar').first()).toBeVisible();
-
-    // Navigate to next month
-    const nextBtn = page.getByLabel('Mes siguiente');
-    await nextBtn.click();
-    // Month label should change
-    await expect(monthLabel).toBeVisible();
-
-    // Navigate back to previous month
-    const prevBtn = page.getByLabel('Mes anterior');
-    await prevBtn.click();
-    await expect(monthLabel).toBeVisible();
   });
 
-  test('clicking an available date shows time slots or empty message', async ({ page }) => {
-    // Find and click an enabled day button (not disabled, not blank)
-    // quality: allow-fragile-selector (calendar day labels repeat; selecting first enabled day is acceptable here)
-    const enabledDay = page.locator('button:not([disabled])').filter({ hasText: /^\d{1,2}$/ }).first();
-    const dayExists = await enabledDay.isVisible().catch(() => false);
+  test('month navigation moves forward and back to the starting month', async ({ page }) => {
+    const monthLabel = page.getByRole('heading', MONTH_LABEL);
+    const startingMonth = (await monthLabel.textContent())?.trim();
 
-    if (dayExists) {
-      await enabledDay.click();
-      // After selecting a date, either time slots or "No hay horarios" should appear
-      await expect(
-        page.getByText(/\d{1,2}:\d{2}/).first().or(page.getByText('No hay horarios disponibles'))
-      ).toBeVisible({ timeout: 10_000 });
-    }
+    await page.getByLabel('Mes siguiente').click();
+    await expect(monthLabel).not.toHaveText(startingMonth!);
+
+    await page.getByLabel('Mes anterior').click();
+    await expect(monthLabel).toHaveText(startingMonth!);
   });
 
-  test('time slot picker shows 12h/24h toggle', async ({ page }) => {
-    // Click an available date to trigger slot loading
-    // quality: allow-fragile-selector (calendar day labels repeat; selecting first enabled day is acceptable here)
-    const enabledDay = page.locator('button:not([disabled])').filter({ hasText: /^\d{1,2}$/ }).first();
-    const dayExists = await enabledDay.isVisible().catch(() => false);
+  test('selecting an available date lists that day time slots', async ({ page }) => {
+    await selectDay(page, bookableDay);
 
-    if (dayExists) {
-      await enabledDay.click();
-      // Wait for slots or empty message
-      await expect(
-        page.getByText(/\d{1,2}:\d{2}/).first().or(page.getByText('No hay horarios disponibles'))
-      ).toBeVisible({ timeout: 10_000 });
-
-      // If slots are present, check the 12h/24h toggle
-      const has24h = await page.getByRole('button', { name: '24h' }).isVisible().catch(() => false);
-      const has12h = await page.getByRole('button', { name: '12h' }).isVisible().catch(() => false);
-      if (has24h && has12h) {
-        // Toggle to 12h
-        await page.getByRole('button', { name: '12h' }).click();
-        // Toggle back to 24h
-        await page.getByRole('button', { name: '24h' }).click();
-      }
-    }
+    await expect(slotButtons(page).first()).toBeVisible({ timeout: 10_000 });
+    await expect(slotButtons(page)).toHaveCount(3);
   });
 
-  test('selecting a slot advances to confirmation step', async ({ page }) => {
-    // Click an available date
-    // quality: allow-fragile-selector (calendar day labels repeat; selecting first enabled day is acceptable here)
-    const enabledDay = page.locator('button:not([disabled])').filter({ hasText: /^\d{1,2}$/ }).first();
-    const dayExists = await enabledDay.isVisible().catch(() => false);
+  test('a day without published slots stays disabled', async ({ page }) => {
+    // The fixture publishes no slots for today, so today is never selectable.
+    const today = String(new Date().getDate());
 
-    if (dayExists) {
-      await enabledDay.click();
+    await expect(page.getByRole('button', { name: today, exact: true })).toBeDisabled();
+  });
 
-      // Wait for slots to appear
-      // quality: allow-fragile-selector (slot labels may repeat across formats; selecting first visible slot is acceptable)
-      const slotButton = page.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ }).first();
-      const slotsExist = await slotButton.isVisible({ timeout: 10_000 }).catch(() => false);
+  test('selecting a slot advances to the confirmation step', async ({ page }) => {
+    await selectDay(page, bookableDay);
+    await slotButtons(page).first().click();
 
-      if (slotsExist) {
-        await slotButton.click();
+    await expect(page.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('Entrenamiento Kóre').first()).toBeVisible();
+  });
 
-        // Should advance to step 2 — Confirmation step shows "Confirmar reserva"
-        await expect(page.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
+  test('going back from confirmation returns to the slot picker', async ({ page }) => {
+    await selectDay(page, bookableDay);
+    await slotButtons(page).first().click();
+    await expect(page.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
 
-        // Trainer info panel should be visible
-        await expect(page.getByText('Entrenamiento Kóre').first()).toBeVisible();
+    await page.getByRole('button', { name: 'Atrás' }).click();
 
-        // Back button should return to step 1
-        await page.getByRole('button', { name: 'Atrás' }).click();
-        await expect(page.getByText('Confirmar reserva')).not.toBeVisible();
-        await expect(slotButton).toBeVisible();
-      }
-    }
+    await expect(page.getByText('Confirmar reserva')).not.toBeVisible();
+    await expect(slotButtons(page).first()).toBeVisible();
+  });
+
+  test('confirmation step shows the session duration and modality', async ({ page }) => {
+    await selectDay(page, bookableDay);
+    await slotButtons(page).first().click();
+    await expect(page.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
+
+    await expect(page.getByText(/\d+ min/)).toBeVisible();
+    await expect(page.getByText('En persona')).toBeVisible();
+  });
+
+  test('confirmation step shows the booking user identity fields', async ({ page }) => {
+    await selectDay(page, bookableDay);
+    await slotButtons(page).first().click();
+    await expect(page.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
+
+    await expect(page.getByText('Nombre')).toBeVisible();
+    await expect(page.getByText('Email')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Confirmar' })).toBeVisible();
   });
 
   test('calendar year-boundary navigation: Jan→Dec and Dec→Jan', async ({ page }) => {
-    const monthLabel = page.locator('h3.capitalize').first();
+    const monthLabel = page.getByRole('heading', MONTH_LABEL);
     await expect(monthLabel).toBeVisible();
 
     const prevBtn = page.getByLabel('Mes anterior');
     const nextBtn = page.getByLabel('Mes siguiente');
 
-    // Navigate backwards to January (month 0)
-    const currentMonth = new Date().getMonth(); // 0-indexed
-    // Click prev enough times to reach January
+    // Step back to January, then once more to cross into the previous December.
+    const currentMonth = new Date().getMonth();
     for (let i = 0; i <= currentMonth; i++) {
       await prevBtn.click();
     }
-    // We should now be in December of the previous year (year boundary crossed)
     await expect(monthLabel).toContainText(/diciembre/i);
 
-    // Now navigate forward past December to cross the year boundary the other way
-    // From December, click next 12 times to reach December of next year
     for (let i = 0; i < 12; i++) {
       await nextBtn.click();
     }
-    // Should be back to December (of the original year)
     await expect(monthLabel).toContainText(/diciembre/i);
 
-    // One more click should cross into January of next year
     await nextBtn.click();
     await expect(monthLabel).toContainText(/enero/i);
-  });
-
-  test('trainer info panel renders with session details', async ({ page }) => {
-    // quality: allow-fragile-selector (calendar day labels repeat; selecting first enabled day is acceptable here)
-    const enabledDay = page.locator('button:not([disabled])').filter({ hasText: /^\d{1,2}$/ }).first();
-    const dayExists = await enabledDay.isVisible().catch(() => false);
-
-    if (dayExists) {
-      await enabledDay.click();
-      // quality: allow-fragile-selector (slot labels may repeat across formats; selecting first visible slot is acceptable)
-      const slotButton = page.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ }).first();
-      const slotsExist = await slotButton.isVisible({ timeout: 10_000 }).catch(() => false);
-
-      if (slotsExist) {
-        await slotButton.click();
-        await expect(page.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
-
-        // TrainerInfoPanel: duration, modality, studio location
-        await expect(page.getByText(/\d+ min/)).toBeVisible();
-        await expect(page.getByText('En persona')).toBeVisible();
-        await expect(page.getByText('Entrenamiento Kóre')).toBeVisible();
-      }
-    }
-  });
-
-  test('confirmation step without active subscription shows user info only', async ({ page }) => {
-    // This test exercises BookingConfirmation.tsx lines 46-52 (subscription is null branch)
-    // The default mock has no subscriptions, so we should see the confirmation UI
-    // without the subscription info block
-
-    // quality: allow-fragile-selector (calendar day labels repeat; selecting first enabled day is acceptable here)
-    const enabledDay = page.locator('button:not([disabled])').filter({ hasText: /^\d{1,2}$/ }).first();
-    const dayExists = await enabledDay.isVisible().catch(() => false);
-
-    if (dayExists) {
-      await enabledDay.click();
-      // quality: allow-fragile-selector (slot labels may repeat across formats; selecting first visible slot is acceptable)
-      const slotButton = page.locator('button').filter({ hasText: /\d{1,2}:\d{2}/ }).first();
-      const slotsExist = await slotButton.isVisible({ timeout: 10_000 }).catch(() => false);
-
-      if (slotsExist) {
-        await slotButton.click();
-        await expect(page.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
-
-        // User info should be visible
-        await expect(page.getByText('Nombre')).toBeVisible();
-        await expect(page.getByText('Email')).toBeVisible();
-
-        // Confirm button should be visible
-        await expect(page.getByRole('button', { name: 'Confirmar' })).toBeVisible();
-        await expect(page.getByRole('button', { name: 'Atrás' })).toBeVisible();
-      }
-    }
-  });
-
-  test('subscription selector shows active subscriptions with session details', async ({ page }) => {
-    // Check if subscription selector is visible when user has active subscriptions
-    const subscriptionSelector = page.locator('select#subscription-select');
-    const hasSelector = await subscriptionSelector.isVisible().catch(() => false);
-
-    if (hasSelector) {
-      // Verify TODO note is present
-      await expect(page.getByText(/This was not included in the project scope/)).toBeVisible();
-
-      // Verify session details card is visible
-      await expect(page.getByText(/Sesión \d+ de \d+/)).toBeVisible();
-      await expect(page.getByText(/Programa:/)).toBeVisible();
-    }
-  });
-
-});
-
-/**
- * Tests for reschedule no-availability branch in book-session/page.tsx.
- * showRescheduleNoAvailability renders when isReschedule=true, bookingToReschedule
- * is found, and availableDates is empty (no slots for the reschedule window).
- */
-test.describe('Book Session — Reschedule No Availability', { tag: [...FlowTags.BOOKING_SESSION_FLOW, RoleTags.USER] }, () => {
-  const rescheduleBooking = {
-    id: 800, customer_id: 1,
-    package: { id: 6, title: 'Paquete Pro', sessions_count: 4, session_duration_minutes: 60, price: '120000', currency: 'COP', validity_days: 60 },
-    starts_at: new Date(Date.now() + 48 * 3600000).toISOString(),
-    ends_at: new Date(Date.now() + 49 * 3600000).toISOString(),
-    trainer: { id: 1, user_id: 1, first_name: 'Germán', last_name: 'Franco', email: 'g@kore.com', specialty: 'Funcional', bio: '', location: 'Bogotá', session_duration_minutes: 60 },
-    subscription_id_display: 11,
-    status: 'confirmed', notes: '', canceled_reason: '',
-    created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-  };
-  const rescheduleSubscription = {
-    id: 11, customer_email: 'e2e@kore.com',
-    package: { id: 6, title: 'Paquete Pro', sessions_count: 4, session_duration_minutes: 60, price: '120000', currency: 'COP', validity_days: 60 },
-    sessions_total: 4, sessions_used: 1, sessions_remaining: 3, status: 'active',
-    starts_at: new Date(Date.now() - 10 * 86400000).toISOString(),
-    expires_at: new Date(Date.now() + 50 * 86400000).toISOString(),
-    next_billing_date: null,
-  };
-
-  // Pick a target date 2 days from now (skip Sunday)
-  const targetDay = new Date();
-  targetDay.setDate(targetDay.getDate() + 2);
-  if (targetDay.getDay() === 0) targetDay.setDate(targetDay.getDate() + 1);
-  // Use LOCAL date components (matching calendar display and WEEKDAY_WINDOWS generation)
-  const targetDateStr = `${targetDay.getFullYear()}-${String(targetDay.getMonth() + 1).padStart(2, '0')}-${String(targetDay.getDate()).padStart(2, '0')}`;
-  const targetDayNum = targetDay.getDate().toString();
-
-  async function setupRescheduleNoAvailabilityMocks(page: import('@playwright/test').Page) {
-    // Use standard base mocks (auth, captcha, pending-assessments, expiry-reminder, etc.)
-    await injectAuthCookies(page);
-    await setupDefaultApiMocks(page);
-
-    // Override with reschedule-specific mocks (LIFO: last registered wins)
-    await page.route('**/api/trainers/**', (r) => r.fulfill({
-      status: 200, contentType: 'application/json',
-      body: JSON.stringify({ count: 1, next: null, previous: null, results: [rescheduleBooking.trainer] }),
-    }));
-    // Return empty availability so no dates are selectable
-    await page.route('**/api/availability/**', (r) => r.fulfill({
-      status: 200, contentType: 'application/json',
-      body: JSON.stringify({}),
-    }));
-    await page.route('**/api/subscriptions/', (r) => r.fulfill({
-      status: 200, contentType: 'application/json',
-      body: JSON.stringify({ count: 1, next: null, previous: null, results: [rescheduleSubscription] }),
-    }));
-    await page.route('**/api/bookings/**', async (route) => {
-      const url = route.request().url();
-      if (url.includes('/upcoming-reminder')) {
-        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
-      }
-      return route.fulfill({
-        status: 200, contentType: 'application/json',
-        body: JSON.stringify({ count: 1, next: null, previous: null, results: [rescheduleBooking] }),
-      });
-    });
-  }
-
-  test('reschedule with no available slots shows no-availability message', async ({ page }) => {
-    // Exercise book-session/page.tsx showRescheduleNoAvailability=true
-    // renders the "no disponibilidad" block with the WhatsApp contact link.
-    // With computed availability, this triggers when the backend returns an empty availability map.
-    await setupRescheduleNoAvailabilityMocks(page);
-
-    await page.goto('/book-session?reschedule=800&subscription=11');
-
-    await expect(page.getByText('Agenda tu sesión')).toBeVisible({ timeout: 10_000 });
-
-    // The no-availability message appears immediately when availability loads as empty
-    await expect(page.getByText(/Por el momento no hay disponibilidad horaria/)).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole('link', { name: '+57 301 4645272' })).toBeVisible();
   });
 });

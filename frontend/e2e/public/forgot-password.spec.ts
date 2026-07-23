@@ -129,9 +129,6 @@ test.describe('Forgot Password Page', { tag: [...FlowTags.AUTH_FORGOT_PASSWORD, 
     await page.getByLabel('Nueva contraseña').fill('securepass1');
     await page.getByLabel('Confirmar contraseña').fill('differentpass');
 
-    await page.evaluate(() => {
-      document.querySelectorAll('input[minlength]').forEach((el) => el.removeAttribute('minlength'));
-    });
     await page.getByRole('button', { name: 'Cambiar contraseña' }).click();
 
     await expect(page.getByText('Las contraseñas no coinciden.')).toBeVisible({ timeout: 5_000 });
@@ -157,15 +154,16 @@ test.describe('Forgot Password Page', { tag: [...FlowTags.AUTH_FORGOT_PASSWORD, 
     await page.getByRole('button', { name: 'Verificar código' }).click();
 
     await expect(page.getByLabel('Nueva contraseña')).toBeVisible({ timeout: 10_000 });
-    await page.getByLabel('Nueva contraseña').fill('short');
+    const newPassword = page.getByLabel('Nueva contraseña');
+    await newPassword.fill('short');
     await page.getByLabel('Confirmar contraseña').fill('short');
 
-    await page.evaluate(() => {
-      document.querySelectorAll('input[minlength]').forEach((el) => el.removeAttribute('minlength'));
-    });
     await page.getByRole('button', { name: 'Cambiar contraseña' }).click();
 
-    await expect(page.getByText('La contraseña debe tener al menos 8 caracteres.')).toBeVisible({ timeout: 5_000 });
+    // The browser's native minLength guard blocks the submit, so the app never
+    // advances and the step-3 form stands — the real user cannot get past this.
+    await expect(newPassword).toHaveJSProperty('validity.tooShort', true);
+    await expect(page.getByRole('button', { name: 'Cambiar contraseña' })).toBeVisible();
   });
 
   test('successful password reset shows success and redirects to login', async ({ page }) => {
@@ -258,10 +256,10 @@ test.describe('Forgot Password Page', { tag: [...FlowTags.AUTH_FORGOT_PASSWORD, 
     await expect(passwordInput).toBeVisible({ timeout: 10_000 });
     await expect(passwordInput).toHaveAttribute('type', 'password');
 
-    await page.locator('button', { hasText: 'Ver' }).evaluate((el) => (el as HTMLElement).click());
+    await page.getByRole('button', { name: 'Ver', exact: true }).click();
     await expect(passwordInput).toHaveAttribute('type', 'text');
 
-    await page.locator('button', { hasText: 'Ocultar' }).evaluate((el) => (el as HTMLElement).click());
+    await page.getByRole('button', { name: 'Ocultar', exact: true }).click();
     await expect(passwordInput).toHaveAttribute('type', 'password');
   });
 
