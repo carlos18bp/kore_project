@@ -1,4 +1,5 @@
 import { test, expect, injectTrainerAuthCookies } from '../fixtures';
+import { mockApiError } from '../helpers/api-errors';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
@@ -35,5 +36,25 @@ test.describe('Trainer Metrics', { tag: [...FlowTags.TRAINER_METRICS, RoleTags.T
     await page.goto('/trainer/metrics');
     await expect(page.getByRole('heading', { name: 'Engagement de tu cartera' })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('heading', { name: 'Próximamente' })).toHaveCount(0);
+  });
+
+  test('keeps the engagement view usable when the ratings summary fails', async ({ page }) => {
+    await mockApiError(page, '**/api/trainer/ratings/summary/**', 500);
+
+    await page.goto('/trainer/metrics');
+
+    // The ratings card has no error UI: on failure it degrades to the
+    // no-ratings copy while the rest of the metrics view stays functional.
+    await expect(page.getByRole('heading', { name: 'Engagement de tu cartera' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: 'Calificaciones' })).toBeVisible();
+    await expect(page.getByText('Todavía no hay calificaciones.')).toBeVisible();
+  });
+
+  test('renders dashes for metrics without attendance or rating data', async ({ page }) => {
+    await page.goto('/trainer/metrics');
+
+    await expect(page.getByText('Asistencia 30d')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('—', { exact: true })).toBeVisible();
+    await expect(page.getByText('Asist. —')).toBeVisible();
   });
 });

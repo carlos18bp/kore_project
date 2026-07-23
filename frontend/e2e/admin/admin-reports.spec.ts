@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures';
 import { mockLoginAsAdmin } from '../helpers/admin-auth';
+import { mockApiError } from '../helpers/api-errors';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
@@ -46,5 +47,39 @@ test.describe('Admin Reports', { tag: [...FlowTags.ADMIN_REPORTS, RoleTags.ADMIN
 
     await page.getByRole('button', { name: '90 días' }).click();
     await expect.poll(() => windows).toContain('90d');
+  });
+
+  test('switching the window renders the refreshed revenue total', async ({ page }) => {
+    await page.route('**/api/admin/reports/**', async (route) => {
+      const url = new URL(route.request().url());
+      const win = url.searchParams.get('window') ?? '30d';
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ...REPORT,
+          window: win,
+          revenue: { ...REPORT.revenue, total_cop: win === '90d' ? 450000 : 120000 },
+        }),
+      });
+    });
+
+    await page.goto('/admin-platform/reports');
+    await expect(page.getByText('120.000 COP')).toBeVisible();
+
+    await page.getByRole('button', { name: '90 días' }).click();
+
+    await expect(page.getByText('450.000 COP')).toBeVisible();
+    await expect(page.getByText('120.000 COP')).toHaveCount(0);
+  });
+
+  test('a KPI load failure shows the reports error message', async ({ page }) => {
+    await mockApiError(page, '**/api/admin/reports/**', 500, {});
+
+    await page.goto('/admin-platform/reports');
+
+    await expect(page.getByText('No se pudieron cargar los reportes.')).toBeVisible();
+    // The window selector stays usable for a retry.
+    await expect(page.getByRole('button', { name: '90 días' })).toBeEnabled();
   });
 });

@@ -384,6 +384,15 @@ class TestTrainerProgramPauseResume:
 
         assert resp.status_code == status.HTTP_404_NOT_FOUND
 
+    def test_resume_returns_404_for_unrelated_client(self, api_client, trainer, other_customer, program):
+        """Resume rejects a customer who has no booking with this trainer."""
+        _auth(api_client, trainer.user)
+
+        url = reverse('trainer-program-resume', args=[other_customer.pk, program.pk])
+        resp = api_client.post(url, {}, format='json')
+
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
+
 
 # ── TrainerComparativeMetricsView ─────────────────────────────────────────────
 
@@ -423,6 +432,46 @@ class TestTrainerComparativeMetricsView:
         assert entry['combined_7d'] == 0.6
         assert entry['trend'] == 'stable'
         assert resp.data['global_patterns']['avg_training_adherence'] == 1.0
+
+    def test_skips_client_whose_program_has_no_days_this_week(self, api_client, trainer, customer, booking):
+        """A published program without program days in the current week leaves the ranking empty."""
+        week_day = FIXED_NOW.date()
+        MonthlyProgram.objects.create(
+            customer=customer, trainer=trainer, fitness_level=2, goal='general_health',
+            start_date=week_day - timedelta(days=40), end_date=week_day - timedelta(days=13),
+            status=MonthlyProgram.Status.PUBLISHED,
+        )
+        _auth(api_client, trainer.user)
+
+        resp = api_client.get(reverse('trainer-comparative-metrics'))
+
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data['adherence_ranking'] == []
+
+    def test_reports_most_missed_weekday_for_failed_training_day(self, api_client, trainer, customer, booking):
+        """A training day under 50% adherence drives most_missed_day_of_week."""
+        week_day = FIXED_NOW.date()  # 2026-05-05 is a Tuesday
+        program = MonthlyProgram.objects.create(
+            customer=customer, trainer=trainer, fitness_level=2, goal='general_health',
+            start_date=week_day - timedelta(days=6), end_date=week_day + timedelta(days=21),
+            status=MonthlyProgram.Status.PUBLISHED,
+        )
+        program_day = ProgramDay.objects.create(
+            program=program, day_number=7, date=week_day,
+            day_type=ProgramDay.DayType.TRAINING,
+        )
+        exercise = Exercise.objects.create(name='Burpee CM', pattern='full_body')
+        ProgramExercise.objects.create(
+            program_day=program_day, exercise=exercise,
+            sets=3, reps=10, rest_seconds=60, order=0,
+        )
+        _auth(api_client, trainer.user)
+
+        resp = api_client.get(reverse('trainer-comparative-metrics'))
+
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data['adherence_ranking'][0]['combined_7d'] == 0.0
+        assert resp.data['global_patterns']['most_missed_day_of_week'] == 'martes'
 
     def test_flags_never_evaluated_client_as_expired(self, api_client, trainer, customer, booking):
         """A linked client with no evaluations gets the four modules flagged expired."""
@@ -1101,6 +1150,22 @@ class TestTrainerClientKPIView:
         assert behavioral['training_adherence_7d'] == 1.0
         assert behavioral['combined_adherence_7d'] == 0.6
         assert behavioral['last_activity_date'] == real_today.isoformat()
+
+    def test_reports_parq_evaluation_date_as_date_only_string(self, api_client, trainer, customer, booking):
+        """The PAR-Q created_at datetime is reformatted to a date-only ISO string."""
+        ParqAssessment.objects.create(
+            customer=customer,
+            q1_heart_condition=False, q2_chest_pain=False,
+            q3_dizziness=False, q4_chronic_condition=False,
+            q5_prescribed_medication=False, q6_bone_joint_problem=False,
+            q7_medical_supervision=False,
+        )
+        _auth(api_client, trainer.user)
+
+        resp = api_client.get(self._url(customer))
+
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data['clinical']['last_eval_dates']['parq'] == '2026-05-05'
 
     def test_computes_kore_score_from_latest_anthropometry(self, api_client, trainer, customer, booking):
         """An anthropometry evaluation feeds the KORE index into the clinical block."""

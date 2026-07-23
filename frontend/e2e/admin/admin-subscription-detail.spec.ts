@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures';
 import { mockLoginAsAdmin } from '../helpers/admin-auth';
+import { mockApiError } from '../helpers/api-errors';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
@@ -171,6 +172,29 @@ test.describe(
       await deleteReq;
 
       await page.waitForURL('**/admin-platform/subscriptions');
+    });
+
+    test('a rejected delete shows the error banner and stays on the detail', async ({ page }) => {
+      await mockDetail(page, makeSub());
+      // Registered after mockDetail so the DELETE is answered with a 409 (LIFO).
+      await mockApiError(
+        page,
+        '**/api/subscriptions/5/admin-delete/',
+        409,
+        { detail: 'No se puede eliminar: la suscripción tiene pagos en curso.' },
+        { method: 'DELETE' },
+      );
+
+      await page.goto('/admin-platform/subscriptions/detail?id=5');
+      await expect(page.getByText('Marta Lopez')).toBeVisible();
+
+      await page.getByRole('button', { name: 'Eliminar', exact: true }).click();
+      await page.getByRole('button', { name: 'Eliminar permanentemente' }).click();
+
+      await expect(
+        page.getByText('No se puede eliminar: la suscripción tiene pagos en curso.'),
+      ).toBeVisible();
+      await expect(page).toHaveURL(/subscriptions\/detail\?id=5/);
     });
   },
 );

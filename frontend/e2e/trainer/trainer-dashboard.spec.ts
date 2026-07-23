@@ -1,4 +1,5 @@
 import { test, expect, injectTrainerAuthCookies } from '../fixtures';
+import { mockApiError } from '../helpers/api-errors';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
@@ -198,5 +199,21 @@ test.describe('Trainer Dashboard Page', { tag: [...FlowTags.TRAINER_DASHBOARD, R
     await expect(page.getByText('Agenda', { exact: true })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Sin sesiones programadas hoy.')).toBeVisible();
     await expect(page.getByText('Sin clientes activos')).toBeVisible();
+  });
+
+  test('falls back to zero sessions when dashboard stats fail to load', async ({ page }) => {
+    const emptyStats = { total_clients: 0, today_sessions: 0, upcoming_sessions: [] };
+    const emptyRisk = { risk_summary: { alto: 0, medio: 0, bajo: 0, sin_riesgo: 0 }, clients_by_risk: [] };
+    const emptyComparative = { ...fakeComparativeMetrics, expired_evaluations: [] };
+    await injectTrainerAuthCookies(page);
+    await setupDashboardMocks(page, { stats: emptyStats, risk: emptyRisk, comparative: emptyComparative });
+    await mockApiError(page, '**/api/trainer/dashboard-stats/', 500);
+    await page.goto('/trainer/dashboard');
+
+    // No visible error UI for a stats failure: the hero degrades to a
+    // zero-session greeting and the agenda keeps its own empty state.
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Germán', { timeout: 15_000 });
+    await expect(page.getByText('0 sesiones', { exact: true })).toBeVisible();
+    await expect(page.getByText('Sin sesiones programadas hoy.')).toBeVisible();
   });
 });

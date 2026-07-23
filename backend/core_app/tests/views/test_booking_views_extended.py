@@ -11,9 +11,11 @@ from core_app.models import (
     Booking,
     Package,
     Subscription,
+    SubscriptionGuest,
     TrainerProfile,
     User,
 )
+from core_app.models.session_grant import SessionGrant
 from core_app.tests.helpers import get_results
 
 
@@ -147,6 +149,76 @@ class TestCancelAction:
         assert response.status_code == status.HTTP_200_OK
         booking.refresh_from_db()
         assert booking.status == Booking.Status.CANCELED
+
+    @pytest.mark.parametrize('url_name', ['booking-cancel', 'booking-reschedule'])
+    def test_unknown_booking_returns_404(self, api_client, customer, url_name):
+        """An id that matches no booking yields 404 on the custom actions."""
+        api_client.force_authenticate(user=customer)
+
+        url = reverse(url_name, args=[999999])
+        response = api_client.post(url, {'new_starts_at': NEW_STARTS_AT_STR}, format='json')
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_cancel_by_unrelated_customer_returns_404(self, api_client, customer, package):
+        """Another customer cannot see, hence cannot cancel, someone else's booking."""
+        booking = _make_booking(customer, package)
+        stranger = User.objects.create_user(
+            email='bk_stranger@example.com', password='p', role=User.Role.CUSTOMER,
+        )
+
+        api_client.force_authenticate(user=stranger)
+        url = reverse('booking-cancel', args=[booking.pk])
+        response = api_client.post(url, {}, format='json')
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        booking.refresh_from_db()
+        assert booking.status == Booking.Status.CONFIRMED
+
+    def test_cancel_restores_session_grant_usage(self, api_client, customer, package):
+        """Canceling a grant-backed booking refunds the session to the grant."""
+        grant = SessionGrant.objects.create(
+            customer=customer, sessions_total=4, sessions_used=1,
+            expires_at=FIXED_NOW + timedelta(days=30),
+        )
+        booking = _make_booking(customer, package)
+        booking.session_grant = grant
+        booking.save(update_fields=['session_grant'])
+
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-cancel', args=[booking.pk])
+        response = api_client.post(url, {}, format='json')
+
+        assert response.status_code == status.HTTP_200_OK
+        grant.refresh_from_db()
+        assert grant.sessions_used == 0
+
+    def test_cancel_on_duo_subscription_cancels_guest_booking(
+        self, api_client, customer, package, trainer_profile, subscription,
+    ):
+        """When the host cancels, the guest's parallel booking is canceled too."""
+        guest = User.objects.create_user(
+            email='bk_duo_guest@example.com', password='p', role=User.Role.CUSTOMER,
+        )
+        SubscriptionGuest.objects.create(
+            subscription=subscription, guest=guest,
+            invited_email=guest.email, token='duo-cancel-token',
+            status=SubscriptionGuest.STATUS_ACCEPTED,
+        )
+        subscription.sessions_used = 1
+        subscription.save(update_fields=['sessions_used'])
+        host_booking = _make_booking(customer, package, trainer_profile, subscription)
+        guest_booking = _make_booking(guest, package, trainer_profile, subscription=None,
+                                      stat=Booking.Status.PENDING)
+
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-cancel', args=[host_booking.pk])
+        response = api_client.post(url, {}, format='json')
+
+        assert response.status_code == status.HTTP_200_OK
+        guest_booking.refresh_from_db()
+        assert guest_booking.status == Booking.Status.CANCELED
+        assert guest_booking.canceled_reason == 'Sesión cancelada por el anfitrión.'
 
 
 # ----------------------------------------------------------------
@@ -346,6 +418,67 @@ class TestOnlyNextSessionValidation:
         assert resp2.status_code == status.HTTP_201_CREATED
 
         assert Booking.objects.filter(customer=customer).count() == 2
+
+
+# ----------------------------------------------------------------
+# Duo plan guest rules
+# ----------------------------------------------------------------
+
+@pytest.mark.django_db
+class TestGuestBookingRules:
+
+    def test_accepted_guest_cannot_create_booking(self, api_client, customer, package, subscription):
+        """A user holding an accepted guest link is blocked from booking directly."""
+        guest = User.objects.create_user(
+            email='bk_blocked_guest@example.com', password='p', role=User.Role.CUSTOMER,
+        )
+        SubscriptionGuest.objects.create(
+            subscription=subscription, guest=guest,
+            invited_email=guest.email, token='guest-block-token',
+            status=SubscriptionGuest.STATUS_ACCEPTED,
+        )
+
+        api_client.force_authenticate(user=guest)
+        url = reverse('booking-list')
+        response = api_client.post(
+            url, {'package_id': package.id, 'starts_at': '2026-01-17T14:00:00Z'}, format='json',
+        )
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.data['detail'] == 'Los invitados no pueden agendar sesiones directamente.'
+
+    def test_booking_on_duo_subscription_creates_guest_booking(
+        self, api_client, customer, package, subscription, assigned_trainer,
+    ):
+        """Booking on a subscription with an accepted guest spawns a parallel guest booking."""
+        customer.assigned_trainer = assigned_trainer
+        customer.save(update_fields=['assigned_trainer'])
+        guest = User.objects.create_user(
+            email='bk_duo_partner@example.com', password='p', role=User.Role.CUSTOMER,
+        )
+        SubscriptionGuest.objects.create(
+            subscription=subscription, guest=guest,
+            invited_email=guest.email, token='duo-create-token',
+            status=SubscriptionGuest.STATUS_ACCEPTED,
+        )
+
+        api_client.force_authenticate(user=customer)
+        url = reverse('booking-list')
+        response = api_client.post(
+            url,
+            {
+                'package_id': package.id,
+                'starts_at': '2026-01-17T14:00:00Z',
+                'subscription_id': subscription.id,
+            },
+            format='json',
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED, response.data
+        guest_booking = Booking.objects.get(customer=guest)
+        assert guest_booking.starts_at == BOOKING_STARTS_AT
+        assert guest_booking.status == Booking.Status.PENDING
+        assert guest_booking.subscription is None
 
 
 # ----------------------------------------------------------------

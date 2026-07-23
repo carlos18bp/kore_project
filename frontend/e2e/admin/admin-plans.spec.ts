@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures';
 import { mockLoginAsAdmin } from '../helpers/admin-auth';
+import { mockApiError } from '../helpers/api-errors';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
@@ -182,5 +183,38 @@ test.describe('Admin Plans', { tag: [...FlowTags.ADMIN_PLANS, RoleTags.ADMIN] },
 
     await page.getByRole('button', { name: /Terapéutica/ }).click();
     await expect(page.getByText('Sin planes en esta categoría')).toBeVisible();
+  });
+
+  test('a rejected plan save surfaces the server message in the modal', async ({ page }) => {
+    await mockPackages(page);
+    // Registered after mockPackages so the create POST is answered with a 400 (LIFO).
+    await mockApiError(
+      page,
+      '**/api/packages/**',
+      400,
+      { title: ['Ya existe un plan con este nombre.'] },
+      { method: 'POST' },
+    );
+
+    await page.goto('/admin-platform/plans');
+    await expect(page.getByText('Plan Base Personalizado')).toBeVisible();
+
+    await page.getByRole('button', { name: /Crear plan/ }).click();
+    await expect(page.getByText('Crear plan de entrenamiento')).toBeVisible();
+    await page.getByPlaceholder('Ej. Plan Estándar').fill('Plan Duplicado');
+    await page.getByPlaceholder('0').fill('250000');
+    await page.getByRole('button', { name: 'Crear plan', exact: true }).click();
+
+    await expect(page.getByText('title: Ya existe un plan con este nombre.')).toBeVisible();
+    // The modal stays open so the admin can correct and retry.
+    await expect(page.getByText('Crear plan de entrenamiento')).toBeVisible();
+  });
+
+  test('a catalog load failure shows the plans error banner', async ({ page }) => {
+    await mockApiError(page, '**/api/packages/**', 500, {}, { method: 'GET' });
+
+    await page.goto('/admin-platform/plans');
+
+    await expect(page.getByText('No se pudieron cargar los planes.')).toBeVisible();
   });
 });

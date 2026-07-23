@@ -1,4 +1,5 @@
 import { test, expect, E2E_USER, mockLoginAsTestUser } from '../fixtures';
+import { mockApiError } from '../helpers/api-errors';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags.USER] }, () => {
@@ -58,6 +59,47 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
     await expect(badge).toBeVisible({ timeout: 15_000 });
     await expect(badge).toHaveAttribute('href', '/mis-creditos');
     await expect(badge.getByText('55')).toBeVisible();
+  });
+
+  test('wallet endpoint failure degrades the credits badge to a placeholder', async ({ page }) => {
+    await mockApiError(page, '**/api/credits/wallet/**', 500);
+    await page.goto('/dashboard');
+
+    // There is no dedicated error UI for the wallet: the badge stays rendered
+    // with an em-dash placeholder instead of a balance and keeps its link.
+    const badge = page.getByRole('link', { name: 'Ver mis créditos' }).filter({ visible: true }).first();
+    await expect(badge).toBeVisible({ timeout: 15_000 });
+    await expect(badge).toContainText('—');
+    await expect(badge).toContainText('créditos');
+    await expect(badge).toHaveAttribute('href', '/mis-creditos');
+  });
+
+  test('bookings endpoint failure still renders the empty next-session row', async ({ page }) => {
+    await mockApiError(page, '**/api/bookings/**', 500);
+    await page.goto('/dashboard');
+
+    // Graceful degradation: no error banner exists for bookings on the
+    // dashboard; the page stays functional and falls back to the empty row.
+    await expect(
+      page.getByRole('heading', { level: 1, name: new RegExp(E2E_USER.firstName) }),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.getByRole('main').getByText('Sin sesiones próximas').filter({ visible: true }).first(),
+    ).toBeVisible({ timeout: 10_000 });
+  });
+
+  test('credits badge renders a zero balance without hiding itself', async ({ page }) => {
+    await page.route('**/api/credits/wallet/**', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ balance: 0, pending_balance: 0, current_streak: 0, longest_streak: 0, last_active_date: null, next_milestone: null }) }));
+    await page.route('**/api/credits/values/**', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ action_values: { checkin: 5, water_goal: 10, meal_photo: 5, workout_day: 15 }, streak_bonuses: { '3': 20, '7': 50 }, water_goal_glasses: 8, meal_review_days: 3, require_workout_captures: true }) }));
+    await page.goto('/dashboard');
+
+    const badge = page.getByRole('link', { name: 'Ver mis créditos' }).filter({ visible: true }).first();
+    await expect(badge).toBeVisible({ timeout: 15_000 });
+    await expect(badge).toContainText('0 créditos');
   });
 });
 

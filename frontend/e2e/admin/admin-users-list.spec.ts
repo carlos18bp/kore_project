@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures';
 import { mockLoginAsAdmin } from '../helpers/admin-auth';
+import { mockApiError } from '../helpers/api-errors';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
@@ -114,5 +115,17 @@ test.describe('Admin Users List', { tag: [...FlowTags.ADMIN_USERS_LIST, RoleTags
     await mockUsersList(page, []);
     await page.goto('/admin-platform/users');
     await expect(page.getByText('Sin usuarios')).toBeVisible();
+  });
+
+  test('a roster load failure degrades to the empty state', async ({ page }) => {
+    // The page never renders the store's fetch error, so the observable contract
+    // on a 500 is graceful degradation: the shell stays up and the roster area
+    // presents the empty state instead of crashing.
+    await mockApiError(page, '**/api/admin/users/**', 500, {}, { method: 'GET' });
+
+    await page.goto('/admin-platform/users');
+
+    await expect(page.getByText('Sin usuarios')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Gestión de usuarios' })).toBeVisible();
   });
 });

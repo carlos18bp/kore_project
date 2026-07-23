@@ -1,4 +1,5 @@
 import { test, expect, mockLoginAsTestUser } from '../fixtures';
+import { mockApiError } from '../helpers/api-errors';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
@@ -128,5 +129,50 @@ test.describe('Booking Cancel Flow', { tag: [...FlowTags.BOOKING_CANCEL_FLOW, Ro
 
     // Modal should still be visible (cancel failed)
     await expect(page.getByRole('dialog', { name: 'Detalle de Sesión' })).toBeVisible({ timeout: 5_000 });
+  });
+
+  test('cancel without a reason succeeds and closes the detail modal', async ({ page }) => {
+    await mockLoginAsTestUser(page);
+    await setupMocks(page);
+    await page.goto('/subscription');
+
+    await expect(page.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 20_000 });
+    await page.getByRole('button', { name: /Confirmada/ }).click();
+
+    const dialog = page.getByRole('dialog', { name: 'Detalle de Sesión' });
+    await expect(dialog).toBeVisible({ timeout: 5_000 });
+    await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
+
+    // The reason textarea is optional — confirm directly without filling it.
+    await expect(page.getByPlaceholder('Motivo de cancelación (opcional)')).toBeVisible();
+    await page.getByRole('button', { name: 'Confirmar cancelación' }).click();
+
+    await expect(dialog).not.toBeVisible({ timeout: 10_000 });
+  });
+
+  test('cancel rejection shows the backend message inside the modal', async ({ page }) => {
+    await mockLoginAsTestUser(page);
+    await setupMocks(page);
+    await mockApiError(
+      page,
+      '**/api/bookings/*/cancel/**',
+      409,
+      { detail: 'La sesión ya no se puede cancelar.' },
+      { method: 'POST' },
+    );
+
+    await page.goto('/subscription');
+    await expect(page.getByRole('button', { name: /Confirmada/ })).toBeVisible({ timeout: 10_000 });
+    await page.getByRole('button', { name: /Confirmada/ }).click();
+
+    const dialog = page.getByRole('dialog', { name: 'Detalle de Sesión' });
+    await expect(dialog).toBeVisible({ timeout: 5_000 });
+    await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
+    await page.getByRole('button', { name: 'Confirmar cancelación' }).click();
+
+    // User-visible error UX: backend detail rendered in the modal error box
+    // and the confirm button re-enabled so the user can retry.
+    await expect(dialog.getByText('La sesión ya no se puede cancelar.')).toBeVisible({ timeout: 10_000 });
+    await expect(dialog.getByRole('button', { name: 'Confirmar cancelación' })).toBeEnabled();
   });
 });

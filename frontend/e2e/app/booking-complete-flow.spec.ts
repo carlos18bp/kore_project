@@ -285,4 +285,26 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
     // Error message should appear
     await expect(page.getByText('No quedan sesiones disponibles.')).toBeVisible({ timeout: 10_000 });
   });
+
+  test('server failure on confirm shows the generic error and keeps retry enabled', async ({ page }) => {
+    await mockLoginAsTestUser(page);
+    await setupMocks(page);
+
+    // 500 with an empty body: the store falls back to its generic Spanish message.
+    await page.route('**/api/bookings/', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({}) });
+      } else {
+        await route.continue();
+      }
+    });
+
+    const main = await goToConfirmationStep(page);
+    await main.getByRole('button', { name: 'Confirmar' }).click();
+
+    await expect(main.getByText('No se pudo crear la reserva.')).toBeVisible({ timeout: 10_000 });
+    // The user stays on the confirmation step and can retry.
+    await expect(main.getByText('Confirmar reserva')).toBeVisible();
+    await expect(main.getByRole('button', { name: 'Confirmar' })).toBeEnabled();
+  });
 });
