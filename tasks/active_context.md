@@ -20,9 +20,12 @@ The KÓRE platform is **fully functional in production** at `korehealths.com` (p
 
 ## 2. Recent Focus Areas
 
-- **Release hardening pipeline — pass 2 (2026-07-22)** (latest — in progress):
-  - 5-phase skill-driven pipeline over `july-release`: (1) Memory Bank refresh (this update), (2) `new-feature-checklist` + backend/frontend-unit coverage + quality gate, (3) `e2e-user-flows-check` + E2E coverage closure, (4) `fake-data-refresh` on staging, (5) `deploy-and-check` on staging
-  - Scope: close the inventoried coverage gaps (tasks_plan §3 weakest files), not a 100% push
+- **Release hardening pipeline — pass 2 (2026-07-22/23)** (latest — completed):
+  - 5-phase skill-driven pipeline over `july-release`: (1) Memory Bank refresh, (2) `new-feature-checklist` + backend/frontend-unit coverage + quality gate, (3) `e2e-user-flows-check` + E2E closure (no gaps, 104/104), (4) `fake-data-refresh` on staging, (5) `deploy-and-check` on staging
+  - Coverage closed: `import_food_catalog` 0→100%, `import_exercises` 57→99%, `physical_test_views` 59→100%, `trainer_intelligence_views` 60→97.5%, `tasks.py` 100%; frontend `trainerStore` 50→79%, `programStore` 53→94%, `SubCardCompact` 0→92%, `UserRow` 38→88%, `NotesTab` 41→65%. Quality gate 0 errors / 59 warnings (no regression). CI green @ `e814983` (Tests + Quality Gate)
+  - E2E CI resharded 4 → 6 shards (517 listed tests, ~86/shard)
+  - Staging: catalogs were empty (programs/nutrition seeders no-op'd) — imported via `import_exercises --csv` (1093; venv lacks openpyxl so Excel path unusable), `import_food_catalog` (5533 foods), `seed_meal_suggestions` (1000), then re-ran dependent seeders (23 programs / 23 plans / 23 risk scores). Credit ledger coherent (532 confirmed rows, 0 inconsistencies)
+  - Staging serving restored: nginx site `kore_staging_project` re-enabled + Let's Encrypt cert emitted for `korehealths.projectapp.co` (2026-07-23); health/homepage/login 200, gunicorn+huey clean logs. Note: `post-deploy-check.sh` does not register `kore_project_staging` (manual equivalent checks used)
 - **Release hardening pipeline — pass 1 (2026-07-17)** (completed — commits `0440992..9f2552b`):
   - Delivered: Memory Bank refresh, `create_fake_credits` seeder (+ PROTECT-order fix in `delete_fake_data`), flow-map reconciliation (runtime artifact = coverage source of truth, `expectedSpecs: 0` convention), 40 backend tests (`recurring_renewal` direct contract tests, day-close tasks, store serializers, `TrainerClientKPIView`), quality-gate warning sweep (86 → 59), revived P1-missing CI gate (`a501f05`, closes TD-11/ERROR-004)
   - Coverage baseline from CI artifacts @ `d7cf79b`: backend **89.90%**, frontend unit **86.75%** stmts / 77.04% branches, E2E flows 104/104, quality gate **99/100**
