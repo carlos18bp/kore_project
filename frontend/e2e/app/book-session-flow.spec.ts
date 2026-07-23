@@ -28,6 +28,11 @@ function slotButtons(page: Page) {
   return page.getByRole('button', { name: /\d{1,2}:\d{2}\s*[ap]\.\s*m\./i });
 }
 
+// quality: allow-fragile-selector (the mock publishes several equivalent slots; booking the first is a deliberate user choice)
+function firstSlot(page: Page) {
+  return slotButtons(page).first();
+}
+
 test.describe('Book Session Flow', { tag: [...FlowTags.BOOKING_SESSION_FLOW, RoleTags.USER] }, () => {
   const bookableDay = nextBookableDay(new Date(), 1);
 
@@ -57,7 +62,7 @@ test.describe('Book Session Flow', { tag: [...FlowTags.BOOKING_SESSION_FLOW, Rol
   test('selecting an available date lists that day time slots', async ({ page }) => {
     await selectDay(page, bookableDay);
 
-    await expect(slotButtons(page).first()).toBeVisible({ timeout: 10_000 });
+    await expect(firstSlot(page)).toBeVisible({ timeout: 10_000 });
     await expect(slotButtons(page)).toHaveCount(3);
   });
 
@@ -70,7 +75,7 @@ test.describe('Book Session Flow', { tag: [...FlowTags.BOOKING_SESSION_FLOW, Rol
 
   test('selecting a slot advances to the confirmation step', async ({ page }) => {
     await selectDay(page, bookableDay);
-    await slotButtons(page).first().click();
+    await firstSlot(page).click();
 
     await expect(page.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('Entrenamiento Kóre').first()).toBeVisible();
@@ -78,18 +83,18 @@ test.describe('Book Session Flow', { tag: [...FlowTags.BOOKING_SESSION_FLOW, Rol
 
   test('going back from confirmation returns to the slot picker', async ({ page }) => {
     await selectDay(page, bookableDay);
-    await slotButtons(page).first().click();
+    await firstSlot(page).click();
     await expect(page.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole('button', { name: 'Atrás' }).click();
 
     await expect(page.getByText('Confirmar reserva')).not.toBeVisible();
-    await expect(slotButtons(page).first()).toBeVisible();
+    await expect(firstSlot(page)).toBeVisible();
   });
 
   test('confirmation step shows the session duration and modality', async ({ page }) => {
     await selectDay(page, bookableDay);
-    await slotButtons(page).first().click();
+    await firstSlot(page).click();
     await expect(page.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
 
     await expect(page.getByText(/\d+ min/)).toBeVisible();
@@ -98,7 +103,7 @@ test.describe('Book Session Flow', { tag: [...FlowTags.BOOKING_SESSION_FLOW, Rol
 
   test('confirmation step shows the booking user identity fields', async ({ page }) => {
     await selectDay(page, bookableDay);
-    await slotButtons(page).first().click();
+    await firstSlot(page).click();
     await expect(page.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
 
     await expect(page.getByText('Nombre')).toBeVisible();

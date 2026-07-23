@@ -87,6 +87,7 @@ test.describe('Mi Programa — Día Específico', { tag: [...FlowTags.CUSTOMER_M
 
     // While the redirect is blocked on the pending request, the loading spinner
     // is on screen and we are still on the detail route.
+    // quality: allow-fragile-selector (the loading spinner is a decorative div with no role or text to target)
     await expect(page.locator('.animate-spin')).toBeVisible({ timeout: 10_000 });
     await expect(page).toHaveURL(/\/mi-programa\/dia\/detail/);
 

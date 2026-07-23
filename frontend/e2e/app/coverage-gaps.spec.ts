@@ -1,5 +1,6 @@
 import { test, expect, mockLoginAsTestUser } from '../fixtures';
 import type { Page } from '@playwright/test';
+import { nextBookableDay, toDateKey } from '../factories';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 function buildSingleFutureSlot(dateIso: string) {
@@ -88,40 +89,26 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
   // ─────────────────────────────────────────────────────────────────────────
   // TimeSlotPicker.tsx line 24 — Empty slots fallback
   // ─────────────────────────────────────────────────────────────────────────
-  test('TimeSlotPicker shows empty message when no slots available', async ({ page }) => {
+  test('selecting an available day shows its published time slot', async ({ page }) => {
     // Pick a target weekday Mon-Sat so the day is enabled in the calendar
     // (Sundays are disabled since WEEKDAY_WINDOWS has no entry for day 0).
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 2);
-    while (tomorrow.getDay() === 0) {
-      tomorrow.setDate(tomorrow.getDate() + 1);
-    }
-    const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+    const targetDay = nextBookableDay(new Date(), 2);
+    const targetStr = toDateKey(targetDay);
     await mockLoginAsTestUser(page);
-    await mockBookSessionCoverageRoutes(page, tomorrowStr);
+    await mockBookSessionCoverageRoutes(page, targetStr);
 
     await page.goto('/book-session');
-
     await expect(page.getByText('Agenda tu sesión')).toBeVisible({ timeout: 10_000 });
-    // If targetDay falls in a future month, navigate forward.
-    const today = new Date();
-    if (
-      tomorrow.getMonth() !== today.getMonth() ||
-      tomorrow.getFullYear() !== today.getFullYear()
-    ) {
+    if (targetDay.getMonth() !== new Date().getMonth()) {
       await page.getByLabel('Mes siguiente').click();
     }
-    const targetDay = String(tomorrow.getDate());
-    const enabledDay = page.getByRole('button', { name: new RegExp(`^${targetDay}$`) });
-    const dayExists = await enabledDay.isVisible().catch(() => false);
-    const dayDisabled = dayExists ? await enabledDay.isDisabled().catch(() => true) : true;
-    if (dayExists && !dayDisabled) {
-      await enabledDay.click();
-      // quality: allow-fragile-selector (slot list may repeat time labels; need first visible slot or empty copy)
-      await expect(
-        page.getByText(/\d{1,2}:\d{2}/).first().or(page.getByText('No hay horarios disponibles'))
-      ).toBeVisible({ timeout: 10_000 });
-    }
+
+    await page.getByRole('button', { name: String(targetDay.getDate()), exact: true }).click();
+
+    // The mock publishes exactly one 10:00 slot for the day; the picker shows it.
+    await expect(
+      page.getByRole('main').getByRole('button', { name: /\d{1,2}:\d{2}/ }),
+    ).toHaveCount(1);
   });
 
   // ─────────────────────────────────────────────────────────────────────────

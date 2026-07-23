@@ -82,6 +82,24 @@ ALLOW_FRAGILE_SELECTOR_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# Vacuous / synthetic-interaction patterns. These caused a whole class of E2E
+# tests to pass without proving anything (see the 2026-07-24 audit): guards that
+# skip every assertion, swallowed failures, DOM tampering that fakes an
+# interaction no real user could perform, and tautological assertions.
+SWALLOWED_FAILURE_PATTERN = re.compile(
+    r"\.(?:isVisible|isDisabled|isEnabled|isChecked|isEditable|count)\s*\([^)]*\)\s*\.catch\s*\(\s*\(\s*\)\s*=>",
+)
+SYNTHETIC_CLICK_PATTERN = re.compile(
+    r"\.evaluate\s*\(\s*\(?\s*\w+\s*\)?\s*=>\s*\(?\s*\(?\s*\w+\s*(?:as\s+HTMLElement)?\s*\)?\s*\.click\s*\(",
+)
+DOM_VALIDATION_TAMPER_PATTERN = re.compile(
+    r"removeAttribute\s*\(\s*['\"](?:disabled|minlength|maxlength|required|readonly)['\"]",
+)
+TAUTOLOGICAL_ASSERTION_PATTERN = re.compile(
+    r"expect\s*\(\s*!\s*\w+\s*\|\|\s*\w+(?:\.\w+)*\s*===?\s*['\"]?\s*['\"]?\s*\)",
+)
+CONDITIONAL_GUARD_PATTERN = re.compile(r"^\s*if\s*\(\s*(?:await\s+)?\w")
+
 # Recommended selector patterns
 GOOD_SELECTOR_PATTERNS = [
     re.compile(r'getByRole\s*\('),
@@ -259,6 +277,82 @@ class FrontendE2EAnalyzer:
         
         return issues
     
+    def _check_vacuous_patterns(self, file_path: Path) -> list[Issue]:
+        """Flag tests that pass without proving anything, and fake interactions."""
+        issues: list[Issue] = []
+        rel_path = str(file_path.relative_to(self.repo_root))
+        try:
+            lines = file_path.read_text(encoding="utf-8").split("\n")
+        except Exception:
+            return issues
+
+        # Track an open `if (await ...)` guard block by brace depth so we can
+        # flag assertions that only run conditionally.
+        guard_depth: int | None = None
+
+        for line_num, line in enumerate(lines, start=1):
+            stripped = line.strip()
+            if stripped.startswith("//") or stripped.startswith("*") or stripped.startswith("/*"):
+                continue
+
+            if SWALLOWED_FAILURE_PATTERN.search(line):
+                issues.append(Issue(
+                    file=rel_path, line=line_num,
+                    message="Swallowed failure: .catch(() => …) hides a real check; the test can pass on error",
+                    severity=Severity.ERROR, category=IssueCategory.SILENT_EXCEPTION,
+                    rule_id="swallowed_failure",
+                    suggestion="Await the locator assertion directly (e.g. expect(locator).toBeVisible()).",
+                ))
+            if SYNTHETIC_CLICK_PATTERN.search(line):
+                issues.append(Issue(
+                    file=rel_path, line=line_num,
+                    message="Synthetic interaction: evaluate(el => el.click()) bypasses Playwright actionability",
+                    severity=Severity.ERROR, category=IssueCategory.IMPLEMENTATION_COUPLING,
+                    rule_id="synthetic_interaction",
+                    suggestion="Use a real .click(); if it fails on actionability that is a UX finding to report.",
+                ))
+            if DOM_VALIDATION_TAMPER_PATTERN.search(line):
+                issues.append(Issue(
+                    file=rel_path, line=line_num,
+                    message="DOM tampering: removing a native validation attribute fakes a state no user can reach",
+                    severity=Severity.ERROR, category=IssueCategory.IMPLEMENTATION_COUPLING,
+                    rule_id="synthetic_interaction",
+                    suggestion="Assert the real browser-blocked behavior, or use an input the native rule accepts.",
+                ))
+            if TAUTOLOGICAL_ASSERTION_PATTERN.search(line):
+                issues.append(Issue(
+                    file=rel_path, line=line_num,
+                    message="Tautological assertion: `!x || x === ''` holds even when the value was never set",
+                    severity=Severity.WARNING, category=IssueCategory.USELESS_ASSERTION,
+                    rule_id="tautological_assertion",
+                    suggestion="Assert the concrete expected value (e.g. that a cookie set earlier is now empty).",
+                ))
+
+            # Conditional-assertion tracking: enter on `if (await …) {`, exit when
+            # its brace balance returns to zero. An `expect(` inside is skippable.
+            if guard_depth is None and CONDITIONAL_GUARD_PATTERN.match(line) and "await" in line and "{" in line:
+                guard_depth = line.count("{") - line.count("}")
+                if guard_depth <= 0:
+                    guard_depth = None
+                continue
+            if guard_depth is not None:
+                if "else" in stripped:
+                    guard_depth = None
+                    continue
+                if "expect(" in line:
+                    issues.append(Issue(
+                        file=rel_path, line=line_num,
+                        message="Conditional assertion: expect() inside an if(await …) guard may never run",
+                        severity=Severity.WARNING, category=IssueCategory.USELESS_ASSERTION,
+                        rule_id="conditional_assertion",
+                        suggestion="Make the precondition deterministic so the assertion always executes.",
+                    ))
+                guard_depth += line.count("{") - line.count("}")
+                if guard_depth <= 0:
+                    guard_depth = None
+
+        return issues
+
     def analyze_file(self, file_path: Path) -> FileResult:
         """Analyze a single E2E test file."""
         rel_path = str(file_path.relative_to(self.repo_root))
@@ -292,6 +386,7 @@ class FrontendE2EAnalyzer:
         # E2E-specific checks
         issues.extend(self._check_file_location(file_path))
         issues.extend(self._check_selectors(file_path))
+        issues.extend(self._check_vacuous_patterns(file_path))
         
         # Build TestInfo list from parsed tests
         tests = [
