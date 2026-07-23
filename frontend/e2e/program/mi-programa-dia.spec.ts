@@ -68,7 +68,7 @@ test.describe('Mi Programa — Día Específico', { tag: [...FlowTags.CUSTOMER_M
     expect(response?.status()).not.toBe(404);
   });
 
-  test('spinner is shown while redirect resolves', async ({ page }) => {
+  test('spinner is shown while the redirect resolves', async ({ page }) => {
     await injectAuthCookies(page);
     await setupDefaultApiMocks(page);
 
@@ -83,12 +83,15 @@ test.describe('Mi Programa — Día Específico', { tag: [...FlowTags.CUSTOMER_M
     });
 
     const today = new Date().toISOString().slice(0, 10);
-    const gotoPromise = page.goto(`/mi-programa/dia/detail?date=${today}`);
-    // The spinner (border-kore-red animate-spin) should appear while routing
-    // We just verify the page doesn't hard-error
+    await page.goto(`/mi-programa/dia/detail?date=${today}`, { waitUntil: 'commit' });
+
+    // While the redirect is blocked on the pending request, the loading spinner
+    // is on screen and we are still on the detail route.
+    await expect(page.locator('.animate-spin')).toBeVisible({ timeout: 10_000 });
+    await expect(page).toHaveURL(/\/mi-programa\/dia\/detail/);
+
+    // Once the request resolves, the page redirects to the routine view.
     resolve!();
-    await gotoPromise;
-    // After resolving, redirect happens
-    await page.waitForURL('**/mi-programa/**', { timeout: 15_000 });
+    await page.waitForURL('**/mi-programa/rutina', { timeout: 15_000 });
   });
 });

@@ -140,9 +140,9 @@ test.describe('Auth Token Refresh', { tag: [...FlowTags.AUTH_TOKEN_REFRESH, Role
     // The interceptor did attempt the refresh before giving up.
     await expect.poll(() => refreshCalls, { timeout: 10_000 }).toBeGreaterThanOrEqual(1);
 
-    // The now-invalid auth cookies were cleared.
+    // The token cookie was seeded in the setup; the failed refresh must have cleared it.
     const cookies = await page.context().cookies();
     const token = cookies.find((c) => c.name === 'kore_token');
-    expect(!token || token.value === '').toBe(true);
+    expect(token?.value ?? '').toBe('');
   });
 });

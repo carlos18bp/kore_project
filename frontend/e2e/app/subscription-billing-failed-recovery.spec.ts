@@ -1,4 +1,4 @@
-import { test, expect, injectAuthCookies, setupDefaultApiMocks, type Page } from '../fixtures';
+import { test, expect, injectAuthCookies, setupDefaultApiMocks, E2E_USER, type Page } from '../fixtures';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
@@ -107,8 +107,11 @@ test.describe('Subscription Billing Failed Recovery', { tag: [...FlowTags.SUBSCR
     await mockSubscriptions(page, [buildSubscription({ billing_failed_at: null })]);
 
     await page.goto('/dashboard');
-    // Wait briefly for the dashboard to settle
-    await expect(page.getByRole('main')).toBeVisible({ timeout: 15_000 });
+    // Wait for the dashboard to fully render (greeting) so the absent-toast
+    // assertion is meaningful rather than passing on an unloaded page.
+    await expect(
+      page.getByRole('heading', { level: 1, name: new RegExp(E2E_USER.firstName) }),
+    ).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('No pudimos procesar tu pago')).not.toBeVisible();
   });
 
@@ -118,7 +121,9 @@ test.describe('Subscription Billing Failed Recovery', { tag: [...FlowTags.SUBSCR
     await mockSubscriptions(page, [buildSubscription({ status: 'canceled' })]);
 
     await page.goto('/dashboard');
-    await expect(page.getByRole('main')).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.getByRole('heading', { level: 1, name: new RegExp(E2E_USER.firstName) }),
+    ).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('No pudimos procesar tu pago')).not.toBeVisible();
   });
 });

@@ -190,10 +190,9 @@ test.describe('Customer Nutrition Page', { tag: [...FlowTags.CUSTOMER_NUTRITION,
         response.url().includes('/api/my-nutrition/') && response.request().method() === 'POST',
     );
     await page.getByRole('button', { name: 'Guardar registro' }).click();
-    const response = await habitsPost;
-    expect(response.ok()).toBe(true);
-
-    // Success: createEntry resolved truthy so the modal closes.
+    // Waiting for the POST proves the form actually submitted; the observable
+    // outcome is the modal closing on a successful save.
+    await habitsPost;
     await expect(page.getByRole('heading', { name: 'Actualizar hábitos' })).not.toBeVisible();
   });
 });
