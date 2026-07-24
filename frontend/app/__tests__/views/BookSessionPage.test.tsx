@@ -126,7 +126,7 @@ describe('BookSessionPage', () => {
       user: { ...mockUser, assigned_trainer: null },
       isAuthenticated: true,
       accessToken: 'token',
-    } as any);
+    } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
     render(<BookSessionPage />);
     expect(screen.getByText('Aún no puedes agendar')).toBeInTheDocument();
     expect(screen.getByText(/Estamos asignándote un entrenador/)).toBeInTheDocument();
@@ -139,7 +139,7 @@ describe('BookSessionPage', () => {
       user: { ...mockUser, assigned_trainer: null },
       isAuthenticated: true,
       accessToken: 'token',
-    } as any);
+    } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
     const subscriptions = [
       {
         id: 1, customer_email: 'cust@kore.com',

@@ -13,7 +13,7 @@ jest.mock('next/link', () => ({
   ),
 }));
 
-let mockPathname = '/';
+const mockPathname = '/';
 jest.mock('next/navigation', () => ({
   usePathname: () => mockPathname,
   useSearchParams: () => ({ get: jest.fn().mockReturnValue(null) }),
