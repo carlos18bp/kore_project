@@ -1732,6 +1732,12 @@ These elements are present across multiple routes and affect the user experience
   - None: No automated E2E coverage found.
 - Route: Primary entry route (may include query params or dynamic segments).
 - Branches / Variations: Alternative user paths, edge cases, and form options.
+- **Outcome classes** (`flow-definitions.json` v1.13.0+, per-flow `outcomes`): each flow declares which of these a qualifying E2E test must cover —
+  - `success`: an action completes and shows a success state.
+  - `error`: an action yields a user-facing validation/permission error.
+  - `failure`: an action fails server-side and the UI handles it.
+  - `display`: information is viewable by navigating the UI and asserting real data.
+  Under the `outcomes` schema each declared class needs its own qualifying tagged test (it replaces the old `expectedSpecs` single-test credit).
 
 ## Coverage Summary
 
@@ -1743,6 +1749,16 @@ These elements are present across multiple routes and affect the user experience
 > Redirect-only routes are aliases, not flows: `/mi-programa/hoy` →
 > `/mi-programa/rutina` (flow `customer-mi-programa-rutina`) and
 > `/mi-nutricion-diaria` → `/my-nutrition` (flow `customer-nutrition-daily`).
+
+> **Reconciliation note (2026-07-24):** `flow-definitions.json` bumped to **v1.13.0** — all
+> 104 flows now declare an `outcomes` array (was 0/104), completing the static flow model so
+> `scripts/flow_coverage_audit.py` evaluates each flow against its declared classes. Modules
+> declaring only `display`/`success` dropped from 15 → **2** (`dashboard`, `navigation` —
+> read-only shells, no error/failure by design). Static coverage credit still requires
+> `@flow:` tags in specs (87/104 flows untagged); that spec-tagging pass is tracked separately
+> (see `docs/audits/test-audit-2026-07-24.md`, TD-17). Runtime coverage
+> (`e2e-results/flow-coverage.json`) remains the CI source of truth. The map lists 105 flows =
+> 104 registered + `trainer-evidence` (documented future/not-built, excluded from the registry).
 
 | Flow ID | Roles | Priority | Coverage | E2E Spec |
 | --- | --- | --- | --- | --- |

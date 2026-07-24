@@ -1,6 +1,6 @@
 {
-  "version": "1.12.0",
-  "lastUpdated": "2026-07-17",
+  "version": "1.13.0",
+  "lastUpdated": "2026-07-24",
   "documentation": "Step-by-step user journeys (branches, variations) are maintained in docs/USER_FLOW_MAP.md. This file defines flow IDs and metadata for Playwright @flow: tags and e2e/reporters/flow-coverage-reporter.mjs. Coverage status is NOT stored here: the single source of truth is the runtime artifact e2e-results/flow-coverage.json emitted by the reporter (CI job e2e-merge-reports). Flows registered before their spec exists must carry expectedSpecs: 0 so scripts/check-flow-definitions-sync.mjs keeps passing; remove that field in the PR that ships the spec.",
   "flows": {
     "trainer-tasks": {
@@ -8,728 +8,832 @@
       "module": "trainer",
       "priority": "P1",
       "roles": ["trainer"],
-      "description": "Review pending credit reviews (meal photos + workout captures) and store redemptions; approve or reject each with a note."
+      "description": "Review pending credit reviews (meal photos + workout captures) and store redemptions; approve or reject each with a note.",
+      "outcomes": ["success", "error", "display"]
     },
     "trainer-settings": {
       "name": "Trainer Settings Panel",
       "module": "trainer",
       "priority": "P2",
       "roles": ["trainer"],
-      "description": "Configure the credit economy at /trainer/configuracion: pick the difficulty preset (reseeding the per-action values behind a confirmation), set the activity thresholds, and set the reschedule window that blocks late cancels and triggers the penalty."
+      "description": "Configure the credit economy at /trainer/configuracion: pick the difficulty preset (reseeding the per-action values behind a confirmation), set the activity thresholds, and set the reschedule window that blocks late cancels and triggers the penalty.",
+      "outcomes": ["success", "error", "failure", "display"]
     },
     "trainer-engagement": {
       "name": "Trainer Engagement Analytics",
       "module": "trainer",
       "priority": "P2",
       "roles": ["trainer"],
-      "description": "Fase 2 engagement over the trainer's client portfolio at /trainer/metrics: summary tiles (active streaks, check-in-today %, credits earned/spent 30d, attendance 30d) plus a per-client roster (streak, last check-in, attendance, rating). Replaces the ComingSoon placeholder."
+      "description": "Fase 2 engagement over the trainer's client portfolio at /trainer/metrics: summary tiles (active streaks, check-in-today %, credits earned/spent 30d, attendance 30d) plus a per-client roster (streak, last check-in, attendance, rating). Replaces the ComingSoon placeholder.",
+      "outcomes": ["error", "failure", "display"]
     },
     "auth-login": {
       "name": "Login",
       "module": "auth",
       "priority": "P1",
       "roles": ["guest"],
-      "description": "Authenticate with valid credentials and handle login errors."
+      "description": "Authenticate with valid credentials and handle login errors.",
+      "outcomes": ["success", "error", "failure"]
     },
     "auth-logout": {
       "name": "Logout",
       "module": "auth",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Sign out from the app and return to a public page."
+      "description": "Sign out from the app and return to a public page.",
+      "outcomes": ["success"]
     },
     "auth-session-persistence": {
       "name": "Session Persistence",
       "module": "auth",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Persist authenticated sessions across reloads and handle cookie errors."
+      "description": "Persist authenticated sessions across reloads and handle cookie errors.",
+      "outcomes": ["success", "error", "failure"]
     },
     "auth-token-refresh": {
       "name": "Token Refresh on Expiry",
       "module": "auth",
       "priority": "P2",
       "roles": ["user"],
-      "description": "When an API call returns 401 due to an expired access token, transparently refresh via /auth/token/refresh/ and retry the original request; if refresh fails, drop auth cookies and route to /login."
+      "description": "When an API call returns 401 due to an expired access token, transparently refresh via /auth/token/refresh/ and retry the original request; if refresh fails, drop auth cookies and route to /login.",
+      "outcomes": ["success", "failure"]
     },
     "auth-register": {
       "name": "Register",
       "module": "auth",
       "priority": "P1",
       "roles": ["guest"],
-      "description": "Register a new account and handle registration errors."
+      "description": "Register a new account and handle registration errors.",
+      "outcomes": ["success", "error", "failure"]
     },
     "booking-session-page": {
       "name": "Book Session Page",
       "module": "booking",
       "priority": "P1",
       "roles": ["guest", "user"],
-      "description": "Access the book session page with proper auth redirects."
+      "description": "Access the book session page with proper auth redirects.",
+      "outcomes": ["display"]
     },
     "booking-session-flow": {
       "name": "Book Session Flow",
       "module": "booking",
       "priority": "P1",
       "roles": ["user"],
-      "description": "Select a date and slot to proceed through the booking flow."
+      "description": "Select a date and slot to proceed through the booking flow.",
+      "outcomes": ["display"]
     },
     "booking-complete-flow": {
       "name": "Complete Booking Flow",
       "module": "booking",
       "priority": "P1",
       "roles": ["user"],
-      "description": "Complete booking creation end-to-end with confirmation."
+      "description": "Complete booking creation end-to-end with confirmation.",
+      "outcomes": ["success", "failure", "display"]
     },
     "booking-error-paths": {
       "name": "Booking Error Paths",
       "module": "booking",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Display booking-related API failures and error states."
+      "description": "Display booking-related API failures and error states.",
+      "outcomes": ["error", "failure"]
     },
     "booking-reschedule": {
       "name": "Booking Reschedule",
       "module": "booking",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Reschedule existing bookings while enforcing time limits."
+      "description": "Reschedule existing bookings while enforcing time limits.",
+      "outcomes": ["success", "failure", "display"]
     },
     "booking-calendar-redirect": {
       "name": "Calendar Redirect",
       "module": "booking",
       "priority": "P2",
       "roles": ["guest", "user"],
-      "description": "Redirect the calendar route based on authentication state."
+      "description": "Redirect the calendar route based on authentication state.",
+      "outcomes": ["display"]
     },
     "booking-calendar-edge-cases": {
       "name": "Calendar Edge Cases",
       "module": "booking",
       "priority": "P3",
       "roles": ["user"],
-      "description": "Handle disabled days and empty availability in the calendar."
+      "description": "Handle disabled days and empty availability in the calendar.",
+      "outcomes": ["display"]
     },
     "booking-no-sessions": {
       "name": "No Sessions Modal",
       "module": "booking",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Show the no sessions modal when subscriptions are exhausted."
+      "description": "Show the no sessions modal when subscriptions are exhausted.",
+      "outcomes": ["display"]
     },
     "booking-session-detail": {
       "name": "Session Detail",
       "module": "booking",
       "priority": "P2",
       "roles": ["user"],
-      "description": "View and manage session detail modal states."
+      "description": "View and manage session detail modal states.",
+      "outcomes": ["display"]
     },
     "app-coverage-gaps": {
       "name": "App Coverage Gaps",
       "module": "app",
       "priority": "P3",
       "roles": ["user"],
-      "description": "Exercise UI states that are underserved by existing coverage."
+      "description": "Exercise UI states that are underserved by existing coverage.",
+      "outcomes": ["failure", "display"]
     },
     "app-edge-case-branches": {
       "name": "App Edge Case Branches",
       "module": "app",
       "priority": "P3",
       "roles": ["user"],
-      "description": "Cover edge case UI branches in booking and auth flows."
+      "description": "Cover edge case UI branches in booking and auth flows.",
+      "outcomes": ["error", "display"]
     },
     "app-store-error-paths": {
       "name": "Store Error Paths",
       "module": "app",
       "priority": "P3",
       "roles": ["user"],
-      "description": "Handle store hydration and API error branches."
+      "description": "Handle store hydration and API error branches.",
+      "outcomes": ["error", "failure"]
     },
     "app-sidebar-navigation": {
       "name": "Sidebar Navigation",
       "module": "navigation",
       "priority": "P3",
       "roles": ["user"],
-      "description": "Navigate the app via sidebar and mobile menu."
+      "description": "Navigate the app via sidebar and mobile menu.",
+      "outcomes": ["display"]
     },
     "dashboard-overview": {
       "name": "Dashboard Overview",
       "module": "dashboard",
       "priority": "P1",
       "roles": ["user"],
-      "description": "Render dashboard overview sections and data."
+      "description": "Render dashboard overview sections and data.",
+      "outcomes": ["display"]
     },
     "customer-credits": {
       "name": "Cliente — Mis créditos",
       "module": "app",
       "priority": "P2",
       "roles": ["user"],
-      "description": "El cliente ve su balance de créditos (dividido en disponibles y por aprobar), racha con progreso al siguiente bono, historial de transacciones y sus canjes."
+      "description": "El cliente ve su balance de créditos (dividido en disponibles y por aprobar), racha con progreso al siguiente bono, historial de transacciones y sus canjes.",
+      "outcomes": ["display"]
     },
     "customer-store": {
       "name": "Cliente — Tienda",
       "module": "app",
       "priority": "P2",
       "roles": ["user"],
-      "description": "El cliente ve el catálogo, su saldo disponible, canjea un artículo y ve el estado de sus canjes con el comprobante de entrega cuando aplica."
+      "description": "El cliente ve el catálogo, su saldo disponible, canjea un artículo y ve el estado de sus canjes con el comprobante de entrega cuando aplica.",
+      "outcomes": ["success", "error", "failure", "display"]
     },
     "customer-buy-nutrition": {
       "name": "Cliente — Comprar nutrición",
       "module": "app",
       "priority": "P2",
       "roles": ["user"],
-      "description": "La nutrición es de pago: si el plan no la incluye, el cliente ve un candado y puede agregarla pagando el prorrateo del mes; desde la renovación se cobra junto al plan."
+      "description": "La nutrición es de pago: si el plan no la incluye, el cliente ve un candado y puede agregarla pagando el prorrateo del mes; desde la renovación se cobra junto al plan.",
+      "outcomes": ["success", "display"]
     },
     "customer-session-grants": {
       "name": "Cliente — Sesiones adicionales",
       "module": "app",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Tras canjear una sesión adicional, el cliente ve sus sesiones extra (cantidad y vencimiento a 1 mes) y puede reservarlas desde la agenda como una fuente aparte del plan."
+      "description": "Tras canjear una sesión adicional, el cliente ve sus sesiones extra (cantidad y vencimiento a 1 mes) y puede reservarlas desde la agenda como una fuente aparte del plan.",
+      "outcomes": ["success", "error", "display"]
     },
     "customer-buy-credits": {
       "name": "Cliente — Comprar créditos",
       "module": "app",
       "priority": "P2",
       "roles": ["user"],
-      "description": "El cliente compra créditos con dinero real vía Wompi eligiendo un paquete; al aprobarse el pago los créditos se acreditan como confirmados en su saldo."
+      "description": "El cliente compra créditos con dinero real vía Wompi eligiendo un paquete; al aprobarse el pago los créditos se acreditan como confirmados en su saldo.",
+      "outcomes": ["success", "failure", "display"]
     },
     "trainer-store-management": {
       "name": "Trainer — Gestión de tienda",
       "module": "trainer",
       "priority": "P2",
       "roles": ["trainer"],
-      "description": "El entrenador gestiona el catálogo (crear/editar con imagen, activar/desactivar) y resuelve canjes: entrega productos/servicios subiendo una foto de verificación obligatoria, o rechaza (con devolución de créditos)."
+      "description": "El entrenador gestiona el catálogo (crear/editar con imagen, activar/desactivar) y resuelve canjes: entrega productos/servicios subiendo una foto de verificación obligatoria, o rechaza (con devolución de créditos).",
+      "outcomes": ["success", "error", "failure", "display"]
     },
     "dashboard-reminder": {
       "name": "Dashboard Reminder",
       "module": "dashboard",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Show upcoming session reminder behavior."
+      "description": "Show upcoming session reminder behavior.",
+      "outcomes": ["display"]
     },
     "my-programs-list": {
       "name": "My Programs List",
       "module": "programs",
       "priority": "P1",
       "roles": ["guest", "user"],
-      "description": "Mi Suscripción at /subscription: list subscriptions, empty state, sidebar link; flow ID my-programs-list is historical."
+      "description": "Mi Suscripción at /subscription: list subscriptions, empty state, sidebar link; flow ID my-programs-list is historical.",
+      "outcomes": ["failure", "display"]
     },
     "my-programs-detail": {
       "name": "My Programs Detail",
       "module": "programs",
       "priority": "P2",
       "roles": ["user"],
-      "description": "In-page subscription detail on /subscription: cards, session tabs, session rows, session modal."
+      "description": "In-page subscription detail on /subscription: cards, session tabs, session rows, session modal.",
+      "outcomes": ["failure", "display"]
     },
     "subscription-page": {
       "name": "Subscription Page",
       "module": "subscription",
       "priority": "P1",
       "roles": ["user"],
-      "description": "View subscription details, status, and history."
+      "description": "View subscription details, status, and history.",
+      "outcomes": ["failure", "display"]
     },
     "subscription-expiry-reminder": {
       "name": "Subscription Expiry Reminder",
       "module": "subscription",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Prompt users about expiring subscriptions."
+      "description": "Prompt users about expiring subscriptions.",
+      "outcomes": ["failure", "display"]
     },
     "checkout-flow": {
       "name": "Checkout Flow",
       "module": "checkout",
       "priority": "P1",
       "roles": ["guest", "user"],
-      "description": "Complete checkout page flow for subscriptions."
+      "description": "Complete checkout page flow for subscriptions.",
+      "outcomes": ["success", "error", "failure", "display"]
     },
     "checkout-guest-redirect": {
       "name": "Checkout Guest Redirect",
       "module": "checkout",
       "priority": "P2",
       "roles": ["guest"],
-      "description": "Redirect guest checkout when registration is required."
+      "description": "Redirect guest checkout when registration is required.",
+      "outcomes": ["display"]
     },
     "checkout-coverage-gaps": {
       "name": "Checkout Coverage Gaps",
       "module": "checkout",
       "priority": "P3",
       "roles": ["guest", "user"],
-      "description": "Cover checkout edge cases and error handling."
+      "description": "Cover checkout edge cases and error handling.",
+      "outcomes": ["error", "failure", "display"]
     },
     "public-home": {
       "name": "Public Home",
       "module": "public",
       "priority": "P2",
       "roles": ["guest"],
-      "description": "Render the public home page sections and CTAs."
+      "description": "Render the public home page sections and CTAs.",
+      "outcomes": ["display"]
     },
     "public-navbar": {
       "name": "Public Navbar",
       "module": "public",
       "priority": "P3",
       "roles": ["guest"],
-      "description": "Interact with public navigation across breakpoints."
+      "description": "Interact with public navigation across breakpoints.",
+      "outcomes": ["display"]
     },
     "public-brand": {
       "name": "Public Brand",
       "module": "public",
       "priority": "P3",
       "roles": ["guest"],
-      "description": "Render the Kore brand experience page."
+      "description": "Render the Kore brand experience page.",
+      "outcomes": ["display"]
     },
     "public-programs": {
       "name": "Public Programs",
       "module": "programs",
       "priority": "P2",
       "roles": ["guest", "user"],
-      "description": "Browse programs and handle authentication redirects."
+      "description": "Browse programs and handle authentication redirects.",
+      "outcomes": ["error", "display"]
     },
     "public-contact": {
       "name": "Public Contact",
       "module": "public",
       "priority": "P3",
       "roles": ["guest"],
-      "description": "Submit the contact form and validate required fields."
+      "description": "Submit the contact form and validate required fields.",
+      "outcomes": ["success", "error", "failure", "display"]
     },
     "public-faq": {
       "name": "Public FAQ",
       "module": "public",
       "priority": "P3",
       "roles": ["guest"],
-      "description": "Render FAQ content and accordion behavior."
+      "description": "Render FAQ content and accordion behavior.",
+      "outcomes": ["display"]
     },
     "public-faq-errors": {
       "name": "Public FAQ Errors",
       "module": "public",
       "priority": "P3",
       "roles": ["guest"],
-      "description": "Handle FAQ loading, empty, and error states."
+      "description": "Handle FAQ loading, empty, and error states.",
+      "outcomes": ["failure", "display"]
     },
     "public-terms": {
       "name": "Terms & Conditions",
       "module": "public",
       "priority": "P3",
       "roles": ["guest"],
-      "description": "View the terms and conditions page and navigate back to programs."
+      "description": "View the terms and conditions page and navigate back to programs.",
+      "outcomes": ["display"]
     },
     "public-whatsapp-cta": {
       "name": "Public WhatsApp Floating CTA",
       "module": "public",
       "priority": "P4",
       "roles": ["guest"],
-      "description": "Floating WhatsApp link on selected public routes (ConditionalWhatsApp)."
+      "description": "Floating WhatsApp link on selected public routes (ConditionalWhatsApp).",
+      "outcomes": ["display"]
     },
     "booking-cancel-flow": {
       "name": "Booking Cancel Flow",
       "module": "booking",
       "priority": "P1",
       "roles": ["user"],
-      "description": "Full cancel journey: open session detail → enter reason → confirm → verify status change."
+      "description": "Full cancel journey: open session detail → enter reason → confirm → verify status change.",
+      "outcomes": ["success", "failure", "display"]
     },
     "checkout-payment-status-polling": {
       "name": "Checkout Payment Status Polling",
       "module": "checkout",
       "priority": "P2",
       "roles": ["user"],
-      "description": "End-to-end polling cycle: submit → processing indicator → approved/failed resolution."
+      "description": "End-to-end polling cycle: submit → processing indicator → approved/failed resolution.",
+      "outcomes": ["success", "failure", "display"]
     },
     "subscription-cancel-flow": {
       "name": "Subscription Cancel Flow",
       "module": "subscription",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Subscription page cancel affordances: enabled cancel opens confirmation; expired and canceled subscriptions hide cancel."
+      "description": "Subscription page cancel affordances: enabled cancel opens confirmation; expired and canceled subscriptions hide cancel.",
+      "outcomes": ["success", "failure", "display"]
     },
     "auth-protected-routes": {
       "name": "Auth Protected Routes",
       "module": "auth",
       "priority": "P2",
       "roles": ["guest"],
-      "description": "Systematic test of authenticated routes redirecting to /login when unauthenticated."
+      "description": "Systematic test of authenticated routes redirecting to /login when unauthenticated.",
+      "outcomes": ["error"]
     },
     "auth-forgot-password": {
       "name": "Forgot Password",
       "module": "auth",
       "priority": "P1",
       "roles": ["guest"],
-      "description": "3-step password reset: request code by email, verify 6-digit code, set new password."
+      "description": "3-step password reset: request code by email, verify 6-digit code, set new password.",
+      "outcomes": ["success", "error", "failure"]
     },
     "profile-management": {
       "name": "Profile Management",
       "module": "profile",
       "priority": "P1",
       "roles": ["user"],
-      "description": "View and edit personal information, upload avatar, select primary goal, and view mood check-in."
+      "description": "View and edit personal information, upload avatar, select primary goal, and view mood check-in.",
+      "outcomes": ["success", "failure", "display"]
     },
     "profile-password-change": {
       "name": "Profile Password Change",
       "module": "profile",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Request verification code and change password from the profile security section."
+      "description": "Request verification code and change password from the profile security section.",
+      "outcomes": ["success", "failure"]
     },
     "customer-diagnosis": {
       "name": "Customer Diagnosis",
       "module": "assessments",
       "priority": "P2",
       "roles": ["user"],
-      "description": "View anthropometry/body composition diagnosis with educational indicators and progress timeline."
+      "description": "View anthropometry/body composition diagnosis with educational indicators and progress timeline.",
+      "outcomes": ["display"]
     },
     "customer-nutrition": {
       "name": "Customer Nutrition Assessment",
       "module": "assessments",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Complete and view nutrition assessment form with habit tracking and scoring."
+      "description": "Complete and view nutrition assessment form with habit tracking and scoring.",
+      "outcomes": ["success", "error", "failure", "display"]
     },
     "customer-parq": {
       "name": "Customer PAR-Q",
       "module": "assessments",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Complete and view PAR-Q physical activity readiness questionnaire."
+      "description": "Complete and view PAR-Q physical activity readiness questionnaire.",
+      "outcomes": ["success", "error", "failure", "display"]
     },
     "customer-physical-evaluation": {
       "name": "Customer Physical Evaluation",
       "module": "assessments",
       "priority": "P2",
       "roles": ["user"],
-      "description": "View physical evaluation results with fitness indicators and progress tracking."
+      "description": "View physical evaluation results with fitness indicators and progress tracking.",
+      "outcomes": ["display"]
     },
     "customer-posturometry": {
       "name": "Customer Posturometry",
       "module": "assessments",
       "priority": "P2",
       "roles": ["user"],
-      "description": "View posturometry evaluation results with regional indicators, recommendations, and a before/after photo compare lightbox with tap-to-zoom."
+      "description": "View posturometry evaluation results with regional indicators, recommendations, and a before/after photo compare lightbox with tap-to-zoom.",
+      "outcomes": ["display"]
     },
     "customer-pending-assessments": {
       "name": "Pending Assessments",
       "module": "assessments",
       "priority": "P3",
       "roles": ["user"],
-      "description": "View KORE score and pending assessment modules on the dashboard."
+      "description": "View KORE score and pending assessment modules on the dashboard.",
+      "outcomes": ["display"]
     },
     "trainer-dashboard": {
       "name": "Trainer Dashboard",
       "module": "trainer",
       "priority": "P1",
       "roles": ["trainer"],
-      "description": "View trainer stats (total clients, today sessions) and upcoming session list."
+      "description": "View trainer stats (total clients, today sessions) and upcoming session list.",
+      "outcomes": ["success", "error", "display"]
     },
     "trainer-clients-list": {
       "name": "Trainer Client List",
       "module": "trainer",
       "priority": "P1",
       "roles": ["trainer"],
-      "description": "Search and browse assigned client list with stats and quick action links."
+      "description": "Search and browse assigned client list with stats and quick action links.",
+      "outcomes": ["error", "display"]
     },
     "trainer-client-detail": {
       "name": "Trainer Client Detail",
       "module": "trainer",
       "priority": "P1",
       "roles": ["trainer"],
-      "description": "View individual client profile, session history, and access assessment module links."
+      "description": "View individual client profile, session history, and access assessment module links.",
+      "outcomes": ["success", "error", "failure", "display"]
     },
     "trainer-client-anthropometry": {
       "name": "Trainer Client Anthropometry",
       "module": "trainer",
       "priority": "P2",
       "roles": ["trainer"],
-      "description": "Create and view client anthropometry evaluations with body composition data."
+      "description": "Create and view client anthropometry evaluations with body composition data.",
+      "outcomes": ["success", "error", "failure", "display"]
     },
     "trainer-client-nutrition": {
       "name": "Trainer Client Nutrition",
       "module": "trainer",
       "priority": "P2",
       "roles": ["trainer"],
-      "description": "View client nutrition assessment results and history."
+      "description": "View client nutrition assessment results and history.",
+      "outcomes": ["error", "failure", "display"]
     },
     "trainer-client-parq": {
       "name": "Trainer Client PAR-Q",
       "module": "trainer",
       "priority": "P2",
       "roles": ["trainer"],
-      "description": "View client PAR-Q assessment results and risk indicators."
+      "description": "View client PAR-Q assessment results and risk indicators.",
+      "outcomes": ["error", "failure", "display"]
     },
     "trainer-client-physical-eval": {
       "name": "Trainer Client Physical Eval",
       "module": "trainer",
       "priority": "P2",
       "roles": ["trainer"],
-      "description": "Create and view client physical evaluation results with fitness indicators."
+      "description": "Create and view client physical evaluation results with fitness indicators.",
+      "outcomes": ["success", "error", "failure", "display"]
     },
     "trainer-client-physical-tests": {
       "name": "Trainer Biweekly Physical Test",
       "module": "trainer",
       "priority": "P2",
       "roles": ["trainer"],
-      "description": "Register the biweekly physical test result (passed/failed) from the Ev. Física tab; a passed test awards credits to the client."
+      "description": "Register the biweekly physical test result (passed/failed) from the Ev. Física tab; a passed test awards credits to the client.",
+      "outcomes": ["success", "error", "failure", "display"]
     },
     "trainer-client-posturometry": {
       "name": "Trainer Client Posturometry",
       "module": "trainer",
       "priority": "P2",
       "roles": ["trainer"],
-      "description": "Create and view client posturometry evaluations with regional analysis."
+      "description": "Create and view client posturometry evaluations with regional analysis.",
+      "outcomes": ["success", "error", "failure", "display"]
     },
     "subscription-billing-failed-recovery": {
       "name": "Subscription Billing Failed Recovery",
       "module": "subscription",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Recover from a failed recurring billing attempt by updating payment method via the dashboard toast."
+      "description": "Recover from a failed recurring billing attempt by updating payment method via the dashboard toast.",
+      "outcomes": ["failure", "display"]
     },
     "mobile-bottom-nav": {
       "name": "Mobile Bottom Navigation (Customer)",
       "module": "navigation",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Navigate the customer mobile bottom bar (Inicio, Agendar, Más sheet, Logout) on small viewports."
+      "description": "Navigate the customer mobile bottom bar (Inicio, Agendar, Más sheet, Logout) on small viewports.",
+      "outcomes": ["display"]
     },
     "trainer-mobile-bottom-nav": {
       "name": "Mobile Bottom Navigation (Trainer)",
       "module": "navigation",
       "priority": "P3",
       "roles": ["trainer"],
-      "description": "Navigate the trainer mobile bottom bar (Inicio, Clientes, Más sheet) on small viewports."
+      "description": "Navigate the trainer mobile bottom bar (Inicio, Clientes, Más sheet) on small viewports.",
+      "outcomes": ["success", "display"]
     },
     "profile-mood-entry": {
       "name": "Profile Mood Entry",
       "module": "profile",
       "priority": "P3",
       "roles": ["user"],
-      "description": "Record daily mood (1-10) entry from the MoodCheckIn modal that opens on the profile page."
+      "description": "Record daily mood (1-10) entry from the MoodCheckIn modal that opens on the profile page.",
+      "outcomes": ["success", "failure"]
     },
     "profile-completion-cta": {
       "name": "Profile Completion CTA",
       "module": "profile",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Onboarding modal that prompts new customers with incomplete profiles to navigate to /profile and complete their information."
+      "description": "Onboarding modal that prompts new customers with incomplete profiles to navigate to /profile and complete their information.",
+      "outcomes": ["display"]
     },
     "subscription-gated-routes": {
       "name": "Subscription Gated Routes",
       "module": "subscription",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Access control enforced by (app)/layout.tsx: customers without an active subscription are redirected to /subscription when accessing gated routes; /subscription and /profile remain accessible."
+      "description": "Access control enforced by (app)/layout.tsx: customers without an active subscription are redirected to /subscription when accessing gated routes; /subscription and /profile remain accessible.",
+      "outcomes": ["error", "display"]
     },
     "customer-mi-programa": {
       "name": "Mi Programa — Overview",
       "module": "program",
       "priority": "P1",
       "roles": ["user"],
-      "description": "View the customer's monthly training program overview: calendar heatmap, fitness level card, weekly adherence strip, and navigation to sub-routes (rutina, progreso, resumen)."
+      "description": "View the customer's monthly training program overview: calendar heatmap, fitness level card, weekly adherence strip, and navigation to sub-routes (rutina, progreso, resumen).",
+      "outcomes": ["display"]
     },
     "customer-mi-programa-rutina": {
       "name": "Mi Programa — Rutina del Día",
       "module": "program",
       "priority": "P1",
       "roles": ["user"],
-      "description": "View today's routine: exercise list, complete/skip individual exercises, log mood/notes, and see day-level adherence."
+      "description": "View today's routine: exercise list, complete/skip individual exercises, log mood/notes, and see day-level adherence.",
+      "outcomes": ["success", "display"]
     },
     "program-workout-captures": {
       "name": "Workout Camera Validation",
       "module": "program",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Consent gate and random camera captures during the routine that validate workout-day credits."
+      "description": "Consent gate and random camera captures during the routine that validate workout-day credits.",
+      "outcomes": ["success", "error", "display"]
     },
     "customer-mi-programa-progreso": {
       "name": "Mi Programa — Progreso",
       "module": "program",
       "priority": "P2",
       "roles": ["user"],
-      "description": "View program-wide adherence charts, streak, and training/nutrition breakdown over the program duration."
+      "description": "View program-wide adherence charts, streak, and training/nutrition breakdown over the program duration.",
+      "outcomes": ["display"]
     },
     "customer-mi-programa-resumen": {
       "name": "Mi Programa — Resumen",
       "module": "program",
       "priority": "P2",
       "roles": ["user"],
-      "description": "View program summary card with goal, fitness level, dates, completion %, and projected outcome."
+      "description": "View program summary card with goal, fitness level, dates, completion %, and projected outcome.",
+      "outcomes": ["display"]
     },
     "customer-mi-programa-dia": {
       "name": "Mi Programa — Día Específico",
       "module": "program",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Navigate to a past or future program day via /mi-programa/dia/detail?date=YYYY-MM-DD: view exercises, completion state, and trainer notes."
+      "description": "Navigate to a past or future program day via /mi-programa/dia/detail?date=YYYY-MM-DD: view exercises, completion state, and trainer notes.",
+      "outcomes": ["display"]
     },
     "trainer-alerts": {
       "name": "Trainer Alerts Center",
       "module": "trainer",
       "priority": "P1",
       "roles": ["trainer"],
-      "description": "View and filter behavioral/clinical risk alerts per client (alto/medio/bajo); resolve an alert and mark it as addressed."
+      "description": "View and filter behavioral/clinical risk alerts per client (alto/medio/bajo); resolve an alert and mark it as addressed.",
+      "outcomes": ["success", "error", "display"]
     },
     "trainer-client-program": {
       "name": "Trainer Client Program Tab",
       "module": "trainer",
       "priority": "P2",
       "roles": ["trainer"],
-      "description": "View and manage a client's monthly training program from the trainer perspective: generate, publish, and review program days and exercise logs."
+      "description": "View and manage a client's monthly training program from the trainer perspective: generate, publish, and review program days and exercise logs.",
+      "outcomes": ["success", "error", "failure", "display"]
     },
     "trainer-client-notes": {
       "name": "Trainer Client Notes Tab",
       "module": "trainer",
       "priority": "P2",
       "roles": ["trainer"],
-      "description": "From the client detail Notes tab, leave weekly trainer notes per 28-day cycle in the Programa and Nutrición subtabs: week 1 is editable, completing it unlocks week 2, and so on; saved weeks stack as history."
+      "description": "From the client detail Notes tab, leave weekly trainer notes per 28-day cycle in the Programa and Nutrición subtabs: week 1 is editable, completing it unlocks week 2, and so on; saved weeks stack as history.",
+      "outcomes": ["success", "error", "failure", "display"]
     },
     "trainer-metrics": {
       "name": "Trainer Metrics",
       "module": "trainer",
       "priority": "P3",
       "roles": ["trainer"],
-      "description": "View trainer-wide comparative metrics: adherence trends, evaluation expiry summary, risk distribution, and global KORE score across all clients."
+      "description": "View trainer-wide comparative metrics: adherence trends, evaluation expiry summary, risk distribution, and global KORE score across all clients.",
+      "outcomes": ["error"]
     },
     "trainer-nutrition-catalog": {
       "name": "Trainer Nutrition Catalog",
       "module": "trainer",
       "priority": "P2",
       "roles": ["trainer"],
-      "description": "Browse and search the global meal suggestion catalog; add new meal suggestions with block, calories, NOVA, fitness level, and goal tags."
+      "description": "Browse and search the global meal suggestion catalog; add new meal suggestions with block, calories, NOVA, fitness level, and goal tags.",
+      "outcomes": ["success", "error", "failure", "display"]
     },
     "auth-accept-invite": {
       "name": "Accept Duo Invite",
       "module": "auth",
       "priority": "P2",
       "roles": ["guest", "user"],
-      "description": "Accept a duo-plan subscription invite via /accept-invite?token=: resolve token → accept (logged-in), redirect to login (wrong account), or redirect to register (new user)."
+      "description": "Accept a duo-plan subscription invite via /accept-invite?token=: resolve token → accept (logged-in), redirect to login (wrong account), or redirect to register (new user).",
+      "outcomes": ["success", "error", "failure"]
     },
     "auth-forced-password-change": {
       "name": "Forced Password Change",
       "module": "auth",
       "priority": "P2",
       "roles": ["user"],
-      "description": "When must_change_password=true, redirect to /change-password-required and enforce password update before accessing any other route."
+      "description": "When must_change_password=true, redirect to /change-password-required and enforce password update before accessing any other route.",
+      "outcomes": ["success", "error", "failure"]
     },
     "admin-dashboard": {
       "name": "Admin Platform Dashboard",
       "module": "admin",
       "priority": "P2",
       "roles": ["admin"],
-      "description": "View the admin overview dashboard at /admin-platform/dashboard: aggregate subscription stat tiles (total, active, expired, canceled)."
+      "description": "View the admin overview dashboard at /admin-platform/dashboard: aggregate subscription stat tiles (total, active, expired, canceled).",
+      "outcomes": ["error", "display"]
     },
     "admin-users-list": {
       "name": "Admin Users List",
       "module": "admin",
       "priority": "P1",
       "roles": ["admin"],
-      "description": "Browse the platform user list at /admin-platform/users: search by name/email, filter by role, paginate, and open the Inscribir usuario CTA."
+      "description": "Browse the platform user list at /admin-platform/users: search by name/email, filter by role, paginate, and open the Inscribir usuario CTA.",
+      "outcomes": ["error", "display"]
     },
     "admin-user-create": {
       "name": "Admin Create User",
       "module": "admin",
       "priority": "P1",
       "roles": ["admin"],
-      "description": "Enroll a new user from /admin-platform/users/new: fill email, first/last name, phone, select role (customer/trainer), and submit."
+      "description": "Enroll a new user from /admin-platform/users/new: fill email, first/last name, phone, select role (customer/trainer), and submit.",
+      "outcomes": ["success", "error", "failure"]
     },
     "admin-user-detail": {
       "name": "Admin User Detail",
       "module": "admin",
       "priority": "P1",
       "roles": ["admin"],
-      "description": "Manage a single user at /admin-platform/users/detail: edit role, toggle active/inactive, reset password, assign a trainer, and manage assigned clients."
+      "description": "Manage a single user at /admin-platform/users/detail: edit role, toggle active/inactive, reset password, assign a trainer, and manage assigned clients.",
+      "outcomes": ["success", "error", "failure", "display"]
     },
     "admin-subscriptions-list": {
       "name": "Admin Subscriptions List",
       "module": "admin",
       "priority": "P2",
       "roles": ["admin"],
-      "description": "Browse all subscriptions at /admin-platform/subscriptions: search, filter by status, switch category tabs, and paginate."
+      "description": "Browse all subscriptions at /admin-platform/subscriptions: search, filter by status, switch category tabs, and paginate.",
+      "outcomes": ["error", "display"]
     },
     "admin-subscription-create": {
       "name": "Admin Create Subscription",
       "module": "admin",
       "priority": "P1",
       "roles": ["admin"],
-      "description": "Create or evolve a subscription via the /admin-platform/subscriptions/new wizard: pick customer, package, and payment method, add notes, and confirm."
+      "description": "Create or evolve a subscription via the /admin-platform/subscriptions/new wizard: pick customer, package, and payment method, add notes, and confirm.",
+      "outcomes": ["success", "error", "failure"]
     },
     "admin-subscription-detail": {
       "name": "Admin Subscription Detail",
       "module": "admin",
       "priority": "P1",
       "roles": ["admin"],
-      "description": "Manage a subscription at /admin-platform/subscriptions/detail: change status, renew (expired/canceled only), or delete via confirmation modals."
+      "description": "Manage a subscription at /admin-platform/subscriptions/detail: change status, renew (expired/canceled only), or delete via confirmation modals.",
+      "outcomes": ["success", "error", "failure", "display"]
     },
     "admin-plans": {
       "name": "Admin Plans CRUD",
       "module": "admin",
       "priority": "P1",
       "roles": ["admin"],
-      "description": "Manage the package/plan catalog at /admin-platform/plans: create and edit packages via a modal with category, price, sessions, and validity fields."
+      "description": "Manage the package/plan catalog at /admin-platform/plans: create and edit packages via a modal with category, price, sessions, and validity fields.",
+      "outcomes": ["success", "error", "failure", "display"]
     },
     "admin-nutrition": {
       "name": "Admin Nutrition Add-on",
       "module": "admin",
       "priority": "P2",
       "roles": ["admin"],
-      "description": "Manage the nutrition add-on at /admin-platform/nutricion: edit the monthly COP price (confirming the impact on active subscriptions), toggle the add-on active, and flip includes_nutrition per plan."
+      "description": "Manage the nutrition add-on at /admin-platform/nutricion: edit the monthly COP price (confirming the impact on active subscriptions), toggle the add-on active, and flip includes_nutrition per plan.",
+      "outcomes": ["success", "error", "failure", "display"]
     },
     "admin-reports": {
       "name": "Admin Reports / KPIs",
       "module": "admin",
       "priority": "P2",
       "roles": ["admin"],
-      "description": "Business KPI panel at /admin-platform/reports: revenue (subscriptions + Wompi credit top-ups) with a fixed 6-month trend, subscription status counts, credit economy (earned/spent/redemptions) and rating quality, filtered by a preset window (today/30d/90d/all)."
+      "description": "Business KPI panel at /admin-platform/reports: revenue (subscriptions + Wompi credit top-ups) with a fixed 6-month trend, subscription status counts, credit economy (earned/spent/redemptions) and rating quality, filtered by a preset window (today/30d/90d/all).",
+      "outcomes": ["error", "failure", "display"]
     },
     "customer-session-rating": {
       "name": "Post-Session Rating",
       "module": "booking",
       "priority": "P2",
       "roles": ["customer"],
-      "description": "After a trainer confirms attendance, the customer rates the session from a dashboard card (1-5 stars + optional comment), earning session_rated credits. Skipping leaves it unrated."
+      "description": "After a trainer confirms attendance, the customer rates the session from a dashboard card (1-5 stars + optional comment), earning session_rated credits. Skipping leaves it unrated.",
+      "outcomes": ["success", "failure", "display"]
     },
     "customer-nutrition-daily": {
       "name": "Daily Nutrition Tracking",
       "module": "nutrition",
       "priority": "P2",
       "roles": ["user"],
-      "description": "Track daily nutrition on /my-nutrition: mark individual meals as done, upload a meal photo via the camera, log water glasses, and view the daily history."
+      "description": "Track daily nutrition on /my-nutrition: mark individual meals as done, upload a meal photo via the camera, log water glasses, and view the daily history.",
+      "outcomes": ["success", "failure", "display"]
     },
     "customer-nutrition-plan": {
       "name": "Customer Nutrition Plan",
       "module": "nutrition",
       "priority": "P2",
       "roles": ["user"],
-      "description": "View the trainer-authored weekly nutrition plan on /my-nutrition — the coach-note strip on the daily hero, sourced from /api/my-nutrition-plans/."
+      "description": "View the trainer-authored weekly nutrition plan on /my-nutrition — the coach-note strip on the daily hero, sourced from /api/my-nutrition-plans/.",
+      "outcomes": ["display"]
     },
     "subscription-duo-invite": {
       "name": "Subscription DUO Guest Invite",
       "module": "subscription",
       "priority": "P2",
       "roles": ["user"],
-      "description": "From the subscription page, the plan owner invites a DUO guest by email, revokes a guest, and accepts a pending invitation."
+      "description": "From the subscription page, the plan owner invites a DUO guest by email, revokes a guest, and accepts a pending invitation.",
+      "outcomes": ["success", "error", "failure", "display"]
     },
     "trainer-client-nutrition-plan": {
       "name": "Trainer Client Nutrition Plan",
       "module": "trainer",
       "priority": "P2",
       "roles": ["trainer"],
-      "description": "From the client detail Nutrición tab, generate, edit meals, and publish a weekly nutrition plan (distinct from the read-only nutrition-habits viewer)."
+      "description": "From the client detail Nutrición tab, generate, edit meals, and publish a weekly nutrition plan (distinct from the read-only nutrition-habits viewer).",
+      "outcomes": ["success", "error", "display"]
     },
     "trainer-client-booking": {
       "name": "Trainer Books For Client",
       "module": "trainer",
       "priority": "P2",
       "roles": ["trainer"],
-      "description": "Book or reschedule a session on behalf of an assigned client via the TrainerBookingDialog on the client list and client detail."
+      "description": "Book or reschedule a session on behalf of an assigned client via the TrainerBookingDialog on the client list and client detail.",
+      "outcomes": ["success", "error", "failure", "display"]
     },
     "trainer-client-messaging": {
       "name": "Trainer Post-Session Message",
       "module": "trainer",
       "priority": "P2",
       "roles": ["trainer"],
-      "description": "Send a message to a client from the client detail (Notas → Sesiones message composer), POST /api/trainer/messages/. Note: the PostSessionMessageSheet component has no wired trigger on the current client-detail page; the reachable surface is the MessageComposerCard."
+      "description": "Send a message to a client from the client detail (Notas → Sesiones message composer), POST /api/trainer/messages/. Note: the PostSessionMessageSheet component has no wired trigger on the current client-detail page; the reachable surface is the MessageComposerCard.",
+      "outcomes": ["success", "error", "failure", "display"]
     },
     "customer-trainer-message": {
       "name": "Customer Trainer Message",
       "module": "dashboard",
       "priority": "P3",
       "roles": ["user"],
-      "description": "Customer receives and dismisses trainer messages via the TrainerMessageModal overlay in the app shell (my-trainer-messages)."
+      "description": "Customer receives and dismisses trainer messages via the TrainerMessageModal overlay in the app shell (my-trainer-messages).",
+      "outcomes": ["success", "display"]
     }
   }
 }
