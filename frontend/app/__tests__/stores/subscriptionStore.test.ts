@@ -119,7 +119,7 @@ describe('subscriptionStore', () => {
       expect(useSubscriptionStore.getState().activeSubscription).toBeNull();
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when fetchSubscriptions fails', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
       await useSubscriptionStore.getState().fetchSubscriptions();
       const state = useSubscriptionStore.getState();
@@ -181,7 +181,7 @@ describe('subscriptionStore', () => {
       expect(state.activeSubscription).toBeNull();
     });
 
-    it('sets error and returns false on failure', async () => {
+    it('sets error and returns false when cancelSubscription fails', async () => {
       useSubscriptionStore.setState({ subscriptions: [MOCK_SUBSCRIPTION] });
       mockedApi.post.mockRejectedValueOnce(new Error('fail'));
 
@@ -203,7 +203,7 @@ describe('subscriptionStore', () => {
       expect(useSubscriptionStore.getState().error).toBe('');
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when fetchPaymentHistory fails', async () => {
       useSubscriptionStore.setState({ payments: [MOCK_PAYMENT] });
       mockedApi.get.mockRejectedValueOnce(new Error('fail'));
       await useSubscriptionStore.getState().fetchPaymentHistory(2);
@@ -415,7 +415,7 @@ describe('subscriptionStore', () => {
       );
     });
 
-    it('sets error and returns false on failure', async () => {
+    it('sets error and returns false when revokeGuest fails', async () => {
       mockedApi.post.mockRejectedValueOnce(new Error('fail'));
 
       const result = await useSubscriptionStore.getState().revokeGuest(2);

@@ -81,7 +81,7 @@ describe('programStore — empty-state contract (200 + null)', () => {
   });
 
   describe('fetchTodayData', () => {
-    it('stores null without flagging an error when backend returns 200 null', async () => {
+    it('leaves todayData null without flagging an error when backend returns 200 null', async () => {
       mockedApi.get.mockResolvedValueOnce({ data: null });
 
       await useProgramStore.getState().fetchTodayData();

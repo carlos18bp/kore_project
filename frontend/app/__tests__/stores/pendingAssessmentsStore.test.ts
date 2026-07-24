@@ -151,32 +151,45 @@ describe('pendingAssessmentsStore', () => {
   });
 
   describe('markSeen', () => {
+    // markSeen stamps localStorage with new Date().toISOString(); freeze the
+    // clock so the exact written value is deterministic and assertable.
+    const FROZEN_NOW = '2026-01-15T10:00:00.000Z';
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date(FROZEN_NOW));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
     it('marks anthropometry as seen and sets localStorage', () => {
       usePendingAssessmentsStore.setState({ anthropometryUnseen: true });
       usePendingAssessmentsStore.getState().markSeen('anthropometry');
       expect(usePendingAssessmentsStore.getState().anthropometryUnseen).toBe(false);
-      expect(localStorageMock['kore_seen_anthropometry']).toBeDefined();
+      expect(localStorage.getItem('kore_seen_anthropometry')).toBe(FROZEN_NOW);
     });
 
     it('marks posturometry as seen and sets localStorage', () => {
       usePendingAssessmentsStore.setState({ posturometryUnseen: true });
       usePendingAssessmentsStore.getState().markSeen('posturometry');
       expect(usePendingAssessmentsStore.getState().posturometryUnseen).toBe(false);
-      expect(localStorageMock['kore_seen_posturometry']).toBeDefined();
+      expect(localStorage.getItem('kore_seen_posturometry')).toBe(FROZEN_NOW);
     });
 
     it('marks physical_eval as seen and sets localStorage', () => {
       usePendingAssessmentsStore.setState({ physicalEvalUnseen: true });
       usePendingAssessmentsStore.getState().markSeen('physical_eval');
       expect(usePendingAssessmentsStore.getState().physicalEvalUnseen).toBe(false);
-      expect(localStorageMock['kore_seen_physical_eval']).toBeDefined();
+      expect(localStorage.getItem('kore_seen_physical_eval')).toBe(FROZEN_NOW);
     });
 
     it('does not change state for unknown key', () => {
       usePendingAssessmentsStore.setState({ anthropometryUnseen: true });
+      const before = { ...usePendingAssessmentsStore.getState() };
       usePendingAssessmentsStore.getState().markSeen('unknown_key');
-      expect(usePendingAssessmentsStore.getState().anthropometryUnseen).toBe(true);
-      expect(localStorageMock['kore_seen_unknown_key']).toBeDefined();
+      expect({ ...usePendingAssessmentsStore.getState() }).toEqual(before);
     });
   });
 });

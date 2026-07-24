@@ -49,7 +49,7 @@ describe('trainerStore — gap actions', () => {
       expect(useTrainerStore.getState().clientAlertsLoading).toBe(false);
     });
 
-    it('stops loading without crashing on failure', async () => {
+    it('stops loading without crashing when fetchClientAlerts fails', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
 
       await useTrainerStore.getState().fetchClientAlerts(3);
@@ -284,7 +284,7 @@ describe('trainerStore — gap actions', () => {
       );
     });
 
-    it('stops loading without crashing on failure', async () => {
+    it('stops loading without crashing when fetchClientNutritionLogs fails', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
 
       await useTrainerStore.getState().fetchClientNutritionLogs(3);

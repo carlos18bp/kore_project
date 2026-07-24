@@ -32,7 +32,7 @@ describe('progressStore — empty-state contract (200 + null)', () => {
   });
 
   describe('fetchWeeklySummary', () => {
-    it('stores null when backend returns 200 null', async () => {
+    it('stores null when fetchWeeklySummary returns 200 null', async () => {
       mockedApi.get.mockResolvedValueOnce({ data: null });
 
       await useProgressStore.getState().fetchWeeklySummary();
@@ -70,7 +70,7 @@ describe('progressStore — empty-state contract (200 + null)', () => {
   });
 
   describe('fetchProjection', () => {
-    it('stores null when backend returns 200 null', async () => {
+    it('stores null when fetchProjection returns 200 null', async () => {
       mockedApi.get.mockResolvedValueOnce({ data: null });
 
       await useProgressStore.getState().fetchProjection();
@@ -82,7 +82,7 @@ describe('progressStore — empty-state contract (200 + null)', () => {
   });
 
   describe('fetchMonthlySummary', () => {
-    it('stores null when backend returns 200 null', async () => {
+    it('stores null when fetchMonthlySummary returns 200 null', async () => {
       mockedApi.get.mockResolvedValueOnce({ data: null });
 
       await useProgressStore.getState().fetchMonthlySummary();

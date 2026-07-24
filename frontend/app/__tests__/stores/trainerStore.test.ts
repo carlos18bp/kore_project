@@ -117,7 +117,7 @@ describe('trainerStore', () => {
       });
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when fetchClients fails', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
       await useTrainerStore.getState().fetchClients();
       expect(useTrainerStore.getState().error).toBe('No se pudieron cargar los clientes.');
@@ -144,7 +144,7 @@ describe('trainerStore', () => {
       });
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when fetchClientDetail fails', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
       await useTrainerStore.getState().fetchClientDetail(1);
       expect(useTrainerStore.getState().error).toBe('No se pudo cargar la información del cliente.');
@@ -165,7 +165,7 @@ describe('trainerStore', () => {
       });
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when fetchClientSessions fails', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
       await useTrainerStore.getState().fetchClientSessions(1);
       expect(useTrainerStore.getState().error).toBe('No se pudo cargar el historial de sesiones.');
@@ -186,7 +186,7 @@ describe('trainerStore', () => {
       });
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when fetchDashboardStats fails', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
       await useTrainerStore.getState().fetchDashboardStats();
       expect(useTrainerStore.getState().error).toBe('No se pudieron cargar las estadísticas.');

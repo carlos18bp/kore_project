@@ -46,6 +46,6 @@ test('reviewCreditTransaction failure sets error and returns false', async () =>
   mockApi.post.mockRejectedValue(new Error('nope'));
   const ok = await useTrainerTasksStore.getState().reviewCreditTransaction(7, 'reject', 'motivo');
   expect(ok).toBe(false);
-  expect(useTrainerTasksStore.getState().error).toBeTruthy();
+  expect(useTrainerTasksStore.getState().error).toBe('No se pudo procesar la revisión.');
   expect(useTrainerTasksStore.getState().creditReviews).toHaveLength(1);
 });

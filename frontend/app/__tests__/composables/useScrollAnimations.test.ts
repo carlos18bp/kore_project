@@ -123,7 +123,7 @@ describe('useScrollAnimations', () => {
   });
 
   describe('useHeroAnimation', () => {
-    it('calls gsap.context with the container ref', () => {
+    it('calls gsap.context with the hero container ref', () => {
       const div = document.createElement('div');
       const ref = { current: div };
 
@@ -132,7 +132,7 @@ describe('useScrollAnimations', () => {
       expect(gsap.context).toHaveBeenCalledWith(expect.any(Function), ref);
     });
 
-    it('does not call gsap.context when ref is null', () => {
+    it('does not call gsap.context when the hero ref is null', () => {
       const ref = { current: null };
 
       renderHook(() => useHeroAnimation(ref));
@@ -140,7 +140,7 @@ describe('useScrollAnimations', () => {
       expect(gsap.context).not.toHaveBeenCalled();
     });
 
-    it('calls ctx.revert on unmount (cleanup)', () => {
+    it('reverts the hero context on unmount', () => {
       const div = document.createElement('div');
       const ref = { current: div };
       const revertMock = jest.fn();

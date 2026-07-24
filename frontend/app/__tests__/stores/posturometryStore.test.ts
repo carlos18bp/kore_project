@@ -167,7 +167,7 @@ describe('posturometryStore', () => {
       expect(usePosturometryStore.getState().submitting).toBe(false);
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when updateEvaluation fails', async () => {
       mockedApi.patch.mockRejectedValueOnce(new Error('Network'));
       const result = await usePosturometryStore.getState().updateEvaluation(10, 1, { notes: 'x' });
       expect(result).toBeNull();
@@ -186,7 +186,7 @@ describe('posturometryStore', () => {
       expect(usePosturometryStore.getState().submitting).toBe(false);
     });
 
-    it('sends FormData with multipart content type', async () => {
+    it('sends FormData with multipart content type on full update', async () => {
       mockedApi.put.mockResolvedValueOnce({ data: MOCK_EVALUATION });
       await usePosturometryStore.getState().fullUpdateEvaluation(10, 1, MOCK_FORM_DATA);
       expect(mockedApi.put).toHaveBeenCalledWith(
@@ -196,14 +196,14 @@ describe('posturometryStore', () => {
       );
     });
 
-    it('returns null and sets error on failure', async () => {
+    it('returns null and sets error when full update fails', async () => {
       mockedApi.put.mockRejectedValueOnce(new Error('Network'));
       const result = await usePosturometryStore.getState().fullUpdateEvaluation(10, 1, MOCK_FORM_DATA);
       expect(result).toBeNull();
       expect(usePosturometryStore.getState().error).toBe('No se pudo actualizar la evaluación postural.');
     });
 
-    it('extracts detail from error response', async () => {
+    it('extracts detail from error response on full update', async () => {
       mockedApi.put.mockRejectedValueOnce({ response: { data: { detail: 'Bad data.' } } });
       const result = await usePosturometryStore.getState().fullUpdateEvaluation(10, 1, MOCK_FORM_DATA);
       expect(result).toBeNull();
@@ -221,7 +221,7 @@ describe('posturometryStore', () => {
       expect(usePosturometryStore.getState().submitting).toBe(false);
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when deleteEvaluation fails', async () => {
       mockedApi.delete.mockRejectedValueOnce(new Error('Network'));
       const result = await usePosturometryStore.getState().deleteEvaluation(10, 1);
       expect(result).toBe(false);
@@ -241,7 +241,7 @@ describe('posturometryStore', () => {
   });
 
   describe('createEvaluation - photo append branches', () => {
-    it('appends photo files to FormData when provided', async () => {
+    it('appends the four posture photos to FormData on createEvaluation', async () => {
       mockedApi.post.mockResolvedValueOnce({ data: MOCK_EVALUATION });
       const fakeFile = new File(['img'], 'photo.jpg', { type: 'image/jpeg' });
       const formWithPhotos = {
@@ -253,10 +253,10 @@ describe('posturometryStore', () => {
       };
       await usePosturometryStore.getState().createEvaluation(10, formWithPhotos);
       const fd = mockedApi.post.mock.calls[0][1] as FormData;
-      expect(fd.get('anterior_photo')).toBeTruthy();
-      expect(fd.get('lateral_right_photo')).toBeTruthy();
-      expect(fd.get('lateral_left_photo')).toBeTruthy();
-      expect(fd.get('posterior_photo')).toBeTruthy();
+      expect(fd.get('anterior_photo')).toBe(fakeFile);
+      expect(fd.get('lateral_right_photo')).toBe(fakeFile);
+      expect(fd.get('lateral_left_photo')).toBe(fakeFile);
+      expect(fd.get('posterior_photo')).toBe(fakeFile);
     });
 
     it('skips evaluation_date in FormData when empty', async () => {
@@ -269,7 +269,7 @@ describe('posturometryStore', () => {
   });
 
   describe('fullUpdateEvaluation - photo append branches', () => {
-    it('appends photo files to FormData when provided', async () => {
+    it('appends the four posture photos to FormData on full update', async () => {
       usePosturometryStore.setState({ evaluations: [MOCK_EVALUATION] });
       mockedApi.put.mockResolvedValueOnce({ data: MOCK_EVALUATION });
       const fakeFile = new File(['img'], 'photo.jpg', { type: 'image/jpeg' });
@@ -282,10 +282,10 @@ describe('posturometryStore', () => {
       };
       await usePosturometryStore.getState().fullUpdateEvaluation(10, 1, formWithPhotos);
       const fd = mockedApi.put.mock.calls[0][1] as FormData;
-      expect(fd.get('anterior_photo')).toBeTruthy();
-      expect(fd.get('lateral_right_photo')).toBeTruthy();
-      expect(fd.get('lateral_left_photo')).toBeTruthy();
-      expect(fd.get('posterior_photo')).toBeTruthy();
+      expect(fd.get('anterior_photo')).toBe(fakeFile);
+      expect(fd.get('lateral_right_photo')).toBe(fakeFile);
+      expect(fd.get('lateral_left_photo')).toBe(fakeFile);
+      expect(fd.get('posterior_photo')).toBe(fakeFile);
     });
 
     it('skips evaluation_date in fullUpdate FormData when empty', async () => {
@@ -336,7 +336,7 @@ describe('posturometryStore', () => {
       });
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when fetchMyEvaluations fails', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
       await usePosturometryStore.getState().fetchMyEvaluations();
       expect(usePosturometryStore.getState().error).toBe('No se pudieron cargar tus evaluaciones posturales.');

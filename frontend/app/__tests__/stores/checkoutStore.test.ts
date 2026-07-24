@@ -228,7 +228,7 @@ describe('checkoutStore', () => {
       expect(state.error).toBe('No se pudo cargar la configuración de pago.');
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when fetchWompiConfig fails', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('fail'));
       await useCheckoutStore.getState().fetchWompiConfig();
       expect(useCheckoutStore.getState().error).toBe('No se pudo cargar la configuración de pago.');
@@ -306,7 +306,7 @@ describe('checkoutStore', () => {
       );
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when prepareCheckout fails', async () => {
       const axiosError = new AxiosError('fail', '400', undefined, undefined, {
         data: { detail: 'Checkout inválido.' },
         status: 400,
@@ -946,7 +946,7 @@ describe('checkoutStore', () => {
       );
     });
 
-    it('includes registration token when provided', async () => {
+    it('includes registration token when provided in PSE purchase', async () => {
       mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
       mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
 
@@ -961,7 +961,7 @@ describe('checkoutStore', () => {
       );
     });
 
-    it('omits auth header when token is missing', async () => {
+    it('omits auth header when token is missing in PSE purchase', async () => {
       mockedCookies.get.mockReturnValue(undefined);
       mockedApi.post.mockResolvedValueOnce({ data: MOCK_INTENT_PENDING });
       mockedApi.get.mockResolvedValueOnce({ data: MOCK_INTENT_APPROVED });
@@ -993,7 +993,7 @@ describe('checkoutStore', () => {
       expect(useCheckoutStore.getState().error).toBe('PSE rechazado.');
     });
 
-    it('uses generic error when no detail in response', async () => {
+    it('uses generic PSE error when no detail in response', async () => {
       mockedApi.post.mockRejectedValueOnce(new Error('Network'));
       const result = await useCheckoutStore.getState().purchaseWithPSE(1, pseData);
 

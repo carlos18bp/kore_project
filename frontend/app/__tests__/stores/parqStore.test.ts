@@ -77,7 +77,7 @@ describe('parqStore', () => {
       });
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when fetchMyAssessments fails', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
       await useParqStore.getState().fetchMyAssessments();
       expect(useParqStore.getState().error).toBe('No se pudieron cargar tus evaluaciones PAR-Q.');
@@ -133,7 +133,7 @@ describe('parqStore', () => {
       });
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when fetchClientAssessments fails', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
       await useParqStore.getState().fetchClientAssessments(10);
       expect(useParqStore.getState().error).toBe('No se pudieron cargar las evaluaciones PAR-Q.');

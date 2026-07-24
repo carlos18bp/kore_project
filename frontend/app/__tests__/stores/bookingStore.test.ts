@@ -257,7 +257,7 @@ describe('bookingStore', () => {
       expect(useBookingStore.getState().subscriptions).toEqual([]);
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when fetchSubscriptions fails', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
       await useBookingStore.getState().fetchSubscriptions();
       expect(useBookingStore.getState().error).toBe('No se pudieron cargar las suscripciones.');
@@ -288,7 +288,7 @@ describe('bookingStore', () => {
       }));
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when fetchBookings fails', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
       await useBookingStore.getState().fetchBookings();
       expect(useBookingStore.getState().error).toBe('No se pudieron cargar las reservas.');
@@ -318,7 +318,7 @@ describe('bookingStore', () => {
       });
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when fetchBookingById fails', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
       const result = await useBookingStore.getState().fetchBookingById(100);
       expect(result).toBeNull();
@@ -521,21 +521,21 @@ describe('bookingStore', () => {
       expect(mockedApi.post).toHaveBeenCalledWith('/bookings/100/reschedule/', { new_starts_at: '2025-04-01T10:00:00Z' }, expect.anything());
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when rescheduleBooking fails', async () => {
       mockedApi.post.mockRejectedValueOnce({ response: { data: { detail: 'No se pudo reprogramar la reserva.' } } });
       const result = await useBookingStore.getState().rescheduleBooking(100, '2025-04-01T10:00:00Z');
       expect(result).toBeNull();
       expect(useBookingStore.getState().error).toBe('No se pudo reprogramar la reserva.');
     });
 
-    it('uses generic error when no detail in response', async () => {
+    it('uses generic reschedule error when no detail in response', async () => {
       mockedApi.post.mockRejectedValueOnce(new Error('Network'));
       const result = await useBookingStore.getState().rescheduleBooking(100, '2025-04-01T10:00:00Z');
       expect(result).toBeNull();
       expect(useBookingStore.getState().error).toBe('No se pudo reprogramar la reserva.');
     });
 
-    it('uses generic error when detail is not a string', async () => {
+    it('uses generic reschedule error when detail is not a string', async () => {
       mockedApi.post.mockRejectedValueOnce({ response: { data: { detail: ['array error'] } } });
       const result = await useBookingStore.getState().rescheduleBooking(100, '2025-04-01T10:00:00Z');
       expect(result).toBeNull();
