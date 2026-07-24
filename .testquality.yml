@@ -28,8 +28,12 @@ py_allowed_folders:
 js_unit_suffixes:
   - ".test.js"
   - ".spec.js"
+  - ".test.jsx"
+  - ".spec.jsx"
   - ".test.ts"
   - ".spec.ts"
+  - ".test.tsx"
+  - ".spec.tsx"
 
 js_e2e_suffixes:
   - ".spec.js"

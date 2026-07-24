@@ -75,12 +75,18 @@ function textFromLiteral(node) {
 }
 
 function getMemberChain(callee) {
+  // Returns { chain, rooted }. `rooted` is true only when the chain bottoms out
+  // at a base Identifier (e.g. `it`, `test`, `describe`). This lets callers reject
+  // calls such as `/re/.test(url)` or `foo().test()` whose trailing property
+  // happens to be `test`/`it` but which are not test/describe blocks.
   const chain = [];
   let current = callee;
+  let rooted = false;
 
   while (current) {
     if (current.type === 'Identifier') {
       chain.unshift(current.name);
+      rooted = true;
       break;
     }
 
@@ -104,16 +110,42 @@ function getMemberChain(callee) {
     break;
   }
 
-  return chain;
+  return { chain, rooted };
 }
 
 function classifyCall(node) {
   if (!node || node.type !== 'CallExpression') return null;
 
-  const chain = getMemberChain(node.callee);
-  if (chain.length === 0) return null;
+  // Support the curried `.each` form: `it.each(table)(name, fn)` and
+  // `describe.each(table)(name, fn)`. There the callee is itself a CallExpression
+  // (`it.each(table)`), so derive the chain from the inner callee but keep the
+  // OUTER node — whose arguments are (name, fn) — as the test/describe record.
+  let calleeForChain = node.callee;
+  let isEachFactoryCall = false;
+  if (node.callee && node.callee.type === 'CallExpression') {
+    calleeForChain = node.callee.callee;
+    isEachFactoryCall = true;
+  }
+
+  const { chain, rooted } = getMemberChain(calleeForChain);
+  // Must be rooted at a base identifier — rejects `/regex/.test(url)`,
+  // `foo().test()`, `expect(x).toBe(y)`, and similar member calls.
+  if (!rooted || chain.length === 0) return null;
 
   const root = chain[0];
+  if (root !== 'describe' && root !== 'it' && root !== 'test') return null;
+
+  const lastSegment = chain[chain.length - 1];
+
+  if (isEachFactoryCall) {
+    // A curried invocation is a block only when the inner call is `.each`.
+    if (!chain.includes('each')) return null;
+  } else if (lastSegment === 'each') {
+    // The bare `it.each(table)` factory (not yet invoked with name+fn) is not a
+    // runnable block on its own — the curried outer call carries the real test.
+    return null;
+  }
+
   const hasDescribe = chain.includes('describe');
   const isOnly = chain.includes('only');
   const isSkipped = chain.includes('skip') || chain.includes('todo') || chain.includes('fixme');
@@ -135,7 +167,7 @@ function classifyCall(node) {
       'use', 'beforeEach', 'afterEach', 'beforeAll', 'afterAll',
       'step', 'extend', 'slow',
     ]);
-    if (chain.length > 1 && HOOK_METHODS.has(chain[chain.length - 1])) {
+    if (chain.length > 1 && HOOK_METHODS.has(lastSegment)) {
       return null;
     }
     return {
