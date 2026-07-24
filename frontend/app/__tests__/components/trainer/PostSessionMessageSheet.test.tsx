@@ -26,12 +26,14 @@ describe('PostSessionMessageSheet', () => {
   it('renders the customer name', () => {
     setup();
     renderSheet();
+    expect(screen.getByText('Mensaje post-sesión')).toBeInTheDocument();
     expect(screen.getByText('Ana Ruiz')).toBeInTheDocument();
   });
 
   it('fills the textarea when a quick suggestion is clicked', () => {
     setup();
     renderSheet();
+    expect(screen.getByText('Mensaje post-sesión')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: SUGGESTION }));
     expect(screen.getByPlaceholderText(PLACEHOLDER)).toHaveValue(SUGGESTION);
   });
@@ -65,6 +67,7 @@ describe('PostSessionMessageSheet', () => {
   it('closes the sheet when the cancel button is clicked', () => {
     setup();
     const { onClose } = renderSheet();
+    expect(screen.getByText('Mensaje post-sesión')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });

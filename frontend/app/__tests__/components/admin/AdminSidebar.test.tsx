@@ -114,10 +114,7 @@ describe('AdminSidebar', () => {
   it('marks the active nav item when pathname matches the dashboard route', () => {
     mockUsePathname.mockReturnValue('/admin-platform/dashboard');
     renderSidebar();
-    // Active link for dashboard — href="/admin-platform/dashboard"
-    const link = screen.getAllByRole('link').find(
-      (a) => (a as HTMLAnchorElement).href?.includes('/admin-platform/dashboard') && a.textContent?.includes('Panel'),
-    );
-    expect(link).toBeDefined();
+    // Active items receive ITEM_ACTIVE (font-semibold); inactive ones use font-medium.
+    expect(screen.getByRole('link', { name: 'Panel' })).toHaveClass('font-semibold');
   });
 });

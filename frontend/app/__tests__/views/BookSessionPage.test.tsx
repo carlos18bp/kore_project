@@ -263,21 +263,6 @@ describe('BookSessionPage', () => {
     expect(screen.getAllByText(/Sesión 4 de 4/).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders session details with correct session number', () => {
-    const subscriptions = [
-      {
-        id: 1, customer_email: 'cust@kore.com',
-        package: { id: 1, title: 'Gold', sessions_count: 4, session_duration_minutes: 60, price: '500000', currency: 'COP', validity_days: 30 },
-        sessions_total: 4, sessions_used: 3, sessions_remaining: 1,
-        status: 'active', starts_at: '2025-02-01T00:00:00Z', expires_at: '2025-03-01T00:00:00Z',
-        next_billing_date: null,
-      },
-    ];
-    setupStore({ subscriptions });
-    render(<BookSessionPage />);
-    expect(screen.getAllByText(/Sesión 4 de 4/).length).toBeGreaterThanOrEqual(1);
-  });
-
   it('renders NoSessionsModal when selected subscription has no remaining sessions', () => {
     const subscriptions = [
       {

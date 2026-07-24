@@ -37,7 +37,7 @@ describe('shared/FormSection', () => {
 });
 
 describe('shared/Field', () => {
-  it('emits the typed value through onChange', () => {
+  it('emits the typed field value through onChange', () => {
     const onChange = jest.fn();
     render(<Field label="Peso" placeholder="kg" onChange={onChange} />);
     fireEvent.change(screen.getByPlaceholderText('kg'), { target: { value: '82' } });
@@ -93,7 +93,7 @@ describe('shared/ComputedCard', () => {
 });
 
 describe('shared/NotesField', () => {
-  it('emits the typed value through onChange', () => {
+  it('emits the typed notes value through onChange', () => {
     const onChange = jest.fn();
     render(<NotesField label="Notas" placeholder="Escribe" onChange={onChange} />);
     fireEvent.change(screen.getByPlaceholderText('Escribe'), { target: { value: 'ok' } });

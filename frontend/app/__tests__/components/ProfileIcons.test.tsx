@@ -65,22 +65,20 @@ describe('ProfileIcons — Config arrays', () => {
     });
   });
 
-  it('MOOD_MESSAGES has entries for all mood values', () => {
-    MOOD_OPTIONS.forEach((opt) => {
-      expect(MOOD_MESSAGES[opt.value]).toBeDefined();
-      expect(typeof MOOD_MESSAGES[opt.value]).toBe('string');
-    });
+  it.each([
+    ['message for motivated', 'motivated', 'Esa energía se nota. Vamos a aprovecharla.'],
+    ['message for neutral', 'neutral', 'Cada día es una oportunidad. Tu cuerpo te lo agradecerá.'],
+    ['message for tired', 'tired', 'Está bien tener días así. Lo importante es que estás aquí.'],
+  ])('MOOD_MESSAGES has the exact %s', (_label, mood, expected) => {
+    expect(MOOD_MESSAGES[mood]).toBe(expected);
   });
 
-  it('MOOD_COLORS has styling for all mood values', () => {
-    MOOD_OPTIONS.forEach((opt) => {
-      const colors = MOOD_COLORS[opt.value];
-      expect(colors).toBeDefined();
-      expect(colors).toHaveProperty('bg');
-      expect(colors).toHaveProperty('text');
-      expect(colors).toHaveProperty('border');
-      expect(colors).toHaveProperty('activeBg');
-    });
+  it.each([
+    ['classes for motivated', 'motivated', { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', activeBg: 'bg-green-100' }],
+    ['classes for neutral', 'neutral', { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', activeBg: 'bg-amber-100' }],
+    ['classes for tired', 'tired', { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', activeBg: 'bg-rose-100' }],
+  ])('MOOD_COLORS has the exact %s', (_label, mood, expected) => {
+    expect(MOOD_COLORS[mood]).toEqual(expected);
   });
 });
 

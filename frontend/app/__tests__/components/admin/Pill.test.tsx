@@ -19,9 +19,12 @@ describe('Pill', () => {
     },
   );
 
-  it.each(['sm', 'md'] as const)('renders its children for the %s size', (size) => {
+  it.each([
+    ['sm', 'text-[9px]'],
+    ['md', 'text-[10px]'],
+  ] as const)('applies the %s size text class to the pill', (size, sizeClass) => {
     render(<Pill size={size}>Estado</Pill>);
-    expect(screen.getByText('Estado')).toBeInTheDocument();
+    expect(screen.getByText('Estado')).toHaveClass(sizeClass);
   });
 
   it('renders its children when the dot indicator is enabled', () => {
