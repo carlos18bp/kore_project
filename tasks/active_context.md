@@ -13,14 +13,18 @@ The KÓRE platform is **fully functional in production** at `korehealths.com` (p
 - **Admin Platform (frontend)**: `admin-platform/` route group — users, subscriptions, plans, nutrition, reports (10 pages)
 - **Backend**: Django 6 + DRF + Huey (11 tasks: 9 periodic + 2 on-demand) + 29 services + MySQL (prod)
 - **Frontend**: Next.js 16 (static export) + 30 Zustand stores + 57 pages + 131 components
-- **Testing**: **487 test files** (182 backend + 202 frontend unit + 103 E2E) · 104 registered E2E flows, runtime coverage 104/104 (CI artifact 2026-07-16)
+- **Testing**: **489 test files** (183 backend + 203 frontend unit + 103 E2E) · 104 registered E2E flows, runtime coverage 104/104 (CI artifact 2026-07-16)
 - **Deployment**: Gunicorn + Nginx + systemd on Ubuntu; GitHub Actions CI (tests + quality gate) on push/PR
 
 ---
 
 ## 2. Recent Focus Areas
 
-- **E2E quality sweep — pass 4 (2026-07-24)** (latest):
+- **Test-quality & methodology audit — audit-first pass (2026-07-24)** (latest):
+  - Report-only sweep (`test_quality_gate.py` ×3 suites + `flow_coverage_audit.py`); no writes to test corpus or DB. Full triage in `docs/audits/test-audit-2026-07-24.md`. All 3 suites pass (0 errors) — scores backend 99 / frontend-unit 97 / e2e 81; the debt is behavioral, not structural.
+  - **Two structural findings**: (1) `.testquality.yml → js_unit_suffixes` omits `.tsx`, so the gate audits only 52 of 203 unit files — **151 `.test.tsx` React tests are ungated** (TD-16). (2) Static `flow_coverage_audit.py` = **0/104** (0 flows declare `outcomes`, 520/525 specs untagged): the flow-definitions v1.12.0 `outcomes` schema was never populated. Runtime coverage stays 104/104 per CI — the static and runtime models diverge (TD-17).
+  - Junk signal: 291 e2e no-interaction (284 still assert → mostly display-class, not deletable; **14 truly un-failable**), 27 flow-tag mismatches, 47 unit "duplicates" (→ `test.each`/rename, not delete), 28 `timezone.now` non-determinism. Deferred fix batches queued: `e2e-user-flows-check` → backend/unit coverage → `new-feature-checklist`.
+- **E2E quality sweep — pass 4 (2026-07-24)** (prior, same day):
   - Audit (3 read-only agents) found the suite was wide but shallow-of-truth: 60% of tests passive (goto + assert, no interaction), 72% of specs never navigate via UI, ~45 tests whose assertions were fully skippable (if-guards, `.catch(()=>false)`, `.or()` accepting success AND failure), and ~20 faking interactions no user can perform (removing `disabled`/`minlength`, `evaluate(el=>el.click())`).
   - Root cause of the worst cluster: `setupDefaultApiMocks` returned `{}` for `/api/availability/**`, disabling every calendar day; booking specs guarded every assertion behind `if(dayExists)` that never entered, and one spec stripped the `disabled` attribute. The page fetches a 30-day window up front — no chicken-and-egg. Fixed the fixture to serve realistic availability; **mutation-tested**: emptying availability now fails 5 booking tests that previously passed green.
   - Added typed factories (`e2e/factories/`) importing app types so a serializer rename breaks `tsc`; `mockAvailability` helper; rewrote book-session-flow (dropped 11 `.catch`, all guards, and 2 phantom tests for a 12h/24h toggle and subscription selector that do not exist in the app).
@@ -87,7 +91,7 @@ The KÓRE platform is **fully functional in production** at `korehealths.com` (p
 | Database (SQLite dev / MySQL prod) | ✅ Available |
 | Redis (Huey broker) | ⚠️ Optional in dev (`HUEY_IMMEDIATE=true`) |
 | Fake data commands | ✅ Available (29 management commands) |
-| Testing tools | ✅ pytest (182 files), Jest (202 files), Playwright (103 files) |
+| Testing tools | ✅ pytest (183 files), Jest (203 files), Playwright (103 files) |
 | CI | ✅ GitHub Actions: `CI — Tests` (backend + unit + E2E sharded ×6, ~86 tests/shard + coverage summary) and `Test Quality Gate` |
 
 ---
@@ -99,14 +103,16 @@ The KÓRE platform is **fully functional in production** at `korehealths.com` (p
 3. **API rate limiting**: No throttling in place — security concern (TD-05)
 4. **Complete i18n**: Finish Spanish/English translation implementation with next-intl (TD-07)
 5. **Automated deploy (CD)**: CI tests exist; deployment is still manual (TD-08)
+6. **Test-audit follow-ups (2026-07-24)** — deferred write batches, each separately approved: `e2e-user-flows-check` (populate `outcomes` + `@flow` tags), then backend/frontend-unit coverage fills, then `new-feature-checklist` for the credits/gamification set. See `docs/audits/test-audit-2026-07-24.md`.
+7. **Fix the unit-gate `.tsx` blind spot (TD-16)** — add `.test.tsx`/`.spec.tsx` (+ `.jsx`) to `.testquality.yml → js_unit_suffixes`; re-run the unit gate for true numbers over all 203 files.
 
 ---
 
-## 6. Codebase Inventory (Verified 2026-07-22 @ `9f2552b`)
+## 6. Codebase Inventory (Verified 2026-07-24 @ `076b4c3`)
 
 | Layer | Count |
 |-------|-------|
-| Model classes | 63 across 46 files |
+| Model classes | 63 across 46 files (60 concrete + 2 abstract + 1 manager) |
 | Views | 40 files |
 | Serializers | 22 files |
 | Services | 29 files |
@@ -118,8 +124,8 @@ The KÓRE platform is **fully functional in production** at `korehealths.com` (p
 | Frontend pages | 57 (11 public + 35 app + 10 admin-platform + 1 root-level) |
 | Frontend components | 131 |
 | Zustand stores | 30 |
-| Backend test files | 182 |
-| Frontend unit test files | 202 |
+| Backend test files | 183 |
+| Frontend unit test files | 203 (52 `.test.ts` + 151 `.test.tsx`) |
 | E2E spec files | 103 |
-| Flow definitions | 104 (registry v1.11.0) |
-| **Total test files** | **487** |
+| Flow definitions | 104 (registry v1.12.0) |
+| **Total test files** | **489** |

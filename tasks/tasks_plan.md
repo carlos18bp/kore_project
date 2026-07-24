@@ -18,7 +18,7 @@
 | **Notifications** (email, status tracking) | ✅ Complete | Email notifications with delivery status |
 | **Content** (SiteSettings, FAQ, ContactMessage) | ✅ Complete | Singleton settings, admin-managed |
 | **Analytics Events** (tracking) | ✅ Complete | Event tracking with session association |
-| **Django Admin Panel** | ✅ Complete | 39 Admin classes for 63 models |
+| **Django Admin Panel** | ✅ Complete | 39 Admin classes for 63 model classes (60 concrete) |
 | **Google reCAPTCHA** | ✅ Complete | Site key + verification endpoints |
 | **Trainer / Customer Profiles** | ✅ Complete | 1:1 with User per role |
 | **Diagnostic Engine** (5 modules + KORE Index) | ✅ Complete | Anthropometry, posturometry, physical eval, nutrition habits, PAR-Q+; composite KORE score |
@@ -85,30 +85,32 @@
 | TD-13 | ~~`services/recurring_renewal.py` has no direct unit tests~~ | Medium | ✅ Resolved (`13b6d5c` — direct contract tests in `tests/services/test_recurring_renewal.py`) |
 | TD-14 | ~552 hand-written E2E mock payloads with no link to backend serializers — a field rename cannot fail any E2E. `e2e/factories/` now covers booking/subscription/user/trainer shapes; migrate the rest incrementally | Medium | Open (pass 4, 2026-07-24) |
 | TD-15 | E2E backend is 100% mocked — no CI job exercises a real FE↔BE contract (Playwright job never starts Django). A real-backend smoke over P1 flows would catch mock drift | Medium | Open (pass 4) |
+| TD-16 | Quality gate blind to `.tsx`/`.jsx` unit tests — `.testquality.yml → js_unit_suffixes` lists only `.ts`/`.js`, so 151 of 203 `frontend/app/__tests__` files (all `.test.tsx`) are never analyzed. Jest runs them; the gate does not. Fix: add `.test.tsx`/`.spec.tsx` (+ `.jsx`) and re-run | Medium | Open (2026-07-24) |
+| TD-17 | Static flow coverage unpopulated — `flow-definitions.json` v1.12.0 migrated to an `outcomes` schema but 0/104 flows declare `outcomes` and 520/525 E2E specs are untagged, so `flow_coverage_audit.py` = 0/104 while runtime CI coverage = 104/104. Populate `outcomes` + `@flow` tags via `e2e-user-flows-check` | Medium | Open (2026-07-24) |
 
 ---
 
-## 3. Testing Status (verified 2026-07-22 @ `9f2552b`)
+## 3. Testing Status (verified 2026-07-24 @ `076b4c3`)
 
-### Backend (pytest) — 182 files
+### Backend (pytest) — 183 files
 
 | Category | Test Files |
 |----------|-----------|
 | Views | 69 |
 | Services | 36 |
 | Models | 30 |
-| Commands | 20 |
+| Commands | 21 |
 | Serializers | 18 |
 | Tasks | 6 |
 | Utils | 2 |
 | Permissions | 1 |
-| **Total** | **182** |
+| **Total** | **183** |
 
 CI coverage @ `d7cf79b`: **89.90%** (branch coverage on). Weakest files: `management/commands/import_food_catalog.py` (0%), `management/commands/import_exercises.py` (57%), `views/physical_test_views.py` (59%), `tasks.py` (64%), `views/trainer_intelligence_views.py` (68%), `serializers/store_serializers.py` (73%). Since that artifact, `13b6d5c` added coverage for `recurring_renewal`, day-close tasks, `store_serializers` and `TrainerClientKPIView` — CI artifact re-run pending to requantify.
 
-### Frontend Unit (Jest) — 202 files
+### Frontend Unit (Jest) — 203 files
 
-All under `frontend/app/__tests__/` (stores, components, views, hooks, services, lib, reporters, scripts, styles). CI coverage @ `d7cf79b`: **86.75% statements / 77.04% branches**. Weakest: ~~`RatingsSummaryCard.tsx` (0%)~~ (covered in `9f2552b`), `SubCardCompact.tsx` (38%), `UserRow.tsx` (38%), `NotesTab.tsx` (41%), `trainerStore.ts` (50%), `programStore.ts` (53%).
+All under `frontend/app/__tests__/` (stores, components, views, hooks, services, lib, reporters, scripts, styles). CI coverage @ `d7cf79b`: **86.75% statements / 77.04% branches**. Weakest: ~~`RatingsSummaryCard.tsx` (0%)~~ (covered in `9f2552b`), `SubCardCompact.tsx` (38%), `UserRow.tsx` (38%), `NotesTab.tsx` (41%), `trainerStore.ts` (50%), `programStore.ts` (53%). **Composition: 52 `.test.ts` + 151 `.test.tsx`. The quality gate's `js_unit_suffixes` omits `.tsx`, so it analyzes only the 52 `.ts` files — the 151 `.tsx` component tests are ungated (TD-16).**
 
 ### E2E (Playwright) — 103 files
 
@@ -123,10 +125,10 @@ All under `frontend/app/__tests__/` (stores, components, views, hooks, services,
 | Customer (rating) | 1 |
 | **Total** | **103** |
 
-### Grand Total: 487 test files
-### Flow Definitions: 104 flows (registry v1.11.0, 2026-07-15) — runtime coverage **104/104 covered** (CI artifact 2026-07-16)
+### Grand Total: 489 test files
+### Flow Definitions: 104 flows (registry v1.12.0, 2026-07-17) — runtime coverage **104/104** (CI artifact 2026-07-16). Static `flow_coverage_audit.py` = **0/104** (0 flows declare `outcomes`, 520/525 specs untagged) — static vs runtime models diverge; see TD-17 and `docs/audits/test-audit-2026-07-24.md`.
 
-### Quality Gate: 99/100 — 0 errors, 86 warnings, 131 info (CI 2026-07-16, pre-sweep). The warning sweep `d3aa82a` (2026-07-17) reduced warnings 86 → 59 on the top-density backend files; CI artifact re-run pending to confirm the new breakdown.
+### Quality Gate: 99/100 — 0 errors, 86 warnings, 131 info (CI 2026-07-16, pre-sweep). The warning sweep `d3aa82a` (2026-07-17) reduced warnings 86 → 59 on the top-density backend files; CI artifact re-run pending to confirm the new breakdown. Local audit 2026-07-24 (`--semantic-rules strict`, per-suite): backend 0e/39w/119i (99), frontend-unit 0e/60w/5i (97, `.ts` only — see TD-16), e2e 0e/342w/3i (81). Full triage: `docs/audits/test-audit-2026-07-24.md`.
 
 ---
 
@@ -137,14 +139,15 @@ All under `frontend/app/__tests__/` (stores, components, views, hooks, services,
 | PRD | `docs/methodology/product_requirement_docs.md` | ✅ Refreshed 2026-07-17 |
 | Technical | `docs/methodology/technical.md` | ✅ Refreshed 2026-07-17 |
 | Architecture | `docs/methodology/architecture.md` | ✅ Refreshed 2026-07-17 |
-| Tasks Plan | `tasks/tasks_plan.md` | ✅ Refreshed 2026-07-22 |
-| Active Context | `tasks/active_context.md` | ✅ Refreshed 2026-07-22 |
+| Tasks Plan | `tasks/tasks_plan.md` | ✅ Refreshed 2026-07-24 |
+| Active Context | `tasks/active_context.md` | ✅ Refreshed 2026-07-24 |
 | Error Documentation | `docs/methodology/error-documentation.md` | ✅ Maintained |
 | Lessons Learned | `docs/methodology/lessons-learned.md` | ✅ Maintained |
 | Release July (Fase 2) | `docs/release-july/{README,GUIA_DE_VALIDACION,GUIA_QA_STAGING}.md` | ✅ Existing |
 | Deployment Guide | `docs/deployment-guide.md` | ✅ Existing |
 | Testing Quality Standards | `docs/TESTING_QUALITY_STANDARDS.md` | ✅ Existing |
 | User Flow Map | `docs/USER_FLOW_MAP.md` | ✅ Reconciled 2026-07-17 (`0440992` — runtime artifact is coverage source of truth) |
+| Test Audit | `docs/audits/test-audit-2026-07-24.md` | ✅ New (2026-07-24, audit-first, report-only) |
 
 ---
 
