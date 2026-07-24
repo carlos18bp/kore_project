@@ -127,8 +127,9 @@ test.describe('Booking Cancel Flow', { tag: [...FlowTags.BOOKING_CANCEL_FLOW, Ro
     await page.getByRole('dialog', { name: 'Detalle de Sesión' }).getByRole('button', { name: 'Cancelar', exact: true }).click();
     await page.getByRole('button', { name: 'Confirmar cancelación' }).click();
 
-    // Modal should still be visible (cancel failed)
-    await expect(page.getByRole('dialog', { name: 'Detalle de Sesión' })).toBeVisible({ timeout: 5_000 });
+    // The failed cancel keeps the modal open and surfaces the backend detail
+    // ("Server error" from the 500 body) inside the session dialog.
+    await expect(page.getByRole('dialog', { name: 'Detalle de Sesión' })).toContainText('Server error', { timeout: 10_000 });
   });
 
   test('cancel without a reason succeeds and closes the detail modal', async ({ page }) => {
@@ -172,7 +173,7 @@ test.describe('Booking Cancel Flow', { tag: [...FlowTags.BOOKING_CANCEL_FLOW, Ro
 
     // User-visible error UX: backend detail rendered in the modal error box
     // and the confirm button re-enabled so the user can retry.
-    await expect(dialog.getByText('La sesión ya no se puede cancelar.')).toBeVisible({ timeout: 10_000 });
+    await expect(dialog).toContainText('La sesión ya no se puede cancelar.', { timeout: 10_000 });
     await expect(dialog.getByRole('button', { name: 'Confirmar cancelación' })).toBeEnabled();
   });
 });

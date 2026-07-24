@@ -136,6 +136,7 @@ test.describe('Auth Token Refresh', { tag: [...FlowTags.AUTH_TOKEN_REFRESH, Role
 
     // The session cannot be recovered, so we land on /login.
     await page.waitForURL('**/login', { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/login/);
 
     // The interceptor did attempt the refresh before giving up.
     await expect.poll(() => refreshCalls, { timeout: 10_000 }).toBeGreaterThanOrEqual(1);

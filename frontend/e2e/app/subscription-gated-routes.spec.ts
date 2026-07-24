@@ -45,12 +45,14 @@ test.describe('Subscription Gated Routes', { tag: [...FlowTags.SUBSCRIPTION_GATE
     await setupWithExpiredSubscription(page);
     await page.goto('/book-session');
     await page.waitForURL('**/subscription', { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/subscription/);
   });
 
   test('accessing /my-diagnosis with expired subscription redirects to /subscription', async ({ page }) => {
     await setupWithExpiredSubscription(page);
     await page.goto('/my-diagnosis');
     await page.waitForURL('**/subscription', { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/subscription/);
   });
 
   test('/subscription remains accessible with expired subscription', async ({ page }) => {

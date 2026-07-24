@@ -114,6 +114,8 @@ test.describe('Checkout Page — Coverage Gaps', { tag: [...FlowTags.CHECKOUT_CO
     await payBtn.click();
 
     await expect(page.getByText(/Número de tarjeta inválido|Error al procesar la tarjeta/)).toBeVisible({ timeout: 10_000 });
+    // The failed tokenization returns the form to an actionable state.
+    await expect(payBtn).not.toBeDisabled();
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -139,6 +141,8 @@ test.describe('Checkout Page — Coverage Gaps', { tag: [...FlowTags.CHECKOUT_CO
     await payBtn.click();
 
     await expect(page.getByText(/Error al procesar el pago|Error interno/)).toBeVisible({ timeout: 10_000 });
+    // The failed purchase leaves the pay button usable for a retry.
+    await expect(payBtn).not.toBeDisabled();
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -282,5 +286,7 @@ test.describe('Checkout Page — Coverage Gaps', { tag: [...FlowTags.CHECKOUT_CO
 
     // After polling resolves with 'failed' → error message shown
     await expect(page.getByText('El pago fue rechazado. No se realizó ningún cobro ni se creó tu cuenta. Puedes intentar con otro método de pago.')).toBeVisible({ timeout: 15_000 });
+    // After the rejection the pay button re-enables so another method can be tried.
+    await expect(payBtn).not.toBeDisabled();
   });
 });

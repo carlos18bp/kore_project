@@ -62,7 +62,9 @@ test.describe(
 
       await page.getByTestId('rating-skip').click();
 
-      await expect(page.getByTestId('session-rating-card')).not.toBeVisible();
+      // Skipping unmounts the card outright — SessionRatingCard returns null once
+      // `skipped` is set — so the element must be gone from the DOM, not just hidden.
+      await expect(page.getByTestId('session-rating-card')).toHaveCount(0);
       expect(rateCalled).toBe(false);
     });
   },

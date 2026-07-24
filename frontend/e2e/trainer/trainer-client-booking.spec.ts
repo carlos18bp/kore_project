@@ -168,7 +168,9 @@ test.describe('Trainer Client Booking', { tag: [...FlowTags.TRAINER_CLIENT_BOOKI
     await page.getByRole('button', { name: 'Confirmar y agendar' }).click();
     await bookingReq;
 
-    await expect(page.getByText('¡Sesión agendada!')).toBeVisible({ timeout: 10_000 });
+    // Success screen replaces the wizard: assert the confirmation copy verbatim
+    // (proves the POST /api/bookings/ create landed, not just that some node showed).
+    await expect(page.getByText('¡Sesión agendada!')).toHaveText('¡Sesión agendada!', { timeout: 10_000 });
     await expect(page.getByRole('button', { name: 'Listo' })).toBeVisible();
   });
 

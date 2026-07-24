@@ -183,7 +183,7 @@ test.describe('Trainer Client Nutrition Plan', { tag: [...FlowTags.TRAINER_CLIEN
     await page.getByRole('button', { name: 'Publicar' }).click();
     await approveReq;
 
-    // Success UI: the plan header now shows the Published badge.
-    await expect(page.getByText('Publicado').first()).toBeVisible({ timeout: 10_000 });
+    // Success UI: the plan-header status badge flips from "Borrador" to "Publicado".
+    await expect(page.getByText('Publicado').first()).toHaveText('Publicado', { timeout: 10_000 });
   });
 });

@@ -172,6 +172,8 @@ test.describe(
       await deleteReq;
 
       await page.waitForURL('**/admin-platform/subscriptions');
+      // The delete redirected off the detail page onto the subscriptions list.
+      await expect(page).toHaveURL(/\/admin-platform\/subscriptions$/);
     });
 
     test('a rejected delete shows the error banner and stays on the detail', async ({ page }) => {

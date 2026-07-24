@@ -70,10 +70,14 @@ test.describe('Admin User Create', { tag: [...FlowTags.ADMIN_USER_CREATE, RoleTa
   test('client-side validation shows required-field errors on empty submit', async ({ page }) => {
     await page.goto('/admin-platform/users/new');
 
+    // No validation errors are present before the user submits.
+    await expect(page.getByText('Requerido')).toHaveCount(0);
+
     await page.getByRole('button', { name: 'Crear y enviar credenciales' }).click();
 
-    // No POST fires; the form stays on screen with "Requerido" markers.
-    await expect(page.getByText('Requerido').first()).toBeVisible();
+    // No POST fires; the empty submit surfaces a "Requerido" marker on each of
+    // the three required fields (correo, nombre, apellido) and stays on the form.
+    await expect(page.getByText('Requerido')).toHaveCount(3);
     await expect(page.getByRole('heading', { name: 'Inscribir nuevo usuario' })).toBeVisible();
   });
 

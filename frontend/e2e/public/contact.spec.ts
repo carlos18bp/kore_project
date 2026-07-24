@@ -45,6 +45,8 @@ test.describe('Contact Page', { tag: [...FlowTags.PUBLIC_CONTACT, RoleTags.GUEST
     await page.getByRole('button', { name: 'Enviar mensaje' }).click();
 
     await expect(page.getByText('¡Mensaje enviado!')).toBeVisible();
+    // The confirmation replaces the form, so its submit button is gone.
+    await expect(page.getByRole('button', { name: 'Enviar mensaje' })).toBeHidden();
   });
 
   test('shows error when contact submission fails', async ({ page }) => {

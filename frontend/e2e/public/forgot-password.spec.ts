@@ -31,6 +31,8 @@ test.describe('Forgot Password Page', { tag: [...FlowTags.AUTH_FORGOT_PASSWORD, 
     await expect(page.getByLabel(/Código de verificación/i)).toBeVisible();
     await expect(page.getByText('user@example.com')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Verificar código' })).toBeVisible();
+    // Advancing to step 2 unmounts the step-1 email field.
+    await expect(page.getByLabel(/Correo electrónico/i)).toBeHidden();
   });
 
   test('request code API failure shows error message', async ({ page }) => {

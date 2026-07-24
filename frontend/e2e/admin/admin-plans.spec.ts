@@ -104,6 +104,10 @@ test.describe('Admin Plans', { tag: [...FlowTags.ADMIN_PLANS, RoleTags.ADMIN] },
     await page.goto('/admin-platform/plans');
     await expect(page.getByText('Plan Base Personalizado')).toBeVisible();
 
+    // The modal is not mounted until the trigger is clicked, so opening it is a
+    // real state change: the create dialog goes from absent to present.
+    await expect(page.getByText('Crear plan de entrenamiento')).toBeHidden();
+
     await page.getByRole('button', { name: /Crear plan/ }).click();
 
     await expect(page.getByText('Crear plan de entrenamiento')).toBeVisible();
@@ -203,6 +207,10 @@ test.describe('Admin Plans', { tag: [...FlowTags.ADMIN_PLANS, RoleTags.ADMIN] },
     await expect(page.getByText('Crear plan de entrenamiento')).toBeVisible();
     await page.getByPlaceholder('Ej. Plan Estándar').fill('Plan Duplicado');
     await page.getByPlaceholder('0').fill('250000');
+
+    // Before submitting there is no server error in the modal; the rejected
+    // save is what makes it appear.
+    await expect(page.getByText('title: Ya existe un plan con este nombre.')).toBeHidden();
     await page.getByRole('button', { name: 'Crear plan', exact: true }).click();
 
     // The server message renders in both the modal-level and field-level error

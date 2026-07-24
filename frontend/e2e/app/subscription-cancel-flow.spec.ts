@@ -93,6 +93,7 @@ test.describe('Subscription Cancel Flow', { tag: [...FlowTags.SUBSCRIPTION_CANCE
 
     await cancelBtn.click();
     await expect(page.getByText('¿Seguro que deseas cancelar?')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole('button', { name: 'Sí, cancelar' })).toHaveText('Sí, cancelar');
   });
 
   test('confirming cancellation updates subscription to canceled state', async ({ page }) => {

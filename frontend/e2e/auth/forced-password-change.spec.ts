@@ -39,6 +39,7 @@ test.describe('Forced Password Change', { tag: [...FlowTags.AUTH_FORCED_PASSWORD
     await page.goto('/change-password-required');
 
     await page.waitForURL('**/login', { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/login/);
   });
 
   test('user with must_change_password=false is redirected to dashboard', async ({ page }) => {
@@ -56,6 +57,7 @@ test.describe('Forced Password Change', { tag: [...FlowTags.AUTH_FORCED_PASSWORD
     await page.goto('/change-password-required');
 
     await page.waitForURL('**/dashboard', { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/dashboard/);
   });
 
   test('page shows Cambia tu contraseña heading', async ({ page }) => {

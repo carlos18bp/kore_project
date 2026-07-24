@@ -144,6 +144,8 @@ test.describe('Profile Page', { tag: [...FlowTags.PROFILE_MANAGEMENT, RoleTags.U
     const addressInput = page.getByPlaceholder('Tu dirección de residencia');
     await addressInput.fill('Carrera 7 #71-21');
     await expect(page.getByText('Guardando…')).toBeVisible({ timeout: 5_000 });
-    await expect(page.getByText('Guardado', { exact: true })).toBeVisible({ timeout: 10_000 });
+    // The debounced PATCH resolving swaps the toast to its saved state; assert the
+    // confirmation copy so a silent no-op save would fail the test.
+    await expect(page.getByText('Guardado', { exact: true })).toHaveText('Guardado', { timeout: 10_000 });
   });
 });

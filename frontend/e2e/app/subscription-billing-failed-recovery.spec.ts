@@ -87,6 +87,7 @@ test.describe('Subscription Billing Failed Recovery', { tag: [...FlowTags.SUBSCR
 
     await page.getByRole('link', { name: 'Actualizar pago' }).click();
     await page.waitForURL(new RegExp(`/checkout\\?package=${PACKAGE_ID}`), { timeout: 15_000 });
+    await expect(page).toHaveURL(new RegExp(`/checkout\\?package=${PACKAGE_ID}`));
   });
 
   test('dismiss persists in sessionStorage and toast does not reappear on reload', async ({ page }) => {

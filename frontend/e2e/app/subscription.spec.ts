@@ -285,9 +285,11 @@ test.describe('Subscription Page (mocked)', { tag: [...FlowTags.SUBSCRIPTION_PAG
     // Click the second subscription pill to select it
     await main.getByRole('button', { name: /Paquete Básico/ }).click();
 
-    // Hero should now reflect the expired second subscription
+    // Hero should now reflect the expired second subscription, and the previously
+    // featured active plan title is gone from the hero (proof it actually swapped).
     await expect(main.getByRole('heading', { name: 'Paquete Básico' })).toBeVisible({ timeout: 5_000 });
     await expect(main.getByText('● Expirada')).toBeVisible({ timeout: 5_000 });
+    await expect(main.getByRole('heading', { name: 'Paquete Pro' })).not.toBeVisible({ timeout: 5_000 });
   });
 
 });

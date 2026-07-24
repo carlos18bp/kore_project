@@ -32,6 +32,7 @@ test.describe('Mi Programa — Día Específico', { tag: [...FlowTags.CUSTOMER_M
     await page.goto(`/mi-programa/dia/detail?date=${today}`);
 
     await page.waitForURL('**/mi-programa/rutina', { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/mi-programa\/rutina/);
   });
 
   test('visiting a past date redirects to /mi-programa', async ({ page }) => {
@@ -53,6 +54,7 @@ test.describe('Mi Programa — Día Específico', { tag: [...FlowTags.CUSTOMER_M
     await page.goto('/mi-programa/dia/detail?date=2026-05-10');
 
     await page.waitForURL('**/mi-programa', { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/mi-programa$/);
   });
 
   test('day detail route is accessible without error', async ({ page }) => {
@@ -66,6 +68,7 @@ test.describe('Mi Programa — Día Específico', { tag: [...FlowTags.CUSTOMER_M
 
     const response = await page.goto('/mi-programa/dia/detail?date=2026-05-10');
     expect(response?.status()).not.toBe(404);
+    await expect(page).toHaveURL(/\/mi-programa$/, { timeout: 15_000 });
   });
 
   test('the detail page renders its loading spinner then redirects to the routine', async ({ page }) => {
@@ -83,5 +86,6 @@ test.describe('Mi Programa — Día Específico', { tag: [...FlowTags.CUSTOMER_M
     // quality: allow-fragile-selector (the loading spinner is a decorative div with no role or text to target)
     await expect(page.locator('.animate-spin')).toBeVisible({ timeout: 10_000 });
     await page.waitForURL('**/mi-programa/rutina', { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/mi-programa\/rutina/);
   });
 });

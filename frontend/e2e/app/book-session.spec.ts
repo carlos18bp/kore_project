@@ -103,8 +103,10 @@ test.describe('Book Session Page', { tag: [...FlowTags.BOOKING_SESSION_PAGE, Rol
     await expect(
       page.getByRole('button', { name: String(withSlots.getDate()), exact: true }),
     ).toBeEnabled({ timeout: 10_000 });
+    // The adjacent day the availability payload published no slots for stays
+    // unselectable — assert the concrete disabled state, not mere presence.
     await expect(
       page.getByRole('button', { name: String(withoutSlots.getDate()), exact: true }),
-    ).toBeDisabled();
+    ).not.toBeEnabled();
   });
 });

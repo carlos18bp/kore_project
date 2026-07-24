@@ -86,6 +86,9 @@ test.describe('Trainer — test físico quincenal', { tag: [...FlowTags.TRAINER_
     await page.getByRole('button', { name: 'Ev. Física' }).click();
     await page.getByRole('button', { name: 'Registrar test' }).click();
     await expect(page.getByTestId('physical-test-form')).toBeVisible();
+    // A real trainer types the session notes before saving; the register flow is
+    // only genuinely exercised when text entry actually happens.
+    await page.getByPlaceholder(/Notas del test/).fill('Buen progreso');
     await page.getByRole('button', { name: 'Aprobado', exact: true }).click();
     await page.getByRole('button', { name: 'Guardar test' }).click();
 
