@@ -5,6 +5,10 @@ description: "Frontend unit coverage — cover untested behavior in stores, comp
 
 # Frontend Unit Test Coverage
 
+> **Cadena:** el conductor [[qa]] corre esta skill como Fase 4 (subagente
+> `qa-engineer-unit`, que la precarga vía `skills:`). Invocable suelta para
+> trabajo puntual de una capa.
+
 ## Goal
 
 Cover untested **behavior** in state management, shared logic and components.
@@ -89,8 +93,13 @@ abstention **is not a failure**.
 
 ## Workflow
 
-1. Read the coverage report as a list of *behaviors*, not lines.
-2. Prioritize by layer (table above).
+1. **Enumerate untested behaviors from the code** — walk stores, composables and
+   components-with-logic and list what each one *does* (state transitions, emitted
+   payloads, formatting/branching rules), cross-referencing `docs/USER_FLOW_MAP.md`.
+   The code is the entry point.
+2. Prioritize by layer (table above). Use the coverage report only as a *secondary
+   readout* — to confirm which enumerated behavior has no line hit; a covered line
+   with a weak assertion is still an untested behavior.
 3. Consult `docs/TESTING_QUALITY_STANDARDS.md`.
 4. Search for an existing test to extend.
 5. Implement, satisfying the three-part definition of done.
@@ -110,7 +119,7 @@ Reportar siguiendo [[_output-protocol]]. Plantilla específica:
 
 | Dimensión | Estado | Detalle |
 |---|---|---|
-| Coverage leído como comportamiento | ✅ | N behaviors sin test identificados |
+| Comportamientos enumerados desde el código | ✅ | N behaviors sin test identificados |
 | Layers priorizadas | ✅ | stores → composables → componentes con lógica |
 | Búsqueda anti-duplicado | ✅ | N ya cubiertos → se extendió el existente |
 | Tests agregados | ✅ | N tests con valor esperado concreto |
