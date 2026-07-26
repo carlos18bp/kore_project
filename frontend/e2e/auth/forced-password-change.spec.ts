@@ -35,6 +35,7 @@ async function injectMustChangePasswordCookies(page: Page) {
 
 test.describe('Forced Password Change', { tag: [...FlowTags.AUTH_FORCED_PASSWORD_CHANGE, RoleTags.USER] }, () => {
   test('unauthenticated user is redirected to /login', async ({ page }) => {
+    // quality: allow-no-interaction (auth guard redirect: navigating without a session IS the trigger, no interactive element exists)
     await mockCaptchaSiteKey(page);
     await page.goto('/change-password-required');
 
@@ -43,6 +44,7 @@ test.describe('Forced Password Change', { tag: [...FlowTags.AUTH_FORCED_PASSWORD
   });
 
   test('user with must_change_password=false is redirected to dashboard', async ({ page }) => {
+    // quality: allow-no-interaction (flag-driven redirect guard: the must_change_password value IS the trigger, no interactive element exists)
     await mockCaptchaSiteKey(page);
     await mockAuthProfile(page);
     const userCookie = JSON.stringify({
@@ -61,13 +63,14 @@ test.describe('Forced Password Change', { tag: [...FlowTags.AUTH_FORCED_PASSWORD
   });
 
   test('page shows Cambia tu contraseña heading', async ({ page }) => {
+    // quality: allow-no-interaction (render guard: confirms the form mounts when must_change_password is true, no interactive element exists yet)
     await injectMustChangePasswordCookies(page);
     await page.goto('/change-password-required');
 
     await expect(page.getByRole('heading', { name: 'Cambia tu contraseña' })).toBeVisible({ timeout: 15_000 });
   });
 
-  test('empty form submission shows Requerido error', async ({ page }) => {
+  test('empty form submission shows Requerido error', { tag: ['@outcome:error'] }, async ({ page }) => {
     await injectMustChangePasswordCookies(page);
     await page.goto('/change-password-required');
 
@@ -77,7 +80,7 @@ test.describe('Forced Password Change', { tag: [...FlowTags.AUTH_FORCED_PASSWORD
     await expect(page.getByText('Requerido').first()).toBeVisible({ timeout: 5_000 });
   });
 
-  test('new password too short shows Mínimo 8 caracteres error', async ({ page }) => {
+  test('new password too short shows Mínimo 8 caracteres error', { tag: ['@outcome:error'] }, async ({ page }) => {
     await injectMustChangePasswordCookies(page);
     await page.goto('/change-password-required');
 
@@ -91,7 +94,7 @@ test.describe('Forced Password Change', { tag: [...FlowTags.AUTH_FORCED_PASSWORD
     await expect(page.getByText('Mínimo 8 caracteres')).toBeVisible({ timeout: 5_000 });
   });
 
-  test('successful change redirects customer to /dashboard', async ({ page }) => {
+  test('successful change redirects customer to /dashboard', { tag: ['@outcome:success'] }, async ({ page }) => {
     await injectMustChangePasswordCookies(page);
     await page.route('**/api/auth/change-password/', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });

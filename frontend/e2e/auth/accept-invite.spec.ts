@@ -2,7 +2,8 @@ import { test, expect, injectAuthCookies, mockCaptchaSiteKey, mockAuthProfile } 
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 test.describe('Accept Duo Invite', { tag: [...FlowTags.AUTH_ACCEPT_INVITE, RoleTags.USER] }, () => {
-  test('accepted state — shows success card and subscription link', async ({ page }) => {
+  test('accepted state — shows success card and subscription link', { tag: ['@outcome:success'] }, async ({ page }) => {
+    // quality: allow-no-interaction (token-driven landing state - the assertion IS the behavior; the click happens in the email client)
     await mockCaptchaSiteKey(page);
     await page.route('**/api/subscriptions/accept-invite/', async (route) => {
       await route.fulfill({
@@ -21,6 +22,7 @@ test.describe('Accept Duo Invite', { tag: [...FlowTags.AUTH_ACCEPT_INVITE, RoleT
   });
 
   test('requires_login state — shows login prompt with token preserved', async ({ page }) => {
+    // quality: allow-no-interaction (token-driven landing state - the assertion IS the behavior; the click happens in the email client)
     await mockCaptchaSiteKey(page);
     await page.route('**/api/subscriptions/accept-invite/', async (route) => {
       await route.fulfill({
@@ -39,6 +41,7 @@ test.describe('Accept Duo Invite', { tag: [...FlowTags.AUTH_ACCEPT_INVITE, RoleT
   });
 
   test('requires_registration state — shows register prompt', async ({ page }) => {
+    // quality: allow-no-interaction (token-driven landing state - the assertion IS the behavior; the click happens in the email client)
     await mockCaptchaSiteKey(page);
     await page.route('**/api/subscriptions/accept-invite/', async (route) => {
       await route.fulfill({
@@ -56,7 +59,8 @@ test.describe('Accept Duo Invite', { tag: [...FlowTags.AUTH_ACCEPT_INVITE, RoleT
     expect(href).toContain('invite_token=VALID_TOKEN');
   });
 
-  test('error state — shows invalid invitation card', async ({ page }) => {
+  test('error state — shows invalid invitation card', { tag: ['@outcome:error'] }, async ({ page }) => {
+    // quality: allow-no-interaction (token-driven landing state - the assertion IS the behavior; the click happens in the email client)
     await mockCaptchaSiteKey(page);
     await page.route('**/api/subscriptions/accept-invite/', async (route) => {
       await route.fulfill({
@@ -70,7 +74,8 @@ test.describe('Accept Duo Invite', { tag: [...FlowTags.AUTH_ACCEPT_INVITE, RoleT
     await expect(page.getByRole('link', { name: 'Volver al inicio' })).toBeVisible();
   });
 
-  test('missing token — shows invalid card without API call', async ({ page }) => {
+  test('missing token — shows invalid card without API call', { tag: ['@outcome:error'] }, async ({ page }) => {
+    // quality: allow-no-interaction (token-driven landing state - the assertion IS the behavior; the click happens in the email client)
     await mockCaptchaSiteKey(page);
     await page.goto('/accept-invite');
 
