@@ -17,7 +17,12 @@ def health_check(request):
     return JsonResponse({
         "status": "ok",
         "project": "kore_project",
-        "environment": os.getenv("DJANGO_ENV", "development"),
+        # settings first: DJANGO_ENV lives in backend/.env and is read by
+        # decouple, and the systemd units never export it, so os.getenv alone
+        # would report 'development' in production.
+        "environment": getattr(
+            settings, "DJANGO_ENV", os.getenv("DJANGO_ENV", "development")
+        ),
     })
 
 TEMPLATES_DIR = settings.BASE_DIR / 'templates'
