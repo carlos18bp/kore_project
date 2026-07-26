@@ -1,3 +1,5 @@
+import os
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
@@ -9,7 +11,14 @@ from core_project.views import serve_nextjs_page, serve_nextjs_rsc
 
 
 def health_check(request):
-    return JsonResponse({"status": "ok", "project": "kore_project"})
+    # 'project'/'environment' let external probes verify WHO answered: a shared
+    # codebase means the project name alone cannot tell prod from staging
+    # (measured: /qa pilot #3).
+    return JsonResponse({
+        "status": "ok",
+        "project": "kore_project",
+        "environment": os.getenv("DJANGO_ENV", "development"),
+    })
 
 TEMPLATES_DIR = settings.BASE_DIR / 'templates'
 
