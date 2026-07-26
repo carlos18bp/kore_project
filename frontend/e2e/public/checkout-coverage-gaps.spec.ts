@@ -1,11 +1,11 @@
 import { test, expect, setupDefaultApiMocks } from '../fixtures';
-import { FlowTags, RoleTags } from '../helpers/flow-tags';
+import { RoleTags } from '../helpers/flow-tags';
 
 /**
  * Targeted coverage-gap tests for checkout/page.tsx branches not exercised
  * by the main checkout.spec.ts suite.
  */
-test.describe('Checkout Page — Coverage Gaps', { tag: [...FlowTags.CHECKOUT_COVERAGE_GAPS, RoleTags.USER] }, () => {
+test.describe('Checkout Page — Coverage Gaps', { tag: [RoleTags.USER] }, () => {
   const authCookieUser = encodeURIComponent(JSON.stringify({
     id: 999,
     email: 'e2e@kore.com',
@@ -74,7 +74,8 @@ test.describe('Checkout Page — Coverage Gaps', { tag: [...FlowTags.CHECKOUT_CO
   // checkout/page.tsx lines 77-78 — authenticated user clears registration token
   // hasCheckoutAccess via isAuthenticated even when sessionStorage token present
   // ─────────────────────────────────────────────────────────────────────────
-  test('authenticated user with registration token in sessionStorage still sees checkout', async ({ page }) => {
+  test('authenticated user with registration token in sessionStorage still sees checkout', { tag: ['@flow:checkout-flow', '@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (passive render: the authenticated session overriding a stale guest token is the behavior under test; no user action exists)
     await setupDefaultApiMocks(page);
     await setupCheckoutMocks(page);
     await mockWompiWidgetScript(page);
@@ -95,7 +96,7 @@ test.describe('Checkout Page — Coverage Gaps', { tag: [...FlowTags.CHECKOUT_CO
   // checkout/page.tsx lines 193-196 — prepareCheckout returns null, sets
   // openingCheckout back to false without navigation
   // ─────────────────────────────────────────────────────────────────────────
-  test('card tokenization failure shows error and re-enables pay button', async ({ page }) => {
+  test('card tokenization failure shows error and re-enables pay button', { tag: ['@flow:checkout-flow', '@outcome:error'] }, async ({ page }) => {
     await setupDefaultApiMocks(page);
     await setupCheckoutMocks(page);
     await mockWompiWidgetScript(page);
@@ -122,7 +123,7 @@ test.describe('Checkout Page — Coverage Gaps', { tag: [...FlowTags.CHECKOUT_CO
   // checkout/page.tsx lines 224-228 — widget callback fires without transactionId
   // (user closed Wompi widget without completing payment)
   // ─────────────────────────────────────────────────────────────────────────
-  test('purchase API failure shows error message', async ({ page }) => {
+  test('purchase API failure shows error message', { tag: ['@flow:checkout-flow', '@outcome:failure'] }, async ({ page }) => {
     await setupDefaultApiMocks(page);
     await setupCheckoutMocks(page);
     await mockWompiWidgetScript(page);
@@ -149,7 +150,8 @@ test.describe('Checkout Page — Coverage Gaps', { tag: [...FlowTags.CHECKOUT_CO
   // checkout/page.tsx lines 165-168 — script.onerror handler sets widgetError=true
   // which renders the "No se pudo cargar la pasarela" error UI block.
   // ─────────────────────────────────────────────────────────────────────────
-  test('wompi config error shows payment configuration error', async ({ page }) => {
+  test('wompi config error shows payment configuration error', { tag: ['@flow:checkout-flow', '@outcome:failure'] }, async ({ page }) => {
+    // quality: allow-no-interaction (passive degrade-on-load: the 500 mock IS the trigger; no user action exists)
     await setupDefaultApiMocks(page);
     await page.route('**/api/packages/**', (r) => r.fulfill({
       status: 200, contentType: 'application/json', body: JSON.stringify(mockPackage),
@@ -172,7 +174,8 @@ test.describe('Checkout Page — Coverage Gaps', { tag: [...FlowTags.CHECKOUT_CO
   // checkout/page.tsx lines 87-90 — guest flow: !isAuthenticated + matching
   // sessionStorage registration token → hasCheckoutAccess=true, page renders.
   // ─────────────────────────────────────────────────────────────────────────
-  test('guest with valid registration token in sessionStorage sees checkout page', async ({ page }) => {
+  test('guest with valid registration token in sessionStorage sees checkout page', { tag: ['@flow:checkout-guest-redirect', '@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (passive render: the guest session with a valid registration token is the behavior under test; no user action exists)
     await setupCheckoutMocks(page);
     await page.route('**/api/google-captcha/site-key/', (r) => r.fulfill({ status: 404, body: '' }));
     await mockWompiWidgetScript(page);
@@ -192,7 +195,7 @@ test.describe('Checkout Page — Coverage Gaps', { tag: [...FlowTags.CHECKOUT_CO
   // ─────────────────────────────────────────────────────────────────────────
   // checkoutStore.ts purchaseWithNequi — /subscriptions/nequi/start/ API error
   // ─────────────────────────────────────────────────────────────────────────
-  test('nequi start API failure shows nequi error', async ({ page }) => {
+  test('nequi start API failure shows nequi error', { tag: ['@flow:checkout-flow', '@outcome:failure'] }, async ({ page }) => {
     await setupDefaultApiMocks(page);
     await setupCheckoutMocks(page);
     await mockWompiWidgetScript(page);
@@ -224,7 +227,7 @@ test.describe('Checkout Page — Coverage Gaps', { tag: [...FlowTags.CHECKOUT_CO
   // ─────────────────────────────────────────────────────────────────────────
   // checkoutStore.ts startBancolombiaPurchase — /bancolombia/start/ API error
   // ─────────────────────────────────────────────────────────────────────────
-  test('bancolombia start API failure shows error', async ({ page }) => {
+  test('bancolombia start API failure shows error', { tag: ['@flow:checkout-flow', '@outcome:failure'] }, async ({ page }) => {
     await setupDefaultApiMocks(page);
     await setupCheckoutMocks(page);
     await mockWompiWidgetScript(page);
@@ -253,7 +256,7 @@ test.describe('Checkout Page — Coverage Gaps', { tag: [...FlowTags.CHECKOUT_CO
   // paymentStatus:'error'. checkout/page.tsx:438 — 'polling' renders
   // "Verificando pago..." during the 2-second wait before the API call.
   // ─────────────────────────────────────────────────────────────────────────
-  test('pollIntentStatus failed shows polling text then rejected payment error', async ({ page }) => {
+  test('pollIntentStatus failed shows polling text then rejected payment error', { tag: ['@flow:checkout-payment-status-polling', '@outcome:failure'] }, async ({ page }) => {
     await setupDefaultApiMocks(page);
     await setupCheckoutMocks(page);
     await mockWompiWidgetScript(page);

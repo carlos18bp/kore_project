@@ -1,7 +1,7 @@
 import { test, expect, mockLoginAsTestUser } from '../fixtures';
 import type { Page } from '@playwright/test';
 import { nextBookableDay, toDateKey } from '../factories';
-import { FlowTags, RoleTags } from '../helpers/flow-tags';
+import { RoleTags } from '../helpers/flow-tags';
 
 function buildSingleFutureSlot(dateIso: string) {
   return {
@@ -82,14 +82,14 @@ async function mockBookSessionCoverageRoutes(page: Page, dateIso: string) {
  * E2E tests targeting specific coverage gaps identified in the coverage report.
  * These tests exercise branches that were not hit by other tests.
  */
-test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleTags.USER] }, () => {
+test.describe('Coverage Gap Tests', { tag: [RoleTags.USER] }, () => {
   test.describe.configure({ mode: 'serial' });
   test.use({ viewport: { width: 1440, height: 900 } });
 
   // ─────────────────────────────────────────────────────────────────────────
   // TimeSlotPicker.tsx line 24 — Empty slots fallback
   // ─────────────────────────────────────────────────────────────────────────
-  test('selecting an available day shows its published time slot', async ({ page }) => {
+  test('selecting an available day shows its published time slot', { tag: ['@flow:booking-session-flow', '@outcome:display'] }, async ({ page }) => {
     // Pick a target weekday Mon-Sat so the day is enabled in the calendar
     // (Sundays are disabled since WEEKDAY_WINDOWS has no entry for day 0).
     const targetDay = nextBookableDay(new Date(), 2);
@@ -114,7 +114,8 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
   // ─────────────────────────────────────────────────────────────────────────
   // subscription/page.tsx — active subscription card
   // ─────────────────────────────────────────────────────────────────────────
-  test('subscription page shows active subscription card', async ({ page }) => {
+  test('subscription page shows active subscription card', { tag: ['@flow:subscription-page', '@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (passive render: the mocked active subscription is the behavior under test; no user action exists)
     await mockLoginAsTestUser(page);
     const activeSub = {
       id: 11,
@@ -154,7 +155,8 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
     await expect(subMain.getByText('38%')).toBeVisible();
   });
 
-  test('subscription page shows expired subscription in inactivas', async ({ page }) => {
+  test('subscription page shows expired subscription in inactivas', { tag: ['@flow:subscription-page', '@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (passive render: the mocked expired subscription is the behavior under test; no user action exists)
     await mockLoginAsTestUser(page);
     const expiredSub = {
       id: 12,
@@ -192,7 +194,8 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
     await expect(subMainExpired.getByText('● Expirada')).toBeVisible();
   });
 
-  test('subscription page shows canceled subscription in inactivas', async ({ page }) => {
+  test('subscription page shows canceled subscription in inactivas', { tag: ['@flow:subscription-page', '@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (passive render: the mocked canceled subscription is the behavior under test; no user action exists)
     await mockLoginAsTestUser(page);
     const canceledSub = {
       id: 13,
@@ -233,7 +236,8 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
   // ─────────────────────────────────────────────────────────────────────────
   // subscription/page.tsx — unknown status shows raw value on badge
   // ─────────────────────────────────────────────────────────────────────────
-  test('subscription card shows raw label for unknown status', async ({ page }) => {
+  test('subscription card shows raw label for unknown status', { tag: ['@flow:subscription-page', '@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (passive render: the mocked unknown-status subscription is the behavior under test; no user action exists)
     await mockLoginAsTestUser(page);
     const unknownStatusSub = {
       id: 14,
@@ -274,7 +278,8 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
   // ─────────────────────────────────────────────────────────────────────────
   // subscriptionStore.ts lines 57-59 — fetchSubscriptions error path
   // ─────────────────────────────────────────────────────────────────────────
-  test('subscriptionStore fetchSubscriptions error shows message on subscription page', async ({ page }) => {
+  test('subscriptionStore fetchSubscriptions error shows message on subscription page', { tag: ['@flow:subscription-page', '@outcome:failure'] }, async ({ page }) => {
+    // quality: allow-no-interaction (passive degrade-on-load: the 500 mock IS the trigger; no user action exists)
     await mockLoginAsTestUser(page);
     await page.route('**/api/subscriptions/**', async (route) => {
       await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'Server error' }) });
@@ -291,7 +296,8 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
   // ─────────────────────────────────────────────────────────────────────────
   // subscriptionStore.ts lines 89-91 — fetchPaymentHistory error path
   // ─────────────────────────────────────────────────────────────────────────
-  test('subscriptionStore fetchPaymentHistory error shows message on subscription page', async ({ page }) => {
+  test('subscriptionStore fetchPaymentHistory error shows message on subscription page', { tag: ['@flow:subscription-page', '@outcome:failure'] }, async ({ page }) => {
+    // quality: allow-no-interaction (passive degrade-on-load: the 500 mock IS the trigger; no user action exists)
     await mockLoginAsTestUser(page);
     const mockSub = {
       id: 30,
@@ -407,7 +413,7 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
     await expect(page.getByRole('main').getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
   }
 
-  test('bookingStore.createBooking non_field_errors string surfaces in BookingConfirmation', async ({ page }) => {
+  test('bookingStore.createBooking non_field_errors string surfaces in BookingConfirmation', { tag: ['@flow:booking-error-paths', '@outcome:error'] }, async ({ page }) => {
     await mockLoginAsTestUser(page);
     await setupBookSessionMocksForError(page);
     await page.route('**/api/bookings/', async (route) => {
@@ -424,7 +430,7 @@ test.describe('Coverage Gap Tests', { tag: [...FlowTags.APP_COVERAGE_GAPS, RoleT
     await expect(page.getByText('El horario ya no está disponible.')).toBeVisible({ timeout: 10_000 });
   });
 
-  test('bookingStore.createBooking starts_at field error surfaces in BookingConfirmation', async ({ page }) => {
+  test('bookingStore.createBooking starts_at field error surfaces in BookingConfirmation', { tag: ['@flow:booking-error-paths', '@outcome:error'] }, async ({ page }) => {
     await mockLoginAsTestUser(page);
     await setupBookSessionMocksForError(page);
     await page.route('**/api/bookings/', async (route) => {

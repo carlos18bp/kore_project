@@ -1,6 +1,6 @@
 import { test, expect, injectAuthCookies, E2E_USER } from '../fixtures';
 import type { Page } from '@playwright/test';
-import { FlowTags, RoleTags } from '../helpers/flow-tags';
+import { RoleTags } from '../helpers/flow-tags';
 
 function buildProgramSubscription() {
   return {
@@ -76,7 +76,7 @@ async function mockBookingCreationFlowRoutes(
  * - BookingConfirmation with subscription=null (no active subscription)
  * - authStore hydrate() catch block (malformed cookie)
  */
-test.describe('Edge-case branch coverage', { tag: [...FlowTags.APP_EDGE_CASE_BRANCHES, RoleTags.USER] }, () => {
+test.describe('Edge-case branch coverage', { tag: [RoleTags.USER] }, () => {
   test.describe.configure({ mode: 'serial' });
 
   // Pick a target date that is a weekday Mon-Fri so the 17:00 slot falls within
@@ -127,7 +127,7 @@ test.describe('Edge-case branch coverage', { tag: [...FlowTags.APP_EDGE_CASE_BRA
     await dayBtn.click({ timeout: 10_000 });
   }
 
-  test('booking success with trainer=null shows "—" fallback', async ({ page }) => {
+  test('booking success with trainer=null shows "—" fallback', { tag: ['@flow:booking-complete-flow', '@outcome:success'] }, async ({ page }) => {
     const mockSub = buildProgramSubscription();
     await injectAuthCookies(page);
     await mockBookingCreationFlowRoutes(page, mockTrainer, mockSlots, mockSub);
@@ -158,7 +158,8 @@ test.describe('Edge-case branch coverage', { tag: [...FlowTags.APP_EDGE_CASE_BRA
     await expect(modal.getByText('tu programa')).toBeVisible();
   });
 
-  test('malformed kore_user cookie triggers hydrate catch branch', async ({ page }) => {
+  test('malformed kore_user cookie triggers hydrate catch branch', { tag: ['@flow:auth-session-persistence', '@outcome:error'] }, async ({ page }) => {
+    // quality: allow-no-interaction (passive redirect-on-load: the malformed cookie IS the trigger; no user action exists)
     // Set a valid token but malformed user JSON
     await page.context().addCookies([
       { name: 'kore_token', value: 'fake-token-12345', domain: 'localhost', path: '/' },
@@ -172,7 +173,8 @@ test.describe('Edge-case branch coverage', { tag: [...FlowTags.APP_EDGE_CASE_BRA
     await expect(page).toHaveURL(/\/login(?:\?.*)?$/, { timeout: 15_000 });
   });
 
-  test('no-token hydrate falls through without error', async ({ page }) => {
+  test('no-token hydrate falls through without error', { tag: ['@flow:auth-session-persistence', '@outcome:error'] }, async ({ page }) => {
+    // quality: allow-no-interaction (passive redirect-on-load: the missing session cookies ARE the trigger; no user action exists)
     // Clear all cookies first
     await page.context().clearCookies();
 

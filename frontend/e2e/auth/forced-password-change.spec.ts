@@ -107,4 +107,30 @@ test.describe('Forced Password Change', { tag: [...FlowTags.AUTH_FORCED_PASSWORD
 
     await page.waitForURL('**/dashboard', { timeout: 15_000 });
   });
+
+  test('server error on change-password keeps user on the form with a visible error', { tag: ['@outcome:failure'] }, async ({ page }) => {
+    // Bug this catches: a 500 must never be treated like a settled success and
+    // redirect the user away — that would be a false-success security hole
+    // where the account still requires the old (possibly compromised)
+    // password even though the UI implied the change went through.
+    await injectMustChangePasswordCookies(page);
+    await page.route('**/api/auth/change-password/', async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Error interno del servidor. Intenta de nuevo.' }),
+      });
+    });
+    await page.goto('/change-password-required');
+
+    const inputs = page.locator('input[type="password"]');
+    await expect(inputs.first()).toBeVisible({ timeout: 10_000 });
+    await inputs.nth(0).fill('TempPass1!');
+    await inputs.nth(1).fill('NewPass123!');
+    await inputs.nth(2).fill('NewPass123!');
+    await page.getByRole('button', { name: 'Cambiar contraseña' }).click();
+
+    await expect(page.getByText('Error interno del servidor. Intenta de nuevo.')).toBeVisible({ timeout: 10_000 });
+    await expect(page).toHaveURL(/\/change-password-required/);
+  });
 });

@@ -1,6 +1,6 @@
 {
-  "version": "1.13.0",
-  "lastUpdated": "2026-07-24",
+  "version": "1.14.0",
+  "lastUpdated": "2026-07-26",
   "documentation": "Step-by-step user journeys (branches, variations) are maintained in docs/USER_FLOW_MAP.md. This file defines flow IDs and metadata for Playwright @flow: tags and e2e/reporters/flow-coverage-reporter.mjs. Coverage status is NOT stored here: the single source of truth is the runtime artifact e2e-results/flow-coverage.json emitted by the reporter (CI job e2e-merge-reports). Flows registered before their spec exists must carry expectedSpecs: 0 so scripts/check-flow-definitions-sync.mjs keeps passing; remove that field in the PR that ships the spec.",
   "flows": {
     "trainer-tasks": {
@@ -33,7 +33,7 @@
       "priority": "P1",
       "roles": ["guest"],
       "description": "Authenticate with valid credentials and handle login errors.",
-      "outcomes": ["success", "error", "failure"]
+      "outcomes": ["success", "error"]
     },
     "auth-logout": {
       "name": "Logout",
@@ -139,30 +139,6 @@
       "description": "View and manage session detail modal states.",
       "outcomes": ["display"]
     },
-    "app-coverage-gaps": {
-      "name": "App Coverage Gaps",
-      "module": "app",
-      "priority": "P3",
-      "roles": ["user"],
-      "description": "Exercise UI states that are underserved by existing coverage.",
-      "outcomes": ["failure", "display"]
-    },
-    "app-edge-case-branches": {
-      "name": "App Edge Case Branches",
-      "module": "app",
-      "priority": "P3",
-      "roles": ["user"],
-      "description": "Cover edge case UI branches in booking and auth flows.",
-      "outcomes": ["error", "display"]
-    },
-    "app-store-error-paths": {
-      "name": "Store Error Paths",
-      "module": "app",
-      "priority": "P3",
-      "roles": ["user"],
-      "description": "Handle store hydration and API error branches.",
-      "outcomes": ["error", "failure"]
-    },
     "app-sidebar-navigation": {
       "name": "Sidebar Navigation",
       "module": "navigation",
@@ -177,7 +153,7 @@
       "priority": "P1",
       "roles": ["user"],
       "description": "Render dashboard overview sections and data.",
-      "outcomes": ["display"]
+      "outcomes": ["display", "failure"]
     },
     "customer-credits": {
       "name": "Cliente — Mis créditos",
@@ -282,14 +258,6 @@
       "roles": ["guest"],
       "description": "Redirect guest checkout when registration is required.",
       "outcomes": ["display"]
-    },
-    "checkout-coverage-gaps": {
-      "name": "Checkout Coverage Gaps",
-      "module": "checkout",
-      "priority": "P3",
-      "roles": ["guest", "user"],
-      "description": "Cover checkout edge cases and error handling.",
-      "outcomes": ["error", "failure", "display"]
     },
     "public-home": {
       "name": "Public Home",
@@ -681,7 +649,7 @@
       "priority": "P2",
       "roles": ["guest", "user"],
       "description": "Accept a duo-plan subscription invite via /accept-invite?token=: resolve token → accept (logged-in), redirect to login (wrong account), or redirect to register (new user).",
-      "outcomes": ["success", "error", "failure"]
+      "outcomes": ["success", "error"]
     },
     "auth-forced-password-change": {
       "name": "Forced Password Change",

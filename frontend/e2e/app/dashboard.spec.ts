@@ -67,7 +67,8 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
     await expect(badge.getByText('55')).toBeVisible();
   });
 
-  test('wallet endpoint failure degrades the credits badge to a placeholder', async ({ page }) => {
+  test('wallet endpoint failure degrades the credits badge to a placeholder', { tag: ['@outcome:failure'] }, async ({ page }) => {
+    // quality: allow-no-interaction (passive degrade-on-load: the 500 mock IS the trigger; no user action exists)
     await mockApiError(page, '**/api/credits/wallet/**', 500);
     await page.goto('/dashboard');
 
@@ -80,7 +81,8 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
     await expect(badge).toHaveAttribute('href', '/mis-creditos');
   });
 
-  test('bookings endpoint failure still renders the empty next-session row', async ({ page }) => {
+  test('bookings endpoint failure still renders the empty next-session row', { tag: ['@outcome:failure'] }, async ({ page }) => {
+    // quality: allow-no-interaction (passive degrade-on-load: the 500 mock IS the trigger; no user action exists)
     await mockApiError(page, '**/api/bookings/**', 500);
     await page.goto('/dashboard');
 

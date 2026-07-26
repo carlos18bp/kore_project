@@ -17,9 +17,6 @@ export const FlowTags = {
   BOOKING_SESSION_DETAIL: ['@flow:booking-session-detail', '@module:booking', '@priority:P2'],
   BOOKING_CANCEL_FLOW: ['@flow:booking-cancel-flow', '@module:booking', '@priority:P1'],
 
-  APP_COVERAGE_GAPS: ['@flow:app-coverage-gaps', '@module:app', '@priority:P3'],
-  APP_EDGE_CASE_BRANCHES: ['@flow:app-edge-case-branches', '@module:app', '@priority:P3'],
-  APP_STORE_ERROR_PATHS: ['@flow:app-store-error-paths', '@module:app', '@priority:P3'],
   APP_SIDEBAR_NAVIGATION: ['@flow:app-sidebar-navigation', '@module:navigation', '@priority:P3'],
   MOBILE_BOTTOM_NAV: ['@flow:mobile-bottom-nav', '@module:navigation', '@priority:P2'],
   TRAINER_MOBILE_BOTTOM_NAV: ['@flow:trainer-mobile-bottom-nav', '@module:navigation', '@priority:P3'],
@@ -47,7 +44,6 @@ export const FlowTags = {
 
   CHECKOUT_FLOW: ['@flow:checkout-flow', '@module:checkout', '@priority:P1'],
   CHECKOUT_GUEST_REDIRECT: ['@flow:checkout-guest-redirect', '@module:checkout', '@priority:P2'],
-  CHECKOUT_COVERAGE_GAPS: ['@flow:checkout-coverage-gaps', '@module:checkout', '@priority:P3'],
   CHECKOUT_PAYMENT_STATUS_POLLING: ['@flow:checkout-payment-status-polling', '@module:checkout', '@priority:P2'],
 
   PUBLIC_HOME: ['@flow:public-home', '@module:public', '@priority:P2'],

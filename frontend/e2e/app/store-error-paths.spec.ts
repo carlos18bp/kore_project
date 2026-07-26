@@ -1,13 +1,14 @@
 import { test, expect, setupDefaultApiMocks, injectAuthCookies } from '../fixtures';
-import { FlowTags, RoleTags } from '../helpers/flow-tags';
+import { RoleTags } from '../helpers/flow-tags';
 
 /**
  * E2E tests targeting store error branches and auth hydration catch paths
  * not exercised by the main test suites.
  */
 
-test.describe('authStore hydrate error branches', { tag: [...FlowTags.APP_STORE_ERROR_PATHS, RoleTags.USER] }, () => {
-  test('hydrate clears auth when kore_user cookie contains invalid JSON', async ({ page }) => {
+test.describe('authStore hydrate error branches', { tag: [RoleTags.USER] }, () => {
+  test('hydrate clears auth when kore_user cookie contains invalid JSON', { tag: ['@flow:auth-session-persistence', '@outcome:error'] }, async ({ page }) => {
+    // quality: allow-no-interaction (passive redirect-on-load: the malformed cookie IS the trigger; no user action exists)
     // Exercise authStore.ts:172-176 — JSON.parse catch clears auth and sets
     // hydrated:true / isAuthenticated:false so the login form remains visible.
     await page.context().addCookies([
@@ -22,7 +23,8 @@ test.describe('authStore hydrate error branches', { tag: [...FlowTags.APP_STORE_
     await expect(page).toHaveURL(/\/login/);
   });
 
-  test('hydrate clears auth when profile API returns 401', async ({ page }) => {
+  test('hydrate clears auth when profile API returns 401', { tag: ['@flow:auth-session-persistence', '@outcome:error'] }, async ({ page }) => {
+    // quality: allow-no-interaction (passive redirect-on-load: the mocked 401 IS the trigger; no user action exists)
     // Exercise authStore.ts:188-191 — profile fetch catch clears auth and sets
     // hydrated:true / isAuthenticated:false so the login form remains visible.
     const validUser = JSON.stringify({
@@ -46,7 +48,7 @@ test.describe('authStore hydrate error branches', { tag: [...FlowTags.APP_STORE_
   });
 });
 
-test.describe('bookingStore rescheduleBooking error branch', { tag: [...FlowTags.APP_STORE_ERROR_PATHS, RoleTags.USER] }, () => {
+test.describe('bookingStore rescheduleBooking error branch', { tag: [RoleTags.USER] }, () => {
   const targetDay = new Date();
   targetDay.setDate(targetDay.getDate() + 2);
   // Skip Sunday (0) — shift to Monday
@@ -139,7 +141,7 @@ test.describe('bookingStore rescheduleBooking error branch', { tag: [...FlowTags
     await expect(page.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
   }
 
-  test('rescheduleBooking API error shows message in booking confirmation', async ({ page }) => {
+  test('rescheduleBooking API error shows message in booking confirmation', { tag: ['@flow:booking-reschedule', '@outcome:failure'] }, async ({ page }) => {
     // Exercise bookingStore.ts:380-387 — rescheduleBooking catch extracts the
     // detail message and sets error, which BookingConfirmation renders in the UI.
     await setupRescheduleMocks(page);
