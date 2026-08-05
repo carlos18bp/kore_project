@@ -63,6 +63,7 @@ async function setupAlertsMocks(page: Page, alerts = fakeAlerts) {
 // restaurar la suite completa desde el historial de git.
 test.describe('Trainer Alerts Center', { tag: [...FlowTags.TRAINER_ALERTS, RoleTags.TRAINER] }, () => {
   test('renders the Próximamente placeholder for the Alertas section', async ({ page }) => {
+    // quality: allow-no-interaction (vista parqueada tras PHASE_3_READY: el placeholder ES el comportamiento, no hay UI accionable)
     await injectTrainerAuthCookies(page);
     await setupAlertsMocks(page);
     await page.goto('/trainer/alerts');
@@ -72,6 +73,7 @@ test.describe('Trainer Alerts Center', { tag: [...FlowTags.TRAINER_ALERTS, RoleT
   });
 
   test('placeholder states the section ships in Fase 3', async ({ page }) => {
+    // quality: allow-no-interaction (vista parqueada tras PHASE_3_READY: el placeholder ES el comportamiento, no hay UI accionable)
     await injectTrainerAuthCookies(page);
     await setupAlertsMocks(page);
     await page.goto('/trainer/alerts');

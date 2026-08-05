@@ -608,8 +608,9 @@
       "module": "trainer",
       "priority": "P1",
       "roles": ["trainer"],
-      "description": "View and filter behavioral/clinical risk alerts per client (alto/medio/bajo); resolve an alert and mark it as addressed.",
-      "outcomes": ["success", "error", "display"]
+      "description": "View and filter behavioral/clinical risk alerts per client (alto/medio/bajo); resolve an alert and mark it as addressed. PARKED: /trainer/alerts renders the \"Pr\u00f3ximamente\" placeholder behind the PHASE_3_READY flag, so this flow is intentionally uncovered until Fase 3 ships; restore the outcomes when the view is reactivated.",
+      "outcomes": [],
+      "expectedSpecs": 0
     },
     "trainer-client-program": {
       "name": "Trainer Client Program Tab",
