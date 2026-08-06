@@ -278,10 +278,9 @@ test.describe('Trainer Client Detail Page', { tag: [...FlowTags.TRAINER_CLIENT_D
     // quality: allow-no-interaction (el fallo se induce desde la API; no hay acción de usuario que lo dispare — el estado degradado ES lo verificado)
     // quality: allow-deep-link (el área de entrenador exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await setupClientDetailMocks(page);
+    // Sólo el endpoint del cliente falla. Tumbar todo /my-clients/1/** dejaba
+    // la vista en el spinner y sin shell que asertar — medido en CI.
     // Después del helper: la última ruta registrada gana.
-    await page.route('**/api/trainer/my-clients/1/**', (route) =>
-      route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
-    );
     await page.route('**/api/trainer/my-clients/1/', (route) =>
       route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
     );
