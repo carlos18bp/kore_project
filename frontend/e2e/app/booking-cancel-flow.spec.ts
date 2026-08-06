@@ -109,7 +109,7 @@ test.describe('Booking Cancel Flow', { tag: [...FlowTags.BOOKING_CANCEL_FLOW, Ro
     await expect(page.getByText('Detalle de Sesión')).not.toBeVisible({ timeout: 10_000 });
   });
 
-  test('cancel API failure shows error feedback', async ({ page }) => {
+  test('cancel API failure shows error feedback', { tag: ['@outcome:failure'] }, async ({ page }) => {
     await mockLoginAsTestUser(page);
     await setupMocks(page);
 

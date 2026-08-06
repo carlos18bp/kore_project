@@ -58,7 +58,7 @@ test.describe('Book Session Page', { tag: [...FlowTags.BOOKING_SESSION_PAGE, Rol
     await expect(page.getByText(/Selecciona una fecha en el calendario/)).toBeVisible({ timeout: 10_000 });
   });
 
-  test('dashboard "Agendar sesión" link navigates to book-session', async ({ page }) => {
+  test('dashboard "Agendar sesión" link navigates to book-session', { tag: ['@outcome:display'] }, async ({ page }) => {
     await mockLoginAsTestUser(page); // lands on /dashboard
     await expect(page).toHaveURL(/\/dashboard/);
 

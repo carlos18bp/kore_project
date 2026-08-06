@@ -286,7 +286,7 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
     await expect(page.getByText('No quedan sesiones disponibles.')).toBeVisible({ timeout: 10_000 });
   });
 
-  test('server failure on confirm shows the generic error and keeps retry enabled', async ({ page }) => {
+  test('server failure on confirm shows the generic error and keeps retry enabled', { tag: ['@outcome:failure'] }, async ({ page }) => {
     await mockLoginAsTestUser(page);
     await setupMocks(page);
 
@@ -307,4 +307,18 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
     await expect(main.getByText('Confirmar reserva')).toBeVisible();
     await expect(main.getByRole('button', { name: 'Confirmar' })).toBeEnabled();
   });
+
+  test('the confirmation step shows the chosen session before booking', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-deep-link (el flujo de reserva exige sesión inyectada por cookie; no hay ruta de UI pública hasta /book-session)
+    // Construido sobre los helpers que ya usa el journey verde de arriba: la
+    // clase display de este flow es lo que el usuario LEE antes de confirmar —
+    // sus datos, el paquete, la duración y la modalidad — y merece fallar por su
+    // cuenta si eso se rompe, sin depender de que el journey completo pase.
+    await mockLoginAsTestUser(page);
+    await setupMocks(page);
+
+    const main = await goToConfirmationStep(page);
+    await expectConfirmationDetails(main);
+  });
+
 });
