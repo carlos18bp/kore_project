@@ -69,7 +69,7 @@ test.describe('Register Page', { tag: [...FlowTags.AUTH_REGISTER, RoleTags.GUEST
     await expect(page.getByLabel('Confirmar contraseña')).toBeVisible();
   });
 
-  test('password mismatch shows client-side error', async ({ page }) => {
+  test('password mismatch shows client-side error', { tag: ['@outcome:error'] }, async ({ page }) => {
     await mockCaptchaSiteKey(page);
     await page.goto('/register');
     await page.getByLabel('Nombre').fill('Test');
@@ -100,7 +100,7 @@ test.describe('Register Page', { tag: [...FlowTags.AUTH_REGISTER, RoleTags.GUEST
     await expect(page.getByLabel('Confirmar contraseña')).toBeVisible();
   });
 
-  test('server-side error is displayed', async ({ page }) => {
+  test('server-side error is displayed', { tag: ['@outcome:failure'] }, async ({ page }) => {
     await mockCaptchaSiteKey(page);
     await page.goto('/register?package=6');
 

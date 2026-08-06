@@ -70,7 +70,9 @@ test.describe('Profile Page', { tag: [...FlowTags.PROFILE_MANAGEMENT, RoleTags.U
     await expect(page.getByRole('heading', { level: 1, name: 'Mi perfil' })).toBeVisible();
   });
 
-  test('renders profile avatar card with user name and email', async ({ page }) => {
+  test('renders profile avatar card with user name and email', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render del perfil; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await goToProfileWith(page);
     const main = page.getByRole('main');
     await expect(main.getByRole('heading', { name: E2E_USER.fullName })).toBeVisible();

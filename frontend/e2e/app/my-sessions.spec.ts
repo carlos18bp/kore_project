@@ -22,7 +22,9 @@ test.describe('My Programs Page', { tag: [...FlowTags.MY_PROGRAMS_LIST, RoleTags
     await expect(page.getByRole('heading', { name: 'Mi Suscripción' })).toBeVisible();
   });
 
-  test('shows the active subscription hero', async ({ page }) => {
+  test('shows the active subscription hero', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista del cliente; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await mockLoginAsTestUser(page);
     await page.goto('/subscription');
     await expect(
@@ -30,7 +32,9 @@ test.describe('My Programs Page', { tag: [...FlowTags.MY_PROGRAMS_LIST, RoleTags
     ).toBeVisible({ timeout: 10_000 });
   });
 
-  test('subscriptions endpoint failure shows the load error banner', async ({ page }) => {
+  test('subscriptions endpoint failure shows the load error banner', { tag: ['@outcome:failure'] }, async ({ page }) => {
+    // quality: allow-no-interaction (el fallo se induce desde la API; no hay acción de usuario que lo dispare — el estado degradado ES lo verificado)
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await mockLoginAsTestUser(page);
     await mockApiError(page, '**/api/subscriptions/', 500, { detail: 'Error interno' }, { method: 'GET' });
     await page.goto('/subscription');

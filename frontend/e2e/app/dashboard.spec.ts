@@ -32,7 +32,8 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
     await expect(sidebar.getByRole('link', { name: 'Mi Suscripción' })).toBeVisible();
   });
 
-  test('switching to the Resumen Mensual tab shows its monthly panel', async ({ page }) => {
+  test('switching to the Resumen Mensual tab shows its monthly panel', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     const main = page.getByRole('main');
     await expect(main.getByText('Mi Progreso').filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
 
