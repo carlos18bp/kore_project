@@ -25,7 +25,8 @@ test.describe('FAQ Page', { tag: [...FlowTags.PUBLIC_FAQ, RoleTags.GUEST] }, () 
     await expect(page).toHaveURL(/\/faq$/);
   });
 
-  test('guest expands an FAQ answer', async ({ page }) => {
+  test('guest expands an FAQ answer', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-deep-link (página pública: la URL es una entrada legítima del sitio, no saltea navegación)
     const firstButton = page.getByRole('button', { name: '¿Pregunta frecuente de prueba?' });
     await expect(firstButton).toBeVisible();
 

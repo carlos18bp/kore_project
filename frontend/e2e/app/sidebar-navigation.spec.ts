@@ -22,7 +22,8 @@ test.describe('Sidebar — Navigation & Active States', { tag: [...FlowTags.APP_
     await expect(bottomNav.getByText('Agendar')).not.toBeVisible();
   });
 
-  test('sidebar shows user info, logo, soporte, and active link highlighting', async ({ page }) => {
+  test('sidebar shows user info, logo, soporte, and active link highlighting', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await mockLoginAsTestUser(page);
     const sidebar = page.locator('aside');
 

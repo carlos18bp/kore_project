@@ -60,7 +60,8 @@ test.describe('Mobile Bottom Navigation (Trainer)', { tag: [...FlowTags.TRAINER_
     await page.waitForURL('**/trainer/dashboard', { timeout: 15_000 });
   });
 
-  test('Más tab opens sheet with Soporte and Cerrar sesión', async ({ page }) => {
+  test('Más tab opens sheet with Soporte and Cerrar sesión', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await page.goto('/trainer/dashboard');
     const nav = page.locator('nav.fixed.bottom-0');
     await expect(nav).toBeVisible({ timeout: 15_000 });

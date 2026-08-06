@@ -137,7 +137,8 @@ test.describe('BookingCalendar Edge Cases', { tag: [...FlowTags.BOOKING_CALENDAR
     await expect(page.getByRole('button', { name: '15', exact: true })).toBeDisabled();
   });
 
-  test('a Sunday is disabled while its weekday neighbour is selectable', async ({ page }) => {
+  test('a Sunday is disabled while its weekday neighbour is selectable', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     // The studio is closed on Sundays, so the backend never publishes slots for
     // them. Build availability for every non-Sunday of next month and assert the
     // Sunday stays disabled — proving the calendar reflects real availability,

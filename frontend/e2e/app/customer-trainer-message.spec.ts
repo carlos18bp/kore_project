@@ -50,7 +50,9 @@ test.describe('Customer trainer message overlay (mocked)', { tag: [...FlowTags.C
   const modalLocator = (page: import('@playwright/test').Page) =>
     page.locator('div.fixed.inset-0', { hasText: 'Entendido' });
 
-  test('shows the trainer message overlay with the message content', async ({ page }) => {
+  test('shows the trainer message overlay with the message content', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await setupTrainerMessages(page, [trainerMsg]);
     await page.goto('/dashboard');
 

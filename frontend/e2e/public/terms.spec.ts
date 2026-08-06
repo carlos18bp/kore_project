@@ -13,7 +13,9 @@ test.describe('Terms & Conditions Page', { tag: [...FlowTags.PUBLIC_TERMS, RoleT
     await expect(page.getByText('Documento Legal')).toBeVisible();
   });
 
-  test('displays contract clauses', async ({ page }) => {
+  test('displays contract clauses', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (página pública: la URL es una entrada legítima del sitio, no saltea navegación)
     await page.goto('/terms');
 
     await expect(page.getByRole('heading', { name: 'PRIMERA — OBJETO' })).toBeVisible();
