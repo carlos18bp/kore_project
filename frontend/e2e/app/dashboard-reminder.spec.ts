@@ -70,7 +70,8 @@ test.describe('Dashboard - Upcoming Session Reminder', { tag: [...FlowTags.DASHB
     expect(reminderCalled).toBe(true);
   });
 
-  test('dashboard renders UpcomingSessionReminder when booking exists within 48h', async ({ page }) => {
+  test('dashboard renders UpcomingSessionReminder when booking exists within 48h', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     const now = new Date();
     const futureSlotStart = new Date(now.getTime() + 12 * 60 * 60 * 1000);
     const futureSlotEnd = new Date(futureSlotStart.getTime() + 60 * 60 * 1000);

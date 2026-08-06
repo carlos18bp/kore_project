@@ -9,7 +9,9 @@ test.describe('Calendar Page (redirect)', { tag: [...FlowTags.BOOKING_CALENDAR_R
     await expect(page.getByLabel(/Correo electrónico/i)).toBeVisible();
   });
 
-  test('authenticated user is redirected from /calendar to /book-session', async ({ page }) => {
+  test('authenticated user is redirected from /calendar to /book-session', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await mockLoginAsTestUser(page);
     await page.goto('/calendar');
     await page.waitForURL('**/book-session');

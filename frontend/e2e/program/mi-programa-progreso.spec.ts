@@ -32,7 +32,9 @@ test.describe('Mi Programa — Progreso', { tag: [...FlowTags.CUSTOMER_MI_PROGRA
     await expect(page.getByRole('heading', { name: 'Mi Progreso' })).toBeVisible({ timeout: 15_000 });
   });
 
-  test('shows weekly adherence percentage', async ({ page }) => {
+  test('shows weekly adherence percentage', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await injectAuthCookies(page);
     await setupDefaultApiMocks(page);
     await setupProgresoMocks(page);

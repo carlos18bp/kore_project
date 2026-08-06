@@ -90,7 +90,8 @@ test.describe('Customer Nutrition Plan', { tag: [...FlowTags.CUSTOMER_NUTRITION_
     await expect(page.getByRole('button', { name: /Nota de tu coach/ })).toBeVisible();
   });
 
-  test('expanding the coach note reveals the weekly plan text', async ({ page }) => {
+  test('expanding the coach note reveals the weekly plan text', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await mockPlan(page, { daily: todayLog, plans: [weeklyPlan] });
     await goToNutrition(page);
 

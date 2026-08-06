@@ -32,7 +32,9 @@ test.describe('Mis créditos', { tag: [...FlowTags.CUSTOMER_CREDITS, RoleTags.US
     await expect(page.getByText('No asististe a tu sesión del 2026-07-02')).toBeVisible();
   });
 
-  test('shows the balance split (disponibles / por aprobar)', async ({ page }) => {
+  test('shows the balance split (disponibles / por aprobar)', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await page.goto('/mis-creditos');
     await expect(page.getByText('Disponibles', { exact: true })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Por aprobar', { exact: true })).toBeVisible();

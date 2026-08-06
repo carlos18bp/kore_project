@@ -18,7 +18,9 @@ const fakeDailyLog = {
 };
 
 test.describe('Mi Programa — Día Específico', { tag: [...FlowTags.CUSTOMER_MI_PROGRAMA_DIA, RoleTags.USER] }, () => {
-  test('visiting today date redirects to /mi-programa/rutina', async ({ page }) => {
+  test('visiting today date redirects to /mi-programa/rutina', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await injectAuthCookies(page);
     await setupDefaultApiMocks(page);
     await page.route('**/api/my-program/today/', async (route) => {

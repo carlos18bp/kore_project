@@ -177,7 +177,8 @@ test.describe('Session Detail Modal (mocked)', { tag: [...FlowTags.BOOKING_SESSI
     await page.waitForURL(/\/book-session/);
   });
 
-  test('renders canceled booking without action buttons', async ({ page }) => {
+  test('renders canceled booking without action buttons', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     const canceledBooking = {
       ...mockBookingConfirmed,
       status: 'canceled',

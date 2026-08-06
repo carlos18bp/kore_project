@@ -18,7 +18,9 @@ test.describe('Mobile Bottom Navigation (Customer)', { tag: [...FlowTags.MOBILE_
     await setupDefaultApiMocks(page);
   });
 
-  test('renders all four bottom tabs on a mobile viewport', async ({ page }) => {
+  test('renders all four bottom tabs on a mobile viewport', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await page.goto('/dashboard');
     const nav = page.locator('nav.fixed.bottom-0');
     await expect(nav).toBeVisible({ timeout: 15_000 });

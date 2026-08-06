@@ -51,7 +51,9 @@ test.describe('Profile Completion CTA', { tag: [...FlowTags.PROFILE_COMPLETION_C
     await expect(page.getByRole('button', { name: /Ahora no/i })).toBeVisible();
   });
 
-  test('CTA lists the missing profile fields', async ({ page }) => {
+  test('CTA lists the missing profile fields', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await setupWithIncompleteProfile(page);
     await page.goto('/dashboard');
     await expect(page.getByRole('heading', { name: 'Queremos conocerte mejor' })).toBeVisible({ timeout: 15_000 });

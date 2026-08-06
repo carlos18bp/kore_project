@@ -96,7 +96,9 @@ test.describe('Checkout Payment Status Polling', { tag: [...FlowTags.CHECKOUT_PA
     await payBtn.click();
   }
 
-  test('polling resolves to approved and shows success screen', async ({ page }) => {
+  test('polling resolves to approved and shows success screen', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await setupBaseMocks(page);
 
     const intentPending = buildIntent(70, 'pending', 'txn_poll_001');
