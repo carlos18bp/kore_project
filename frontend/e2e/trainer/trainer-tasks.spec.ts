@@ -114,7 +114,9 @@ test.describe('Trainer — tareas pendientes', { tag: [...FlowTags.TRAINER_TASKS
     await expect(page.getByText('No hay canjes pendientes.')).toBeVisible();
   });
 
-  test('degrades to an empty credit list when reviews fail to load', async ({ page }) => {
+  test('degrades to an empty credit list when reviews fail to load', { tag: ['@outcome:error'] }, async ({ page }) => {
+    // quality: allow-no-interaction (el fallo se induce desde la API; no hay acción de usuario que lo dispare — el estado degradado ES lo verificado)
+    // quality: allow-deep-link (el área de entrenador exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await mockApiError(page, '**/api/trainer/credits/pending-reviews/', 500);
 
     await page.goto('/trainer/tareas');
@@ -126,7 +128,9 @@ test.describe('Trainer — tareas pendientes', { tag: [...FlowTags.TRAINER_TASKS
     await expect(page.getByText('No hay créditos por revisar.')).toBeVisible();
   });
 
-  test('shows empty messages on both tabs when nothing is pending', async ({ page }) => {
+  test('shows empty messages on both tabs when nothing is pending', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista de entrenador; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el área de entrenador exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await page.route('**/api/trainer/credits/pending-reviews/', (r) =>
       r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 0, results: [] }) }),
     );

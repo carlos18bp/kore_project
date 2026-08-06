@@ -125,7 +125,9 @@ test.describe('Trainer Dashboard Page', { tag: [...FlowTags.TRAINER_DASHBOARD, R
     await expect(quickAction).toHaveAttribute('href', '/trainer/clients');
   });
 
-  test('renders todays agenda with client names', async ({ page }) => {
+  test('renders todays agenda with client names', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista de entrenador; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el área de entrenador exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await injectTrainerAuthCookies(page);
     await setupDashboardMocks(page);
     await page.goto('/trainer/dashboard');
@@ -201,7 +203,9 @@ test.describe('Trainer Dashboard Page', { tag: [...FlowTags.TRAINER_DASHBOARD, R
     await expect(page.getByText('Sin clientes activos')).toBeVisible();
   });
 
-  test('falls back to zero sessions when dashboard stats fail to load', async ({ page }) => {
+  test('falls back to zero sessions when dashboard stats fail to load', { tag: ['@outcome:error'] }, async ({ page }) => {
+    // quality: allow-no-interaction (el fallo se induce desde la API; no hay acción de usuario que lo dispare — el estado degradado ES lo verificado)
+    // quality: allow-deep-link (el área de entrenador exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     const emptyStats = { total_clients: 0, today_sessions: 0, upcoming_sessions: [] };
     const emptyRisk = { risk_summary: { alto: 0, medio: 0, bajo: 0, sin_riesgo: 0 }, clients_by_risk: [] };
     const emptyComparative = { ...fakeComparativeMetrics, expired_evaluations: [] };
