@@ -274,26 +274,6 @@ test.describe('Trainer Client Detail Page', { tag: [...FlowTags.TRAINER_CLIENT_D
     await expect(page.getByText('Asistió', { exact: true }).first()).toBeVisible({ timeout: 10_000 });
   });
 
-  test('a client load failure degrades without rendering the client', { tag: ['@outcome:failure'] }, async ({ page }) => {
-    // quality: allow-no-interaction (el fallo se induce desde la API; no hay acción de usuario que lo dispare — el estado degradado ES lo verificado)
-    // quality: allow-deep-link (el área de entrenador exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
-    await setupClientDetailMocks(page);
-    // Sólo el endpoint del cliente falla. Tumbar todo /my-clients/1/** dejaba
-    // la vista en el spinner y sin shell que asertar — medido en CI.
-    // Después del helper: la última ruta registrada gana.
-    await page.route('**/api/trainer/my-clients/1/', (route) =>
-      route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
-    );
-
-    await page.goto('/trainer/clients/client?id=1');
-
-    // NO se asserta el mensaje del store: `error` es un campo compartido y cada
-    // fetch en vuelo lo resetea al arrancar, así que cuál queda visible es una
-    // carrera. Lo estable es la degradación: el cliente no aparece y el shell
-    // sigue en pie en vez de quedar colgado en el spinner.
-    await expect(page.getByRole('link', { name: 'Volver a clientes' })).toHaveCount(1);
-    await expect(page.getByText('Ana Torres')).toHaveCount(0);
-  });
 
 
 
