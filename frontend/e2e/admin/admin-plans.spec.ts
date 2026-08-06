@@ -90,7 +90,9 @@ test.describe('Admin Plans', { tag: [...FlowTags.ADMIN_PLANS, RoleTags.ADMIN] },
     await mockLoginAsAdmin(page);
   });
 
-  test('renders the plan catalog for the default category', async ({ page }) => {
+  test('renders the plan catalog for the default category', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el backoffice exige sesión de staff inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await mockPackages(page);
     await page.goto('/admin-platform/plans');
 
@@ -189,7 +191,7 @@ test.describe('Admin Plans', { tag: [...FlowTags.ADMIN_PLANS, RoleTags.ADMIN] },
     await expect(page.getByText('Sin planes en esta categoría')).toBeVisible();
   });
 
-  test('a rejected plan save surfaces the server message in the modal', async ({ page }) => {
+  test('a rejected plan save surfaces the server message in the modal', { tag: ['@outcome:error'] }, async ({ page }) => {
     await mockPackages(page);
     // Registered after mockPackages so the create POST is answered with a 400 (LIFO).
     await mockApiError(
@@ -220,7 +222,9 @@ test.describe('Admin Plans', { tag: [...FlowTags.ADMIN_PLANS, RoleTags.ADMIN] },
     await expect(page.getByText('Crear plan de entrenamiento')).toBeVisible();
   });
 
-  test('a catalog load failure shows the plans error banner', async ({ page }) => {
+  test('a catalog load failure shows the plans error banner', { tag: ['@outcome:failure'] }, async ({ page }) => {
+    // quality: allow-no-interaction (el fallo se induce desde la API; no hay acción de usuario que lo dispare — el estado degradado ES lo verificado)
+    // quality: allow-deep-link (el backoffice exige sesión de staff inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await mockApiError(page, '**/api/packages/**', 500, {}, { method: 'GET' });
 
     await page.goto('/admin-platform/plans');

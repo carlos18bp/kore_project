@@ -67,7 +67,7 @@ test.describe('Admin User Create', { tag: [...FlowTags.ADMIN_USER_CREATE, RoleTa
     await expect(page.getByRole('button', { name: 'Crear y enviar credenciales' })).toBeVisible();
   });
 
-  test('client-side validation shows required-field errors on empty submit', async ({ page }) => {
+  test('client-side validation shows required-field errors on empty submit', { tag: ['@outcome:error'] }, async ({ page }) => {
     await page.goto('/admin-platform/users/new');
 
     // No validation errors are present before the user submits.
@@ -165,7 +165,7 @@ test.describe('Admin User Create', { tag: [...FlowTags.ADMIN_USER_CREATE, RoleTa
     await expect(page.getByRole('heading', { name: 'Inscribir nuevo usuario' })).toBeVisible();
   });
 
-  test('a 500 on create keeps the form actionable for a retry', async ({ page }) => {
+  test('a 500 on create keeps the form actionable for a retry', { tag: ['@outcome:failure'] }, async ({ page }) => {
     // Non-field failure: the page has no generic error banner, so the observable
     // contract is graceful degradation — form intact, submit re-enabled, no success.
     await mockApiError(

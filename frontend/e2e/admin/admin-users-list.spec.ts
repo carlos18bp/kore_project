@@ -56,7 +56,9 @@ test.describe('Admin Users List', { tag: [...FlowTags.ADMIN_USERS_LIST, RoleTags
     await mockLoginAsAdmin(page);
   });
 
-  test('renders the user roster entries with their emails', async ({ page }) => {
+  test('renders the user roster entries with their emails', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el backoffice exige sesión de staff inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await mockUsersList(page);
     await page.goto('/admin-platform/users');
 
@@ -117,7 +119,9 @@ test.describe('Admin Users List', { tag: [...FlowTags.ADMIN_USERS_LIST, RoleTags
     await expect(page.getByText('Sin usuarios')).toBeVisible();
   });
 
-  test('a roster load failure degrades to the empty state', async ({ page }) => {
+  test('a roster load failure degrades to the empty state', { tag: ['@outcome:error'] }, async ({ page }) => {
+    // quality: allow-no-interaction (el fallo se induce desde la API; no hay acción de usuario que lo dispare — el estado degradado ES lo verificado)
+    // quality: allow-deep-link (el backoffice exige sesión de staff inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     // The page never renders the store's fetch error, so the observable contract
     // on a 500 is graceful degradation: the shell stays up and the roster area
     // presents the empty state instead of crashing.

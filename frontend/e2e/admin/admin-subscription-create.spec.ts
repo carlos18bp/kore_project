@@ -184,7 +184,7 @@ test.describe(
       await expect(page).toHaveURL(/\/subscriptions\/detail\?id=77/);
     });
 
-    test('shows an error when admin-create fails', async ({ page }) => {
+    test('shows an error when admin-create fails', { tag: ['@outcome:error'] }, async ({ page }) => {
       await mockWizard(page, {
         postStatus: 400,
         postBody: { detail: 'El cliente ya tiene una suscripción activa.' },
@@ -202,7 +202,7 @@ test.describe(
       await expect(page).toHaveURL(/subscriptions\/new/);
     });
 
-    test('a packages load failure surfaces the catalog error message', async ({ page }) => {
+    test('a packages load failure surfaces the catalog error message', { tag: ['@outcome:failure'] }, async ({ page }) => {
       await mockWizard(page);
       // Registered after mockWizard so it wins (LIFO) for the package catalog GET.
       await mockApiError(page, '**/api/packages/**', 500, {}, { method: 'GET' });
