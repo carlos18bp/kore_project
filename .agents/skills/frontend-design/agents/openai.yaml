@@ -1,0 +1,7 @@
+interface:
+  display_name: "Frontend Design"
+  short_description: "Diseño premium para Kore — directivas de UI/UX estilo Apple..."
+  default_prompt: "Use $frontend-design to handle this task with its documented workflow."
+
+policy:
+  allow_implicit_invocation: true
