@@ -234,7 +234,7 @@ kore_project/
 │   └── test_quality_gate.py   # Test quality audit tool
 ├── docs/                      # Documentation (methodology, release-july, standards)
 ├── tasks/                     # Task planning
-└── .claude/ .agents/ .windsurf/ # AI ecosystem rules, skills & workflows
+└── .claude/ .agents/ .codex/   # AI ecosystem rules, skills & workflows
 ```
 
 ---
