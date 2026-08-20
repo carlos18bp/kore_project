@@ -124,8 +124,8 @@
 | Architecture | `docs/methodology/architecture.md` | ✅ Created |
 | Tasks Plan | `tasks/tasks_plan.md` | ✅ Created |
 | Active Context | `tasks/active_context.md` | ✅ Created |
-| Error Documentation | `.windsurf/rules/methodology/error-documentation.md` | ✅ Template ready |
-| Lessons Learned | `.windsurf/rules/methodology/lessons-learned.md` | ✅ Populated |
+| Error Documentation | `docs/methodology/error-documentation.md` | ✅ Template ready |
+| Lessons Learned | `docs/methodology/lessons-learned.md` | ✅ Populated |
 | Deployment Guide | `docs/deployment-guide.md` | ✅ Existing |
 | Testing Quality Standards | `docs/TESTING_QUALITY_STANDARDS.md` | ✅ Existing |
 | User Flow Map | `docs/USER_FLOW_MAP.md` | ✅ Existing |

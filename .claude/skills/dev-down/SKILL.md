@@ -2,7 +2,7 @@
 name: dev-down
 description: "Detiene el entorno de desarrollo LOCAL levantado por /dev-up: mata los procesos de backend (runserver) y frontend (dev server) por PID file, con fallback por puerto, y verifica que queden libres. Solo dev machine — refusa en VPS/prod."
 disable-model-invocation: true
-allowed-tools: Bash, Read
+allowed-tools: Bash, Read, AskUserQuestion
 argument-hint: "[--backend-port=8000] [--frontend-port=3000] [--clean-logs]"
 ---
 
@@ -43,6 +43,19 @@ caídos, lo reporta sin error.
 > - `/dev-down --clean-logs` → además borra los logs de `/tmp/<proyecto>-dev/`.
 >
 > Claude Code substituye `$ARGUMENTS` con los flags pasados (vacío si se omiten).
+
+---
+
+## Cómo invocar este skill (§4)
+
+Gating ([[_output-protocol]] §4): correr **directo, sin menú** — con o sin
+flags, la intención (bajar los dev servers de este proyecto) es inequívoca;
+nunca preguntar en modo fleet/headless/cron.
+
+Sin picker por diseño: flags de tuning (puertos); --clean-logs se ofrece post-run.
+
+**Qué NO se pregunta:** `--backend-port=`/`--frontend-port=` (defaults
+8000/3000; se tipean sólo si `/dev-up` corrió en puertos custom).
 
 ---
 
@@ -157,6 +170,16 @@ fi
 
 ---
 
+## Acciones disponibles
+
+Tras el reporte, si la sesión es interactiva y NO hubo flags explícitos
+(reglas de gating de [[_output-protocol]] §4), ofrecer vía AskUserQuestion:
+
+| Opción (label) | description (costo/efecto) | preview (comando exacto) |
+|---|---|---|
+| Borrar logs (`--clean-logs`) | `rm -rf /tmp/<proyecto>-dev/` — pierde los logs del post-mortem (irreversible) | `/dev-down --clean-logs` |
+| Volver a levantar | re-bootstrapea lo que falte y arranca backend + frontend de nuevo | `/dev-up` |
+
 ## Output final
 
 Reportar siguiendo [[_output-protocol]]. Plantilla específica de `/dev-down`:
@@ -179,10 +202,14 @@ usar `systemctl stop` — **no es error**, es safety gate.
 Si un puerto queda ocupado tras el fallback, reemplazar ✅ por 🔴 y agregar
 `## Next steps` con el `ss -ltnp` del listener remanente.
 
+## Next steps
+- `/dev-up --restart` — volver a levantar limpio
+- (operador) revisar logs si algo quedó colgado
+
 ---
 
 ## Notas de fleet
 
-- Fuente canónica: `vps-ops-toolkit/workflows/.claude/dev-down.md`. Las versiones
-  en `.windsurf/` y `.agents/skills/` son copias (distintas por frontmatter).
+- Fuente canónica: `vps-ops-toolkit/workflows/.claude/dev-down.md`. La versión
+  en `.agents/skills/` es la copia generada para Codex.
 - Skill complementaria: `/dev-up` (levanta y monitorea los servers).

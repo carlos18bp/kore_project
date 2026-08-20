@@ -239,7 +239,7 @@ kore_project/
 │   └── test_quality_gate.py   # Test quality audit tool
 ├── docs/                      # Documentation
 ├── tasks/                     # Task planning
-└── .windsurf/                 # IDE rules & workflows
+└── .github/                   # CI and repository automation
 ```
 
 ---

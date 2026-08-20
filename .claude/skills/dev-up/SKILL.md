@@ -2,7 +2,7 @@
 name: dev-up
 description: "Levanta el entorno de desarrollo LOCAL de un proyecto Django del fleet: bootstrap de venv/pip, deps de backend (SQLite dev, sin mysqlclient) y frontend, migrate, arranca runserver + frontend dev en background y monitorea sus logs. Auto-descubre desde projects.yml. Solo dev machine — refusa en VPS/prod."
 disable-model-invocation: true
-allowed-tools: Bash, Read
+allowed-tools: Bash, Read, AskUserQuestion
 argument-hint: "[--restart] [--backend-port=8000] [--frontend-port=3000] [--frontend-cmd='npm run dev']"
 ---
 
@@ -54,6 +54,27 @@ hay venv, `node_modules` ni base de datos.
 >
 > Claude Code substituye `$ARGUMENTS` con los flags pasados (vacío si se omiten).
 > Para bajar los servers usar `/dev-down`.
+
+---
+
+## Cómo invocar este skill (picker condicional — §4)
+
+Gating ([[_output-protocol]] §4): la invocación normal corre **directo, sin
+menú** — con o sin flags, la intención de levantar el entorno ya es clara
+(reglas 1/2). El único picker es condicional: SOLO si Phase 5 detecta un puerto
+ocupado sin `--restart` pasado (conflicto: entorno ya corriendo), disparar UNA
+`AskUserQuestion` (Q1) en sesión interactiva. Con `--restart` explícito no se
+pregunta (regla 1); nunca en modo fleet/headless/cron.
+
+**Q1 — Conflicto detectado** (single-select):
+
+| label | description | preview |
+|---|---|---|
+| Dejar lo que corre (Recommended) | reusa el server que ya escucha en el puerto y sigue con el resto de las fases | `/dev-up` (default: reusa y sigue) |
+| Relanzar (`--restart`) | mata el proceso viejo (PID file + `fuser -k`) y vuelve a subirlo en el mismo puerto | `/dev-up --restart` |
+
+**Qué NO se pregunta:** `--backend-port=`/`--frontend-port=` y `--frontend-cmd=`
+— tuning aditivo que el operador tipea cuando lo necesita.
 
 ---
 
@@ -334,6 +355,16 @@ EOF
 
 ---
 
+## Acciones disponibles
+
+Tras el reporte, si la sesión es interactiva y NO hubo flags explícitos
+(reglas de gating de [[_output-protocol]] §4), ofrecer vía AskUserQuestion:
+
+| Opción (label) | description (costo/efecto) | preview (comando exacto) |
+|---|---|---|
+| Bajar los servers | apaga backend + frontend (PID file + fallback por puerto); los logs se conservan | `/dev-down` |
+| Relanzar en otro puerto | si el default choca con otro proyecto en dev: baja lo levantado y sube en puertos alternos | `/dev-up --restart --backend-port=8001 --frontend-port=3001` |
+
 ## Output final
 
 Reportar siguiendo [[_output-protocol]]. Plantilla específica de `/dev-up`:
@@ -362,10 +393,15 @@ Si un server no levanta, health 000, o aparece un crash/error en los logs,
 reemplazar ✅ por 🔴, omitir la línea ✨ y agregar `## Next steps` con el extracto
 relevante de `/tmp/<proyecto>-dev/{backend,frontend}.log`.
 
+## Next steps
+- `/dev-down` — apagar los servers
+- `/qa` — cerrar cobertura de lo implementado
+- (operador) abrir http://localhost:<frontend-port>
+
 ---
 
 ## Notas de fleet
 
-- Fuente canónica: `vps-ops-toolkit/workflows/.claude/dev-up.md`. Las versiones en
-  `.windsurf/` y `.agents/skills/` son copias del mismo contenido (distintas por frontmatter).
+- Fuente canónica: `vps-ops-toolkit/workflows/.claude/dev-up.md`. La versión en
+  `.agents/skills/` es la copia generada para Codex.
 - Skill complementaria: `/dev-down` (detiene los servers que esta skill levanta).
