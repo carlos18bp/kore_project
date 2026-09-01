@@ -165,6 +165,8 @@ function BookSessionContent() {
     rescheduleBooking,
     reset,
     subscriptions,
+    sessionGrants,
+    fetchSessionGrants,
   } = useBookingStore();
 
   const rescheduleParam = searchParams.get('reschedule');
@@ -188,7 +190,8 @@ function BookSessionContent() {
   useEffect(() => {
     fetchTrainers();
     fetchSubscriptions();
-  }, [fetchTrainers, fetchSubscriptions]);
+    fetchSessionGrants();
+  }, [fetchTrainers, fetchSubscriptions, fetchSessionGrants]);
 
   // Sync the assigned trainer from the auth profile into the booking store.
   const assignedTrainer = user?.assigned_trainer ?? null;
@@ -217,6 +220,8 @@ function BookSessionContent() {
 
   // Selected subscription ID (default: query param or first active)
   const [selectedSubId, setSelectedSubId] = useState<number | null>(subscriptionIdParam);
+  // When set, the booking consumes a SessionGrant instead of the plan subscription.
+  const [selectedGrantId, setSelectedGrantId] = useState<number | null>(null);
 
   useEffect(() => {
     if (isReschedule && rescheduleSubscriptionId && selectedSubId !== rescheduleSubscriptionId) {
@@ -345,13 +350,25 @@ function BookSessionContent() {
         await rescheduleBooking(rescheduleBookingId, selectedStartsAt);
         return;
       }
-      if (!activeSub) return;
-      await createBooking({
-        package_id: activeSub.package.id,
-        starts_at: selectedStartsAt,
-        trainer_id: trainer?.id,
-        subscription_id: activeSub.id,
-      });
+      // A booking uses one source: a SessionGrant (if selected) or the plan.
+      const packageId = activeSub?.package.id;
+      if (!packageId) return;
+      if (selectedGrantId) {
+        await createBooking({
+          package_id: packageId,
+          starts_at: selectedStartsAt,
+          trainer_id: trainer?.id,
+          session_grant_id: selectedGrantId,
+        });
+      } else {
+        if (!activeSub) return;
+        await createBooking({
+          package_id: activeSub.package.id,
+          starts_at: selectedStartsAt,
+          trainer_id: trainer?.id,
+          subscription_id: activeSub.id,
+        });
+      }
     } finally {
       setConfirmInFlight(false);
     }
@@ -363,6 +380,7 @@ function BookSessionContent() {
     rescheduleBooking,
     rescheduleBookingId,
     selectedStartsAt,
+    selectedGrantId,
     trainer?.id,
   ]);
 
@@ -452,6 +470,28 @@ function BookSessionContent() {
           <p className="text-[13px] xl:text-[14px] mt-2" style={{ color: '#FFE9DC', opacity: 0.78 }}>
             Sesión {activeSub.sessions_used + 1} de {activeSub.sessions_total} · {activeSub.package.title}
           </p>
+        )}
+        {!isReschedule && sessionGrants.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2" data-testid="booking-source-selector">
+            <button
+              type="button"
+              onClick={() => setSelectedGrantId(null)}
+              className={`text-[12px] font-semibold px-3 py-1.5 rounded-full border ${selectedGrantId === null ? 'bg-kore-red text-white border-transparent' : 'bg-white/10 text-kore-ivory border-white/20'}`}
+            >
+              Mi plan
+            </button>
+            {sessionGrants.map((g) => (
+              <button
+                key={g.id}
+                type="button"
+                onClick={() => setSelectedGrantId(g.id)}
+                data-testid="grant-source"
+                className={`text-[12px] font-semibold px-3 py-1.5 rounded-full border ${selectedGrantId === g.id ? 'bg-kore-red text-white border-transparent' : 'bg-white/10 text-kore-ivory border-white/20'}`}
+              >
+                Sesiones adicionales: {g.sessions_remaining} · vencen el {new Date(g.expires_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
+              </button>
+            ))}
+          </div>
         )}
       </div>
 

@@ -43,6 +43,7 @@ class Subscription(TimestampedModel):
 
     sessions_total = models.PositiveIntegerField()
     sessions_used = models.PositiveIntegerField(default=0)
+    includes_nutrition = models.BooleanField(default=False, db_index=True)
 
     status = models.CharField(
         max_length=20,
@@ -93,6 +94,24 @@ class Subscription(TimestampedModel):
         null=True,
         blank=True,
         help_text='Timestamp when the last automatic billing attempt failed.',
+    )
+    pending_package = models.ForeignKey(
+        'core_app.Package',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='pending_subscriptions',
+        help_text=(
+            'Package scheduled to take effect at the next renewal '
+            '(downgrade / lateral plan change). Applied and cleared on renewal.'
+        ),
+    )
+    cancel_at_period_end = models.BooleanField(
+        default=False,
+        help_text=(
+            'Subscription canceled but access is retained until expires_at; '
+            'recurring billing is stopped. Flipped to CANCELED at expiry.'
+        ),
     )
 
     class Meta:

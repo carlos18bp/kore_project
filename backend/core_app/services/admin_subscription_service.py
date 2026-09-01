@@ -75,6 +75,7 @@ def create_subscription_for_admin(
         expires_at=expires_at,
         is_recurring=False,
         payment_method_type='',
+        includes_nutrition=package.includes_nutrition,
     )
 
     payment = Payment.objects.create(
@@ -175,6 +176,37 @@ def evolve_subscription_for_admin(
         note=notes,
     )
 
+    return current_subscription
+
+
+@transaction.atomic
+def schedule_plan_change_for_admin(
+    *,
+    current_subscription: Subscription,
+    new_package,
+    notes: str = '',
+    actor=None,
+) -> Subscription:
+    """Schedule a downgrade / lateral plan change for the next renewal.
+
+    No payment or refund happens now and the current paid period is left
+    untouched (the customer keeps the package they already paid for until
+    ``expires_at``). The ``new_package`` is stored in ``pending_package`` and is
+    applied — with its price charged — when the subscription renews, either via
+    the recurring billing task or an admin manual renewal.
+
+    Args:
+        current_subscription: The customer's existing ACTIVE subscription.
+        new_package: The target package (lower or lateral price — validated by
+            the caller).
+        notes: Optional admin notes (currently informational only).
+        actor: Admin ``User`` initiating the action.
+
+    Returns:
+        Subscription: The updated subscription (same instance, refreshed).
+    """
+    current_subscription.pending_package = new_package
+    current_subscription.save(update_fields=['pending_package', 'updated_at'])
     return current_subscription
 
 

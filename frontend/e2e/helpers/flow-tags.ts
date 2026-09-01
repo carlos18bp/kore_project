@@ -17,14 +17,20 @@ export const FlowTags = {
   BOOKING_SESSION_DETAIL: ['@flow:booking-session-detail', '@module:booking', '@priority:P2'],
   BOOKING_CANCEL_FLOW: ['@flow:booking-cancel-flow', '@module:booking', '@priority:P1'],
 
-  APP_COVERAGE_GAPS: ['@flow:app-coverage-gaps', '@module:app', '@priority:P3'],
-  APP_EDGE_CASE_BRANCHES: ['@flow:app-edge-case-branches', '@module:app', '@priority:P3'],
-  APP_STORE_ERROR_PATHS: ['@flow:app-store-error-paths', '@module:app', '@priority:P3'],
   APP_SIDEBAR_NAVIGATION: ['@flow:app-sidebar-navigation', '@module:navigation', '@priority:P3'],
   MOBILE_BOTTOM_NAV: ['@flow:mobile-bottom-nav', '@module:navigation', '@priority:P2'],
   TRAINER_MOBILE_BOTTOM_NAV: ['@flow:trainer-mobile-bottom-nav', '@module:navigation', '@priority:P3'],
 
   DASHBOARD_OVERVIEW: ['@flow:dashboard-overview', '@module:dashboard', '@priority:P1'],
+  CUSTOMER_CREDITS: ['@flow:customer-credits', '@module:app', '@priority:P2'],
+  CUSTOMER_STORE: ['@flow:customer-store', '@module:app', '@priority:P2'],
+  CUSTOMER_SESSION_GRANTS: ['@flow:customer-session-grants', '@module:app', '@priority:P2'],
+  CUSTOMER_BUY_CREDITS: ['@flow:customer-buy-credits', '@module:app', '@priority:P2'],
+  CUSTOMER_BUY_NUTRITION: ['@flow:customer-buy-nutrition', '@module:app', '@priority:P2'],
+  TRAINER_STORE_MANAGEMENT: ['@flow:trainer-store-management', '@module:trainer', '@priority:P2'],
+  TRAINER_TASKS: ['@flow:trainer-tasks', '@module:trainer', '@priority:P1'],
+  TRAINER_SETTINGS: ['@flow:trainer-settings', '@module:trainer', '@priority:P2'],
+  TRAINER_ENGAGEMENT: ['@flow:trainer-engagement', '@module:trainer', '@priority:P2'],
   DASHBOARD_REMINDER: ['@flow:dashboard-reminder', '@module:dashboard', '@priority:P2'],
 
   MY_PROGRAMS_LIST: ['@flow:my-programs-list', '@module:programs', '@priority:P1'],
@@ -38,7 +44,6 @@ export const FlowTags = {
 
   CHECKOUT_FLOW: ['@flow:checkout-flow', '@module:checkout', '@priority:P1'],
   CHECKOUT_GUEST_REDIRECT: ['@flow:checkout-guest-redirect', '@module:checkout', '@priority:P2'],
-  CHECKOUT_COVERAGE_GAPS: ['@flow:checkout-coverage-gaps', '@module:checkout', '@priority:P3'],
   CHECKOUT_PAYMENT_STATUS_POLLING: ['@flow:checkout-payment-status-polling', '@module:checkout', '@priority:P2'],
 
   PUBLIC_HOME: ['@flow:public-home', '@module:public', '@priority:P2'],
@@ -72,6 +77,7 @@ export const FlowTags = {
   TRAINER_CLIENT_NUTRITION: ['@flow:trainer-client-nutrition', '@module:trainer', '@priority:P2'],
   TRAINER_CLIENT_PARQ: ['@flow:trainer-client-parq', '@module:trainer', '@priority:P2'],
   TRAINER_CLIENT_PHYSICAL_EVAL: ['@flow:trainer-client-physical-eval', '@module:trainer', '@priority:P2'],
+  TRAINER_CLIENT_PHYSICAL_TESTS: ['@flow:trainer-client-physical-tests', '@module:trainer', '@priority:P2'],
   TRAINER_CLIENT_POSTUROMETRY: ['@flow:trainer-client-posturometry', '@module:trainer', '@priority:P2'],
   TRAINER_ALERTS: ['@flow:trainer-alerts', '@module:trainer', '@priority:P1'],
   TRAINER_CLIENT_PROGRAM: ['@flow:trainer-client-program', '@module:trainer', '@priority:P2'],
@@ -81,6 +87,7 @@ export const FlowTags = {
 
   CUSTOMER_MI_PROGRAMA: ['@flow:customer-mi-programa', '@module:program', '@priority:P1'],
   CUSTOMER_MI_PROGRAMA_RUTINA: ['@flow:customer-mi-programa-rutina', '@module:program', '@priority:P1'],
+  PROGRAM_WORKOUT_CAPTURES: ['@flow:program-workout-captures', '@module:program', '@priority:P2'],
   CUSTOMER_MI_PROGRAMA_PROGRESO: ['@flow:customer-mi-programa-progreso', '@module:program', '@priority:P2'],
   CUSTOMER_MI_PROGRAMA_RESUMEN: ['@flow:customer-mi-programa-resumen', '@module:program', '@priority:P2'],
   CUSTOMER_MI_PROGRAMA_DIA: ['@flow:customer-mi-programa-dia', '@module:program', '@priority:P2'],
@@ -88,6 +95,7 @@ export const FlowTags = {
   AUTH_ACCEPT_INVITE: ['@flow:auth-accept-invite', '@module:auth', '@priority:P2'],
   AUTH_FORCED_PASSWORD_CHANGE: ['@flow:auth-forced-password-change', '@module:auth', '@priority:P2'],
 
+  CUSTOMER_SESSION_RATING: ['@flow:customer-session-rating', '@module:booking', '@priority:P2'],
   ADMIN_DASHBOARD: ['@flow:admin-dashboard', '@module:admin', '@priority:P2'],
   ADMIN_USERS_LIST: ['@flow:admin-users-list', '@module:admin', '@priority:P1'],
   ADMIN_USER_CREATE: ['@flow:admin-user-create', '@module:admin', '@priority:P1'],
@@ -96,6 +104,8 @@ export const FlowTags = {
   ADMIN_SUBSCRIPTION_CREATE: ['@flow:admin-subscription-create', '@module:admin', '@priority:P1'],
   ADMIN_SUBSCRIPTION_DETAIL: ['@flow:admin-subscription-detail', '@module:admin', '@priority:P1'],
   ADMIN_PLANS: ['@flow:admin-plans', '@module:admin', '@priority:P1'],
+  ADMIN_NUTRITION: ['@flow:admin-nutrition', '@module:admin', '@priority:P2'],
+  ADMIN_REPORTS: ['@flow:admin-reports', '@module:admin', '@priority:P2'],
 
   CUSTOMER_NUTRITION_DAILY: ['@flow:customer-nutrition-daily', '@module:nutrition', '@priority:P2'],
   CUSTOMER_NUTRITION_PLAN: ['@flow:customer-nutrition-plan', '@module:nutrition', '@priority:P2'],

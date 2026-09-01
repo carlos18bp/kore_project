@@ -393,8 +393,38 @@ function ActionsCard({
         Cambiar de plan →
       </Link>
 
+      {/* Scheduled plan change (read-only for the customer) */}
+      {sub.pending_package && (
+        <div
+          style={{
+            padding: '12px 16px', borderRadius: 12,
+            background: 'rgba(229,201,122,0.14)', border: '1px solid rgba(229,201,122,0.40)',
+          }}
+        >
+          <p className="text-[11.5px] leading-[1.5]" style={{ color: '#3A2128' }}>
+            <strong>Cambio de plan programado:</strong> desde tu próxima renovación
+            pasarás al plan «{sub.pending_package.title}».
+          </p>
+        </div>
+      )}
+
+      {/* Cancellation notice */}
+      {sub.cancel_at_period_end && (
+        <div
+          style={{
+            padding: '12px 16px', borderRadius: 12,
+            background: 'rgba(228,168,168,0.16)', border: '1px solid rgba(228,168,168,0.38)',
+          }}
+        >
+          <p className="text-[11.5px] leading-[1.5]" style={{ color: '#3A2128' }}>
+            Cancelaste la renovación automática. Conservas acceso y tus sesiones hasta
+            el {formatDate(sub.expires_at)}.
+          </p>
+        </div>
+      )}
+
       {/* Cancel */}
-      {isActive && !showCancelConfirm && (
+      {isActive && !sub.cancel_at_period_end && !showCancelConfirm && (
         <button
           type="button"
           onClick={() => setShowCancelConfirm(true)}
@@ -419,7 +449,7 @@ function ActionsCard({
           <p className="text-[13px] font-semibold" style={{ color: '#9A0526' }}>¿Seguro que deseas cancelar?</p>
           <p className="text-[11.5px] mt-1.5 leading-[1.5]" style={{ color: '#3A2128' }}>
             {sub.is_recurring
-              ? 'Se detendrán los cobros automáticos. Podrás usar tus sesiones restantes hasta el vencimiento.'
+              ? `Se detendrán los cobros automáticos. Conservas acceso y tus ${sub.sessions_remaining} sesiones restantes hasta el ${formatDate(sub.expires_at)}.`
               : `Podrás seguir usando tus ${sub.sessions_remaining} sesiones restantes hasta el ${formatDate(sub.expires_at)}.`}
           </p>
           <div className="flex gap-2 mt-3">

@@ -103,7 +103,7 @@ describe('anthropometryStore', () => {
       });
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when fetchEvaluations fails', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
       await useAnthropometryStore.getState().fetchEvaluations(10);
       expect(useAnthropometryStore.getState().error).toBe('No se pudieron cargar las evaluaciones.');
@@ -139,7 +139,7 @@ describe('anthropometryStore', () => {
       );
     });
 
-    it('returns null and sets error on failure', async () => {
+    it('returns null and sets error when createEvaluation fails', async () => {
       mockedApi.post.mockRejectedValueOnce(new Error('Network'));
       const result = await useAnthropometryStore.getState().createEvaluation(10, MOCK_FORM_DATA);
       expect(result).toBeNull();
@@ -147,7 +147,7 @@ describe('anthropometryStore', () => {
       expect(useAnthropometryStore.getState().submitting).toBe(false);
     });
 
-    it('extracts detail from error response', async () => {
+    it('extracts detail from error response when createEvaluation fails', async () => {
       mockedApi.post.mockRejectedValueOnce({ response: { data: { detail: 'Validation failed.' } } });
       const result = await useAnthropometryStore.getState().createEvaluation(10, MOCK_FORM_DATA);
       expect(result).toBeNull();
@@ -180,7 +180,7 @@ describe('anthropometryStore', () => {
       expect(useAnthropometryStore.getState().submitting).toBe(false);
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when updateEvaluation fails', async () => {
       mockedApi.patch.mockRejectedValueOnce(new Error('Network'));
       const result = await useAnthropometryStore.getState().updateEvaluation(10, 1, { notes: 'x' });
       expect(result).toBeNull();
@@ -199,14 +199,14 @@ describe('anthropometryStore', () => {
       expect(useAnthropometryStore.getState().submitting).toBe(false);
     });
 
-    it('returns null and sets error on failure', async () => {
+    it('returns null and sets error when fullUpdateEvaluation fails', async () => {
       mockedApi.put.mockRejectedValueOnce(new Error('Network'));
       const result = await useAnthropometryStore.getState().fullUpdateEvaluation(10, 1, MOCK_FORM_DATA);
       expect(result).toBeNull();
       expect(useAnthropometryStore.getState().error).toBe('No se pudo actualizar la evaluación.');
     });
 
-    it('extracts detail from error response', async () => {
+    it('extracts detail from error response when fullUpdateEvaluation fails', async () => {
       mockedApi.put.mockRejectedValueOnce({ response: { data: { detail: 'Invalid data.' } } });
       const result = await useAnthropometryStore.getState().fullUpdateEvaluation(10, 1, MOCK_FORM_DATA);
       expect(result).toBeNull();
@@ -224,7 +224,7 @@ describe('anthropometryStore', () => {
       expect(useAnthropometryStore.getState().submitting).toBe(false);
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when deleteEvaluation fails', async () => {
       mockedApi.delete.mockRejectedValueOnce(new Error('Network'));
       const result = await useAnthropometryStore.getState().deleteEvaluation(10, 1);
       expect(result).toBe(false);
@@ -396,7 +396,7 @@ describe('anthropometryStore', () => {
       });
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when fetchMyEvaluations fails', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
       await useAnthropometryStore.getState().fetchMyEvaluations();
       expect(useAnthropometryStore.getState().error).toBe('No se pudieron cargar tus evaluaciones.');

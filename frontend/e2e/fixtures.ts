@@ -1,4 +1,5 @@
 import { test as base, expect, type Page } from '@playwright/test';
+import { makeAvailability } from './factories';
 
 /**
  * Dedicated E2E test-user credentials.
@@ -151,6 +152,16 @@ export async function setupDefaultApiMocks(page: Page, exclude: string[] = []) {
   await mockCaptchaSiteKey(page);
   await mockAuthProfile(page);
 
+  // Nutrition access — granted by default so gated nutrition views don't show
+  // the paywall lock. Specs testing the paywall override this route.
+  await page.route('**/api/nutrition/access/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ has_nutrition_access: true, price_cop: 30000 }),
+    });
+  });
+
   // Subscriptions — one active subscription by default so gated views don't show locked state
   const defaultActiveSub = {
     id: 1,
@@ -233,14 +244,19 @@ export async function setupDefaultApiMocks(page: Page, exclude: string[] = []) {
     });
   });
 
-  // Availability — empty by default
-  await page.route('**/api/availability/**', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({}),
+  // Availability — a realistic 14-day window by default.
+  // An empty map would disable EVERY day in BookingCalendar (`disabled={isPast
+  // || !hasSlots}`), which makes booking specs unable to click anything. Pass
+  // exclude: ['availability'] to register a different map (e.g. the no-slots case).
+  if (!exclude.includes('availability')) {
+    await page.route('**/api/availability/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(makeAvailability()),
+      });
     });
-  });
+  }
 
   // New dashboard store endpoints — empty by default
   if (!exclude.includes('my-anthropometry')) {

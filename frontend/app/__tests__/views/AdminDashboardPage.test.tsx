@@ -115,18 +115,18 @@ describe('AdminDashboardPage', () => {
 
   it('links to the subscriptions management page', () => {
     render(<AdminDashboardPage />);
-    const link = screen.getAllByRole('link').find(
-      (a) => (a as HTMLAnchorElement).getAttribute('href') === '/admin-platform/subscriptions',
+    expect(screen.getByRole('link', { name: 'Ver todas' })).toHaveAttribute(
+      'href',
+      '/admin-platform/subscriptions',
     );
-    expect(link).toBeDefined();
   });
 
   it('links to the users management page', () => {
     render(<AdminDashboardPage />);
-    const link = screen.getAllByRole('link').find(
-      (a) => (a as HTMLAnchorElement).getAttribute('href') === '/admin-platform/users',
+    expect(screen.getByRole('link', { name: 'Ver usuarios' })).toHaveAttribute(
+      'href',
+      '/admin-platform/users',
     );
-    expect(link).toBeDefined();
   });
 
   it('hides the total value while loading the first page of results', () => {

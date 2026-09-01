@@ -96,7 +96,9 @@ test.describe('Checkout Payment Status Polling', { tag: [...FlowTags.CHECKOUT_PA
     await payBtn.click();
   }
 
-  test('polling resolves to approved and shows success screen', async ({ page }) => {
+  test('polling resolves to approved and shows success screen', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await setupBaseMocks(page);
 
     const intentPending = buildIntent(70, 'pending', 'txn_poll_001');
@@ -118,6 +120,8 @@ test.describe('Checkout Payment Status Polling', { tag: [...FlowTags.CHECKOUT_PA
     await expect(page.getByText('¡Pago exitoso!')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Tu suscripción ha sido activada')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Ir a mi dashboard' })).toBeVisible();
+    // The success screen replaces the checkout form entirely.
+    await expect(page.getByRole('button', { name: /Pagar/ })).toBeHidden();
   });
 
   test('polling resolves to failed and shows rejection message', async ({ page }) => {
@@ -167,5 +171,7 @@ test.describe('Checkout Payment Status Polling', { tag: [...FlowTags.CHECKOUT_PA
     await fillCardAndSubmit(page);
 
     await expect(page.getByText('¡Pago exitoso!')).toBeVisible({ timeout: 20_000 });
+    // The success screen replaces the checkout form entirely.
+    await expect(page.getByRole('button', { name: /Pagar/ })).toBeHidden();
   });
 });

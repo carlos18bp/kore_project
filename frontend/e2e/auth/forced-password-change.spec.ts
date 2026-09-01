@@ -35,13 +35,16 @@ async function injectMustChangePasswordCookies(page: Page) {
 
 test.describe('Forced Password Change', { tag: [...FlowTags.AUTH_FORCED_PASSWORD_CHANGE, RoleTags.USER] }, () => {
   test('unauthenticated user is redirected to /login', async ({ page }) => {
+    // quality: allow-no-interaction (auth guard redirect: navigating without a session IS the trigger, no interactive element exists)
     await mockCaptchaSiteKey(page);
     await page.goto('/change-password-required');
 
     await page.waitForURL('**/login', { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/login/);
   });
 
   test('user with must_change_password=false is redirected to dashboard', async ({ page }) => {
+    // quality: allow-no-interaction (flag-driven redirect guard: the must_change_password value IS the trigger, no interactive element exists)
     await mockCaptchaSiteKey(page);
     await mockAuthProfile(page);
     const userCookie = JSON.stringify({
@@ -56,16 +59,18 @@ test.describe('Forced Password Change', { tag: [...FlowTags.AUTH_FORCED_PASSWORD
     await page.goto('/change-password-required');
 
     await page.waitForURL('**/dashboard', { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/dashboard/);
   });
 
   test('page shows Cambia tu contraseña heading', async ({ page }) => {
+    // quality: allow-no-interaction (render guard: confirms the form mounts when must_change_password is true, no interactive element exists yet)
     await injectMustChangePasswordCookies(page);
     await page.goto('/change-password-required');
 
     await expect(page.getByRole('heading', { name: 'Cambia tu contraseña' })).toBeVisible({ timeout: 15_000 });
   });
 
-  test('empty form submission shows Requerido error', async ({ page }) => {
+  test('empty form submission shows Requerido error', { tag: ['@outcome:error'] }, async ({ page }) => {
     await injectMustChangePasswordCookies(page);
     await page.goto('/change-password-required');
 
@@ -75,7 +80,7 @@ test.describe('Forced Password Change', { tag: [...FlowTags.AUTH_FORCED_PASSWORD
     await expect(page.getByText('Requerido').first()).toBeVisible({ timeout: 5_000 });
   });
 
-  test('new password too short shows Mínimo 8 caracteres error', async ({ page }) => {
+  test('new password too short shows Mínimo 8 caracteres error', { tag: ['@outcome:error'] }, async ({ page }) => {
     await injectMustChangePasswordCookies(page);
     await page.goto('/change-password-required');
 
@@ -89,7 +94,7 @@ test.describe('Forced Password Change', { tag: [...FlowTags.AUTH_FORCED_PASSWORD
     await expect(page.getByText('Mínimo 8 caracteres')).toBeVisible({ timeout: 5_000 });
   });
 
-  test('successful change redirects customer to /dashboard', async ({ page }) => {
+  test('successful change redirects customer to /dashboard', { tag: ['@outcome:success'] }, async ({ page }) => {
     await injectMustChangePasswordCookies(page);
     await page.route('**/api/auth/change-password/', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
@@ -104,5 +109,31 @@ test.describe('Forced Password Change', { tag: [...FlowTags.AUTH_FORCED_PASSWORD
     await page.getByRole('button', { name: 'Cambiar contraseña' }).click();
 
     await page.waitForURL('**/dashboard', { timeout: 15_000 });
+  });
+
+  test('server error on change-password keeps user on the form with a visible error', { tag: ['@outcome:failure'] }, async ({ page }) => {
+    // Bug this catches: a 500 must never be treated like a settled success and
+    // redirect the user away — that would be a false-success security hole
+    // where the account still requires the old (possibly compromised)
+    // password even though the UI implied the change went through.
+    await injectMustChangePasswordCookies(page);
+    await page.route('**/api/auth/change-password/', async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Error interno del servidor. Intenta de nuevo.' }),
+      });
+    });
+    await page.goto('/change-password-required');
+
+    const inputs = page.locator('input[type="password"]');
+    await expect(inputs.first()).toBeVisible({ timeout: 10_000 });
+    await inputs.nth(0).fill('TempPass1!');
+    await inputs.nth(1).fill('NewPass123!');
+    await inputs.nth(2).fill('NewPass123!');
+    await page.getByRole('button', { name: 'Cambiar contraseña' }).click();
+
+    await expect(page.getByText('Error interno del servidor. Intenta de nuevo.')).toBeVisible({ timeout: 10_000 });
+    await expect(page).toHaveURL(/\/change-password-required/);
   });
 });

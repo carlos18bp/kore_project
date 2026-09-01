@@ -14,7 +14,9 @@ from PIL import Image
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from rest_framework.test import APIClient
 
-from core_app.models import MealEntry, NutritionDailyLog, User
+from django.utils import timezone as dj_tz
+
+from core_app.models import MealEntry, NutritionDailyLog, Package, Subscription, User
 from core_app.models.weekly_nutrition_plan import WeeklyNutritionPlan, WeeklyPlanDay, WeeklyPlanMeal
 
 # ---------------------------------------------------------------------------
@@ -26,7 +28,13 @@ def _today():
 
 
 def _make_customer(email='nutrdaily@test.com'):
-    return User.objects.create_user(email=email, password='pass', role=User.Role.CUSTOMER)
+    user = User.objects.create_user(email=email, password='pass', role=User.Role.CUSTOMER)
+    pkg = Package.objects.create(title='Nutri', sessions_count=1, price=1, includes_nutrition=True)
+    Subscription.objects.create(
+        customer=user, package=pkg, sessions_total=1, status='active',
+        starts_at=dj_tz.now(), expires_at=dj_tz.now() + timedelta(days=30), includes_nutrition=True,
+    )
+    return user
 
 
 def _auth(client, user):

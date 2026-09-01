@@ -14,6 +14,7 @@ export type AdminPackage = {
   session_duration_minutes: number;
   price: string;
   currency: string;
+  includes_nutrition: boolean;
   validity_days: number;
   terms_and_conditions: string;
   is_active: boolean;
@@ -30,6 +31,7 @@ export type PackagePayload = {
   session_duration_minutes: number;
   price: string;
   currency?: string;
+  includes_nutrition?: boolean;
   validity_days: number;
   is_active?: boolean;
   order?: number;
@@ -50,6 +52,7 @@ type AdminPackageState = {
     payload: Partial<PackagePayload>,
   ) => Promise<{ ok: true; pkg: AdminPackage } | { ok: false; error: string }>;
   toggleActive: (id: number, next: boolean) => Promise<boolean>;
+  toggleNutrition: (id: number, next: boolean) => Promise<boolean>;
 };
 
 function authHeaders() {
@@ -159,6 +162,33 @@ export const useAdminPackageStore = create<AdminPackageState>((set, get) => ({
       return true;
     } catch (err) {
       const msg = describeError(err, 'No se pudo cambiar el estado del plan.');
+      set({ packages: before, actionLoading: false, error: msg });
+      return false;
+    }
+  },
+
+  toggleNutrition: async (id, next) => {
+    const before = get().packages;
+    // Optimistic toggle keeps the UI snappy; rollback on error.
+    set({
+      packages: before.map((p) => (p.id === id ? { ...p, includes_nutrition: next } : p)),
+      actionLoading: true,
+      error: '',
+    });
+    try {
+      const { data } = await api.patch(
+        `/packages/${id}/`,
+        { includes_nutrition: next },
+        { headers: authHeaders() },
+      );
+      const pkg = data as AdminPackage;
+      set((state) => ({
+        packages: state.packages.map((p) => (p.id === id ? pkg : p)),
+        actionLoading: false,
+      }));
+      return true;
+    } catch (err) {
+      const msg = describeError(err, 'No se pudo cambiar la nutrición del plan.');
       set({ packages: before, actionLoading: false, error: msg });
       return false;
     }

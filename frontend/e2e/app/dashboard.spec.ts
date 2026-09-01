@@ -1,4 +1,5 @@
 import { test, expect, E2E_USER, mockLoginAsTestUser } from '../fixtures';
+import { mockApiError } from '../helpers/api-errors';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags.USER] }, () => {
@@ -18,16 +19,10 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
     await expect(main.getByText('Mi Progreso').filter({ visible: true })).toBeVisible({ timeout: 10_000 });
   });
 
-  test('renders session card', async ({ page }) => {
-    const main = page.getByRole('main');
+  test('renders the compact next-session row', async ({ page }) => {
+    // The row is always present (empty state included) and opens the sessions modal.
     await expect(
-      main.getByText(/Próxima sesión/i).filter({ visible: true }).first(),
-    ).toBeVisible({ timeout: 10_000 });
-  });
-
-  test('renders next session card', async ({ page }) => {
-    await expect(
-      page.getByRole('main').getByText(/Próxima sesión/i).filter({ visible: true }).first(),
+      page.getByRole('main').getByText('Próxima sesión').filter({ visible: true }).first(),
     ).toBeVisible({ timeout: 10_000 });
   });
 
@@ -37,9 +32,16 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
     await expect(sidebar.getByRole('link', { name: 'Mi Suscripción' })).toBeVisible();
   });
 
-  test('renders progress tabs', async ({ page }) => {
+  test('switching to the Resumen Mensual tab shows its monthly panel', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     const main = page.getByRole('main');
-    await expect(main.getByText('Mi Progreso').filter({ visible: true })).toBeVisible({ timeout: 10_000 });
+    await expect(main.getByText('Mi Progreso').filter({ visible: true }).first()).toBeVisible({ timeout: 10_000 });
+
+    await main.getByRole('button', { name: 'Resumen Mensual' }).click();
+
+    // The default mock has no monthly data, so the resumen panel renders its
+    // empty state — proving the tab switched to the resumen view.
+    await expect(main.getByText('No hay datos de resumen todavía.')).toBeVisible({ timeout: 10_000 });
   });
 
   test('renders sidebar subscription link', async ({ page }) => {
@@ -50,6 +52,63 @@ test.describe('Dashboard Page', { tag: [...FlowTags.DASHBOARD_OVERVIEW, RoleTags
     const sidebar = page.getByRole('complementary');
     await expect(sidebar.getByRole('link', { name: 'Mi Suscripción' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
+  });
+
+  test('hero shows the credit balance badge', async ({ page }) => {
+    await page.route('**/api/credits/wallet/**', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ balance: 55, pending_balance: 0, current_streak: 3, longest_streak: 9, last_active_date: null, next_milestone: null }) }));
+    await page.route('**/api/credits/values/**', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ action_values: { checkin: 5, water_goal: 10, meal_photo: 5, workout_day: 15 }, streak_bonuses: { '3': 20, '7': 50 }, water_goal_glasses: 8, meal_review_days: 3, require_workout_captures: true }) }));
+    await page.goto('/dashboard');
+    const badge = page.getByRole('link', { name: 'Ver mis créditos' }).filter({ visible: true }).first();
+    await expect(badge).toBeVisible({ timeout: 15_000 });
+    await expect(badge).toHaveAttribute('href', '/mis-creditos');
+    await expect(badge.getByText('55')).toBeVisible();
+  });
+
+  test('wallet endpoint failure degrades the credits badge to a placeholder', { tag: ['@outcome:failure'] }, async ({ page }) => {
+    // quality: allow-no-interaction (passive degrade-on-load: the 500 mock IS the trigger; no user action exists)
+    await mockApiError(page, '**/api/credits/wallet/**', 500);
+    await page.goto('/dashboard');
+
+    // There is no dedicated error UI for the wallet: the badge stays rendered
+    // with an em-dash placeholder instead of a balance and keeps its link.
+    const badge = page.getByRole('link', { name: 'Ver mis créditos' }).filter({ visible: true }).first();
+    await expect(badge).toBeVisible({ timeout: 15_000 });
+    await expect(badge).toContainText('—');
+    await expect(badge).toContainText('créditos');
+    await expect(badge).toHaveAttribute('href', '/mis-creditos');
+  });
+
+  test('bookings endpoint failure still renders the empty next-session row', { tag: ['@outcome:failure'] }, async ({ page }) => {
+    // quality: allow-no-interaction (passive degrade-on-load: the 500 mock IS the trigger; no user action exists)
+    await mockApiError(page, '**/api/bookings/**', 500);
+    await page.goto('/dashboard');
+
+    // Graceful degradation: no error banner exists for bookings on the
+    // dashboard; the page stays functional and falls back to the empty row.
+    await expect(
+      page.getByRole('heading', { level: 1, name: new RegExp(E2E_USER.firstName) }),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.getByRole('main').getByText('Sin sesiones próximas').filter({ visible: true }).first(),
+    ).toBeVisible({ timeout: 10_000 });
+  });
+
+  test('credits badge renders a zero balance without hiding itself', async ({ page }) => {
+    await page.route('**/api/credits/wallet/**', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ balance: 0, pending_balance: 0, current_streak: 0, longest_streak: 0, last_active_date: null, next_milestone: null }) }));
+    await page.route('**/api/credits/values/**', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json',
+        body: JSON.stringify({ action_values: { checkin: 5, water_goal: 10, meal_photo: 5, workout_day: 15 }, streak_bonuses: { '3': 20, '7': 50 }, water_goal_glasses: 8, meal_review_days: 3, require_workout_captures: true }) }));
+    await page.goto('/dashboard');
+
+    const badge = page.getByRole('link', { name: 'Ver mis créditos' }).filter({ visible: true }).first();
+    await expect(badge).toBeVisible({ timeout: 15_000 });
+    await expect(badge).toContainText('0 créditos');
   });
 });
 
@@ -119,7 +178,7 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
     await page.goto('/dashboard');
     const main = page.getByRole('main');
     await expect(main.getByRole('heading', { level: 1, name: /Usuario/ })).toBeVisible({ timeout: 10_000 });
-    await expect(main.getByText('Sin sesión agendada').filter({ visible: true }).first()).toBeVisible();
+    await expect(main.getByText('Sin sesiones próximas').filter({ visible: true }).first()).toBeVisible();
   });
 
   test('upcoming session shows formatted date in Proxima sesion card', async ({ page }) => {
@@ -162,7 +221,7 @@ test.describe('Dashboard Page — data-rich branches', { tag: [...FlowTags.DASHB
     });
 
     await page.goto('/dashboard');
-    await page.getByRole('button', { name: /Próximas sesiones/ }).first().click();
+    await page.getByRole('button', { name: 'Ver mis sesiones' }).first().click();
 
     await expect(page.getByRole('heading', { name: 'Mis sesiones' })).toBeVisible({ timeout: 5_000 });
     await page.getByRole('button', { name: /Pasadas\s*\(/ }).click();

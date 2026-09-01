@@ -18,7 +18,9 @@ const fakeDailyLog = {
 };
 
 test.describe('Mi Programa — Día Específico', { tag: [...FlowTags.CUSTOMER_MI_PROGRAMA_DIA, RoleTags.USER] }, () => {
-  test('visiting today date redirects to /mi-programa/rutina', async ({ page }) => {
+  test('visiting today date redirects to /mi-programa/rutina', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await injectAuthCookies(page);
     await setupDefaultApiMocks(page);
     await page.route('**/api/my-program/today/', async (route) => {
@@ -32,6 +34,7 @@ test.describe('Mi Programa — Día Específico', { tag: [...FlowTags.CUSTOMER_M
     await page.goto(`/mi-programa/dia/detail?date=${today}`);
 
     await page.waitForURL('**/mi-programa/rutina', { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/mi-programa\/rutina/);
   });
 
   test('visiting a past date redirects to /mi-programa', async ({ page }) => {
@@ -53,6 +56,7 @@ test.describe('Mi Programa — Día Específico', { tag: [...FlowTags.CUSTOMER_M
     await page.goto('/mi-programa/dia/detail?date=2026-05-10');
 
     await page.waitForURL('**/mi-programa', { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/mi-programa$/);
   });
 
   test('day detail route is accessible without error', async ({ page }) => {
@@ -66,29 +70,24 @@ test.describe('Mi Programa — Día Específico', { tag: [...FlowTags.CUSTOMER_M
 
     const response = await page.goto('/mi-programa/dia/detail?date=2026-05-10');
     expect(response?.status()).not.toBe(404);
+    await expect(page).toHaveURL(/\/mi-programa$/, { timeout: 15_000 });
   });
 
-  test('spinner is shown while redirect resolves', async ({ page }) => {
+  test('the detail page renders its loading spinner then redirects to the routine', async ({ page }) => {
     await injectAuthCookies(page);
     await setupDefaultApiMocks(page);
 
-    let resolve: () => void;
-    const delayPromise = new Promise<void>((r) => { resolve = r; });
-    await page.route('**/api/my-program/today/', async (route) => {
-      await delayPromise;
-      await route.fulfill({
-        status: 200, contentType: 'application/json',
-        body: JSON.stringify({ program_day: fakeProgramDay, daily_log: fakeDailyLog }),
-      });
-    });
-
     const today = new Date().toISOString().slice(0, 10);
-    const gotoPromise = page.goto(`/mi-programa/dia/detail?date=${today}`);
-    // The spinner (border-kore-red animate-spin) should appear while routing
-    // We just verify the page doesn't hard-error
-    resolve!();
-    await gotoPromise;
-    // After resolving, redirect happens
-    await page.waitForURL('**/mi-programa/**', { timeout: 15_000 });
+    // 'commit' returns as soon as the document loads, so we can observe the
+    // spinner DiaDetailPage renders before its redirect effect runs. That
+    // redirect is a pure client-side effect (awaits no API), so asserting a
+    // mid-flight detail URL is racy — assert the spinner render and the
+    // deterministic destination instead.
+    await page.goto(`/mi-programa/dia/detail?date=${today}`, { waitUntil: 'commit' });
+
+    // quality: allow-fragile-selector (the loading spinner is a decorative div with no role or text to target)
+    await expect(page.locator('.animate-spin')).toBeVisible({ timeout: 10_000 });
+    await page.waitForURL('**/mi-programa/rutina', { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/mi-programa\/rutina/);
   });
 });

@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures';
 import { mockLoginAsAdmin } from '../helpers/admin-auth';
+import { mockApiError } from '../helpers/api-errors';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
@@ -151,7 +152,9 @@ test.describe('Admin User Detail', { tag: [...FlowTags.ADMIN_USER_DETAIL, RoleTa
     await mockLoginAsAdmin(page);
   });
 
-  test('renders the user identity, role, status, subscription', async ({ page }) => {
+  test('renders the user identity, role, status, subscription', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el backoffice exige sesión de staff inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await mockDetailPage(page);
     await page.goto('/admin-platform/users/detail?id=11');
 
@@ -219,5 +222,37 @@ test.describe('Admin User Detail', { tag: [...FlowTags.ADMIN_USER_DETAIL, RoleTa
     await reqPromise;
 
     await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+
+  test('an unknown user id shows the load error message', { tag: ['@outcome:failure'] }, async ({ page }) => {
+    // quality: allow-no-interaction (el fallo se induce desde la API; no hay acción de usuario que lo dispare — el estado degradado ES lo verificado)
+    // quality: allow-deep-link (el backoffice exige sesión de staff inyectada por cookie; no hay ruta de UI pública hasta esta vista)
+    await mockApiError(page, '**/api/admin/users/999/', 404, { detail: 'No encontrado.' });
+
+    await page.goto('/admin-platform/users/detail?id=999');
+
+    await expect(page.getByText('No se pudo cargar el usuario.')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Ana García' })).toHaveCount(0);
+  });
+
+  test('a rejected trainer assignment shows the inline field error', { tag: ['@outcome:error'] }, async ({ page }) => {
+    await mockDetailPage(page);
+    // Registered after mockDetailPage so the PATCH is answered with a 400 (LIFO);
+    // GET keeps falling through to the detail mock.
+    await mockApiError(
+      page,
+      '**/api/admin/users/11/',
+      400,
+      { assigned_trainer_id: ['No se puede asignar este entrenador.'] },
+      { method: 'PATCH' },
+    );
+
+    await page.goto('/admin-platform/users/detail?id=11');
+    const select = page.getByRole('combobox');
+    await expect(select).toHaveValue('1');
+
+    await select.selectOption({ label: 'Laura Gómez' });
+
+    await expect(page.getByText('No se puede asignar este entrenador.')).toBeVisible();
   });
 });

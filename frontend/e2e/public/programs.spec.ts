@@ -41,7 +41,7 @@ test.describe('Programs Page — Guest', { tag: [...FlowTags.PUBLIC_PROGRAMS, Ro
     await expect(page.getByText('Programa Inicial')).toBeVisible();
   });
 
-  test('unauthenticated user clicking reserve is redirected to register with package ID', async ({ page }) => {
+  test('unauthenticated user clicking reserve is redirected to the registration page with package ID', async ({ page }) => {
     await openProgramsPage(page);
     await expect(page.getByText('Sesión Individual')).toBeVisible({ timeout: 10_000 });
     await page.getByText('Sesión Individual').click();

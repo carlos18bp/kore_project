@@ -19,6 +19,7 @@ test.describe('Login Page', { tag: [...FlowTags.AUTH_LOGIN, RoleTags.GUEST] }, (
   }
 
   test('renders the login form with brand name', async ({ page }) => {
+    // quality: allow-no-interaction (render/redirect guard: navigation IS the trigger)
     await openLoginPage(page);
     await expect(page.getByRole('link', { name: 'KÓRE', exact: true })).toBeVisible();
     await expect(page.getByLabel(/Correo electrónico/i)).toBeVisible();
@@ -26,7 +27,7 @@ test.describe('Login Page', { tag: [...FlowTags.AUTH_LOGIN, RoleTags.GUEST] }, (
     await expect(page.getByRole('button', { name: 'Iniciar sesión' })).toBeVisible();
   });
 
-  test('shows error on invalid credentials', async ({ page }) => {
+  test('shows error on invalid credentials', { tag: ['@outcome:error'] }, async ({ page }) => {
     await page.route('**/api/auth/login/', async (route) => {
       await route.fulfill({
         status: 400,
@@ -44,7 +45,7 @@ test.describe('Login Page', { tag: [...FlowTags.AUTH_LOGIN, RoleTags.GUEST] }, (
     await expect(page.getByText('Credenciales inválidas.')).toBeVisible();
   });
 
-  test('successful login redirects to dashboard', async ({ page }) => {
+  test('successful login redirects to dashboard', { tag: ['@outcome:success'] }, async ({ page }) => {
     await setupDefaultApiMocks(page);
     await mockLoginApi(page);
     await openLoginPage(page);
@@ -57,7 +58,7 @@ test.describe('Login Page', { tag: [...FlowTags.AUTH_LOGIN, RoleTags.GUEST] }, (
     await expect(page.getByRole('heading', { level: 1, name: new RegExp(E2E_USER.firstName) })).toBeVisible();
   });
 
-  test('successful trainer login redirects to trainer dashboard', async ({ page }) => {
+  test('successful trainer login redirects to trainer dashboard', { tag: ['@outcome:success'] }, async ({ page }) => {
     await page.route('**/api/trainer/dashboard-stats/', async (route) => {
       await route.fulfill({
         status: 200,
@@ -90,15 +91,15 @@ test.describe('Login Page', { tag: [...FlowTags.AUTH_LOGIN, RoleTags.GUEST] }, (
     const passwordInput = page.getByLabel(/Contraseña/i);
     await expect(passwordInput).toHaveAttribute('type', 'password');
 
-    // Use evaluate to bypass GSAP animation overlay
-    await page.getByRole('button', { name: /^Ver$/ }).evaluate((el) => (el as HTMLElement).click());
+    await page.getByRole('button', { name: /^Ver$/ }).click();
     await expect(passwordInput).toHaveAttribute('type', 'text');
 
-    await page.getByRole('button', { name: /^Ocultar$/ }).evaluate((el) => (el as HTMLElement).click());
+    await page.getByRole('button', { name: /^Ocultar$/ }).click();
     await expect(passwordInput).toHaveAttribute('type', 'password');
   });
 
   test('already authenticated user is redirected to dashboard', async ({ page }) => {
+    // quality: allow-no-interaction (render/redirect guard: navigation IS the trigger)
     // Use mockLoginAsTestUser to inject cookies directly (bypasses form login)
     await mockLoginAsTestUser(page);
 
@@ -110,7 +111,7 @@ test.describe('Login Page', { tag: [...FlowTags.AUTH_LOGIN, RoleTags.GUEST] }, (
     await expect(page.getByRole('heading', { level: 1, name: new RegExp(E2E_USER.firstName) })).toBeVisible();
   });
 
-  test('shows error with detail field instead of non_field_errors', async ({ page }) => {
+  test('shows error with detail field instead of non_field_errors', { tag: ['@outcome:error'] }, async ({ page }) => {
     // Exercise the axiosErr.response?.data?.detail branch in authStore.login()
     await page.route('**/api/auth/login/', async (route) => {
       await route.fulfill({
@@ -129,7 +130,7 @@ test.describe('Login Page', { tag: [...FlowTags.AUTH_LOGIN, RoleTags.GUEST] }, (
     await expect(page.getByText('Cuenta deshabilitada.')).toBeVisible({ timeout: 10_000 });
   });
 
-  test('shows fallback error when detail is non-string', async ({ page }) => {
+  test('shows fallback error when detail is non-string', { tag: ['@outcome:error'] }, async ({ page }) => {
     // Exercise the typeof message !== 'string' fallback branch in authStore.login()
     await page.route('**/api/auth/login/', async (route) => {
       await route.fulfill({

@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures';
 import { mockLoginAsAdmin } from '../helpers/admin-auth';
+import { mockApiError } from '../helpers/api-errors';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
@@ -151,5 +152,17 @@ test.describe('Admin Dashboard', { tag: [...FlowTags.ADMIN_DASHBOARD, RoleTags.A
     await expect(page.getByRole('button', { name: 'Ver todas' })).toBeVisible();
     await expect(page.getByText('Gestión de usuarios')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Ver usuarios' })).toBeVisible();
+  });
+
+  test('a subscriptions load failure keeps the tiles at zero', async ({ page }) => {
+    // The dashboard never renders the store's fetch error, so the observable
+    // contract on a 500 is graceful degradation: zeroed tiles and working shortcuts.
+    await mockApiError(page, '**/api/subscriptions/**', 500, {}, { method: 'GET' });
+
+    await page.goto('/admin-platform/dashboard');
+
+    await expect(statTile(page, 'Total')).toContainText('0');
+    await expect(statTile(page, 'Activas')).toContainText('0');
+    await expect(page.getByRole('button', { name: 'Ver todas' })).toBeEnabled();
   });
 });

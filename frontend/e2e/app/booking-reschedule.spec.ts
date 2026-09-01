@@ -123,7 +123,9 @@ test.describe('Booking Reschedule Flow (mocked)', { tag: [...FlowTags.BOOKING_RE
     await expect(page.getByText('Agenda tu sesión')).toBeVisible();
   });
 
-  test('modal shows session details including trainer info', async ({ page }) => {
+  test('modal shows session details including trainer info', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await mockLoginAsTestUser(page);
     await setupMocks(page);
     await page.goto('/subscription');

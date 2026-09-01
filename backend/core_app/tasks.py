@@ -16,14 +16,10 @@ from django.utils import timezone
 from huey import crontab
 from huey.contrib.djhuey import db_periodic_task, db_task
 
-from core_app.models import Notification, Payment, Subscription, SubscriptionRenewal
+from core_app.models import Notification, Payment, Subscription
 from core_app.services.billing_calendar import bogota_today
-from core_app.services.renewal_history_service import record_renewal
-from core_app.services.email_service import (
-    send_payment_receipt,
-    send_subscription_expiry_reminder,
-)
-from core_app.services.slot_schedule import MAX_ROLLOVER_SESSIONS
+from core_app.services.email_service import send_subscription_expiry_reminder
+from core_app.services.recurring_renewal import apply_recurring_renewal
 from core_app.services.wompi_service import create_transaction, generate_reference
 
 logger = logging.getLogger(__name__)
@@ -91,8 +87,12 @@ def _bill_subscription(sub):
     Raises:
         WompiError: If the Wompi transaction creation fails.
     """
-    package = sub.package
-    amount_in_cents = int(Decimal(str(package.price)) * 100)
+    # A scheduled plan change (downgrade / lateral) takes effect at renewal: bill
+    # the pending package's price and apply it below once the charge is approved.
+    package = sub.pending_package or sub.package
+    from core_app.services.nutrition_access import nutrition_surcharge
+    charge = Decimal(str(package.price)) + Decimal(nutrition_surcharge(sub.includes_nutrition))
+    amount_in_cents = int(charge * 100)
     reference = generate_reference()
 
     txn_data = create_transaction(
@@ -110,7 +110,7 @@ def _bill_subscription(sub):
         payment = Payment.objects.create(
             customer=sub.customer,
             subscription=sub,
-            amount=package.price,
+            amount=charge,
             currency=package.currency,
             provider=Payment.Provider.WOMPI,
             provider_reference=reference,
@@ -122,49 +122,10 @@ def _bill_subscription(sub):
         )
 
         if txn_status == 'APPROVED':
-            leftover = max(sub.sessions_total - sub.sessions_used, 0)
-            rollover = min(leftover, MAX_ROLLOVER_SESSIONS)
-            new_period_start = timezone.now()
-            new_period_end = new_period_start + timedelta(days=package.validity_days)
-            sub.next_billing_date = sub.next_billing_date + timedelta(
-                days=package.validity_days
-            )
-            sub.sessions_total = package.sessions_count + rollover
-            sub.sessions_used = 0
-            sub.expires_at = new_period_end
-            sub.save(
-                update_fields=[
-                    'next_billing_date',
-                    'sessions_used',
-                    'sessions_total',
-                    'expires_at',
-                ]
-            )
-
-            record_renewal(
-                subscription=sub,
-                kind=SubscriptionRenewal.Kind.AUTOMATIC,
-                period_start=new_period_start,
-                period_end=new_period_end,
-                sessions_granted=sub.sessions_total,
-                package=package,
-                payment=payment,
-            )
-
-            Notification.objects.create(
-                notification_type=Notification.Type.PAYMENT_CONFIRMED,
-                sent_to=sub.customer.email,
-                payment=payment,
-                payload={
-                    'subscription_id': sub.id,
-                    'payment_id': payment.id,
-                    'amount': str(package.price),
-                    'currency': package.currency,
-                    'reference': reference,
-                },
-            )
-
-            send_payment_receipt(payment)
+            # Charge approved synchronously: advance the cycle now. The webhook
+            # reconciliation path calls the same helper for async PENDING->APPROVED
+            # charges, and it is idempotent so the two paths never double-apply.
+            apply_recurring_renewal(sub, payment)
 
     logger.info(
         'Billed subscription %s: txn=%s status=%s',
@@ -561,3 +522,21 @@ def recompute_risk_score_task(customer_id):
     except User.DoesNotExist:
         return False
     return recompute_risk_score(customer)
+
+
+@db_task()
+def process_credit_event(kind, object_id):
+    """Resolve one Phase 1 event into credit ledger entries, off the request path.
+
+    Enqueued via transaction.on_commit by the credit signal receivers.
+    """
+    from core_app.services.credit_engine import handle_event
+    handle_event(kind, object_id)
+
+
+@db_periodic_task(crontab(minute=57, hour=23))
+def close_credits_day():
+    """At 23:57 daily (after close_daily_logs): evaluate streaks, no-shows and
+    expired pending credit transactions."""
+    from core_app.services.credit_day_close import process_credits_day_close
+    return process_credits_day_close()

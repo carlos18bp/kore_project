@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Camera, Check, X, Plus, Minus } from 'lucide-react';
 import { useNutritionStore, type NutritionFormData, type NutritionHabit } from '@/lib/stores/nutritionStore';
 import { useNutritionDailyStore, type MealEntry } from '@/lib/stores/nutritionDailyStore';
+import { useNutritionUpgradeStore } from '@/lib/stores/nutritionUpgradeStore';
 import { compressImage } from '@/lib/utils/compressImage';
 import { useIsMobileDevice } from '@/lib/utils/isMobileDevice';
 import { MEAL_BLOCKS, MEAL_BLOCK_ORDER } from '@/lib/constants';
@@ -726,14 +727,40 @@ export default function MyNutritionPage() {
   const [viewerPhoto, setViewerPhoto] = useState<string | null>(null);
   const { entries, fetchMyEntries, weeklyPlans, fetchMyWeeklyPlans } = useNutritionStore();
   const { todayLog, loading: dailyLoading, fetchTodayLog, updateMealEntry, uploadMealPhoto, logWaterGlass } = useNutritionDailyStore();
+  const { access, price, fetchNutritionAccess, startNutritionUpgrade, fetchUpgradeStatus } = useNutritionUpgradeStore();
+  const [accessChecked, setAccessChecked] = useState(false);
   const isMobile = useIsMobileDevice();
   const waterDrank = todayLog?.water_glasses?.length ?? 0;
 
   useEffect(() => {
+    fetchNutritionAccess().finally(() => setAccessChecked(true));
+  }, [fetchNutritionAccess]);
+
+  useEffect(() => {
+    if (!access) return;
     fetchTodayLog();
     fetchMyEntries();
     fetchMyWeeklyPlans();
-  }, [fetchTodayLog, fetchMyEntries, fetchMyWeeklyPlans]);
+  }, [access, fetchTodayLog, fetchMyEntries, fetchMyWeeklyPlans]);
+
+  // On return from the Wompi checkout, poll the upgrade status and refresh access.
+  useEffect(() => {
+    const ref = new URLSearchParams(window.location.search).get('ref');
+    if (!ref) return;
+    let tries = 0;
+    const id = setInterval(async () => {
+      tries += 1;
+      const s = await fetchUpgradeStatus(ref);
+      if (s && s.status !== 'pending') { fetchNutritionAccess(); clearInterval(id); }
+      if (tries >= 10) clearInterval(id);
+    }, 2000);
+    return () => clearInterval(id);
+  }, [fetchUpgradeStatus, fetchNutritionAccess]);
+
+  async function upgradeNutrition() {
+    const url = await startNutritionUpgrade();
+    if (url) window.location.href = url;
+  }
 
   const latest = entries[0] ?? null;
 
@@ -804,6 +831,21 @@ export default function MyNutritionPage() {
       setUploadingMealId(null);
     }
   };
+
+  if (accessChecked && !access) {
+    return (
+      <div className="px-5 xl:px-10 pt-20 pb-16 space-y-4" data-testid="nutrition-locked">
+        <h1 className="font-heading text-[24px] font-semibold text-kore-wine-dark">Mi Nutrición</h1>
+        <div className="bg-white rounded-2xl p-6 border border-kore-gray-light/40 shadow-sm text-center space-y-3">
+          <p className="text-[14px] font-semibold text-kore-gray-dark">La nutrición no está incluida en tu plan.</p>
+          <p className="text-[13px] text-kore-gray-dark/60">Agrégala y accede a tu plan y seguimiento nutricional.{price ? ` Desde $${price.toLocaleString('es-CO')}/mes (prorrateado este mes).` : ''}</p>
+          <button type="button" onClick={upgradeNutrition} className="py-2.5 px-5 rounded-xl bg-kore-red text-white text-[13px] font-semibold hover:bg-kore-red-dark transition-colors" data-testid="nutrition-upgrade-cta">
+            Agrega nutrición a tu plan
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <section className="min-h-screen bg-kore-cream">

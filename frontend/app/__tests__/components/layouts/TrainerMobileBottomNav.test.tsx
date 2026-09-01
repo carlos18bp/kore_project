@@ -143,16 +143,6 @@ describe('TrainerMobileBottomNav', () => {
     expect(masButton).toHaveClass("text-kore-gold");
   });
 
-  it('calls logout when Cerrar sesión is clicked', async () => {
-    const mockLogout = jest.fn();
-    useAuthStore.setState({ logout: mockLogout });
-    const user = userEvent.setup();
-    render(<TrainerMobileBottomNav />);
-    await user.click(screen.getByRole('button', { name: /Más/i }));
-    await user.click(screen.getByText('Cerrar sesión'));
-    expect(mockLogout).toHaveBeenCalledTimes(1);
-  });
-
   it('clears auth state when Cerrar sesión is clicked', async () => {
     const mockLogout = jest.fn();
     useAuthStore.setState({ logout: mockLogout });

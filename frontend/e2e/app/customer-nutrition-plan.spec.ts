@@ -61,6 +61,7 @@ test.describe('Customer Nutrition Plan', { tag: [...FlowTags.CUSTOMER_NUTRITION_
     await injectAuthCookies(page);
     // setupDefaultApiMocks provides GET /my-nutrition/ -> [] (no habits block).
     await setupDefaultApiMocks(page);
+    await page.route('**/api/nutrition/access/**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ has_nutrition_access: true, price_cop: 30000 }) }));
     await page.route('**/api/my-nutrition-plans/', async (route) => {
       await route.fulfill({
         status: 200,
@@ -89,7 +90,8 @@ test.describe('Customer Nutrition Plan', { tag: [...FlowTags.CUSTOMER_NUTRITION_
     await expect(page.getByRole('button', { name: /Nota de tu coach/ })).toBeVisible();
   });
 
-  test('expanding the coach note reveals the weekly plan text', async ({ page }) => {
+  test('expanding the coach note reveals the weekly plan text', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await mockPlan(page, { daily: todayLog, plans: [weeklyPlan] });
     await goToNutrition(page);
 

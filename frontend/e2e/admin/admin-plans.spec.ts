@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures';
 import { mockLoginAsAdmin } from '../helpers/admin-auth';
+import { mockApiError } from '../helpers/api-errors';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
@@ -89,7 +90,9 @@ test.describe('Admin Plans', { tag: [...FlowTags.ADMIN_PLANS, RoleTags.ADMIN] },
     await mockLoginAsAdmin(page);
   });
 
-  test('renders the plan catalog for the default category', async ({ page }) => {
+  test('renders the plan catalog for the default category', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el backoffice exige sesión de staff inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await mockPackages(page);
     await page.goto('/admin-platform/plans');
 
@@ -102,6 +105,10 @@ test.describe('Admin Plans', { tag: [...FlowTags.ADMIN_PLANS, RoleTags.ADMIN] },
     await mockPackages(page);
     await page.goto('/admin-platform/plans');
     await expect(page.getByText('Plan Base Personalizado')).toBeVisible();
+
+    // The modal is not mounted until the trigger is clicked, so opening it is a
+    // real state change: the create dialog goes from absent to present.
+    await expect(page.getByText('Crear plan de entrenamiento')).toBeHidden();
 
     await page.getByRole('button', { name: /Crear plan/ }).click();
 
@@ -182,5 +189,46 @@ test.describe('Admin Plans', { tag: [...FlowTags.ADMIN_PLANS, RoleTags.ADMIN] },
 
     await page.getByRole('button', { name: /Terapéutica/ }).click();
     await expect(page.getByText('Sin planes en esta categoría')).toBeVisible();
+  });
+
+  test('a rejected plan save surfaces the server message in the modal', { tag: ['@outcome:error'] }, async ({ page }) => {
+    await mockPackages(page);
+    // Registered after mockPackages so the create POST is answered with a 400 (LIFO).
+    await mockApiError(
+      page,
+      '**/api/packages/**',
+      400,
+      { title: ['Ya existe un plan con este nombre.'] },
+      { method: 'POST' },
+    );
+
+    await page.goto('/admin-platform/plans');
+    await expect(page.getByText('Plan Base Personalizado')).toBeVisible();
+
+    await page.getByRole('button', { name: /Crear plan/ }).click();
+    await expect(page.getByText('Crear plan de entrenamiento')).toBeVisible();
+    await page.getByPlaceholder('Ej. Plan Estándar').fill('Plan Duplicado');
+    await page.getByPlaceholder('0').fill('250000');
+
+    // Before submitting there is no server error in the modal; the rejected
+    // save is what makes it appear.
+    await expect(page.getByText('title: Ya existe un plan con este nombre.')).toBeHidden();
+    await page.getByRole('button', { name: 'Crear plan', exact: true }).click();
+
+    // The server message renders in both the modal-level and field-level error
+    // boxes; assert the first so it is unambiguous under strict mode.
+    await expect(page.getByText('title: Ya existe un plan con este nombre.').first()).toBeVisible();
+    // The modal stays open so the admin can correct and retry.
+    await expect(page.getByText('Crear plan de entrenamiento')).toBeVisible();
+  });
+
+  test('a catalog load failure shows the plans error banner', { tag: ['@outcome:failure'] }, async ({ page }) => {
+    // quality: allow-no-interaction (el fallo se induce desde la API; no hay acción de usuario que lo dispare — el estado degradado ES lo verificado)
+    // quality: allow-deep-link (el backoffice exige sesión de staff inyectada por cookie; no hay ruta de UI pública hasta esta vista)
+    await mockApiError(page, '**/api/packages/**', 500, {}, { method: 'GET' });
+
+    await page.goto('/admin-platform/plans');
+
+    await expect(page.getByText('No se pudieron cargar los planes.')).toBeVisible();
   });
 });

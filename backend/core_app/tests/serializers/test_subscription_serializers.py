@@ -53,6 +53,7 @@ class TestSubscriptionSerializer:
             'sessions_used', 'sessions_remaining', 'sessions_completed', 'status',
             'starts_at', 'expires_at', 'next_billing_date',
             'is_recurring', 'billing_failed_at',
+            'pending_package', 'cancel_at_period_end',
             'is_guest', 'guest_info',
             'created_at', 'updated_at',
         }

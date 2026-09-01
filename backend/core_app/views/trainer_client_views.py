@@ -273,6 +273,8 @@ class TrainerClientSessionsView(APIView):
                 'ends_at': b.ends_at.isoformat() if b.ends_at else None,
                 'notes': b.notes,
                 'canceled_reason': b.canceled_reason,
+                'attendance_status': b.attendance_status,
+                'attendance_confirmed_at': b.attendance_confirmed_at.isoformat() if b.attendance_confirmed_at else None,
                 'created_at': b.created_at.isoformat(),
             })
 
@@ -500,6 +502,8 @@ class TrainerAgendaView(APIView):
                 'starts_at': b.starts_at.isoformat() if b.starts_at else None,
                 'ends_at': b.ends_at.isoformat() if b.ends_at else None,
                 'status': b.status,
+                'attendance_status': b.attendance_status,
+                'attendance_confirmed_at': b.attendance_confirmed_at.isoformat() if b.attendance_confirmed_at else None,
             }
             for b in bookings
         ]

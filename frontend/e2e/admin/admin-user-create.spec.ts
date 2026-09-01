@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures';
 import { mockLoginAsAdmin } from '../helpers/admin-auth';
+import { mockApiError } from '../helpers/api-errors';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
@@ -66,13 +67,17 @@ test.describe('Admin User Create', { tag: [...FlowTags.ADMIN_USER_CREATE, RoleTa
     await expect(page.getByRole('button', { name: 'Crear y enviar credenciales' })).toBeVisible();
   });
 
-  test('client-side validation shows required-field errors on empty submit', async ({ page }) => {
+  test('client-side validation shows required-field errors on empty submit', { tag: ['@outcome:error'] }, async ({ page }) => {
     await page.goto('/admin-platform/users/new');
+
+    // No validation errors are present before the user submits.
+    await expect(page.getByText('Requerido')).toHaveCount(0);
 
     await page.getByRole('button', { name: 'Crear y enviar credenciales' }).click();
 
-    // No POST fires; the form stays on screen with "Requerido" markers.
-    await expect(page.getByText('Requerido').first()).toBeVisible();
+    // No POST fires; the empty submit surfaces a "Requerido" marker on each of
+    // the three required fields (correo, nombre, apellido) and stays on the form.
+    await expect(page.getByText('Requerido')).toHaveCount(3);
     await expect(page.getByRole('heading', { name: 'Inscribir nuevo usuario' })).toBeVisible();
   });
 
@@ -142,5 +147,48 @@ test.describe('Admin User Create', { tag: [...FlowTags.ADMIN_USER_CREATE, RoleTa
     await expect(page.getByText('Ya existe un usuario con este correo.')).toBeVisible();
     // Still on the form, not on the success screen.
     await expect(page.getByRole('heading', { name: 'Inscribir nuevo usuario' })).toBeVisible();
+  });
+
+  test('an invalid email format shows the inline validation error without submitting', async ({
+    page,
+  }) => {
+    await page.goto('/admin-platform/users/new');
+
+    // A domain without a TLD passes the browser's native type="email" check,
+    // so submission reaches the form's own rule (/.+@.+\..+/) and is rejected there.
+    await page.getByPlaceholder('usuario@ejemplo.com').fill('ana@dominio');
+    await page.getByPlaceholder('Ana').fill('Ana');
+    await page.getByPlaceholder('Martínez').fill('Martínez');
+    await page.getByRole('button', { name: 'Crear y enviar credenciales' }).click();
+
+    await expect(page.getByText('Email inválido')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Inscribir nuevo usuario' })).toBeVisible();
+  });
+
+  test('a 500 on create keeps the form actionable for a retry', { tag: ['@outcome:failure'] }, async ({ page }) => {
+    // Non-field failure: the page has no generic error banner, so the observable
+    // contract is graceful degradation — form intact, submit re-enabled, no success.
+    await mockApiError(
+      page,
+      '**/api/admin/users/',
+      500,
+      { detail: 'Error interno del servidor.' },
+      { method: 'POST' },
+    );
+
+    await page.goto('/admin-platform/users/new');
+    await page.getByPlaceholder('usuario@ejemplo.com').fill('otra@kore.com');
+    await page.getByPlaceholder('Ana').fill('Otra');
+    await page.getByPlaceholder('Martínez').fill('Persona');
+
+    const respPromise = page.waitForResponse(
+      (r) => r.url().includes('/api/admin/users/') && r.request().method() === 'POST',
+    );
+    await page.getByRole('button', { name: 'Crear y enviar credenciales' }).click();
+    await respPromise;
+
+    await expect(page.getByRole('heading', { name: 'Inscribir nuevo usuario' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Usuario inscrito' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Crear y enviar credenciales' })).toBeEnabled();
   });
 });

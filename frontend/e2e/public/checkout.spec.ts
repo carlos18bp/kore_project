@@ -604,6 +604,8 @@ test.describe('Checkout Page (mocked)', { tag: [...FlowTags.CHECKOUT_FLOW, RoleT
     await payBtn.click();
 
     await expect(page.getByText('¡Pago exitoso!')).toBeVisible({ timeout: 15_000 });
+    // The success screen replaces the checkout form entirely.
+    await expect(page.getByRole('button', { name: /Pagar/ })).toBeHidden();
 
     const cookies = await page.context().cookies();
     const tokenCookie = cookies.find((c) => c.name === 'kore_token');

@@ -6,6 +6,13 @@ argument-hint: "[vista o componente a diseñar]"
 
 # KORE — Premium Design Directives
 
+## Cómo invocar este skill
+
+Gating ([[_output-protocol]] §4): con `$ARGUMENTS` o intención clara en la sesión (la vista/componente a diseñar) → ejecutar directo, PROHIBIDO preguntar el tema. Sin argumentos ni contexto → UNA sola pregunta corta en texto por la vista o el componente (no picker: el insumo es libre). Nunca en modo fleet/headless.
+
+Sin picker por diseño: no hay flags — el argumento es la vista/componente y las directivas viven en este documento.
+
+
 Referencia estética: **Apple Health + Cal AI + Awwwards top sites**.
 Nunca diseñes una vista sin leer y aplicar estas reglas primero.
 

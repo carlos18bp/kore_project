@@ -6,7 +6,54 @@ argument-hint: "[description of what to implement]"
 
 Before starting, ALWAYS do 2 things:
 a. Read and understand the documentation in `docs/` and `tasks/`
-b. Get required code context from `backend/` and `frontend/`
+b. Get required code context from `backend/` and `frontend/` — o el layout que
+   exista en el repo (ver [[methodology-setup]])
+
+## Cómo invocar este skill
+
+Gating ([[_output-protocol]] §4): con `$ARGUMENTS` o intención clara en la sesión → ejecutar directo, PROHIBIDO preguntar el tema (un dato menor faltante se marca en el texto, no se convierte en pregunta). Sin argumentos ni contexto → UNA sola pregunta corta en texto por la tarea a implementar (no picker: el insumo es libre). Nunca en modo fleet/headless/cron.
+
+Sin picker por diseño: no hay flags de modo — el argumento es la feature o el fix a implementar.
+
+---
+
+## Paso 0 — Worktree de sesión (obligatorio antes de escribir, en CUALQUIER repo)
+
+`git rev-parse --show-toplevel` debe caer bajo `~/webapps/.wt/`; si cae en el
+clon principal, creá tu worktree ANTES de tocar nada — `bash
+$HOME/webapps/vps-ops-toolkit/scripts/maintenance/session-worktree.sh create
+<prefijo> <slug>` (o la receta manual del tmpl §5) — y entrá: Claude Code
+`EnterWorktree path=~/webapps/.wt/<repo>/<slug>`, Codex `cd`. Si la sesión YA
+tiene su worktree de un turno anterior, seguí usándolo. Esto NO depende de si
+el repo está en `projects.yml`: el guard del hook es por path del clon, no por
+registro.
+
+## Preflight (obligatorio)
+
+Si el repo actual es un proyecto del fleet (aparece en
+`~/webapps/vps-ops-toolkit/projects.yml`), ANTES de escribir:
+
+```bash
+bash ~/webapps/vps-ops-toolkit/scripts/maintenance/resolve-work-coordinate.sh --check <proyecto>
+```
+
+Si ya estás DENTRO de tu worktree (Claude, tras `EnterWorktree`), el mismo dato —más
+la rama, la base del PR y el estado del CI— sale de un comando que además resuelve el
+proyecto solo. Adentro de un worktree nativo Claude rechaza el comando con `$(...)`,
+`{a,b}`, `for`/`while` o heredoc con sustitución, y el que apunta al clon compartido:
+**un comando simple por llamada**, y los valores se escriben **literales** en la
+siguiente (convención: `git-branch-protocol` §1 del CLAUDE.md del repo).
+
+```bash
+bash ~/webapps/vps-ops-toolkit/scripts/maintenance/session-worktree.sh status
+```
+
+- `resolved_branch` es la **BASE** del trabajo, no la rama donde se commitea:
+  commitear SIEMPRE en TU rama de sesión (worktree propio, PR al primer push con
+  base=`resolved_branch`) — nunca directo sobre la release ni sobre main/master,
+  nunca en la rama de otra sesión (git-branch-protocol del CLAUDE.md del repo).
+- `host_status=wrong-host` → **STOP**: el trabajo de este proyecto vive en el
+  clon de `vps_work`, no en este host.
 
 ---
 
@@ -46,7 +93,8 @@ b. Get required code context from `backend/` and `frontend/`
 
 ### Step 3: Make Changes
 
-1. Document current state in memory files
+1. Document current state in the memory files — los 7 canónicos de
+   [[methodology-setup]]; `tasks/active_context.md` siempre
 2. Plan single logical change at a time:
    - One logical feature at a time
    - Fully resolve by accommodating changes in other parts
@@ -57,10 +105,11 @@ b. Get required code context from `backend/` and `frontend/`
 
 ### Step 4: Test
 
-- Create unit tests for new functionality
-- Run tests to confirm existing behavior is preserved
-- Write test logic in separate files
-- Think of exhaustive test plans covering edge cases
+- Slice mínimo de verificación: el/los tests del comportamiento tocado (crear
+  o correr sólo esos, en archivos separados) + confirmar que la regresión
+  inmediata no se rompe.
+- La cobertura completa (edge cases, casos negativos, gate) la cierra [[qa]]
+  en el Cierre — no dupliques su trabajo acá.
 
 ### Step 5: Loop Steps 1-4
 
@@ -74,4 +123,58 @@ Optimize the implemented code after all changes are tested and verified.
 
 After every implementation, ALWAYS do 2 things:
 a. Update other possibly affected codes in `backend/` and `frontend/`
-b. Update the documentation in `docs/` and `tasks/`
+b. Update the memory files afectados por el cambio — los 7 canónicos de
+   [[methodology-setup]]: `docs/methodology/product_requirement_docs.md`,
+   `docs/methodology/technical.md`, `docs/methodology/architecture.md`,
+   `docs/methodology/error-documentation.md`,
+   `docs/methodology/lessons-learned.md`, `tasks/tasks_plan.md` y
+   `tasks/active_context.md` (este último siempre)
+
+---
+
+## Cierre — QA de lo implementado
+
+Al terminar la implementación (feature funcionalmente completa), la forma
+canónica de cerrar la cobertura es invocar **[[qa]]**: audita el flow-map,
+escribe los tests faltantes al DoD de 3 puntos (casos negativos incluidos),
+corre el gate y purga junk — sin mergear. Sugerilo siempre en el cierre. La
+sesión termina con PR abierto + CI verde (`/pr-green`); el merge NO es de
+esta sesión.
+
+## Acciones disponibles
+
+Tras el reporte, si la sesión es interactiva y sin flags explícitos (reglas de
+gating de [[_output-protocol]] §4), ofrecer vía AskUserQuestion:
+
+| Opción (label) | description (costo/efecto) | preview (comando exacto) |
+|---|---|---|
+| /qa (Recommended) | dry-run, no mergea; cierra la cobertura de lo implementado | `/qa` |
+| /git-commit | commit + push + PR (primer push) desde el worktree | `/git-commit` |
+| /pr-green | dejar el PR en verde, sin merge | `/pr-green` |
+
+**NUNCA** ofrecer `/deploy-and-check` (manual-only por política — sólo como
+texto en `## Next steps` si aplica).
+
+## Output final
+
+Reportar siguiendo [[_output-protocol]]. Plantilla específica de `/implement`:
+
+```markdown
+🟢 implement OK — <qué se implementó>
+✨ Todo en orden — no hay acciones pendientes.
+
+| Dimensión | Estado | Detalle |
+|---|---|---|
+| Análisis de dependencias | ✅ | componentes afectados + flujo end-to-end trazado |
+| Plan | ✅ | archivos/funciones, side effects y trade-offs definidos |
+| Cambios | ✅ | cambio mínimo coherente, integrado con la arquitectura |
+| Tests | ✅ | cobertura para lo nuevo + regresión existente preservada |
+| Verificación | ✅ | slice mínimo de verificación corrió y pasó |
+| Docs/memory | ✅ | docs/ y tasks/ actualizados si el cambio lo exige |
+```
+
+Si un test falla, la verificación no pasa, o queda algo sin verificar,
+reemplazar el ✅ correspondiente por ⚠️ o ❌, omitir la línea ✨ y agregar
+`## Next steps` con el comando exacto de verificación pendiente
+(p.ej. `<venv>/bin/python manage.py test <app>` o `npx playwright test <spec>`)
+y lo que no se pudo confirmar.

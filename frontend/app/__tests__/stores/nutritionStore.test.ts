@@ -76,7 +76,7 @@ describe('nutritionStore', () => {
       });
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when fetchMyEntries fails', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
       await useNutritionStore.getState().fetchMyEntries();
       const state = useNutritionStore.getState();
@@ -133,7 +133,7 @@ describe('nutritionStore', () => {
       });
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when fetchClientEntries fails', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
       await useNutritionStore.getState().fetchClientEntries(10);
       expect(useNutritionStore.getState().error).toBe('No se pudieron cargar los registros de nutrición.');

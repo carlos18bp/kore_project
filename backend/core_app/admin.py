@@ -464,3 +464,63 @@ class WaterGlassLogAdmin(admin.ModelAdmin):
     list_display = ('daily_log', 'created_at')
     list_filter = ('created_at',)
     search_fields = ('daily_log__customer__email',)
+
+
+from core_app.models.store import StoreItem, RedemptionRequest
+
+
+@admin.register(StoreItem)
+class StoreItemAdmin(admin.ModelAdmin):
+    list_display = ('name', 'price_credits', 'item_type', 'is_active')
+    list_filter = ('item_type', 'is_active')
+    search_fields = ('name', 'description')
+
+
+@admin.register(RedemptionRequest)
+class RedemptionRequestAdmin(admin.ModelAdmin):
+    list_display = ('customer', 'item', 'credits_spent', 'status', 'created_at')
+    list_filter = ('status',)
+    raw_id_fields = ('customer', 'item', 'resolved_by')
+
+
+from core_app.models.credit_package import CreditPackage
+from core_app.models.credit_purchase import CreditPurchase
+
+
+@admin.register(CreditPackage)
+class CreditPackageAdmin(admin.ModelAdmin):
+    list_display = ('name', 'credits', 'price_cop', 'is_active')
+    list_editable = ('is_active',)
+    list_filter = ('is_active',)
+
+
+@admin.register(CreditPurchase)
+class CreditPurchaseAdmin(admin.ModelAdmin):
+    list_display = ('reference', 'customer', 'credits', 'amount_cop', 'status', 'resolved_at')
+    list_filter = ('status',)
+    search_fields = ('reference', 'customer__email')
+    readonly_fields = ('customer', 'credit_package', 'credits', 'amount_cop', 'reference', 'wompi_transaction_id', 'status', 'resolved_at')
+
+    def has_add_permission(self, request):
+        return False
+
+
+from core_app.models.nutrition_product import NutritionProduct
+from core_app.models.nutrition_upgrade import NutritionUpgrade
+
+
+@admin.register(NutritionProduct)
+class NutritionProductAdmin(admin.ModelAdmin):
+    list_display = ('name', 'price_cop', 'is_active')
+    list_editable = ('price_cop', 'is_active')
+
+
+@admin.register(NutritionUpgrade)
+class NutritionUpgradeAdmin(admin.ModelAdmin):
+    list_display = ('reference', 'customer', 'amount_cop', 'status', 'resolved_at')
+    list_filter = ('status',)
+    search_fields = ('reference', 'customer__email')
+    readonly_fields = ('customer', 'subscription', 'amount_cop', 'reference', 'wompi_transaction_id', 'status', 'resolved_at')
+
+    def has_add_permission(self, request):
+        return False

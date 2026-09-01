@@ -75,6 +75,8 @@ function setupStore(overrides = {}) {
     createBooking: mockCreateBooking,
     reset: mockReset,
     subscriptions: [],
+    sessionGrants: [],
+    fetchSessionGrants: jest.fn(),
     setTrainerFromAssigned: mockSetTrainerFromAssigned,
     ...overrides,
   };
@@ -124,7 +126,7 @@ describe('BookSessionPage', () => {
       user: { ...mockUser, assigned_trainer: null },
       isAuthenticated: true,
       accessToken: 'token',
-    } as any);
+    } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
     render(<BookSessionPage />);
     expect(screen.getByText('Aún no puedes agendar')).toBeInTheDocument();
     expect(screen.getByText(/Estamos asignándote un entrenador/)).toBeInTheDocument();
@@ -137,7 +139,7 @@ describe('BookSessionPage', () => {
       user: { ...mockUser, assigned_trainer: null },
       isAuthenticated: true,
       accessToken: 'token',
-    } as any);
+    } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
     const subscriptions = [
       {
         id: 1, customer_email: 'cust@kore.com',
@@ -247,21 +249,6 @@ describe('BookSessionPage', () => {
   });
 
   it('renders session progress when active subscriptions exist', () => {
-    const subscriptions = [
-      {
-        id: 1, customer_email: 'cust@kore.com',
-        package: { id: 1, title: 'Gold', sessions_count: 4, session_duration_minutes: 60, price: '500000', currency: 'COP', validity_days: 30 },
-        sessions_total: 4, sessions_used: 3, sessions_remaining: 1,
-        status: 'active', starts_at: '2025-02-01T00:00:00Z', expires_at: '2025-03-01T00:00:00Z',
-        next_billing_date: null,
-      },
-    ];
-    setupStore({ subscriptions });
-    render(<BookSessionPage />);
-    expect(screen.getAllByText(/Sesión 4 de 4/).length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('renders session details with correct session number', () => {
     const subscriptions = [
       {
         id: 1, customer_email: 'cust@kore.com',

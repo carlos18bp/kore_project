@@ -1,6 +1,8 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
+from core_app.views.admin_nutrition_views import AdminNutritionProductView
+from core_app.views.admin_reports_views import AdminReportsView
 from core_app.views.analytics_views import AnalyticsEventViewSet
 from core_app.views.availability_views import AvailabilityView
 from core_app.views.booking_views import BookingViewSet
@@ -13,6 +15,7 @@ from core_app.views.content_views import (
 from core_app.views.notification_views import NotificationViewSet
 from core_app.views.package_views import PackageViewSet
 from core_app.views.payment_views import PaymentViewSet
+from core_app.views.session_rating_views import TrainerRatingsSummaryView
 from core_app.views.subscription_views import SubscriptionViewSet
 from core_app.views.admin_user_views import AdminUserViewSet
 from core_app.views.duo_invite_views import accept_invite, pending_invitation
@@ -72,6 +75,7 @@ from core_app.views.trainer_client_views import (
 )
 from core_app.views.trainer_unavailability_views import TrainerUnavailabilityView
 from core_app.views.trainer_intelligence_views import (
+    TrainerEngagementView,
     TrainerRiskDashboardView,
     TrainerClientKPIView,
     TrainerComparativeMetricsView,
@@ -115,6 +119,27 @@ from core_app.views.nutrition_week_note_views import (
     CustomerNutritionWeekNoteListView,
     UpdateNutritionWeekNoteView,
 )
+from core_app.views.credit_views import (
+    CreditSettingsView,
+    CreditTransactionListView,
+    CreditValuesView,
+    CreditWalletView,
+    TrainerPendingReviewsView,
+    TrainerReviewTransactionView,
+)
+from core_app.views.physical_test_views import PhysicalTestViewSet
+from core_app.views.monthly_program_views import ExerciseCaptureUploadView
+from core_app.views.store_views import (
+    StoreItemViewSet, StoreCatalogView, RedemptionView,
+    TrainerRedemptionView, TrainerRedemptionReviewView,
+)
+from core_app.views.session_grant_views import SessionGrantListView
+from core_app.views.credit_purchase_views import (
+    CreditPackageListView, CreditPurchaseCreateView, CreditPurchaseStatusView,
+)
+from core_app.views.nutrition_upgrade_views import (
+    NutritionAccessView, NutritionUpgradeCreateView, NutritionUpgradeStatusView,
+)
 
 router = DefaultRouter()
 router.register('packages', PackageViewSet, basename='package')
@@ -128,6 +153,8 @@ router.register('faqs', FAQItemViewSet, basename='faq')
 router.register('contact-messages', ContactMessageViewSet, basename='contact-message')
 router.register('analytics-events', AnalyticsEventViewSet, basename='analytics-event')
 router.register('admin/users', AdminUserViewSet, basename='admin-user')
+router.register('trainer/physical-tests', PhysicalTestViewSet, basename='physical-test')
+router.register('trainer/store-items', StoreItemViewSet, basename='store-item')
 
 urlpatterns = [
     path('subscriptions/accept-invite/', accept_invite, name='subscription-accept-invite'),
@@ -137,6 +164,7 @@ urlpatterns = [
     path('site-settings/', SiteSettingsView.as_view(), name='site-settings'),
     path('terms-acceptance/status/', TermsAcceptanceStatusView.as_view(), name='terms-acceptance-status'),
     path('terms-acceptance/accept/', TermsAcceptanceCreateView.as_view(), name='terms-acceptance-accept'),
+    path('trainer/ratings/summary/', TrainerRatingsSummaryView.as_view(), name='trainer-ratings-summary'),
     path('trainer/my-clients/', TrainerClientListView.as_view(), name='trainer-client-list'),
     path('trainer/my-clients/<int:customer_id>/', TrainerClientDetailView.as_view(), name='trainer-client-detail'),
     path('trainer/my-clients/<int:customer_id>/sessions/', TrainerClientSessionsView.as_view(), name='trainer-client-sessions'),
@@ -182,6 +210,7 @@ urlpatterns = [
     path('my-program/monthly-summary/', MonthlySummaryView.as_view(), name='my-program-monthly-summary'),
     # Trainer Intelligence Center
     path('trainer/risk-dashboard/', TrainerRiskDashboardView.as_view(), name='trainer-risk-dashboard'),
+    path('trainer/engagement/', TrainerEngagementView.as_view(), name='trainer-engagement'),
     path('trainer/comparative-metrics/', TrainerComparativeMetricsView.as_view(), name='trainer-comparative-metrics'),
     path('trainer/alerts/', TrainerAlertCenterView.as_view(), name='trainer-alerts'),
     path('trainer/alerts/<int:risk_score_id>/resolve/', TrainerAlertResolveView.as_view(), name='trainer-alert-resolve'),
@@ -204,6 +233,8 @@ urlpatterns = [
     path('my-nutrition-daily/<int:log_id>/water-glasses/', WaterGlassLogCreateView.as_view(), name='my-nutrition-daily-water-glass-create'),
     path('my-nutrition-daily/history/', NutritionHistoryView.as_view(), name='my-nutrition-daily-history'),
     path('admin/trainers/assignment-summary/', TrainerAssignmentSummaryView.as_view(), name='admin-trainer-assignment-summary'),
+    path('admin/nutrition-product/', AdminNutritionProductView.as_view(), name='admin-nutrition-product'),
+    path('admin/reports/', AdminReportsView.as_view(), name='admin-reports'),
     # Nutrition plans (trainer-curated weekly plans)
     path('nutrition-plans/customer/<int:customer_id>/', CustomerNutritionPlanListView.as_view(), name='nutrition-plan-list'),
     path('nutrition-plans/generate/', GenerateNutritionPlanView.as_view(), name='nutrition-plan-generate'),
@@ -217,4 +248,23 @@ urlpatterns = [
     path('meal-suggestions/', MealSuggestionCatalogView.as_view(), name='meal-suggestions'),
     path('my-nutrition-plan/', CustomerNutritionPlanWeekView.as_view(), name='my-nutrition-plan'),
     path('my-nutrition-plans/', CustomerNutritionPlanHistoryView.as_view(), name='my-nutrition-plans'),
+    # Credits (Phase 2)
+    path('credits/wallet/', CreditWalletView.as_view(), name='credits-wallet'),
+    path('credits/transactions/', CreditTransactionListView.as_view(), name='credits-transactions'),
+    path('credits/values/', CreditValuesView.as_view(), name='credits-values'),
+    path('credits/settings/', CreditSettingsView.as_view(), name='credits-settings'),
+    path('trainer/credits/pending-reviews/', TrainerPendingReviewsView.as_view(), name='trainer-credits-pending-reviews'),
+    path('trainer/credits/transactions/<int:tx_id>/review/', TrainerReviewTransactionView.as_view(), name='trainer-credits-review'),
+    path('session-grants/', SessionGrantListView.as_view(), name='session-grants'),
+    path('nutrition/access/', NutritionAccessView.as_view(), name='nutrition-access'),
+    path('nutrition/upgrade/', NutritionUpgradeCreateView.as_view(), name='nutrition-upgrade'),
+    path('nutrition/upgrade/<str:reference>/', NutritionUpgradeStatusView.as_view(), name='nutrition-upgrade-status'),
+    path('credits/packages/', CreditPackageListView.as_view(), name='credit-packages'),
+    path('credits/purchases/', CreditPurchaseCreateView.as_view(), name='credit-purchases'),
+    path('credits/purchases/<str:reference>/', CreditPurchaseStatusView.as_view(), name='credit-purchase-status'),
+    path('store/items/', StoreCatalogView.as_view(), name='store-items'),
+    path('store/redemptions/', RedemptionView.as_view(), name='store-redemptions'),
+    path('trainer/store/redemptions/', TrainerRedemptionView.as_view(), name='trainer-store-redemptions'),
+    path('trainer/store/redemptions/<int:pk>/review/', TrainerRedemptionReviewView.as_view(), name='trainer-store-redemption-review'),
+    path('my-program/logs/<int:log_id>/exercises/<int:ex_log_id>/captures/', ExerciseCaptureUploadView.as_view(), name='my-program-exercise-captures'),
 ]

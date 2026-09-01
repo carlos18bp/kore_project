@@ -286,6 +286,74 @@ class TestTrainerRescheduleBooking:
 
 
 # ----------------------------------------------------------------
+# SESSION PREP — trainer sets objective/notes before a session
+# ----------------------------------------------------------------
+
+@pytest.mark.django_db
+class TestTrainerSessionPrep:
+
+    def _booking(self, customer, package, trainer_profile):
+        return Booking.objects.create(
+            customer=customer, package=package, trainer=trainer_profile,
+            status=Booking.Status.CONFIRMED,
+            starts_at=FAR_STARTS_AT, ends_at=FAR_ENDS_AT,
+        )
+
+    def test_session_prep_saves_fields_for_assigned_trainer(
+        self, api_client, trainer_user, trainer_profile, assigned_customer, package,
+    ):
+        """The booking's own trainer can persist objective plus customer notes."""
+        booking = self._booking(assigned_customer, package, trainer_profile)
+        api_client.force_authenticate(user=trainer_user)
+        url = reverse('booking-session-prep', args=[booking.pk])
+
+        response = api_client.patch(url, {
+            'session_objective': 'Fuerza tren inferior',
+            'session_notes_for_customer': 'Llegar hidratado',
+        }, format='json')
+
+        assert response.status_code == status.HTTP_200_OK, response.data
+        booking.refresh_from_db()
+        assert booking.session_objective == 'Fuerza tren inferior'
+        assert booking.session_notes_for_customer == 'Llegar hidratado'
+
+    def test_session_prep_unknown_booking_returns_404(self, api_client, trainer_user, trainer_profile):
+        """A nonexistent booking id yields 404."""
+        api_client.force_authenticate(user=trainer_user)
+
+        url = reverse('booking-session-prep', args=[999999])
+        response = api_client.patch(url, {'session_objective': 'X'}, format='json')
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_session_prep_foreign_trainer_returns_403(
+        self, api_client, other_trainer_profile, trainer_profile, assigned_customer, package,
+    ):
+        """A trainer who does not own the booking cannot edit its prep fields."""
+        booking = self._booking(assigned_customer, package, trainer_profile)
+        api_client.force_authenticate(user=other_trainer_profile.user)
+
+        url = reverse('booking-session-prep', args=[booking.pk])
+        response = api_client.patch(url, {'session_objective': 'Robo'}, format='json')
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        booking.refresh_from_db()
+        assert booking.session_objective == ''
+
+    def test_session_prep_without_valid_fields_returns_400(
+        self, api_client, trainer_user, trainer_profile, assigned_customer, package,
+    ):
+        """A payload with no editable prep field is rejected with 400."""
+        booking = self._booking(assigned_customer, package, trainer_profile)
+        api_client.force_authenticate(user=trainer_user)
+
+        url = reverse('booking-session-prep', args=[booking.pk])
+        response = api_client.patch(url, {'irrelevant': 'x'}, format='json')
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+# ----------------------------------------------------------------
 # Customer flow regression — make sure rules still apply
 # ----------------------------------------------------------------
 

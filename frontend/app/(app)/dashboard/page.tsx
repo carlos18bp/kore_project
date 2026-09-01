@@ -25,10 +25,15 @@ import { useProgressStore } from '@/lib/stores/progressStore';
 import UpcomingSessionReminder from '@/app/components/booking/UpcomingSessionReminder';
 import UpcomingSessionsCard from '@/app/components/booking/UpcomingSessionsCard';
 import SessionDetailModal from '@/app/components/booking/SessionDetailModal';
+import SessionRatingCard from '@/app/components/booking/SessionRatingCard';
 import type { BookingData } from '@/lib/stores/bookingStore';
 import SubscriptionExpiryReminder from '@/app/components/subscription/SubscriptionExpiryReminder';
 import SubscriptionDashboardToast from '@/app/components/subscription/SubscriptionDashboardToast';
 import ProgressTabsCard from '@/app/components/program/ProgressTabsCard';
+import CreditBalanceBadge from '@/app/components/dashboard/CreditBalanceBadge';
+import HeroTaskPills from '@/app/components/dashboard/HeroTaskPills';
+import NextSessionRow from '@/app/components/dashboard/NextSessionRow';
+import { useWalletStore } from '@/lib/stores/walletStore';
 import { useAnthropometryStore } from '@/lib/stores/anthropometryStore';
 import { usePosturometryStore } from '@/lib/stores/posturometryStore';
 import { usePhysicalEvaluationStore } from '@/lib/stores/physicalEvaluationStore';
@@ -1133,217 +1138,6 @@ function IndicatorRow({
   );
 }
 
-/* ── SessionCard (mobile + desktop) — accordion mobile con GSAP ─────────── */
-type SessionCardProps = {
-  className?: string;
-  mobile?: boolean;
-  formattedDate: string | null;
-  formattedTime: string;
-  sessionInDays: number | null;
-  trainerName: string | null;
-  sessionObjective?: string;
-  expanded?: boolean;
-  onToggle?: () => void;
-  onShowUpcoming?: () => void;
-};
-
-function SessionCard({
-  className = '',
-  mobile = false,
-  formattedDate,
-  formattedTime,
-  sessionInDays,
-  trainerName,
-  sessionObjective,
-  expanded = false,
-  onToggle,
-  onShowUpcoming,
-}: SessionCardProps) {
-  const accordionRef = useRef<HTMLDivElement>(null);
-  const firstMount = useRef(true);
-
-  useEffect(() => {
-    if (!mobile || !accordionRef.current) return;
-    const el = accordionRef.current;
-
-    if (firstMount.current) {
-      firstMount.current = false;
-      gsap.set(el, expanded
-        ? { height: 'auto', opacity: 1, display: 'block' }
-        : { height: 0, opacity: 0, display: 'none', overflow: 'hidden' });
-      return;
-    }
-
-    if (expanded) {
-      gsap.set(el, { display: 'block', overflow: 'hidden' });
-      gsap.fromTo(
-        el,
-        { height: 0, opacity: 0 },
-        { height: 'auto', opacity: 1, duration: 0.4, ease: 'power3.out' },
-      );
-    } else {
-      gsap.to(el, {
-        height: 0,
-        opacity: 0,
-        duration: 0.28,
-        ease: 'power2.in',
-        onComplete: () => {
-          if (accordionRef.current) gsap.set(accordionRef.current, { display: 'none' });
-        },
-      });
-    }
-  }, [expanded, mobile]);
-
-  return (
-    <div
-      className={`relative overflow-hidden rounded-[22px] text-white flex flex-col ${mobile ? 'p-4' : 'p-5'} ${className}`}
-      style={{
-        background: 'linear-gradient(135deg, #2D0F1A 0%, #5C2030 55%, #670F22 100%)',
-        boxShadow: '0 14px 36px -14px rgba(103,15,34,0.55)',
-      }}
-    >
-      <style>{`
-        @keyframes session-orb-a{0%,100%{transform:translate(0,0)}50%{transform:translate(36px,-26px)}}
-        @keyframes session-orb-b{0%,100%{transform:translate(0,0)}50%{transform:translate(-30px,28px)}}
-      `}</style>
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          top: '-12%', right: '-8%', width: 220, height: 220, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(244,199,199,0.30) 0%, transparent 70%)',
-          filter: 'blur(48px)', animation: 'session-orb-a 11s ease-in-out infinite',
-        }}
-      />
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          bottom: '-15%', left: '-6%', width: 180, height: 180, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(231,200,160,0.22) 0%, transparent 70%)',
-          filter: 'blur(50px)', animation: 'session-orb-b 13s ease-in-out infinite',
-        }}
-      />
-
-      {mobile ? (
-        <div className="relative flex flex-col">
-          <p className="text-[10px] text-white/55 uppercase tracking-[0.14em] font-semibold mb-2">
-            Próxima sesión
-          </p>
-          <p className="font-heading text-[20px] font-semibold text-white capitalize leading-tight mb-1">
-            {formattedDate ?? 'Sin sesión agendada'}
-          </p>
-          {formattedDate && (
-            <div className="flex items-center gap-2 text-[13px] text-white/85">
-              <span className="font-semibold tabular-nums">{formattedTime}</span>
-              {trainerName && (
-                <>
-                  <span className="w-1 h-1 rounded-full bg-white/45" aria-hidden />
-                  <span className="truncate">{trainerName}</span>
-                </>
-              )}
-            </div>
-          )}
-          {formattedDate && onToggle && (
-            <button
-              type="button"
-              onClick={onToggle}
-              className="mt-3 flex items-center justify-between w-full text-left text-[11px] text-white/60 font-semibold uppercase tracking-[0.1em] py-1.5 active:scale-[0.99] transition-transform"
-              aria-expanded={expanded}
-            >
-              <span>{expanded ? 'Ocultar detalle' : 'Ver detalle'}</span>
-              <ChevronDown
-                className={`w-4 h-4 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}
-                strokeWidth={2}
-              />
-            </button>
-          )}
-          {formattedDate && (
-            <div
-              ref={accordionRef}
-              style={{ display: 'none', height: 0, opacity: 0, overflow: 'hidden' }}
-            >
-              <div
-                className="mt-2 pt-3 space-y-2.5"
-                style={{ borderTop: '1px solid rgba(255,255,255,0.18)' }}
-              >
-                {sessionInDays !== null && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-white/55 uppercase tracking-[0.1em] font-semibold">Faltan</span>
-                    <span
-                      className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold text-white"
-                      style={{ background: 'rgba(255,255,255,0.15)' }}
-                    >
-                      {sessionInDays} {sessionInDays === 1 ? 'día' : 'días'}
-                    </span>
-                  </div>
-                )}
-                <div>
-                  <p className="text-[10px] text-white/55 uppercase tracking-[0.1em] font-semibold mb-1">Objetivo</p>
-                  <p className="text-[12px] text-white/80 leading-relaxed">
-                    {sessionObjective ?? 'Continúa tu transformación'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-          {onShowUpcoming && (
-            <button
-              type="button"
-              onClick={onShowUpcoming}
-              className="mt-3 inline-flex items-center gap-1.5 self-start rounded-lg px-3 py-1.5 text-[11px] font-semibold text-white/85 hover:bg-white/[0.12] transition-colors active:scale-95"
-              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)' }}
-            >
-              <Calendar className="w-3.5 h-3.5" strokeWidth={2} /> Próximas sesiones
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="relative flex flex-col flex-1">
-          <div className="flex items-start justify-between mb-3">
-            <p className="text-[10px] text-white/55 uppercase tracking-[0.14em] font-semibold">
-              Próxima sesión presencial
-            </p>
-            {sessionInDays !== null && (
-              <span
-                className="px-2.5 py-1 rounded-full text-[11px] font-semibold text-white"
-                style={{ background: 'rgba(255,255,255,0.15)' }}
-              >
-                en {sessionInDays}d
-              </span>
-            )}
-          </div>
-          <p className="font-heading text-[20px] xl:text-[28px] font-semibold text-white capitalize leading-tight mb-1">
-            {formattedDate ?? 'Sin sesión agendada'}
-          </p>
-          {formattedDate && (
-            <p className="text-[13px] xl:text-[14px] text-white/85 mb-3">
-              {formattedTime}
-            </p>
-          )}
-          {trainerName && (
-            <div className="py-3 my-1 flex-1" style={{ borderTop: '1px solid rgba(255,255,255,0.18)', borderBottom: '1px solid rgba(255,255,255,0.18)' }}>
-              <p className="text-[11px] text-white/55 font-semibold uppercase tracking-[0.1em] mb-1">Coach</p>
-              <p className="text-[14px] text-white font-semibold">{trainerName}</p>
-            </div>
-          )}
-          <p className="text-[12px] text-white/70 flex-1 mt-2 leading-relaxed">
-            {sessionObjective ?? 'Continúa tu transformación'}
-          </p>
-          {onShowUpcoming && (
-            <button
-              type="button"
-              onClick={onShowUpcoming}
-              className="mt-3 inline-flex items-center gap-1.5 self-start rounded-lg px-3 py-1.5 text-[11px] font-semibold text-white/85 hover:bg-white/[0.12] transition-colors active:scale-95"
-              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)' }}
-            >
-              <Calendar className="w-3.5 h-3.5" strokeWidth={2} /> Próximas sesiones
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── Main component ────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -1359,7 +1153,8 @@ export default function DashboardPage() {
   const { koreIndex, fetchPending: fetchPendingAssessments } = usePendingAssessmentsStore();
   const { todayLog: nutritionTodayLog, fetchTodayLog: fetchNutritionToday } = useNutritionDailyStore();
   const { activeProgram, fetchActiveProgram } = useProgramStore();
-  const { weeklySummary, fetchWeeklySummary } = useProgressStore();
+  const { fetchWeeklySummary } = useProgressStore();
+  const { wallet, fetchWallet } = useWalletStore();
   const { evaluations: anthroEvals, loaded: anthroLoaded, fetchMyEvaluations: fetchMyAnthrometry } = useAnthropometryStore();
   const { evaluations: posturoEvals, loaded: posturoLoaded, fetchMyEvaluations: fetchMyPosturo } = usePosturometryStore();
   const { evaluations: physicalEvals, loaded: physicalLoaded, fetchMyEvaluations: fetchMyPhysical } = usePhysicalEvaluationStore();
@@ -1368,7 +1163,6 @@ export default function DashboardPage() {
   const profileFetchedRef = useRef(false);
 
   // Mobile accordion states
-  const [sessionExpanded, setSessionExpanded] = useState(false);
   const [progressExpanded, setProgressExpanded] = useState(false);
   const [showUpcoming, setShowUpcoming] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<BookingData | null>(null);
@@ -1409,6 +1203,7 @@ export default function DashboardPage() {
         fetchBookings(),
         fetchWeeklySummary(),
         fetchNutritionToday(),
+        fetchWallet(),
       ]);
       if (cancelled) return;
 
@@ -1430,8 +1225,10 @@ export default function DashboardPage() {
 
   // ── Streak ─────────────────────────────────────────────────
   // Source: weekly adherence summary (matches /mi-programa).
-  const streakCount = weeklySummary?.streak?.current ?? 0;
-  const longestStreak = weeklySummary?.streak?.longest ?? 0;
+  // Streak now comes from the credits engine (the streak that grants bonuses),
+  // not weekly adherence — one official streak across the app.
+  const streakCount = wallet?.current_streak ?? 0;
+  const longestStreak = wallet?.longest_streak ?? 0;
 
   // ── Session ────────────────────────────────────────────────
   const formattedDate = upcomingReminder?.starts_at
@@ -1444,14 +1241,6 @@ export default function DashboardPage() {
         hour: '2-digit', minute: '2-digit', hour12: true,
       })
     : '';
-  const sessionInDays = upcomingReminder?.starts_at
-    ? Math.max(0, Math.ceil(
-        (new Date(upcomingReminder.starts_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-      ))
-    : null;
-  const trainerName = upcomingReminder?.trainer
-    ? `${upcomingReminder.trainer.first_name} ${upcomingReminder.trainer.last_name}`.trim()
-    : null;
 
   // ── Nutrition ──────────────────────────────────────────────
   const mealLabels: Record<string, string> = {
@@ -1550,6 +1339,8 @@ export default function DashboardPage() {
       <SubscriptionExpiryReminder />
       <SubscriptionDashboardToast />
 
+      <SessionRatingCard />
+
       {showUpcoming && createPortal(
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-sm p-4"
@@ -1591,6 +1382,8 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex flex-col gap-1.5 w-[150px]">
+            {/* Fila 0 — Balance de créditos */}
+            <CreditBalanceBadge />
             {/* Fila 1 — Racha */}
             <button
               type="button"
@@ -1716,6 +1509,7 @@ export default function DashboardPage() {
                   </div>
                 </Link>
               )}
+              <HeroTaskPills />
               <div className="mt-4 space-y-2">
                 <Link
                   href="/mi-programa/hoy?start=1"
@@ -1753,17 +1547,11 @@ export default function DashboardPage() {
           </AnimatedHero>
         )}
 
-        {/* Next session */}
+        {/* Next session — compact row (always present; empty state opens the modal) */}
         {!isGuestDashboard && (
-          <SessionCard
-            mobile
+          <NextSessionRow
             formattedDate={formattedDate}
             formattedTime={formattedTime}
-            sessionInDays={sessionInDays}
-            trainerName={trainerName}
-            sessionObjective={upcomingReminder?.session_objective}
-            expanded={sessionExpanded}
-            onToggle={() => setSessionExpanded((v) => !v)}
             onShowUpcoming={() => setShowUpcoming(true)}
           />
         )}
@@ -1801,6 +1589,7 @@ export default function DashboardPage() {
             </p>
           </div>
           <div className="flex items-stretch gap-2 shrink-0">
+            <div className="min-w-[150px] flex items-stretch"><CreditBalanceBadge /></div>
             <button
               type="button"
               onClick={() => setInfoModal('streak')}
@@ -1919,6 +1708,7 @@ export default function DashboardPage() {
                         </div>
                       </Link>
                     )}
+                    <HeroTaskPills />
                   </div>
                   <div style={{ borderLeft: '1px solid rgba(255,255,255,0.10)', paddingLeft: 24 }}>
                     <p className="text-[10px] text-white/40 uppercase tracking-[0.14em] mb-2.5">En esta sesión</p>
@@ -1958,13 +1748,9 @@ export default function DashboardPage() {
 
           <div className="col-span-4">
             {!isGuestDashboard ? (
-              <SessionCard
-                className="h-full"
+              <NextSessionRow
                 formattedDate={formattedDate}
                 formattedTime={formattedTime}
-                sessionInDays={sessionInDays}
-                trainerName={trainerName}
-                sessionObjective={upcomingReminder?.session_objective}
                 onShowUpcoming={() => setShowUpcoming(true)}
               />
             ) : (

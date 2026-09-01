@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures';
 import { mockLoginAsAdmin } from '../helpers/admin-auth';
+import { mockApiError } from '../helpers/api-errors';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
@@ -165,7 +166,7 @@ test.describe(
       await expect(page.getByRole('button', { name: /Plan Esencial/ })).toBeVisible();
     });
 
-    test('completing the wizard redirects to the subscriptions list', async ({ page }) => {
+    test('completing the wizard redirects to the new subscription detail', async ({ page }) => {
       await mockWizard(page);
       await page.goto('/admin-platform/subscriptions/new');
 
@@ -183,7 +184,7 @@ test.describe(
       await expect(page).toHaveURL(/\/subscriptions\/detail\?id=77/);
     });
 
-    test('shows an error when admin-create fails', async ({ page }) => {
+    test('shows an error when admin-create fails', { tag: ['@outcome:error'] }, async ({ page }) => {
       await mockWizard(page, {
         postStatus: 400,
         postBody: { detail: 'El cliente ya tiene una suscripción activa.' },
@@ -199,6 +200,38 @@ test.describe(
         page.getByText('El cliente ya tiene una suscripción activa.'),
       ).toBeVisible();
       await expect(page).toHaveURL(/subscriptions\/new/);
+    });
+
+    test('a packages load failure surfaces the catalog error message', { tag: ['@outcome:failure'] }, async ({ page }) => {
+      await mockWizard(page);
+      // Registered after mockWizard so it wins (LIFO) for the package catalog GET.
+      await mockApiError(page, '**/api/packages/**', 500, {}, { method: 'GET' });
+
+      await page.goto('/admin-platform/subscriptions/new');
+      await page.getByRole('button', { name: /Carla Ruiz/ }).click();
+
+      await expect(page.getByText('No se pudieron cargar los paquetes.')).toBeVisible();
+    });
+
+    test('the picker explains when every customer has an active plan', async ({ page }) => {
+      await mockWizard(page);
+      // Override the roster (LIFO): same customers, but every one with an active plan.
+      await page.route('**/api/admin/users/**', async (route) => {
+        if (route.request().method() !== 'GET') return route.fallback();
+        const busy = CUSTOMERS.map((c) => ({ ...c, has_active_subscription: true }));
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ count: busy.length, next: null, previous: null, results: busy }),
+        });
+      });
+
+      await page.goto('/admin-platform/subscriptions/new');
+
+      await expect(
+        page.getByText(/Todos los clientes de esta búsqueda ya tienen plan activo/),
+      ).toBeVisible();
+      await expect(page.getByRole('button', { name: /Carla Ruiz/ })).toHaveCount(0);
     });
   },
 );

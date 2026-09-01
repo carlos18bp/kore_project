@@ -34,6 +34,17 @@ const ProgramIcon = (
     <path d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" />
   </svg>
 );
+const CreditsIcon = (
+  <svg {...iconProps}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 8v8M9.5 10.5a2.5 2 0 0 1 5 0c0 1.5-2.5 1.3-2.5 3" />
+  </svg>
+);
+const StoreIcon = (
+  <svg {...iconProps}>
+    <path d="M3 9l1-5h16l1 5M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9M4 9h16M9 13h6" />
+  </svg>
+);
 const NutritionIcon = (
   <svg {...iconProps}>
     <path d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z" />
@@ -123,6 +134,8 @@ export default function Sidebar() {
       {
         label: 'Cuenta',
         items: [
+          { key: 'store', label: 'Tienda', href: '/tienda', icon: StoreIcon },
+          { key: 'credits', label: 'Mis créditos', href: '/mis-creditos', icon: CreditsIcon },
           { key: 'subscription', label: 'Mi Suscripción', href: '/subscription', icon: CardIcon, badge: dot(subscriptionExpiring) },
         ],
       },

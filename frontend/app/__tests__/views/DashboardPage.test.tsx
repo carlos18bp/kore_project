@@ -56,6 +56,19 @@ jest.mock('@/lib/stores/profileStore', () => ({
     profile: null,
     todayMood: null,
     fetchProfile: jest.fn(),
+    openMoodModal: jest.fn(),
+  }),
+}));
+
+jest.mock('@/lib/stores/creditValuesStore', () => ({
+  useCreditValuesStore: () => ({
+    actionValues: {},
+    streakBonuses: {},
+    waterGoalGlasses: 8,
+    requireWorkoutCaptures: false,
+    loaded: false,
+    fetchValues: jest.fn(),
+    value: () => null,
   }),
 }));
 
@@ -128,6 +141,8 @@ jest.mock('@/lib/stores/programStore', () => ({
   useProgramStore: () => ({
     activeProgram: null,
     fetchActiveProgram: jest.fn(),
+    todayData: null,
+    fetchTodayData: jest.fn(),
   }),
 }));
 
@@ -135,6 +150,14 @@ jest.mock('@/lib/stores/progressStore', () => ({
   useProgressStore: () => ({
     weeklySummary: null,
     fetchWeeklySummary: jest.fn(),
+  }),
+}));
+
+jest.mock('@/lib/stores/walletStore', () => ({
+  useWalletStore: () => ({
+    wallet: { balance: 55, pending_balance: 0, current_streak: 3, longest_streak: 9, last_active_date: null, next_milestone: null },
+    walletLoaded: true, transactions: [], txCount: 0, txLoading: false,
+    fetchWallet: jest.fn(), fetchTransactions: jest.fn(),
   }),
 }));
 
@@ -192,10 +215,11 @@ describe('DashboardPage', () => {
     expect(screen.getAllByText('Tu espacio').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders upcoming sessions section header', () => {
+  it('renders the credit balance badge in the header', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true, accessToken: 'token' });
     render(<DashboardPage />);
-    expect(screen.getAllByText('Próximas sesiones').length).toBeGreaterThanOrEqual(1);
+    // CreditBalanceBadge lives in the greeting header cluster (mobile + desktop).
+    expect(screen.getAllByText('créditos').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders greeting with user first name and header', () => {

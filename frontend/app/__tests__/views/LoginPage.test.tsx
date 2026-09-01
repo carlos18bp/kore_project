@@ -19,7 +19,7 @@ jest.mock('next/image', () => ({
 }));
 
 jest.mock('react-google-recaptcha', () => {
-  const ReactLib = require('react');
+  const ReactLib = jest.requireActual('react');
   return ReactLib.forwardRef(
     (
       { onChange }: { onChange?: (token: string | null) => void },

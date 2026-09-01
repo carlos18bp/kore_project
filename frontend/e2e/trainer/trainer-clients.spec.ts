@@ -166,7 +166,8 @@ test.describe('Trainer Clients Page', { tag: [...FlowTags.TRAINER_CLIENTS_LIST, 
     await expect(table.getByText('María López')).not.toBeVisible();
   });
 
-  test('search with no results shows filter empty message', async ({ page }) => {
+  test('search with no results shows filter empty message', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-deep-link (el área de entrenador exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await injectTrainerAuthCookies(page);
     await setupTrainerClientsMocks(page);
     await page.goto('/trainer/clients');
@@ -201,4 +202,24 @@ test.describe('Trainer Clients Page', { tag: [...FlowTags.TRAINER_CLIENTS_LIST, 
 
     await page.waitForURL('**/trainer/clients/client?id=1');
   });
+
+  test('a clients load failure degrades to the empty placeholder', { tag: ['@outcome:error'] }, async ({ page }) => {
+    // quality: allow-no-interaction (el fallo se induce desde la API; no hay acción de usuario que lo dispare — el estado degradado ES lo verificado)
+    // quality: allow-deep-link (el área de entrenador exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
+    await injectTrainerAuthCookies(page);
+    await setupTrainerClientsMocks(page);
+    // Después del helper: la última ruta registrada gana.
+    await page.route('**/api/trainer/my-clients/', (route) =>
+      route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
+    );
+
+    await page.goto('/trainer/clients');
+
+    // La página no expone el error del store, así que el contrato observable en
+    // fallo es degradar sin romperse: el shell sigue en pie y la lista queda
+    // vacía en vez de colgarse en "cargando" o tirar la vista abajo.
+    await expect(page.getByRole('heading', { level: 1, name: 'Mis Clientes' })).toHaveCount(1);
+    await expect(page.getByText('Aún no tienes clientes asignados.')).toHaveCount(1);
+  });
+
 });

@@ -67,7 +67,9 @@ test.describe('Customer Physical Evaluation Page', { tag: [...FlowTags.CUSTOMER_
     await expect(page.getByText(/Última evaluación/i)).toBeVisible();
   });
 
-  test('renders the general-index hero with the four capacity sub-indices', async ({ page }) => {
+  test('renders the general-index hero with the four capacity sub-indices', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await goToPhysicalEvalWithData(page);
 
     const main = page.getByRole('main');

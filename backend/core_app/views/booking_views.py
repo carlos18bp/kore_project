@@ -9,8 +9,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from core_app.models import Booking, Subscription, SubscriptionGuest, TrainerProfile
+from core_app.models.credit import CreditTransaction
+from core_app.models.session_grant import SessionGrant
+from core_app.models.session_rating import SessionRating
 from core_app.permissions import IsAdminRole, IsTrainerRole, is_admin_user
 from core_app.serializers.booking_serializers import BookingSerializer
+from core_app.serializers.session_rating_serializers import SessionRatingSerializer
 from core_app.services.slot_schedule import is_start_time_available, session_window
 from core_app.services.email_service import (
     send_booking_cancellation,
@@ -18,7 +22,11 @@ from core_app.services.email_service import (
     send_booking_reschedule,
 )
 
-CANCEL_RESCHEDULE_HOURS = 24
+def _reschedule_window_hours() -> int:
+    """The single window that blocks a late cancel/reschedule AND triggers the
+    credit penalty (`credit_engine.on_reschedule` reads the same field)."""
+    from core_app.services import credit_engine
+    return credit_engine.get_settings().reschedule_window_hours
 
 
 def _is_trainer_owner(user, booking):
@@ -164,10 +172,11 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         bypass_window = is_admin_user(request.user) or _is_trainer_owner(request.user, booking)
         if not bypass_window:
+            window = _reschedule_window_hours()
             time_until = booking.starts_at - timezone.now()
-            if time_until < timedelta(hours=CANCEL_RESCHEDULE_HOURS):
+            if time_until < timedelta(hours=window):
                 return Response(
-                    {'detail': f'No puedes cancelar con menos de {CANCEL_RESCHEDULE_HOURS} horas de anticipación.'},
+                    {'detail': f'No puedes cancelar con menos de {window} horas de anticipación.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -180,6 +189,11 @@ class BookingViewSet(viewsets.ModelViewSet):
                 sub = Subscription.objects.select_for_update().get(pk=booking.subscription_id)
                 sub.sessions_used = db_models.F('sessions_used') - 1
                 sub.save(update_fields=['sessions_used', 'updated_at'])
+
+            if booking.session_grant_id:
+                grant = SessionGrant.objects.select_for_update().get(pk=booking.session_grant_id)
+                grant.sessions_used = db_models.F('sessions_used') - 1
+                grant.save(update_fields=['sessions_used', 'updated_at'])
 
             _cancel_guest_booking_for_slot(booking)
 
@@ -213,10 +227,11 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         bypass_window = is_admin_user(request.user) or _is_trainer_owner(request.user, booking)
         if not bypass_window:
+            window = _reschedule_window_hours()
             time_until = booking.starts_at - timezone.now()
-            if time_until < timedelta(hours=CANCEL_RESCHEDULE_HOURS):
+            if time_until < timedelta(hours=window):
                 return Response(
-                    {'detail': f'No puedes reprogramar con menos de {CANCEL_RESCHEDULE_HOURS} horas de anticipación.'},
+                    {'detail': f'No puedes reprogramar con menos de {window} horas de anticipación.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -265,6 +280,8 @@ class BookingViewSet(viewsets.ModelViewSet):
             _maybe_create_guest_booking(new_booking)
 
         send_booking_reschedule(booking, new_booking)
+        from core_app.services import credit_engine
+        credit_engine.on_reschedule(booking, new_booking, acting_user=request.user)
         serializer = self.get_serializer(new_booking)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -297,6 +314,122 @@ class BookingViewSet(viewsets.ModelViewSet):
         logging.getLogger(__name__).warning('[session_prep] booking=%s payload=%s saved_obj=%r', pk, dict(data), booking.session_objective)
         serializer = self.get_serializer(booking)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='confirm-attendance', permission_classes=[IsTrainerRole])
+    def confirm_attendance(self, request, pk=None):
+        """Trainer marks whether the customer attended a session that already started.
+
+        Body: ``{"attended": true|false}``. Emits credit awards/penalties via the
+        credit engine (late confirmation reverses a prior no-show penalty).
+        """
+        try:
+            booking = Booking.objects.select_related('trainer', 'customer').get(pk=pk)
+        except Booking.DoesNotExist:
+            return Response({'detail': 'Sesión no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+
+        trainer_profile = getattr(request.user, 'trainer_profile', None)
+        if not is_admin_user(request.user):
+            # Fail closed on unassigned bookings: attendance moves credits, so
+            # only the booking's own trainer (or an admin) may confirm it.
+            if not trainer_profile or booking.trainer_id is None or booking.trainer_id != trainer_profile.pk:
+                return Response({'detail': 'No autorizado.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if booking.status == Booking.Status.CANCELED:
+            return Response(
+                {'detail': 'No se puede confirmar asistencia de una sesión cancelada.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if booking.starts_at > timezone.now():
+            return Response(
+                {'detail': 'La sesión aún no ha iniciado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        attended = request.data.get('attended')
+        if not isinstance(attended, bool):
+            return Response(
+                {'detail': 'El campo attended (true/false) es obligatorio.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from core_app.services import credit_engine
+        credit_engine.record_attendance(booking, attended=attended)
+        serializer = self.get_serializer(booking)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='rate')
+    def rate(self, request, pk=None):
+        """Rate an attended session. The rater's role is derived from the user.
+
+        Body: ``{"score": 1..5, "comment": "..."}``. The customer's rating awards
+        `session_rated` credits once; the unique constraint on (booking, rater_role)
+        is what caps it.
+        """
+        try:
+            booking = Booking.objects.select_related('trainer', 'customer').get(pk=pk)
+        except Booking.DoesNotExist:
+            return Response({'detail': 'Sesión no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if booking.customer_id == request.user.pk:
+            rater_role = SessionRating.RaterRole.CUSTOMER
+        elif _is_trainer_owner(request.user, booking) or is_admin_user(request.user):
+            rater_role = SessionRating.RaterRole.TRAINER
+        else:
+            return Response({'detail': 'No autorizado.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if booking.attendance_status != Booking.AttendanceStatus.ATTENDED:
+            return Response(
+                {'detail': 'Solo se puede calificar una sesión a la que se asistió.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if SessionRating.objects.filter(booking=booking, rater_role=rater_role).exists():
+            return Response(
+                {'detail': 'Ya calificaste esta sesión.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = SessionRatingSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        rating = serializer.save(booking=booking, rater_role=rater_role)
+
+        if rater_role == SessionRating.RaterRole.CUSTOMER:
+            from core_app.services import credit_engine
+            credit_engine.award(
+                booking.customer,
+                CreditTransaction.Action.SESSION_RATED,
+                'booking',
+                booking.pk,
+                'Calificaste tu sesión',
+            )
+
+        return Response(SessionRatingSerializer(rating).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'], url_path='pending-rating')
+    def pending_rating(self, request):
+        """Attended sessions of the requesting customer that they have not rated yet."""
+        rated_ids = SessionRating.objects.filter(
+            rater_role=SessionRating.RaterRole.CUSTOMER,
+        ).values_list('booking_id', flat=True)
+        bookings = (
+            Booking.objects.filter(
+                customer=request.user,
+                attendance_status=Booking.AttendanceStatus.ATTENDED,
+            )
+            .exclude(pk__in=rated_ids)
+            .select_related('trainer__user')
+            .order_by('-starts_at')
+        )
+        results = [
+            {
+                'id': b.pk,
+                'starts_at': b.starts_at,
+                'trainer_name': (
+                    f'{b.trainer.user.first_name} {b.trainer.user.last_name}'.strip()
+                    if b.trainer_id else ''
+                ),
+            }
+            for b in bookings
+        ]
+        return Response({'count': len(results), 'results': results})
 
     @action(detail=False, methods=['get'], url_path='upcoming-reminder')
     def upcoming_reminder(self, request):

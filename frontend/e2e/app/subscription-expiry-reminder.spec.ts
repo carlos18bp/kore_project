@@ -86,6 +86,7 @@ test.describe('Subscription Expiry Reminder (mocked)', { tag: [...FlowTags.SUBSC
     await ackResponse;
 
     await page.waitForURL(/\/checkout\?package=6/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/checkout\?package=6/);
     expect(ackCalled).toBe(true);
   });
 

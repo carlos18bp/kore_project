@@ -221,6 +221,10 @@ test.describe('Trainer Client Program Tab — Authoring', { tag: [...FlowTags.TR
     );
     await page.getByRole('button', { name: 'Guardar' }).click();
     await patchReq;
+
+    // The inline editor collapses only after the PATCH resolves (handleSave sets
+    // editing=false on success); a failed save keeps "Guardar" on screen.
+    await expect(page.getByRole('button', { name: 'Guardar' })).not.toBeVisible();
   });
 
   test('publishing a draft program → PATCH /api/monthly-programs/{id}/approve/', async ({ page }) => {
@@ -245,7 +249,7 @@ test.describe('Trainer Client Program Tab — Authoring', { tag: [...FlowTags.TR
     await page.getByRole('button', { name: 'Publicar' }).click();
     await approveReq;
 
-    // Success UI: the header flips to the Published badge after refetch.
-    await expect(page.getByText('Publicado').first()).toBeVisible({ timeout: 10_000 });
+    // Success UI: the header status badge flips from "Borrador" to "Publicado" after refetch.
+    await expect(page.getByText('Publicado').first()).toHaveText('Publicado', { timeout: 10_000 });
   });
 });

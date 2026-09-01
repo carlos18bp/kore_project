@@ -2,99 +2,63 @@
 
 ## 1. Current State
 
-The KÓRE platform is **fully functional in production** at `korehealths.com`. All core features plus the **Diagnostic Engine** and **Trainer Client Management** system are implemented:
+The KÓRE platform is **fully functional in production** at `korehealths.com` (production checkout: `master`). The **July release — "Fase 2: Economía de Créditos y Gamificación" (13 functionalities) is complete and merged into `july-release`**, awaiting promotion to `master` via the umbrella **PR #52**.
 
 - **Core**: Authentication, packages, subscriptions, booking, payments (Wompi), notifications, content management, analytics, admin panel
 - **Diagnostic Engine**: 5 assessment modules (anthropometry, posturometry, physical evaluation, nutrition habits, PAR-Q+) with auto-computed indices and KORE General Index
-- **Client Management**: Customer profiles, trainer client views, mood/weight tracking, pending assessments dashboard
-- **Account**: Password reset (6-digit code), terms acceptance tracking, profile completion
-- **Backend**: Django 6 + DRF + Huey + 12 services (incl. 6 calculators) + MySQL (prod)
-- **Frontend**: Next.js 16 (static export) + 12 Zustand stores + 28 pages + 40 components
-- **Testing**: 227 test files (93 backend + 74 frontend unit + 60 E2E)
-- **Deployment**: Gunicorn + Nginx + systemd on Ubuntu
+- **Client Management**: Customer profiles, trainer client views, mood/weight tracking, pending assessments dashboard, trainer alerts & risk scores, trainer↔client messaging
+- **Programs & Tracking (Fase 1)**: Monthly programs, daily logs, program progress signals, physical tests, adherence metrics
+- **Nutrition Suite**: Daily nutrition logs, weekly nutrition plans, meal suggestions, nutrition products & plan upgrades
+- **Credit Economy & Gamification (Fase 2 — July release)**: Credit engine (earn/lose rules hooked on Fase 1 signals), streaks with progressive bonuses (3/7/14/21/28 days), difficulty presets (Fácil/Medio/Difícil), daily check-in + workout captures, client credit views & wallet, internal store with redemptions, store enrichment (media + delivery photo), session entitlements (sesión adicional), buy credits via Wompi, buy nutrition (plan upgrade), post-session rating, trainer settings panel (difficulty + reschedule window + simulator), trainer pending-task hub, trainer engagement analytics, admin nutrition management, admin Reports/KPIs panel
+- **Admin Platform (frontend)**: `admin-platform/` route group — users, subscriptions, plans, nutrition, reports (10 pages)
+- **Backend**: Django 6 + DRF + Huey (11 tasks: 9 periodic + 2 on-demand) + 29 services + MySQL (prod)
+- **Frontend**: Next.js 16 (static export) + 30 Zustand stores + 57 pages + 131 components
+- **Testing**: **489 test files** (183 backend + 203 frontend unit + 103 E2E) · 104 registered E2E flows, runtime coverage 104/104 (CI artifact 2026-07-16)
+- **Deployment**: Gunicorn + Nginx + systemd on Ubuntu; GitHub Actions CI (tests + quality gate) on push/PR
 
 ---
 
 ## 2. Recent Focus Areas
 
-- **E2E user flows audit — 4 new flows registered + spec'd (2026-04-09)** (latest):
-  - Systematic enumeration of user flows from PRD, frontend routes, backend endpoints, and existing flow-definitions
-  - Identified 4 real flows missing from coverage; registered all 4 in `flow-definitions.json` (56 → 60), `helpers/flow-tags.ts`, and `docs/USER_FLOW_MAP.md` (version bumped 1.4 → 1.5, 1.0.2 → 1.0.3)
-  - Wrote 4 spec files with 21 tests total — all passing:
-    - `subscription-billing-failed-recovery.spec.ts` (5 tests) — toast appears + Actualizar pago link + dismiss persistence
-    - `mobile-bottom-nav.spec.ts` (6 tests) — customer mobile bottom nav (Inicio, Agendar, Evaluar, Perfil, Más sheet, logout)
-    - `trainer-mobile-bottom-nav.spec.ts` (5 tests) — trainer mobile bottom nav (3 tabs + Más sheet + logout)
-    - `profile-mood-entry.spec.ts` (5 tests) — MoodCheckIn modal opens + scores + Registrar submit + Ahora no dismiss
-  - **Discovery**: Originally planned `profile-mood-weight-entry`. Found that `submitWeight` and `/auth/weight/` exist but no UI surface invokes them. Renamed flow to `profile-mood-entry` and documented weight tracking as future work in USER_FLOW_MAP.
+- **Test-quality & methodology audit — audit-first pass (2026-07-24)** (latest):
+  - Report-only sweep (`test_quality_gate.py` ×3 suites + `flow_coverage_audit.py`); no writes to test corpus or DB. Full triage in `docs/audits/test-audit-2026-07-24.md`. All 3 suites pass (0 errors) — scores backend 99 / frontend-unit 97 / e2e 81; the debt is behavioral, not structural.
+  - **Two structural findings**: (1) `.testquality.yml → js_unit_suffixes` omits `.tsx`, so the gate audits only 52 of 203 unit files — **151 `.test.tsx` React tests are ungated** (TD-16). (2) Static `flow_coverage_audit.py` = **0/104** (0 flows declare `outcomes`, 520/525 specs untagged): the flow-definitions v1.12.0 `outcomes` schema was never populated. Runtime coverage stays 104/104 per CI — the static and runtime models diverge (TD-17).
+  - Junk signal: 291 e2e no-interaction (284 still assert → mostly display-class, not deletable; **14 truly un-failable**), 27 flow-tag mismatches, 47 unit "duplicates" (→ `test.each`/rename, not delete), 28 `timezone.now` non-determinism. Deferred fix batches queued: `e2e-user-flows-check` → backend/unit coverage → `new-feature-checklist`.
+- **E2E quality sweep — pass 4 (2026-07-24)** (prior, same day):
+  - Audit (3 read-only agents) found the suite was wide but shallow-of-truth: 60% of tests passive (goto + assert, no interaction), 72% of specs never navigate via UI, ~45 tests whose assertions were fully skippable (if-guards, `.catch(()=>false)`, `.or()` accepting success AND failure), and ~20 faking interactions no user can perform (removing `disabled`/`minlength`, `evaluate(el=>el.click())`).
+  - Root cause of the worst cluster: `setupDefaultApiMocks` returned `{}` for `/api/availability/**`, disabling every calendar day; booking specs guarded every assertion behind `if(dayExists)` that never entered, and one spec stripped the `disabled` attribute. The page fetches a 30-day window up front — no chicken-and-egg. Fixed the fixture to serve realistic availability; **mutation-tested**: emptying availability now fails 5 booking tests that previously passed green.
+  - Added typed factories (`e2e/factories/`) importing app types so a serializer rename breaks `tsc`; `mockAvailability` helper; rewrote book-session-flow (dropped 11 `.catch`, all guards, and 2 phantom tests for a 12h/24h toggle and subscription selector that do not exist in the app).
+  - Replaced tautological/always-true assertions (`!token || value===''`), synthetic clicks, and DOM-tampering across auth/register/forgot-password/calendar specs; aligned lying titles with behavior; made admin filter tests assert the filtered list, not just the request URL.
+  - **New quality-gate rules** (`frontend_e2e_analyzer.py`): `swallowed_failure`, `synthetic_interaction` (ERROR); `conditional_assertion`, `tautological_assertion` (WARNING). They caught 2 sites the manual sweep missed. Full gate: 0 errors, 57 warnings (baseline 59). 549 E2E tests, ~91/shard.
+  - **Debt logged**: ~552 hand-written mock payloads still exist across specs; only booking/subscription shapes are now factory-backed. Migrating the rest to `e2e/factories/` is incremental follow-up (TD-14). Backend is 100% mocked in E2E — no job exercises a real FE↔BE contract (TD-15).
+- **Flow-depth round — pass 3 (2026-07-23)** (previous):
+  - Audit finding: 104/104 flows had a spec but coverage was **wide and shallow** — 10 flows with a single test, 5 of 25 P1 flows with no error test, 66/103 specs never simulating an HTTP error, and no reusable error-injection helper.
+  - Added `frontend/e2e/helpers/api-errors.ts` (`mockApiError`, `mockApiNetworkFailure`) and 32 E2E tests across 18 specs raising the P1 flows to the happy + error + edge standard (booking, dashboard, my-programs, trainer tasks/engagement/metrics/dashboard, the full admin platform).
+  - Added 18 backend tests: `booking_views` cancel/complete/reschedule contracts and 4xx paths, plus the remaining `trainer_intelligence_views` branches.
+  - Suite now **549 E2E tests** (~91 per CI shard, matching the ~90 target); flow registry unchanged at 104 tagged = 104 defined. Quality gate 0 errors / 59 warnings.
+  - `trainer-alerts` (P1) intentionally left with its placeholder tests: the page ships `ComingSoon` behind `PHASE_3_READY = false`, so the placeholder IS the current behaviour.
+  - **Local E2E verification is unreliable on this VPS** (3 GB RAM, no free memory): running Playwright against the dev server produces rotating false failures in *pre-existing* specs — reproduced with the changes stashed. Use `--workers=1`, warm routes first, and treat CI as the arbiter.
+
+- **Release hardening pipeline — pass 2 (2026-07-22/23)** (latest — completed):
+  - 5-phase skill-driven pipeline over `july-release`: (1) Memory Bank refresh, (2) `new-feature-checklist` + backend/frontend-unit coverage + quality gate, (3) `e2e-user-flows-check` + E2E closure (no gaps, 104/104), (4) `fake-data-refresh` on staging, (5) `deploy-and-check` on staging
+  - Coverage closed: `import_food_catalog` 0→100%, `import_exercises` 57→99%, `physical_test_views` 59→100%, `trainer_intelligence_views` 60→97.5%, `tasks.py` 100%; frontend `trainerStore` 50→79%, `programStore` 53→94%, `SubCardCompact` 0→92%, `UserRow` 38→88%, `NotesTab` 41→65%. Quality gate 0 errors / 59 warnings (no regression). CI green @ `e814983` (Tests + Quality Gate)
+  - E2E CI resharded 4 → 6 shards (517 listed tests, ~86/shard)
+  - Staging: catalogs were empty (programs/nutrition seeders no-op'd) — imported via `import_exercises --csv` (1093; venv lacks openpyxl so Excel path unusable), `import_food_catalog` (5533 foods), `seed_meal_suggestions` (1000), then re-ran dependent seeders (23 programs / 23 plans / 23 risk scores). Credit ledger coherent (532 confirmed rows, 0 inconsistencies)
+  - Staging serving restored: nginx site `kore_staging_project` re-enabled + Let's Encrypt cert emitted for `korehealths.projectapp.co` (2026-07-23); health/homepage/login 200, gunicorn+huey clean logs. Note: `post-deploy-check.sh` does not register `kore_project_staging` (manual equivalent checks used)
+- **Release hardening pipeline — pass 1 (2026-07-17)** (completed — commits `0440992..9f2552b`):
+  - Delivered: Memory Bank refresh, `create_fake_credits` seeder (+ PROTECT-order fix in `delete_fake_data`), flow-map reconciliation (runtime artifact = coverage source of truth, `expectedSpecs: 0` convention), 40 backend tests (`recurring_renewal` direct contract tests, day-close tasks, store serializers, `TrainerClientKPIView`), quality-gate warning sweep (86 → 59), revived P1-missing CI gate (`a501f05`, closes TD-11/ERROR-004)
+  - Coverage baseline from CI artifacts @ `d7cf79b`: backend **89.90%**, frontend unit **86.75%** stmts / 77.04% branches, E2E flows 104/104, quality gate **99/100**
+  - Staging DB was 18 migrations behind — migrated to `0068` and fake data reseeded (543 ledger rows, 0 accounting inconsistencies)
+  - Remaining targets (pass 2): `import_food_catalog.py` (0%), `import_exercises.py` (57%), `physical_test_views.py` (59%), `tasks.py` non-day-close bodies (64%), `trainer_intelligence_views.py` (68%), `SubCardCompact` (38%), `UserRow` (38%), `NotesTab` (41%), `trainerStore` (50%), `programStore` (53%)
+- **Fase 2 parts 9–11b + gaps merged (2026-07-10 → 2026-07-15)** (previous):
+  - #58 trainer pending-task hub, #59 admin nutrition management, #60 post-session rating, #61 trainer settings panel, #62 admin Reports/KPIs, #63 trainer engagement analytics
+  - Each sub-PR shipped with backend tests, store unit tests, E2E specs and flow-definitions updates (flow registry now v1.11.0, 104 flows)
+- **Fase 2 parts 1–8 merged (2026-06 → 2026-07-07)** (previous):
+  - Credit engine core, daily check-in + routine camera captures, client credit views, internal store, store enrichment (media + delivery photo), session entitlement (sesión adicional), buy credits with Wompi (#56), buy nutrition / plan upgrade (#57)
+- **E2E user flows audit — 4 new flows registered + spec'd (2026-04-09)** (previous):
+  - Registered `subscription-billing-failed-recovery`, `mobile-bottom-nav`, `trainer-mobile-bottom-nav`, `profile-mood-entry` (56 → 60 flows at the time); weight tracking documented as future work
 - **Audit follow-up — 5 sprints completed (2026-04-09)** (previous):
-  - **Sprint 1.1**: +4 tests for `IsTrainerRole` permission class in `tests/permissions/test_permissions.py`
-  - **Sprint 1.2**: Regenerated `flow-coverage.json` (55/56 covered; 1 flaky `auth-session-persistence` unrelated)
-  - **Sprint 2**: +2 tests for `wompi_views.py` race conditions (locked intent already resolved + atomic block exception); both `wompi_service.py` and `wompi_views.py` now at 100% coverage
-  - **Sprint 3**: New `create_fake_diagnostics.py` management command + `test_create_fake_diagnostics.py` (8 tests). Wired into `create_fake_data.py` orchestrator. Generates medically realistic anthropometry/posturometry/physical/nutrition/PARQ data for all customers
-  - **Sprint 4.1**: 4 new test files for simple models (`test_mood_entry.py`, `test_weight_entry.py`, `test_registration_verification_code.py`, `test_terms_acceptance.py`) — 40 tests total
-  - **Sprint 4.2**: 4 new test files for diagnostic models (`test_posturometry.py`, `test_physical_evaluation.py`, `test_nutrition_habit.py`, `test_parq_assessment.py`) — 39 tests total
-  - **Sprint 5**: +5 race-condition tests in frontend stores (3 in `checkoutStore.test.ts`, 2 in `bookingStore.test.ts`) — including ERROR-001 regression test
-  - **Result**: Backend 84 → 93 test files (+9 files / ~93 new tests), frontend unit +5 tests in existing files. Total tests 214 → 223 files
-- **Memory Bank refresh — 2026-04-09** (previous):
-  - Re-audited entire codebase against documented counts; +21 test files added since last refresh (84 backend / 74 frontend unit / 56 E2E)
-  - +1 backend model (`RegistrationVerificationCode`), +4 frontend components, +1 E2E flow definition
-  - Updated `tasks/active_context.md` Section 6 inventory and `tasks/tasks_plan.md` testing tables
-  - Architecture diagrams, design patterns, and known issues left untouched (still accurate)
-- **Fix: Evaluation ordering by exam date** (previous):
-  - Progress analysis in anthropometry, posturometry, and physical evaluation was ordering records by `created_at` (upload date) instead of `evaluation_date` (exam date)
-  - When trainer uploaded a 2026 record first and then a 2025 record, the system treated the older record as "current", making it appear the client regressed
-  - Changed `-created_at` → `-evaluation_date` in: 3 model Meta classes, 6 list view queries, 2 cross-module lookups, 3 pending assessments queries
-  - Branch: `fix/progress-ordering-by-exam-date` — 7 files changed, 14 substitutions
-  - Frontend required no changes — it correctly relies on the API sort order
-- **Quality gate 100/100 — zero issues** (previous):
-  - Confirmed all 16 "failing" E2E flows were actually passing (stale `flow-coverage.json` report)
-  - Fixed 2 E2E flakiness issues: checkout heading timeout (10s→15s), sidebar close button visibility wait
-  - Added 7 docstrings to complex tests flagged by `missing_docstring`
-  - Extracted 4 inline payloads to builders/constants (`test_admin_forms.py`, `test_posturometry_calculator.py`)
-  - Added `quality: disable test_too_short` to 6 calculator test files (57 boundary-value tests)
-  - Added `quality: disable test_too_long` to `authStore.test.ts` (1 hydration integration test)
-  - Added 3 `quality: allow-fragile-selector` exceptions (book-session calendar grid, trainer-clients card locators)
-  - Removed unused `tomorrow` variable in `store-error-paths.spec.ts` (ESLint info)
-  - Final result: **100/100, 0 errors, 0 warnings, 0 info**
-- **E2E 34-failure fix — 115 tests across 16 files, all passing** (previous):
-  - RC1: Checkout T&C guard — added `terms-acceptance/status` mock to `setupCheckoutMocks` + `setupBaseMocks` + `setupGuestAutoLoginMocks`; fixed `reset()` race in `CheckoutClient.tsx` (auto_login sets `isAuthenticated=true` → useEffect re-fires `reset()` wiping success state)
-  - RC2: Subscription cancel button — tests incorrectly expected disabled; updated to expect enabled + confirmation dialog
-  - RC3: Trainer selector mismatches — `article`→`div` card locator; avatar `span` scoped to profile card section
-  - RC4: Assessment strict mode + mock shape — `.first()` / `{ exact: true }` for duplicate text; `my-pending-assessments` mock restructured with `kore_index` wrapper; `setupDefaultApiMocks` enhanced with `exclude: string[]` parameter
-  - RC5: Profile password change — heading locator for code dialog; `Enviando código...` button text for loading state
-  - RC6: Trainer dashboard + client specs — `{ exact: true }` for `Clientes`/`8`/`3`; `Índice Global` label fix; `IMC`/`General`/`Fuerza` strict mode fixes
-- **E2E coverage audit — all 55 flows now covered** (previous):
-  - Wave 1.5: `trainer-dashboard.spec.ts` (8 tests) — greeting, stats cards, quick action, upcoming sessions, empty/loading states
-  - Wave 2: 6 specs (38 tests) — profile-password-change, customer-diagnosis, customer-nutrition, customer-parq, customer-physical-evaluation, customer-posturometry
-  - Wave 3: 5 specs (25 tests) — trainer-client-anthropometry, trainer-client-nutrition, trainer-client-parq, trainer-client-physical-eval, trainer-client-posturometry
-  - Wave 4: `customer-pending-assessments.spec.ts` (4 tests) — KÓRE score, module breakdown, empty state
-  - Quality gate fixes: 4 fragile locators fixed, 3 unused imports removed, 1 test split for too-many-assertions
-  - Quality gate result: 100/100, 0 errors, 0 warnings
-- **Wave 1 E2E specs — 4 spec files, 42 tests** (previous):
-  - `forgot-password.spec.ts`: 12 tests — multi-step password reset flow
-  - `profile.spec.ts`: 10 tests — personal info, goal selector, mood card, security
-  - `trainer-clients.spec.ts`: 9 tests — client list rendering, search/filter, empty states
-  - `trainer-client-detail.spec.ts`: 11 tests — personal info card, subscription, stats, modules
-- **E2E test fix — 27 timeouts across 9 spec files** (previous):
-  - Root causes: ProfileCompletionCTA overlay, MoodCheckIn modal, outdated UI assertions, 24h→12h slot label mismatch, forceClickCalendarDay hacks, 16h buffer filtering, LIFO route conflicts
-  - Fixed `fixtures.ts`: added `profile_completed`, `customer_profile`, `today_mood` to auth mocks; added 6 new dashboard API endpoint mocks
-  - Fixed 7 spec files: dashboard, booking-error-paths, calendar-edge-cases, subscription-cancel-flow, edge-case-branches, coverage-gaps, subscription-expiry-reminder
-  - Result: 61 tests across 9 spec files — all pass with `--workers=1`
-- **Memory Bank refresh** (previous):
-  - Full codebase re-audit: discovered 10 new model files, 8 new view files, 7 new services, 8 new stores since last Memory Bank initialization
-  - Updated all 7 core Memory Files with verified counts
-- **Diagnostic Engine** (previous major feature):
-  - 5 assessment models with auto-computed indices on save
-  - 6 pure-function calculator services (scientific basis referenced in docstrings)
-  - Cross-module integration: PhysicalEvaluation pulls context from Anthropometry + Posturometry
-  - KORE General Index: composite score (0–100) aggregating all modules
-  - Cooldown enforcement: nutrition (7 days), PAR-Q (90 days)
-- **Trainer Client Management** (previous major feature):
-  - Trainer dashboard stats, client list, client detail, client sessions
-  - Per-client CRUD for all 5 assessment modules
-  - 8 trainer-specific frontend pages
-- **Quality gate 100/100**: All backend + frontend quality rules passing
-- **CI coverage workflows**: 3 coverage report artifacts + combined summary in GitHub Actions
+  - Permission tests, wompi race-condition tests (100% on `wompi_service`/`wompi_views`), `create_fake_diagnostics` command, 8 model test files, race-condition store tests
 
 ---
 
@@ -104,12 +68,17 @@ The KÓRE platform is **fully functional in production** at `korehealths.com`. A
 |----------|---------|
 | Static export over SSR | Next.js `output: 'export'` — simplifies deployment (no Node.js in prod) but limits dynamic features |
 | Wompi as sole payment provider | Colombian market — may need multi-provider support in future |
-| Huey over Celery | Lightweight choice for 2 periodic tasks — may need re-evaluation if task complexity grows |
+| Huey over Celery | Lightweight choice — now 11 tasks (9 periodic + 2 on-demand); still sufficient |
 | SQLite for dev | Acceptable for now but creates risk of schema drift vs MySQL in production |
 | Auto-computed indices on model save | All diagnostic models compute their indices in `save()` — ensures consistency but adds save-time cost |
 | Pure-function calculator services | Calculators receive data as args (no DB access) — testable, composable, but requires model to orchestrate calls |
 | APIView for assessment endpoints | Diagnostic views use `APIView` (not ViewSet) for finer trainer-vs-client endpoint control |
 | Cooldown enforcement at view level | Nutrition (7d) and PAR-Q (90d) cooldowns checked in the view, not the model |
+| Credit engine listens, never refactors | Fase 2 hooks onto existing Fase 1 signals (`ProgramProgress`, daily logs, bookings) — no changes to Fase 1 code paths |
+| Day-close evaluation via Huey | No-show penalty evaluated at 23:55 (`close_daily_logs`) and credits day-close at 23:57 (`close_credits_day`) |
+| Single release branch + umbrella PR | Feature sub-PRs merge into `july-release`; one umbrella PR (#52) promotes the release to `master` |
+| Coverage truth = CI artifacts | Local scoped runs use `--no-cov` (pytest addopts include `--cov`); coverage numbers are read from CI artifacts only |
+| `expectedSpecs: 0` for spec-less flows | `check-flow-definitions-sync.mjs` is bidirectional — registered flows without specs must carry `expectedSpecs: 0` or CI fails |
 
 ---
 
@@ -119,40 +88,44 @@ The KÓRE platform is **fully functional in production** at `korehealths.com`. A
 |-----------|--------|
 | Backend (Django 6 / Python 3.12) | ✅ Running |
 | Frontend (Next.js 16 / Node 22) | ✅ Running |
-| Database (SQLite dev) | ✅ Available |
+| Database (SQLite dev / MySQL prod) | ✅ Available |
 | Redis (Huey broker) | ⚠️ Optional in dev (`HUEY_IMMEDIATE=true`) |
-| Fake data commands | ✅ Available (18 management commands) |
-| Testing tools | ✅ pytest (93 files), Jest (74 files), Playwright (60 files) |
+| Fake data commands | ✅ Available (29 management commands) |
+| Testing tools | ✅ pytest (183 files), Jest (203 files), Playwright (103 files) |
+| CI | ✅ GitHub Actions: `CI — Tests` (backend + unit + E2E sharded ×6, ~86 tests/shard + coverage summary) and `Test Quality Gate` |
 
 ---
 
 ## 5. Next Steps
 
-1. ~~**E2E coverage gaps**~~ ✅ **All 55 flows covered** — 0 uncovered flows remaining
-2. ~~**Quality gate info-level fixes**~~ ✅ **All 69 resolved** — 7 docstrings added, 4 inline payloads extracted, 57 test_too_short + 1 test_too_long suppressed with quality exceptions, 3 fragile selectors documented, 1 ESLint unused var removed
-3. **Regenerate `flow-coverage.json`** — requires a single full Playwright run to produce complete report (all tests confirmed passing in batches)
-4. **API rate limiting**: No throttling in place — security concern (TD-05)
-5. **Complete i18n**: Finish Spanish/English translation implementation with next-intl (TD-07)
-6. **CI/CD automation**: Deployment still manual (TD-08)
+1. **Finish hardening pass 2** (in progress): coverage passes on the remaining targets (§2), quality-gate no-regression check, E2E closure, fake-data refresh + staging deploy-and-check
+2. **Merge PR #52** (`july-release` → `master`) once the pipeline is green, then deploy to production
+3. **API rate limiting**: No throttling in place — security concern (TD-05)
+4. **Complete i18n**: Finish Spanish/English translation implementation with next-intl (TD-07)
+5. **Automated deploy (CD)**: CI tests exist; deployment is still manual (TD-08)
+6. **Test-audit follow-ups (2026-07-24)** — deferred write batches, each separately approved: `e2e-user-flows-check` (populate `outcomes` + `@flow` tags), then backend/frontend-unit coverage fills, then `new-feature-checklist` for the credits/gamification set. See `docs/audits/test-audit-2026-07-24.md`.
+7. **Fix the unit-gate `.tsx` blind spot (TD-16)** — add `.test.tsx`/`.spec.tsx` (+ `.jsx`) to `.testquality.yml → js_unit_suffixes`; re-run the unit gate for true numbers over all 203 files.
 
 ---
 
-## 6. Codebase Inventory (Verified)
+## 6. Codebase Inventory (Verified 2026-07-24 @ `076b4c3`)
 
 | Layer | Count |
 |-------|-------|
-| Models | 25 across 23 files |
-| Views | 20 files |
-| Serializers | 12 files |
-| Services | 12 files |
-| URLs | 4 files |
-| Management commands | 18 |
-| Admin classes | 23 (22 ModelAdmin + 1 Form) |
-| Frontend pages | 28 (10 public + 18 authenticated) |
-| Frontend components | 40 |
-| Zustand stores | 12 |
-| Backend test files | 93 |
-| Frontend unit test files | 74 |
-| E2E spec files | 60 |
-| Flow definitions | 60 |
-| **Total test files** | **227** |
+| Model classes | 63 across 46 files (60 concrete + 2 abstract + 1 manager) |
+| Views | 40 files |
+| Serializers | 22 files |
+| Services | 29 files |
+| URLs | 4 files (126 URL patterns) |
+| Management commands | 29 |
+| Admin classes | 39 |
+| Migrations | 68 (latest: `0068_session_rating`) |
+| Huey tasks | 11 (9 periodic + 2 on-demand) |
+| Frontend pages | 57 (11 public + 35 app + 10 admin-platform + 1 root-level) |
+| Frontend components | 131 |
+| Zustand stores | 30 |
+| Backend test files | 183 |
+| Frontend unit test files | 203 (52 `.test.ts` + 151 `.test.tsx`) |
+| E2E spec files | 103 |
+| Flow definitions | 104 (registry v1.12.0) |
+| **Total test files** | **489** |

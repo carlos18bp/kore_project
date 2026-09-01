@@ -122,10 +122,10 @@ describe('AdminSubscriptionsPage', () => {
 
   it('links to the create subscription page', () => {
     render(<AdminSubscriptionsPage />);
-    const link = screen.getAllByRole('link').find(
-      (a) => (a as HTMLAnchorElement).getAttribute('href') === '/admin-platform/subscriptions/new',
+    expect(screen.getByRole('link', { name: /Crear suscripción/ })).toHaveAttribute(
+      'href',
+      '/admin-platform/subscriptions/new',
     );
-    expect(link).toBeDefined();
   });
 
   it('renders the singular total label when there is exactly one subscription', () => {

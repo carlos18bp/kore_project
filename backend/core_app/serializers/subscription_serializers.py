@@ -17,6 +17,7 @@ class AdminSubscriptionSerializer(serializers.ModelSerializer):
     customer_email = serializers.EmailField(source='customer.email', read_only=True)
     customer_name = serializers.SerializerMethodField(read_only=True)
     package = PackageSerializer(read_only=True)
+    pending_package = PackageSerializer(read_only=True)
     sessions_remaining = serializers.IntegerField(read_only=True)
     status = serializers.ChoiceField(choices=Subscription.Status.choices, required=False)
     is_duo = serializers.SerializerMethodField(read_only=True)
@@ -39,12 +40,17 @@ class AdminSubscriptionSerializer(serializers.ModelSerializer):
             'is_recurring',
             'next_billing_date',
             'billing_failed_at',
+            'pending_package',
+            'cancel_at_period_end',
             'is_duo',
             'guest_info',
             'created_at',
             'updated_at',
         )
-        read_only_fields = ('created_at', 'updated_at', 'billing_failed_at')
+        read_only_fields = (
+            'created_at', 'updated_at', 'billing_failed_at',
+            'pending_package', 'cancel_at_period_end',
+        )
 
     def get_customer_name(self, obj):
         name = f'{obj.customer.first_name} {obj.customer.last_name}'.strip()
@@ -91,6 +97,7 @@ class SubscriptionSerializer(serializers.ModelSerializer):
 
     customer_email = serializers.EmailField(source='customer.email', read_only=True)
     package = PackageSerializer(read_only=True)
+    pending_package = PackageSerializer(read_only=True)
     sessions_remaining = serializers.IntegerField(read_only=True)
     sessions_completed = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
@@ -113,6 +120,8 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             'next_billing_date',
             'is_recurring',
             'billing_failed_at',
+            'pending_package',
+            'cancel_at_period_end',
             'is_guest',
             'guest_info',
             'created_at',

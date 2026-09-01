@@ -138,3 +138,22 @@ class ExerciseLog(TimestampedModel):
 
     def __str__(self):
         return f'{self.program_exercise.exercise.name} — {self.status}'
+
+
+class ExerciseCapture(TimestampedModel):
+    """Random camera capture taken while an exercise is active.
+
+    Evidence for workout-day credits. The client-facing copy presents the
+    capture flow as video validation; the system stores sparse photos.
+    """
+
+    exercise_log = models.ForeignKey(
+        ExerciseLog, on_delete=models.CASCADE, related_name='captures',
+    )
+    image = models.ImageField(upload_to='workout_captures/%Y/%m/')
+
+    class Meta:
+        ordering = ('created_at',)
+
+    def __str__(self):
+        return f'Capture #{self.pk} for log {self.exercise_log_id}'

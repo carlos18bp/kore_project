@@ -114,7 +114,9 @@ test.describe('NoSessionsModal', { tag: [...FlowTags.BOOKING_NO_SESSIONS, RoleTa
     await expect(page).toHaveURL('about:blank');
   });
 
-  test('renders modal when subscription has no remaining sessions', async ({ page }) => {
+  test('renders modal when subscription has no remaining sessions', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await page.route('**/api/subscriptions/', (route) =>
       route.fulfill({
         status: 200,

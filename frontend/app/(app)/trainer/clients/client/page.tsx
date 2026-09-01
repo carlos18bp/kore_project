@@ -4,14 +4,17 @@ import { useEffect, useRef, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useTrainerStore } from '@/lib/stores/trainerStore';
+import { useTrainerTasksStore } from '@/lib/stores/trainerTasksStore';
 import { useBookingStore } from '@/lib/stores/bookingStore';
 import TabBar from '@/app/components/trainer/TabBar';
+import RatingsSummaryCard from '@/app/components/trainer/RatingsSummaryCard';
 import AdherenceRing from '@/app/components/trainer/AdherenceRing';
 import KPIGrid from '@/app/components/trainer/KPIGrid';
 import RiskBadge from '@/app/components/trainer/RiskBadge';
 import AlertCard from '@/app/components/trainer/AlertCard';
 import ClientProgramTab from '@/app/components/trainer/ClientProgramTab';
 import PostSessionMessageSheet from '@/app/components/trainer/PostSessionMessageSheet';
+import AttendanceActions from '@/app/components/trainer/AttendanceActions';
 import SectionLabel from '@/app/components/shared/SectionLabel';
 import EmptyState from '@/app/components/shared/EmptyState';
 import { useHeroAnimation } from '@/app/composables/useScrollAnimations';
@@ -116,8 +119,14 @@ function TrainerClientDetailPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelLoading, setCancelLoading] = useState(false);
   const cancelBooking = useBookingStore((s) => s.cancelBooking);
+  const creditReviews = useTrainerTasksStore((s) => s.creditReviews);
+  const fetchCreditReviews = useTrainerTasksStore((s) => s.fetchPendingCreditReviews);
   const sectionRef = useRef<HTMLElement>(null);
   useHeroAnimation(sectionRef);
+
+  useEffect(() => {
+    fetchCreditReviews();
+  }, [fetchCreditReviews]);
 
   useEffect(() => {
     if (!clientId) return;
@@ -199,6 +208,9 @@ function TrainerClientDetailPage() {
   }
 
   const topAlert = alerts.find(a => a.level === 'alto') ?? alerts.find(a => a.level === 'medio');
+  const clientTaskCount = creditReviews.filter(
+    (r) => r.customer_email && r.customer_email === client?.email,
+  ).length;
 
   return (
     <section ref={sectionRef} className="min-h-screen bg-kore-cream">
@@ -266,11 +278,23 @@ function TrainerClientDetailPage() {
                   </svg>
                   Agendar sesión
                 </button>
+
+                {clientTaskCount > 0 && (
+                  <Link
+                    href="/trainer/tareas"
+                    className="mt-2 ml-2 inline-flex items-center gap-1.5 text-[11px] font-semibold text-kore-red bg-kore-red/10 rounded-full px-3 py-1.5"
+                    data-testid="client-pending-tasks"
+                  >
+                    Tareas pendientes ({clientTaskCount}) →
+                  </Link>
+                )}
               </div>
             </div>
 
           </div>
         )}
+
+        {!!clientId && <RatingsSummaryCard customerId={clientId} />}
 
         {/* ── Tabs + contenido ── */}
         <div className="xl:grid xl:grid-cols-[220px_1fr] xl:gap-8">
@@ -724,7 +748,7 @@ function SessionRow({
   onReschedule,
   onCancel,
 }: {
-  session: { id: number; status: string; package_title: string; starts_at: string | null; ends_at: string | null; notes: string; canceled_reason: string; session_notes_for_customer: string; created_at: string };
+  session: { id: number; status: string; package_title: string; starts_at: string | null; ends_at: string | null; notes: string; canceled_reason: string; session_notes_for_customer: string; created_at: string; attendance_status?: 'unset' | 'attended' | 'no_show' };
   onMessage?: (sessionId: number) => void;
   onReschedule?: (session: { id: number; starts_at: string }) => void;
   onCancel?: (session: { id: number; starts_at: string }) => void;
@@ -782,6 +806,9 @@ function SessionRow({
           Mensaje
         </button>
       )}
+      <AttendanceActions
+        session={{ id: session.id, starts_at: session.starts_at, status: session.status, attendance_status: session.attendance_status }}
+      />
       <span className={`font-body text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${sc.bg} ${sc.text}`}>
         {sc.label}
       </span>

@@ -46,6 +46,8 @@ function setup(overrides: {
   fisicaEvals?: unknown[];
   parqList?: unknown[];
   sessions?: unknown[];
+  monthlyPrograms?: unknown[];
+  nutritionWeekNotes?: unknown[];
   updateSessionObjective?: jest.Mock;
 } = {}) {
   mAnthrop.mockReturnValue({ evaluations: overrides.anthropEvals ?? [], fetchEvaluations: jest.fn(), updateEvaluation: jest.fn().mockResolvedValue(undefined) });
@@ -58,12 +60,16 @@ function setup(overrides: {
     sessionsFullLoading: false,
     fetchClientSessionsFull: jest.fn(),
     updateSessionObjective,
-    // Stubs needed by Programa/Nutricion sections (not navigated to in these tests,
-    // but kept here so swapping tabs in future tests doesn't blow up).
-    clientMonthlyPrograms: {},
+    // Data + actions consumed by the Programa/Nutrición sections.
+    clientMonthlyPrograms: { [CLIENT_ID]: overrides.monthlyPrograms ?? [] },
     monthlyProgramsLoading: false,
     fetchClientMonthlyPrograms: jest.fn(),
     updateMonthlyProgramNote: jest.fn().mockResolvedValue(undefined),
+    updateProgramWeekNote: jest.fn().mockResolvedValue(undefined),
+    clientNutritionWeekNotes: { [CLIENT_ID]: overrides.nutritionWeekNotes ?? [] },
+    nutritionWeekNotesLoading: false,
+    fetchClientNutritionWeekNotes: jest.fn(),
+    updateNutritionWeekNote: jest.fn().mockResolvedValue(undefined),
     clientWeeklyPlans: {},
     weeklyPlansLoading: false,
     fetchClientWeeklyPlans: jest.fn(),
@@ -268,6 +274,39 @@ describe('NotesTab', () => {
     expect(screen.getByText('Primer mensaje')).toBeInTheDocument();
     expect(screen.getByText('Segundo mensaje')).toBeInTheDocument();
     expect(screen.getByText('Tercer mensaje')).toBeInTheDocument();
+  });
+
+  it('locks the later weeks when the program cycle has no saved week notes', async () => {
+    setup({
+      monthlyPrograms: [{
+        id: 50, start_date: '2026-07-01', end_date: '2026-07-28', status: 'published',
+        goal: 'strength', fitness_level: 2, trainer_notes: '', week_notes: [],
+        approved_at: null, is_paused: false,
+      }],
+    });
+    renderTab();
+
+    await goToTab('Programa');
+
+    // Week 1 is the active composer; weeks 2-4 render as locked placeholders.
+    expect(screen.getByText('Nota de la semana 1')).toBeInTheDocument();
+    expect(screen.getAllByText('Se desbloquea al guardar la semana anterior.')).toHaveLength(3);
+  });
+
+  it('offers a new cycle once the four weeks of the latest cycle have notes', async () => {
+    setup({
+      nutritionWeekNotes: [
+        { id: 1, cycle_number: 1, cycle_start: '2026-07-01', week_number: 1, notes: 'Semana 1 completa', updated_at: '2026-07-03T10:00:00Z' },
+        { id: 2, cycle_number: 1, cycle_start: '2026-07-01', week_number: 2, notes: 'Semana 2 completa', updated_at: '2026-07-10T10:00:00Z' },
+        { id: 3, cycle_number: 1, cycle_start: '2026-07-01', week_number: 3, notes: 'Semana 3 completa', updated_at: '2026-07-17T10:00:00Z' },
+        { id: 4, cycle_number: 1, cycle_start: '2026-07-01', week_number: 4, notes: 'Semana 4 completa', updated_at: '2026-07-21T10:00:00Z' },
+      ],
+    });
+    renderTab();
+
+    await goToTab('Nutrición');
+
+    expect(screen.getByRole('button', { name: '+ Nuevo ciclo' })).toBeInTheDocument();
   });
 
   it('shows a textarea for a module that has evaluation data', async () => {

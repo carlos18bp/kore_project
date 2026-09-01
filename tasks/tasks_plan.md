@@ -2,6 +2,8 @@
 
 ## 1. Feature Status
 
+### Core Platform (pre-April 2026)
+
 | Feature | Status | Notes |
 |---------|--------|-------|
 | **Authentication** (email login, JWT, pre-registration) | ✅ Complete | Custom User model, SimpleJWT, pre-register flow |
@@ -13,32 +15,53 @@
 | **Availability Slots** (CRUD, blocking) | ✅ Complete | Trainer-owned, unique constraint, slot_schedule service |
 | **Payments** (Wompi integration, webhook) | ✅ Complete | Card, Nequi, PSE, Bancolombia |
 | **PaymentIntent** (checkout flow) | ✅ Complete | Pre-payment state tracking |
-| **Notifications** (email, status tracking) | ✅ Complete | 9 notification types |
+| **Notifications** (email, status tracking) | ✅ Complete | Email notifications with delivery status |
 | **Content** (SiteSettings, FAQ, ContactMessage) | ✅ Complete | Singleton settings, admin-managed |
-| **Analytics Events** (tracking) | ✅ Complete | 4 event types |
-| **Admin Panel** (all models registered) | ✅ Complete | 23 Admin classes (22 ModelAdmin + 1 Form) for 25 models |
+| **Analytics Events** (tracking) | ✅ Complete | Event tracking with session association |
+| **Django Admin Panel** | ✅ Complete | 39 Admin classes for 63 model classes (60 concrete) |
 | **Google reCAPTCHA** | ✅ Complete | Site key + verification endpoints |
-| **Trainer Profiles** | ✅ Complete | 1:1 with User (role=trainer) |
-| **Customer Profiles** | ✅ Complete | 1:1 with User (role=customer), avatar, goals, ID, profile completion |
-| **Diagnostic Engine — Anthropometry** | ✅ Complete | BMI, waist-hip ratio, body fat %, lean mass, asymmetries; auto-computed on save |
-| **Diagnostic Engine — Posturometry** | ✅ Complete | 4-view postural observations, photos, global/regional indices |
-| **Diagnostic Engine — Physical Evaluation** | ✅ Complete | 8 fitness tests, age/sex baremos, cross-module alerts |
-| **Diagnostic Engine — Nutrition Habits** | ✅ Complete | 8 dietary habit variables, habit score (0–10), 7-day cooldown |
-| **Diagnostic Engine — PAR-Q+ Assessment** | ✅ Complete | 7 health questions, risk classification, 90-day cooldown |
-| **KORE General Index** | ✅ Complete | Composite score (0–100) from all diagnostic modules |
+| **Trainer / Customer Profiles** | ✅ Complete | 1:1 with User per role |
+| **Diagnostic Engine** (5 modules + KORE Index) | ✅ Complete | Anthropometry, posturometry, physical eval, nutrition habits, PAR-Q+; composite KORE score |
 | **Trainer Client Management** | ✅ Complete | Client list, detail, sessions, dashboard stats, per-client assessments |
-| **Mood & Weight Tracking** | ✅ Complete | Daily mood (1–10) and weight (kg) logs, one per day |
-| **Password Reset** | ✅ Complete | 6-digit code via email, 10-min expiry, forgot-password page |
-| **Terms & Conditions Acceptance** | ✅ Complete | Versioned acceptance with IP/user-agent audit trail |
-| **Pending Assessments Dashboard** | ✅ Complete | Aggregator endpoint + store for client dashboard notifications |
-| **Landing Page** (Hero, Programs, Pricing, etc.) | ✅ Complete | Public pages with animations |
-| **Dashboard** (customer area) | ✅ Complete | Session overview, upcoming reminder, pending assessments |
-| **Calendar View** | ✅ Complete | Booking calendar for customers |
-| **Checkout Page** (Wompi widget) | ✅ Complete | Multiple payment methods |
-| **Trainer Dashboard & Client Views** | ✅ Complete | 8 trainer-specific pages |
+| **Mood & Weight Tracking** | ✅ Complete | Daily logs, one per day |
+| **Password Reset / Terms Acceptance** | ✅ Complete | 6-digit code flow; versioned consent with audit trail |
 | **Deployment** (Gunicorn + Nginx + systemd) | ✅ Complete | Production on korehealths.com |
-| **Backups** (django-dbbackup) | ✅ Complete | Compressed SQL, configurable retention |
-| **Silk Profiling** (optional) | ✅ Complete | Conditional middleware, staff-only access |
+| **Backups** (django-dbbackup) / **Silk profiling** | ✅ Complete | Compressed SQL; optional profiler |
+
+### April–June 2026 (post-core, pre-release-july)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| **Single membership per customer + renewal history** | ✅ Complete | #39 — `SubscriptionRenewal`, renewal_history_service |
+| **Monthly Programs & Progress (Fase 1)** | ✅ Complete | Monthly program, daily logs, `ProgramProgress` signals, program generator |
+| **Physical Tests** | ✅ Complete | `PhysicalTest` model + views + store |
+| **Nutrition Suite** | ✅ Complete | Daily logs, weekly plans, meal suggestions, week notes, nutrition access service |
+| **Trainer Alerts & Risk Scores** | ✅ Complete | Clinical/behavioral alert engines, risk score service, alert resolution |
+| **Trainer ↔ Client Messaging** | ✅ Complete | `TrainerMessage` model + flows |
+| **Duo subscriptions (guest invite)** | ✅ Complete | `SubscriptionGuest`, duo-invite views/flows |
+| **Admin Platform (frontend)** | ✅ Complete | `admin-platform/` route group: users, subscriptions, plans |
+
+### Fase 2 — July release "Economía de Créditos y Gamificación" (merged in `july-release`, pending PR #52 → master)
+
+| # | Feature | Status | PR |
+|---|---------|--------|----|
+| 1 | **Credit Engine core** (earn/lose rules, streaks 3/7/14/21/28, difficulty presets, day-close no-show penalty, late-reschedule penalty) | ✅ Merged | — |
+| 2 | **Daily Check-in + routine camera captures** (consent gate, `require_workout_captures`; sleep/mobility descoped 2026-07-02) | ✅ Merged | — |
+| 3 | **Client credit views** (balance, streak, transaction history, dashboard widget) | ✅ Merged | — |
+| 4 | **Internal Store** (catalog, redemptions, trainer approval) | ✅ Merged | — |
+| 5 | **Store enrichment** (media + delivery photo) | ✅ Merged | #54 |
+| 6 | **Session entitlement** (sesión adicional) | ✅ Merged | #55 |
+| 7 | **Buy credits with Wompi** (top-up) | ✅ Merged | #56 |
+| 8 | **Buy nutrition** (plan upgrade) | ✅ Merged | #57 |
+| G1 | **Trainer pending-task hub** | ✅ Merged | #58 |
+| G2 | **Admin nutrition management** | ✅ Merged | #59 |
+| 9 | **Post-session rating** (customer prompt + trainer ratings panel) | ✅ Merged | #60 |
+| 10 | **Trainer settings panel** (difficulty config + simulator, reschedule window) | ✅ Merged | #61 |
+| 11a | **Admin Reports / KPIs panel** | ✅ Merged | #62 |
+| 11b | **Trainer engagement analytics** | ✅ Merged | #63 |
+
+| Feature | Status | Notes |
+|---------|--------|-------|
 | **Internationalization** (next-intl) | 🔄 In Progress | next-intl installed, not fully implemented |
 
 ---
@@ -52,66 +75,60 @@
 | TD-03 | No WebSocket/real-time updates — booking confirmations require page refresh | Low | Open |
 | TD-04 | Pre-registration stores password hash in PaymentIntent — sensitive data in model | Medium | Open |
 | TD-05 | No rate limiting on API endpoints | Medium | Open |
-| TD-06 | ~~No password reset flow implemented~~ | Medium | ✅ Resolved — 6-digit code flow + forgot-password page |
+| TD-06 | ~~No password reset flow implemented~~ | Medium | ✅ Resolved |
 | TD-07 | next-intl installed but translations not fully implemented | Low | Open |
-| TD-08 | No automated CI deployment (manual git pull + restart) | Low | Open |
-| TD-09 | ~~Diagnostic assessment E2E tests not yet implemented~~ | Medium | ✅ Resolved — Wave 2+3 cover all 5 assessment modules |
-| TD-10 | ~~Trainer client management E2E tests not yet implemented~~ | Medium | ✅ Resolved — trainer-clients-list (9 tests) + trainer-client-detail (11 tests) |
+| TD-08 | No automated CD deploy (CI tests exist; deploy is manual git pull + restart) | Low | Open |
+| TD-09 | ~~Diagnostic assessment E2E tests not yet implemented~~ | Medium | ✅ Resolved |
+| TD-10 | ~~Trainer client management E2E tests not yet implemented~~ | Medium | ✅ Resolved |
+| TD-11 | ~~Dead "P1 missing" CI gate — `report-e2e-flow-coverage-ci.mjs` schema drift vs reporter (see ERROR-004)~~ | Medium | ✅ Resolved (`a501f05`, 2026-07-17) |
+| TD-12 | `core_app/tasks.py` billing-critical periodic tasks under-tested — day-close bodies covered by `test_day_close_tasks.py` (`13b6d5c`), remaining task bodies pending | Medium | Partially addressed (hardening pass 2 target) |
+| TD-13 | ~~`services/recurring_renewal.py` has no direct unit tests~~ | Medium | ✅ Resolved (`13b6d5c` — direct contract tests in `tests/services/test_recurring_renewal.py`) |
+| TD-14 | ~552 hand-written E2E mock payloads with no link to backend serializers — a field rename cannot fail any E2E. `e2e/factories/` now covers booking/subscription/user/trainer shapes; migrate the rest incrementally | Medium | Open (pass 4, 2026-07-24) |
+| TD-15 | E2E backend is 100% mocked — no CI job exercises a real FE↔BE contract (Playwright job never starts Django). A real-backend smoke over P1 flows would catch mock drift | Medium | Open (pass 4) |
+| TD-16 | Quality gate blind to `.tsx`/`.jsx` unit tests — `.testquality.yml → js_unit_suffixes` lists only `.ts`/`.js`, so 151 of 203 `frontend/app/__tests__` files (all `.test.tsx`) are never analyzed. Jest runs them; the gate does not. Fix: add `.test.tsx`/`.spec.tsx` (+ `.jsx`) and re-run | Medium | Open (2026-07-24) |
+| TD-17 | Static flow coverage unpopulated — `flow-definitions.json` v1.12.0 migrated to an `outcomes` schema but 0/104 flows declare `outcomes` and 520/525 E2E specs are untagged, so `flow_coverage_audit.py` = 0/104 while runtime CI coverage = 104/104. Populate `outcomes` + `@flow` tags via `e2e-user-flows-check` | Medium | Open (2026-07-24) |
 
 ---
 
-## 3. Testing Status
+## 3. Testing Status (verified 2026-07-24 @ `076b4c3`)
 
-### Backend (pytest)
+### Backend (pytest) — 183 files
 
-| Category | Test Files | Coverage Area |
-|----------|-----------|---------------|
-| Models | 23 | All 25 models (incl. mood, weight, registration_verification_code, terms_acceptance, posturometry, physical, nutrition, parq) |
-| Views | 26 | All 20 view modules + admin forms + admin index sections + extended booking views |
-| Serializers | 12 | All 12 serializer modules |
-| Services | 12 | All 12 services (incl. 6 calculators, slot_schedule, kore_index, subscription_cleanup) |
-| Tasks | 6 | Recurring billing, expiry reminders, auto-complete bookings, maintain slots, nutrition reminders, parq reminders |
-| Commands | 11 | Management commands (incl. backfill, maintain_slots, mgmt_core_flows, silk_garbage_collect, resend_booking_invites, create_fake_diagnostics) |
-| Permissions | 1 | Custom permissions (IsAdminRole, IsAdminOrReadOnly, IsTrainerRole) |
-| Utils | 2 | Forms + test suite runner |
-| **Total** | **93 files** | |
+| Category | Test Files |
+|----------|-----------|
+| Views | 69 |
+| Services | 36 |
+| Models | 30 |
+| Commands | 21 |
+| Serializers | 18 |
+| Tasks | 6 |
+| Utils | 2 |
+| Permissions | 1 |
+| **Total** | **183** |
 
-### Frontend Unit (Jest)
+CI coverage @ `d7cf79b`: **89.90%** (branch coverage on). Weakest files: `management/commands/import_food_catalog.py` (0%), `management/commands/import_exercises.py` (57%), `views/physical_test_views.py` (59%), `tasks.py` (64%), `views/trainer_intelligence_views.py` (68%), `serializers/store_serializers.py` (73%). Since that artifact, `13b6d5c` added coverage for `recurring_renewal`, day-close tasks, `store_serializers` and `TrainerClientKPIView` — CI artifact re-run pending to requantify.
 
-| Category | Test Files | Coverage Area |
-|----------|-----------|---------------|
-| Components | 42 | All components (booking, checkout, faq, layouts, subscription, profile, dashboard, shared) |
-| Stores | 12 | All 12 Zustand stores (auth, booking, checkout, subscription, profile, anthropometry, nutrition, parq, physicalEvaluation, posturometry, pendingAssessments, trainer) |
-| Views/Pages | 15 | All page-level tests (incl. MySessionsPage, ProgramDetailPage) |
-| Services | 1 | HTTP client |
-| Composables | 1 | useScrollAnimations |
-| Styles | 1 | Cursor styles |
-| Reporters | 1 | Flow reporter |
-| Scripts | 1 | E2E module CLI |
-| **Total** | **74 files** | |
+### Frontend Unit (Jest) — 203 files
 
-### E2E (Playwright)
+All under `frontend/app/__tests__/` (stores, components, views, hooks, services, lib, reporters, scripts, styles). CI coverage @ `d7cf79b`: **86.75% statements / 77.04% branches**. Weakest: ~~`RatingsSummaryCard.tsx` (0%)~~ (covered in `9f2552b`), `SubCardCompact.tsx` (38%), `UserRow.tsx` (38%), `NotesTab.tsx` (41%), `trainerStore.ts` (50%), `programStore.ts` (53%). **Composition: 52 `.test.ts` + 151 `.test.tsx`. The quality gate's `js_unit_suffixes` omits `.tsx`, so it analyzes only the 52 `.ts` files — the 151 `.tsx` component tests are ungated (TD-16).**
 
-| Category | Test Files | Coverage Area |
-|----------|-----------|---------------|
-| App (authenticated) | 32 | Dashboard, calendar, booking, subscription, sessions, cancel flows, profile, mobile bottom nav, billing recovery, mood entry |
-| Auth | 4 | Login, logout, persistence, protected routes |
-| Public | 15 | Home, programs, checkout, contact, FAQ, register, navbar, terms, brand, payment polling, forgot-password |
-| Trainer | 9 | Trainer dashboard, clients list, client detail, anthropometry, nutrition, parq, physical-eval, posturometry, mobile bottom nav |
-| **Total** | **60 files** | |
+### E2E (Playwright) — 103 files
 
-### Grand Total: 227 test files
-### Flow Definitions: 60 flows (59 covered + 4 newly registered, 1 flaky `auth-session-persistence` unrelated)
+| Category | Spec Files |
+|----------|-----------|
+| App (authenticated customer) | 43 |
+| Trainer | 22 |
+| Public | 15 |
+| Admin | 10 |
+| Auth | 7 |
+| Program | 5 |
+| Customer (rating) | 1 |
+| **Total** | **103** |
 
-### E2E Coverage Gaps (0 uncovered flows — all waves complete)
+### Grand Total: 489 test files
+### Flow Definitions: 104 flows (registry v1.12.0, 2026-07-17) — runtime coverage **104/104** (CI artifact 2026-07-16). Static `flow_coverage_audit.py` = **0/104** (0 flows declare `outcomes`, 520/525 specs untagged) — static vs runtime models diverge; see TD-17 and `docs/audits/test-audit-2026-07-24.md`.
 
-| Wave | Priority | Flows | Status |
-|------|----------|-------|--------|
-| Wave 1 | P1 | auth-forgot-password, profile-management, trainer-clients-list, trainer-client-detail | ✅ Complete |
-| Wave 1.5 | P1 | trainer-dashboard | ✅ Complete (8 tests) |
-| Wave 2 | P2 | profile-password-change, customer-diagnosis, customer-nutrition, customer-parq, customer-physical-evaluation, customer-posturometry | ✅ Complete (38 tests) |
-| Wave 3 | P2 | trainer-client-anthropometry, trainer-client-nutrition, trainer-client-physical-eval, trainer-client-posturometry, trainer-client-parq | ✅ Complete (25 tests) |
-| Wave 4 | P3 | customer-pending-assessments | ✅ Complete (4 tests) |
+### Quality Gate: 99/100 — 0 errors, 86 warnings, 131 info (CI 2026-07-16, pre-sweep). The warning sweep `d3aa82a` (2026-07-17) reduced warnings 86 → 59 on the top-density backend files; CI artifact re-run pending to confirm the new breakdown. Local audit 2026-07-24 (`--semantic-rules strict`, per-suite): backend 0e/39w/119i (99), frontend-unit 0e/60w/5i (97, `.ts` only — see TD-16), e2e 0e/342w/3i (81). Full triage: `docs/audits/test-audit-2026-07-24.md`.
 
 ---
 
@@ -119,16 +136,18 @@
 
 | Document | Location | Status |
 |----------|----------|--------|
-| PRD | `docs/methodology/product_requirement_docs.md` | ✅ Created |
-| Technical | `docs/methodology/technical.md` | ✅ Created |
-| Architecture | `docs/methodology/architecture.md` | ✅ Created |
-| Tasks Plan | `tasks/tasks_plan.md` | ✅ Created |
-| Active Context | `tasks/active_context.md` | ✅ Created |
-| Error Documentation | `.windsurf/rules/methodology/error-documentation.md` | ✅ Template ready |
-| Lessons Learned | `.windsurf/rules/methodology/lessons-learned.md` | ✅ Populated |
+| PRD | `docs/methodology/product_requirement_docs.md` | ✅ Refreshed 2026-07-17 |
+| Technical | `docs/methodology/technical.md` | ✅ Refreshed 2026-07-17 |
+| Architecture | `docs/methodology/architecture.md` | ✅ Refreshed 2026-07-17 |
+| Tasks Plan | `tasks/tasks_plan.md` | ✅ Refreshed 2026-07-24 |
+| Active Context | `tasks/active_context.md` | ✅ Refreshed 2026-07-24 |
+| Error Documentation | `docs/methodology/error-documentation.md` | ✅ Maintained |
+| Lessons Learned | `docs/methodology/lessons-learned.md` | ✅ Maintained |
+| Release July (Fase 2) | `docs/release-july/{README,GUIA_DE_VALIDACION,GUIA_QA_STAGING}.md` | ✅ Existing |
 | Deployment Guide | `docs/deployment-guide.md` | ✅ Existing |
 | Testing Quality Standards | `docs/TESTING_QUALITY_STANDARDS.md` | ✅ Existing |
-| User Flow Map | `docs/USER_FLOW_MAP.md` | ✅ Existing |
+| User Flow Map | `docs/USER_FLOW_MAP.md` | ✅ Reconciled 2026-07-17 (`0440992` — runtime artifact is coverage source of truth) |
+| Test Audit | `docs/audits/test-audit-2026-07-24.md` | ✅ New (2026-07-24, audit-first, report-only) |
 
 ---
 
@@ -136,14 +155,13 @@
 
 | Priority | Improvement | Impact |
 |----------|-------------|--------|
-| ~~Critical~~ | ~~Write E2E specs for 13 remaining uncovered flows~~ | ✅ Done — all 55 flows covered |
-| High | Add API rate limiting (django-ratelimit or DRF throttling) | Security |
-| ~~High~~ | ~~E2E tests for diagnostic engine (anthropometry, posturometry, physical eval, nutrition, PAR-Q)~~ | ✅ Done (Wave 2) |
-| ~~High~~ | ~~E2E tests for trainer client management flows~~ | ✅ Done (Wave 3) |
-| Medium | Complete i18n with next-intl (Spanish/English) | Market reach |
-| Medium | Add CI/CD pipeline for automated deployment | DevOps efficiency |
-| Medium | Migrate dev database to MySQL for parity with production | Reliability |
-| ~~Medium~~ | ~~E2E tests for password reset flow~~ | ✅ Done (12 tests) |
+| High | Add API rate limiting (django-ratelimit or DRF throttling) | Security (TD-05) |
+| ~~High~~ | ~~Revive the P1-missing CI gate (align report script with reporter schema)~~ | ✅ Done — `a501f05` (TD-11) |
+| Medium | Raise `tasks.py` and `trainer_intelligence_views.py` coverage | Billing/analytics reliability (TD-12) |
+| ~~Medium~~ | ~~Direct unit tests for `recurring_renewal` service~~ | ✅ Done — `13b6d5c` (TD-13) |
+| Medium | Complete i18n with next-intl (Spanish/English) | Market reach (TD-07) |
+| Medium | Add CD pipeline for automated deployment | DevOps efficiency (TD-08) |
+| Medium | Migrate dev database to MySQL for parity with production | Reliability (TD-01) |
 | Low | Add WebSocket notifications for real-time booking updates | UX polish |
-| Low | Implement admin dashboard with analytics charts | Business intelligence |
 | Low | Add Sentry or similar error tracking in production | Observability |
+| ~~Low~~ | ~~Implement admin dashboard with analytics charts~~ | ✅ Done — Part 11a Admin Reports/KPIs (#62) |

@@ -116,9 +116,13 @@ test.describe('Auth Persistence & Cookies', { tag: [...FlowTags.AUTH_SESSION_PER
     await page.goto('/dashboard');
     await page.waitForURL('**/login', { timeout: 10_000 });
 
+    // The failed profile call bounced the user off the guarded route to /login.
+    await expect(page).toHaveURL(/\/login/);
+
+    // The token cookie existed (set above); the catch block must have cleared it.
     const cookies = await page.context().cookies();
     const tokenCookie = cookies.find((c) => c.name === 'kore_token');
-    expect(!tokenCookie || tokenCookie.value === '').toBe(true);
+    expect(tokenCookie?.value ?? '').toBe('');
   });
 
   test('mapUser name falls back to email when first_name and last_name are empty', async ({ page }) => {
@@ -169,10 +173,11 @@ test.describe('Auth Persistence & Cookies', { tag: [...FlowTags.AUTH_SESSION_PER
 
     // Should be redirected to login because auth state was cleared
     await page.waitForURL('**/login', { timeout: 10_000 });
+    await expect(page).toHaveURL(/\/login/);
 
-    // Verify cookies were cleared by the catch block
+    // The token cookie was set above; the catch block must have cleared it.
     const cookies = await page.context().cookies();
     const tokenCookie = cookies.find((c) => c.name === 'kore_token');
-    expect(!tokenCookie || tokenCookie.value === '').toBe(true);
+    expect(tokenCookie?.value ?? '').toBe('');
   });
 });

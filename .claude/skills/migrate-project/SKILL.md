@@ -2,12 +2,12 @@
 name: migrate-project
 description: "Migra un proyecto Django entre VPS del fleet (20 pasos: git clone, creds, snapshot, systemd+nginx deploy, SSL emit, cutover). Per-project, no whole-VPS. v1.3 con deploy automático de systemd units (paso 16) + nginx site (paso 17) + SSL cert chicken-and-egg handler (paso 19) + auto-cleanup mysql-users.env post-cutover (paso 20.9). Reducción ~30 min de manual work por migración."
 argument-hint: "<project_name> <target_vps_alias> [--check|--apply|--cutover --confirm-downtime|--rollback]"
-allowed-tools: Bash, Read, Edit
+allowed-tools: Bash, Read, Edit, AskUserQuestion
 ---
 
 ## Qué hace esta skill
 
-Migra un proyecto Django entre dos VPS del fleet (origin → target) componiendo los scripts existentes vía `FORCE_SINGLE_PROJECT` + `FORCE_PROJECTS` env vars. NO migra un VPS completo (para eso usar `docs/migration-runbook.md`).
+Migra un proyecto Django entre dos VPS del fleet (origin → target) componiendo los scripts existentes vía la env var `FORCE_SINGLE_PROJECT` (narrowing de `LOCAL_PROJECTS` a un solo proyecto). NO migra un VPS completo (para eso usar `docs/migration-runbook.md`).
 
 **Casos de uso típicos:**
 - Mover un proyecto de un VPS saturado a uno nuevo
@@ -45,10 +45,32 @@ La detección usa `resolve_server_alias` + `is_dev_machine` de `scripts/lib/boot
 
 | Modo | Qué hace | ¿Downtime? |
 |---|---|---|
-| `--check` | Preflight + dry-run report de los 16 pasos. Sin mutaciones. | No |
-| `--apply` | Pasos 1-15: snapshot + transfer + clone + DB + media + bootstrap en target. Services en origin SIGUEN VIVOS. Idempotente. | No |
-| `--cutover --confirm-downtime` | Paso 16: stop origin → final delta dump → start target → DNS guidance → smoke tests → commit `projects.yml` flip | **Sí, ≤5 min HTTP / ≈0 min si SSL blue-green** |
+| `--check` | Preflight + dry-run report de los 20 pasos. Sin mutaciones. | No |
+| `--apply` | Pasos 1-19: snapshot + transfer + clone + DB + media + bootstrap + systemd/nginx/SSL en target. Services en origin SIGUEN VIVOS. Idempotente. | No |
+| `--cutover --confirm-downtime` | Paso 20: stop origin → final delta dump → start target → DNS guidance → smoke tests → commit `projects.yml` flip | **Sí, ≤5 min HTTP / ≈0 min si SSL blue-green** |
 | `--rollback` | Restart origin services, deja target en warm spare. DNS flip back es manual. | Reversión |
+
+## Cómo invocar este skill
+
+Gating ([[_output-protocol]] §4), en DOS niveles porque hay args posicionales:
+(1) posicionales + modo explícitos → directo, sin menú; (2) intención clara por contexto
+→ proponer el comando en una línea y esperar confirmación; (3) posicionales resueltos y
+sin modo → UNA AskUserQuestion (Q1); (4) nunca en fleet/headless/cron. **Posicionales
+primero:** si faltan `<proyecto>` y/o `<target_vps>`, pedirlos en TEXTO plano una sola
+vez (son datos, no flags — no van en un picker); recién con la coordenada resuelta
+entra Q1.
+
+**Q1 — Modo** (`multiSelect: false`):
+
+| label | description | preview |
+|---|---|---|
+| --check (Recommended) | preflight read-only de los 20 pasos, sin mutaciones | `bash scripts/maintenance/migrate-project.sh --check <proyecto> <target_vps>` |
+| --apply | snapshot + transfer + warm spare en target; origin sigue vivo, sin downtime | `bash scripts/maintenance/migrate-project.sh --apply <proyecto> <target_vps>` |
+
+**Qué NO se pregunta:** `--cutover` NUNCA es opción clickeable (blocklist §4: exige
+`--confirm-downtime` TIPEADO — un click no es confirmación de downtime); `--rollback`
+se tipea tras leer el runbook (`docs/migrate-project-runbook.md`). La continuación
+post-corrida vive en el menú position-aware de `## Acciones disponibles`.
 
 ## Flujo recomendado
 
@@ -114,7 +136,7 @@ cutover).
 ### Paso 4 — Clone project repo en target (PRIMER acto de modificación)
 
 ```bash
-FORCE_SINGLE_PROJECT=<proj> FORCE_PROJECTS=<proj> \
+FORCE_SINGLE_PROJECT=<proj> \
 bash scripts/bootstrap/clone-projects.sh --apply
 ```
 
@@ -186,7 +208,7 @@ que el `mysql-users.env` del paso 6 (commiteado y pusheado por el
 operador) esté disponible.
 
 ```bash
-FORCE_SINGLE_PROJECT=<proj> FORCE_PROJECTS=<proj> \
+FORCE_SINGLE_PROJECT=<proj> \
 sudo bash scripts/bootstrap/setup-mysql.sh --apply
 ```
 
@@ -222,7 +244,7 @@ catastróficos).
 ### Paso 12 — Snapshot DB + media + extras en origin (HEAVY)
 
 ```bash
-FORCE_SINGLE_PROJECT=<proj> FORCE_PROJECTS=<proj> \
+FORCE_SINGLE_PROJECT=<proj> \
 bash scripts/maintenance/backup-mysql-and-media.sh
 ```
 
@@ -244,7 +266,7 @@ HOST_ROLE != target.
 ### Paso 14 — Restore DB + media + extras en target
 
 ```bash
-FORCE_SINGLE_PROJECT=<proj> FORCE_PROJECTS=<proj> \
+FORCE_SINGLE_PROJECT=<proj> \
 sudo bash scripts/bootstrap/restore-from-backup.sh --apply --from=<dir>
 ```
 
@@ -254,7 +276,7 @@ Importa DB, extrae media tarball, y extrae extras tarball (kore
 ### Paso 15 — venv + pip + frontend build + systemd
 
 ```bash
-FORCE_SINGLE_PROJECT=<proj> FORCE_PROJECTS=<proj> \
+FORCE_SINGLE_PROJECT=<proj> \
 sudo bash scripts/bootstrap/setup-project-environments.sh --apply
 ```
 
@@ -396,24 +418,90 @@ Caso más simple del set analizado: sin twin staging, sin `extra_paths`, sólo `
 
 ---
 
+## Acciones disponibles
+
+Menú **position-aware**: acá el operador siempre pasó argumentos (proyecto +
+target + modo), así que el gating de [[_output-protocol]] §4 aplica al PASO
+SIGUIENTE — tras el reporte, si la sesión es interactiva, ofrecer vía
+AskUserQuestion la continuación según el modo que acaba de correr.
+
+Tras un `--check` exitoso:
+
+| Opción (label) | description (costo/efecto) | preview (comando exacto) |
+|---|---|---|
+| Ejecutar --apply (Recommended) | snapshot + transfer + warm spare en target; origin sigue vivo, idempotente, sin downtime | `bash scripts/maintenance/migrate-project.sh --apply <proj> <target>` |
+
+Tras un `--apply`:
+
+| Opción (label) | description (costo/efecto) | preview (comando exacto) |
+|---|---|---|
+| Mostrar el comando exacto de cutover | el cutover NO es clickeable — exige tipear `--confirm-downtime` con la ventana acordada; esta opción sólo MUESTRA el texto, NO lo ejecuta | `bash scripts/maintenance/migrate-project.sh --cutover --confirm-downtime <proj> <target>` |
+| --rollback | si algo salió mal: restart de services en origin, target queda en warm spare | `bash scripts/maintenance/migrate-project.sh --rollback <proj> <target>` |
+
+El `--cutover` está en la blocklist del protocolo: nunca se ejecuta desde un
+click — el operador lo tipea con su `--confirm-downtime`.
+
 ## Output final
 
-Cierra siguiendo `[[_output-protocol]]`: veredicto + tabla por paso + next steps.
+Reportar siguiendo [[_output-protocol]]. Plantilla específica de esta skill
+(migra UN proyecto origin → target; el veredicto nombra ambos hosts):
 
-Ejemplo de cierre exitoso:
+🟢 migrate-project <proj> <origin> → <target> OK — todas las celdas ✅
+🟡 migrate-project <proj> <origin> → <target> OK con N warning(s) — ≥1 ⚠️ (blue-green, redis slot, port)
+🔴 migrate-project <proj> <origin> → <target> — N error(es), revisar arriba — ≥1 ❌
+⏸️ migrate-project <proj> <origin> → <target> — pausa manual pendiente — DNS flip / confirmar downtime
+🚫 migrate-project <proj> <origin> → <target> — REFUSED (<razón>) — invocado desde origin VPS o repo viejo
+⏭️ migrate-project <proj> <origin> → <target> — N/A o saltado — modo `--check` (dry-run)
 
-```
-🟢 migrate-project mimittos_project → vps-projectapp-prod OK
+| Dimensión | Estado | Detalle |
+|---|---|---|
+| Preflight (SSH + bootstrap + DNS) | ✅ | conectividad origin/target, target listo, TTL DNS |
+| Clone + DB creds | ✅ | repo clonado en target, mysql-users.env poblado |
+| MySQL setup | ✅ | extra_packages instalados + DB/usuario creados |
+| Transfer de envs | ✅ | .env capturados en origin y restaurados en target |
+| Snapshot + restore de datos | ✅ | DB + media + extra_paths transferidos al target |
+| Runtime build | ✅ | venv + pip + frontend build en target |
+| Systemd + nginx deploy | ✅ | units + nginx site (enable diferido a SSL) |
+| Propagación de skills | ✅ | project_skills sincronizados en target |
+| SSL emit + nginx enable | ✅ | cert emitido (certbot HTTP-01), site enabled |
+| Cutover | ✅ | stop origin, delta dump, DNS flip, smoke, projects.yml flip |
 
-| Paso | Status |
-|---|---|
-| 1. Preflight SSH       | ✅ |
-| 2. Target bootstrap    | ✅ |
-| ... (todos los pasos)  | ✅ |
-| 16. Cutover            | ✅ |
+Sustituciones por modo/estado:
+- `--check` → veredicto ⏭️; cada dimensión reporta el plan (sin mutar).
+- `--apply` → fila **Cutover** en ⏭️ (services en origin vivos; target en warm spare).
+- Warnings (⚠️, veredicto 🟡): payment keys detectadas (blue-green recomendado),
+  redis slot conflict, frontend port collision, `db.sqlite3` huérfano.
+- Invocado desde el origin VPS o repo desactualizado → 🚫/❌ (safety gate / abort).
 
-Next steps:
-  - Validar smoke tests adicionales (audio upload UI)
-  - Borrar snapshot en origin después de 7d: rm -rf /home/ryzepeck/backups/vps/<UTC>
-  - Disable services en origin: ssh <origin> 'sudo systemctl disable <gunicorn> <huey>'
-```
+## Next steps
+- (manual, operador) cambiar el A record del dominio a la IP del target en el panel DNS
+- `bash scripts/maintenance/migrate-project.sh --rollback <proj> <target>` — si los smoke tests fallan post-cutover
+- (otro VPS, origin) `ssh <origin> 'sudo systemctl disable <gunicorn_svc> <huey_svc>'` — deshabilitar services en origin tras validar
+- (manual, ≥7d) `rm -rf /home/ryzepeck/backups/vps/<UTC>` — borrar el snapshot pesado en origin
+- `git add projects.yml config/credentials/servers/<target>/mysql-users.env && git commit && git push` — commitear el flip de `server:` + cleanup de mysql-users.env
+
+---
+
+## Suspensión de proyecto (checklist manual, meta-review 2026-07 P1)
+
+La migración limpia certs huérfanos en origen (paso 20.10), pero la **suspensión**
+(status → `suspended`, offline-total) era ad-hoc y dejó 2 renewals huérfanos que
+rompieron `certbot renew` global (korehealths + mimittos, detectados 2026-07-06).
+Al suspender un proyecto, en ESTE orden:
+
+1. `sudo systemctl stop --now <gunicorn> <huey> [<frontend>]` + `disable` de los 3
+   (+ `.socket` si existe). Verificar `systemctl is-enabled` = disabled.
+2. nginx: `sudo rm /etc/nginx/sites-enabled/<site>` + `nginx -t` + reload
+   (el archivo queda en sites-available para reactivación).
+3. **Cert SSL — decidir explícitamente** (el paso que siempre se olvida):
+   - Reactivación improbable/lejana → `sudo certbot delete --cert-name <dominio>`
+     (re-emitir al reactivar toma segundos; un renewal huérfano con webroot/site
+     removido rompe el `certbot renew` de TODO el host cuando entra en ventana).
+   - Reactivación inminente (<30 días) → conservar, PERO anotar en projects.yml
+     `notes:` la fecha de expiry y quién lo vigila.
+4. Datos: dump pre-suspensión a `/var/backups/<proj>/pre-suspension-<ts>/`
+   (patrón xpandia 2026-06-27); sqlite + media quedan en el dir del proyecto.
+5. `projects.yml`: `status: suspended` + `notes:` con fecha, razón y qué se
+   preservó dónde (los reportes y el traffic report leen esas notes).
+6. Verificar: `sudo certbot renew --dry-run` limpio + `vps-healthcheck` sin
+   críticos + el proyecto aparece como ⏸️ en el próximo reporte.

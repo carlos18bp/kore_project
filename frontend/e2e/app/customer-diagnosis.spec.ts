@@ -53,7 +53,9 @@ test.describe('Customer Diagnosis Page', { tag: [...FlowTags.CUSTOMER_DIAGNOSIS,
     await expect(page.getByText(/Última evaluación/i)).toBeVisible();
   });
 
-  test('renders indicators section with active composition card', async ({ page }) => {
+  test('renders indicators section with active composition card', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await goToDiagnosisWithData(page);
 
     await expect(page.getByText('Indicadores en detalle')).toBeVisible();

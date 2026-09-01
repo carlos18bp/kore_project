@@ -1,5 +1,7 @@
 import { test, expect } from '../fixtures';
 import type { Page } from '@playwright/test';
+import { makeAvailability, nextBookableDay } from '../factories';
+import { mockAvailability, mockNoAvailability } from '../helpers/availability';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 const FAKE_TOKEN = 'fake-e2e-jwt-token-for-testing';
@@ -121,125 +123,82 @@ test.describe('BookingCalendar Edge Cases', { tag: [...FlowTags.BOOKING_CALENDAR
   test.beforeEach(async ({ page }) => {
     await configureCalendarDefaults(page);
     await seedAuthCookies(page);
-
-    const seededCookies = await page.context().cookies();
-    expect(seededCookies.some((cookie) => cookie.name === 'kore_token')).toBe(true);
   });
 
-  test('past days are disabled and not clickable', async ({ page }) => {
-    await page.route('**/api/availability/**', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({}),
-      }),
-    );
+  test('every day in a fully past month is disabled', async ({ page }) => {
+    await mockNoAvailability(page);
 
     await page.goto('/book-session');
     await expect(page.getByText('Selecciona un día')).toBeVisible({ timeout: 10_000 });
 
-    // Pick a day-of-month that is unambiguously in the past for the current view.
-    // Using "yesterday.getDate()" can collide with a future day number when
-    // yesterday is in the previous month (e.g. today=May 1 -> yesterday=Apr 30
-    // would also match May 30, which is NOT disabled). Instead pick a day from
-    // earlier this month so the button definitely refers to a past date.
-    const today = new Date();
-    if (today.getDate() <= 1) {
-      // First day of the month — no in-month past day to test; skip safely.
-      return;
-    }
-    const pastDayNum = today.getDate() - 1;
-    const pastDayButton = page.getByRole('button', { name: String(pastDayNum), exact: true });
-
-    if ((await pastDayButton.count()) > 0) {
-      await expect(pastDayButton).toBeDisabled();
-    }
+    // Paging back one month puts the whole grid in the past. Day 15 exists in
+    // every month, so it is an unambiguous past day that must be disabled.
+    await page.getByLabel('Mes anterior').click();
+    await expect(page.getByRole('button', { name: '15', exact: true })).toBeDisabled();
   });
 
-  test('Sunday days are disabled (no sessions on Sundays)', async ({ page }) => {
-    await page.route('**/api/availability/**', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({}),
-      }),
-    );
+  test('a Sunday is disabled while its weekday neighbour is selectable', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
+    // The studio is closed on Sundays, so the backend never publishes slots for
+    // them. Build availability for every non-Sunday of next month and assert the
+    // Sunday stays disabled — proving the calendar reflects real availability,
+    // not a blanket disable.
+    const nextMonthAnchor = new Date();
+    nextMonthAnchor.setDate(1);
+    nextMonthAnchor.setMonth(nextMonthAnchor.getMonth() + 1);
+    const sunday = firstSundayOfMonth(nextMonthAnchor);
+    const saturday = new Date(sunday);
+    saturday.setDate(saturday.getDate() - 1);
+
+    await mockAvailability(page, makeAvailability({ days: 40, from: new Date() }));
 
     await page.goto('/book-session');
     await expect(page.getByText('Selecciona un día')).toBeVisible({ timeout: 10_000 });
+    await page.getByLabel('Mes siguiente').click();
 
-    // Find a Sunday in the current month and verify it is disabled
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = today.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    let sundayDay: number | null = null;
-    for (let d = today.getDate() + 1; d <= daysInMonth; d++) {
-      if (new Date(year, month, d).getDay() === 0) { sundayDay = d; break; }
-    }
-
-    if (sundayDay !== null) {
-      const sundayBtn = page.getByRole('button', { name: String(sundayDay), exact: true });
-      if ((await sundayBtn.count()) > 0) {
-        await expect(sundayBtn).toBeDisabled();
-      }
-    }
+    await expect(page.getByRole('button', { name: String(sunday.getDate()), exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: String(saturday.getDate()), exact: true })).toBeEnabled();
   });
 
-  test('selecting a weekday shows time slot options', async ({ page }) => {
-    // Pick a future weekday and supply the availability map so the day is enabled
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    while (tomorrow.getDay() === 0) { tomorrow.setDate(tomorrow.getDate() + 1); }
-    const tomorrowDateStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
-    const slotIso = `${tomorrowDateStr}T10:00:00Z`;
-
-    await page.route('**/api/availability/**', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ [tomorrowDateStr]: [slotIso] }),
-      }),
-    );
+  test('selecting a weekday shows its time slot options', async ({ page }) => {
+    const day = nextBookableDay(new Date(), 1);
+    await mockAvailability(page, makeAvailability({ from: new Date() }));
 
     await page.goto('/book-session');
     await expect(page.getByText('Selecciona un día')).toBeVisible({ timeout: 10_000 });
+    await selectCurrentOrNextMonthDay(page, day);
 
-    const dayNum = tomorrow.getDate();
-    const dayButton = page.getByRole('button', { name: String(dayNum), exact: true });
-    if ((await dayButton.count()) > 0 && !(await dayButton.isDisabled())) {
-      await dayButton.click();
-
-      // TimeSlotPicker shows start time only with es-CO locale (e.g. "10:00 a. m.")
-      await expect(
-        page.getByRole('main').getByRole('button', { name: /\d{1,2}:\d{2}/ }).first(),
-      ).toBeVisible({ timeout: 10_000 });
-    }
+    await expect(
+      page.getByRole('main').getByRole('button', { name: /\d{1,2}:\d{2}/ }).first(),
+    ).toBeVisible({ timeout: 10_000 });
   });
 
   test('selecting an available day highlights it as selected', async ({ page }) => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowDay = tomorrow.getDate();
-    const tomorrowDate = tomorrow.toISOString().split('T')[0];
-
-    await page.route('**/api/availability/**', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ [tomorrowDate]: [`${tomorrowDate}T09:00:00Z`] }),
-      }),
-    );
+    const day = nextBookableDay(new Date(), 1);
+    await mockAvailability(page, makeAvailability({ from: new Date() }));
 
     await page.goto('/book-session');
     await expect(page.getByText('Selecciona un día')).toBeVisible({ timeout: 10_000 });
+    const dayButton = await selectCurrentOrNextMonthDay(page, day);
 
-    const dayButton = page.getByRole('button', { name: String(tomorrowDay), exact: true });
-
-    if ((await dayButton.count()) > 0 && !(await dayButton.isDisabled())) {
-      await dayButton.click({ force: true });
-      await expect(dayButton).toHaveClass(/bg-kore-red/);
-    }
+    await expect(dayButton).toHaveClass(/bg-kore-red/);
   });
 
 });
+
+/** First Sunday on or after the 1st of the given month. */
+function firstSundayOfMonth(monthAnchor: Date): Date {
+  const d = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth(), 1);
+  while (d.getDay() !== 0) d.setDate(d.getDate() + 1);
+  return d;
+}
+
+/** Click a day button, paging one month forward first when it is not this month. */
+async function selectCurrentOrNextMonthDay(page: Page, date: Date) {
+  if (date.getMonth() !== new Date().getMonth()) {
+    await page.getByLabel('Mes siguiente').click();
+  }
+  const dayButton = page.getByRole('button', { name: String(date.getDate()), exact: true });
+  await dayButton.click();
+  return dayButton;
+}

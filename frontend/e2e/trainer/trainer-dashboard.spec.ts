@@ -1,4 +1,5 @@
 import { test, expect, injectTrainerAuthCookies } from '../fixtures';
+import { mockApiError } from '../helpers/api-errors';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
@@ -124,7 +125,9 @@ test.describe('Trainer Dashboard Page', { tag: [...FlowTags.TRAINER_DASHBOARD, R
     await expect(quickAction).toHaveAttribute('href', '/trainer/clients');
   });
 
-  test('renders todays agenda with client names', async ({ page }) => {
+  test('renders todays agenda with client names', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista de entrenador; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el área de entrenador exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await injectTrainerAuthCookies(page);
     await setupDashboardMocks(page);
     await page.goto('/trainer/dashboard');
@@ -144,6 +147,49 @@ test.describe('Trainer Dashboard Page', { tag: [...FlowTags.TRAINER_DASHBOARD, R
     await expect(page.getByText('Plan Pro')).toBeVisible();
   });
 
+  test('confirms attendance from the agenda day modal', async ({ page }) => {
+    // A session that already started (1 min ago) so AttendanceActions renders its buttons.
+    const startedStats = {
+      ...fakeStats,
+      today_sessions: 1,
+      upcoming_sessions: [
+        {
+          id: 210,
+          customer_id: 1,
+          customer_name: 'María López',
+          package_title: 'Plan Elite',
+          starts_at: new Date(Date.now() - 60_000).toISOString(),
+          ends_at: new Date(Date.now() + 3_540_000).toISOString(),
+          status: 'confirmed',
+          attendance_status: 'unset',
+        },
+      ],
+    };
+    await injectTrainerAuthCookies(page);
+    await setupDashboardMocks(page, { stats: startedStats });
+    await page.route('**/api/bookings/210/confirm-attendance/', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ id: 210, attendance_status: 'attended', attendance_confirmed_at: new Date().toISOString() }),
+      });
+    });
+    await page.goto('/trainer/dashboard');
+
+    await expect(page.getByText('Agenda', { exact: true })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Semana' }).click();
+    const dayNum = String(new Date().getDate());
+    await page
+      .getByTestId('week-day-cell')
+      .filter({ has: page.getByText(dayNum, { exact: true }) })
+      .first()
+      .click();
+    const confirmBtn = page.getByRole('button', { name: '✓ Asistió' });
+    await expect(confirmBtn).toBeVisible({ timeout: 10_000 });
+    await confirmBtn.click();
+    await expect(page.getByText('Asistió', { exact: true })).toBeVisible({ timeout: 10_000 });
+  });
+
   test('empty agenda shows zero sessions programmed', async ({ page }) => {
     const emptyStats = { total_clients: 0, today_sessions: 0, upcoming_sessions: [] };
     const emptyRisk = { risk_summary: { alto: 0, medio: 0, bajo: 0, sin_riesgo: 0 }, clients_by_risk: [] };
@@ -155,5 +201,23 @@ test.describe('Trainer Dashboard Page', { tag: [...FlowTags.TRAINER_DASHBOARD, R
     await expect(page.getByText('Agenda', { exact: true })).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Sin sesiones programadas hoy.')).toBeVisible();
     await expect(page.getByText('Sin clientes activos')).toBeVisible();
+  });
+
+  test('falls back to zero sessions when dashboard stats fail to load', { tag: ['@outcome:error'] }, async ({ page }) => {
+    // quality: allow-no-interaction (el fallo se induce desde la API; no hay acción de usuario que lo dispare — el estado degradado ES lo verificado)
+    // quality: allow-deep-link (el área de entrenador exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
+    const emptyStats = { total_clients: 0, today_sessions: 0, upcoming_sessions: [] };
+    const emptyRisk = { risk_summary: { alto: 0, medio: 0, bajo: 0, sin_riesgo: 0 }, clients_by_risk: [] };
+    const emptyComparative = { ...fakeComparativeMetrics, expired_evaluations: [] };
+    await injectTrainerAuthCookies(page);
+    await setupDashboardMocks(page, { stats: emptyStats, risk: emptyRisk, comparative: emptyComparative });
+    await mockApiError(page, '**/api/trainer/dashboard-stats/', 500);
+    await page.goto('/trainer/dashboard');
+
+    // No visible error UI for a stats failure: the hero degrades to a
+    // zero-session greeting and the agenda keeps its own empty state.
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Germán', { timeout: 15_000 });
+    await expect(page.getByText('0 sesiones', { exact: true })).toBeVisible();
+    await expect(page.getByText('Sin sesiones programadas hoy.')).toBeVisible();
   });
 });

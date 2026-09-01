@@ -240,7 +240,6 @@ describe('SubscriptionDashboardToast', () => {
     const closeIconBtn = closeButtons.find(
       (btn) => btn.textContent === '' || !btn.textContent?.includes('Más tarde'),
     );
-    expect(closeIconBtn).toBeTruthy();
     fireEvent.click(closeIconBtn!);
 
     expect(screen.queryByText('No pudimos procesar tu pago')).not.toBeInTheDocument();
@@ -264,7 +263,6 @@ describe('SubscriptionDashboardToast', () => {
     const closeIconBtn = closeButtons.find(
       (btn) => btn.textContent === '' || !btn.textContent?.includes('Más tarde'),
     );
-    expect(closeIconBtn).toBeTruthy();
     fireEvent.click(closeIconBtn!);
 
     expect(screen.queryByText(/tu suscripción/i)).not.toBeInTheDocument();

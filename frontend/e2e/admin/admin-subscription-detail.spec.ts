@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures';
 import { mockLoginAsAdmin } from '../helpers/admin-auth';
+import { mockApiError } from '../helpers/api-errors';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
 /**
@@ -108,7 +109,9 @@ test.describe(
       await mockLoginAsAdmin(page);
     });
 
-    test('renders the subscription detail', async ({ page }) => {
+    test('renders the subscription detail', { tag: ['@outcome:display'] }, async ({ page }) => {
+      // quality: allow-no-interaction (la clase display de este flow ES el render de la vista; no hay acción previa que ejecutar)
+      // quality: allow-deep-link (el backoffice exige sesión de staff inyectada por cookie; no hay ruta de UI pública hasta esta vista)
       await mockDetail(page, makeSub());
       await page.goto('/admin-platform/subscriptions/detail?id=5');
 
@@ -171,6 +174,46 @@ test.describe(
       await deleteReq;
 
       await page.waitForURL('**/admin-platform/subscriptions');
+      // The delete redirected off the detail page onto the subscriptions list.
+      await expect(page).toHaveURL(/\/admin-platform\/subscriptions$/);
     });
+
+    test('a rejected delete shows the error banner and stays on the detail', { tag: ['@outcome:error'] }, async ({ page }) => {
+      await mockDetail(page, makeSub());
+      // Registered after mockDetail so the DELETE is answered with a 409 (LIFO).
+      await mockApiError(
+        page,
+        '**/api/subscriptions/5/admin-delete/',
+        409,
+        { detail: 'No se puede eliminar: la suscripción tiene pagos en curso.' },
+        { method: 'DELETE' },
+      );
+
+      await page.goto('/admin-platform/subscriptions/detail?id=5');
+      await expect(page.getByText('Marta Lopez')).toBeVisible();
+
+      await page.getByRole('button', { name: 'Eliminar', exact: true }).click();
+      await page.getByRole('button', { name: 'Eliminar permanentemente' }).click();
+
+      await expect(
+        page.getByText('No se puede eliminar: la suscripción tiene pagos en curso.'),
+      ).toBeVisible();
+      await expect(page).toHaveURL(/subscriptions\/detail\?id=5/);
+    });
+
+    test('a detail load failure shows the load error instead of the subscription', { tag: ['@outcome:failure'] }, async ({ page }) => {
+      // quality: allow-no-interaction (el fallo se induce desde la API; no hay acción de usuario que lo dispare — el estado degradado ES lo verificado)
+      // quality: allow-deep-link (el backoffice exige sesión de staff inyectada por cookie; no hay ruta de UI pública hasta esta vista)
+      await mockApiError(page, '**/api/subscriptions/5/', 500, {}, { method: 'GET' });
+
+      await page.goto('/admin-platform/subscriptions/detail?id=5');
+
+      // El par importa: sin la aserción negativa, un render a medias con el
+      // banner encima también pasaría, y el punto es que la suscripción NO se
+      // muestra cuando no se pudo cargar.
+      await expect(page.getByText('No se pudo cargar la suscripción.')).toHaveCount(1);
+      await expect(page.getByText('Marta Lopez')).toHaveCount(0);
+    });
+
   },
 );

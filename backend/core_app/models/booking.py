@@ -28,6 +28,11 @@ class Booking(TimestampedModel):
         CONFIRMED = 'confirmed', 'Confirmed'
         CANCELED = 'canceled', 'Canceled'
 
+    class AttendanceStatus(models.TextChoices):
+        UNSET = 'unset', 'Unset'
+        ATTENDED = 'attended', 'Attended'
+        NO_SHOW = 'no_show', 'No Show'
+
     customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='bookings')
     package = models.ForeignKey(Package, on_delete=models.PROTECT, related_name='bookings')
     trainer = models.ForeignKey(
@@ -44,6 +49,13 @@ class Booking(TimestampedModel):
         null=True,
         blank=True,
     )
+    session_grant = models.ForeignKey(
+        'core_app.SessionGrant',
+        on_delete=models.SET_NULL,
+        related_name='bookings',
+        null=True,
+        blank=True,
+    )
 
     starts_at = models.DateTimeField(db_index=True)
     ends_at = models.DateTimeField(db_index=True)
@@ -52,6 +64,13 @@ class Booking(TimestampedModel):
 
     notes = models.TextField(blank=True)
     canceled_reason = models.CharField(max_length=255, blank=True)
+    attendance_status = models.CharField(
+        max_length=10,
+        choices=AttendanceStatus.choices,
+        default=AttendanceStatus.UNSET,
+        db_index=True,
+    )
+    attendance_confirmed_at = models.DateTimeField(null=True, blank=True)
     session_objective = models.TextField(blank=True)
     session_notes_for_customer = models.TextField(blank=True)
 

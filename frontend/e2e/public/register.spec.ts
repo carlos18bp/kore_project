@@ -69,7 +69,7 @@ test.describe('Register Page', { tag: [...FlowTags.AUTH_REGISTER, RoleTags.GUEST
     await expect(page.getByLabel('Confirmar contraseña')).toBeVisible();
   });
 
-  test('password mismatch shows client-side error', async ({ page }) => {
+  test('password mismatch shows client-side error', { tag: ['@outcome:error'] }, async ({ page }) => {
     await mockCaptchaSiteKey(page);
     await page.goto('/register');
     await page.getByLabel('Nombre').fill('Test');
@@ -88,19 +88,19 @@ test.describe('Register Page', { tag: [...FlowTags.AUTH_REGISTER, RoleTags.GUEST
     await page.getByLabel('Nombre').fill('Test');
     await page.getByLabel('Apellido').fill('User');
     await page.getByLabel(/Correo electrónico/i).fill('test@example.com');
-    await page.getByLabel('Contraseña', { exact: true }).fill('1234567');
+    const password = page.getByLabel('Contraseña', { exact: true });
+    await password.fill('1234567');
     await page.getByLabel('Confirmar contraseña').fill('1234567');
 
-    // Remove native minLength so the form actually submits and our JS validation fires
-    await page.evaluate(() => {
-      document.querySelectorAll('input[minlength]').forEach((el) => el.removeAttribute('minlength'));
-    });
     await page.getByRole('button', { name: 'Continuar' }).click();
 
-    await expect(page.getByText('La contraseña debe tener al menos 8 caracteres')).toBeVisible({ timeout: 5_000 });
+    // What a real user hits first is the browser's own minLength guard: the form
+    // never submits, so the app's JS message is unreachable and the step stands.
+    await expect(password).toHaveJSProperty('validity.tooShort', true);
+    await expect(page.getByLabel('Confirmar contraseña')).toBeVisible();
   });
 
-  test('server-side error is displayed', async ({ page }) => {
+  test('server-side error is displayed', { tag: ['@outcome:failure'] }, async ({ page }) => {
     await mockCaptchaSiteKey(page);
     await page.goto('/register?package=6');
 
@@ -224,18 +224,17 @@ test.describe('Register Page', { tag: [...FlowTags.AUTH_REGISTER, RoleTags.GUEST
     await expect(passwordInput).toHaveAttribute('type', 'password');
     await expect(confirmInput).toHaveAttribute('type', 'password');
 
-    // Click toggle button (use evaluate to bypass animation overlays)
-    await page.locator('button', { hasText: 'Ver' }).evaluate((el) => (el as HTMLElement).click());
+    await page.getByRole('button', { name: 'Ver', exact: true }).click();
 
     // Now text type
     await expect(passwordInput).toHaveAttribute('type', 'text');
     await expect(confirmInput).toHaveAttribute('type', 'text');
 
     // Toggle shows 'Ocultar'
-    await expect(page.locator('button', { hasText: 'Ocultar' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Ocultar', exact: true })).toBeVisible();
 
     // Toggle back
-    await page.locator('button', { hasText: 'Ocultar' }).evaluate((el) => (el as HTMLElement).click());
+    await page.getByRole('button', { name: 'Ocultar', exact: true }).click();
     await expect(passwordInput).toHaveAttribute('type', 'password');
   });
 

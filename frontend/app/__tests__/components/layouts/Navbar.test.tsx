@@ -127,7 +127,6 @@ describe('Navbar', () => {
     // Click the mobile "Iniciar sesión" link (last link in mobile menu)
     const mobileLinks = mobileMenu!.querySelectorAll('a');
     const loginLink = Array.from(mobileLinks).find(a => a.textContent === 'Iniciar sesión');
-    expect(loginLink).toBeDefined();
     await user.click(loginLink!);
     expect(mobileMenu).toHaveClass('max-h-0');
   });

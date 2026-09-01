@@ -18,6 +18,8 @@ The platform operates with **Colombian Pesos (COP)** as the default currency and
 | No visibility into training schedules | Calendar view for customers; availability management for trainers |
 | No centralized content management | Admin-managed FAQ, site settings, contact messages |
 | No analytics on user behavior | Event tracking (WhatsApp clicks, package views, bookings, payments) |
+| No adherence incentives between sessions | Credit economy + streaks + internal store redemptions (Fase 2) |
+| No trainer visibility into client engagement | Trainer task hub, engagement analytics, admin Reports/KPIs (Fase 2) |
 
 ---
 
@@ -143,8 +145,52 @@ A comprehensive health evaluation system with 5 assessment modules, each with au
 - Unique constraint on (user, terms_version)
 
 ### 4.17 Admin Panel
-- Full Django admin with 23 Admin classes (22 ModelAdmin + 1 Form) for all 25 models
+- Full Django admin with 39 Admin classes covering the 63 models
 - Autocomplete fields, filters, search, readonly fields
+- Complemented by a frontend **Admin Platform** (see 4.24) for day-to-day operations
+
+### 4.18 Programs & Monthly Tracking (Fase 1)
+- Monthly training programs generated per client (`program_generator` service) with weekly notes
+- Daily logs capture completed training, meals, and habits; closed automatically at day end (Huey `close_daily_logs`, 23:55)
+- `ProgramProgress` signals feed adherence metrics and downstream consumers (credit engine listens without modifying Fase 1)
+- Physical tests recorded per client with dedicated views/store
+
+### 4.19 Nutrition Suite
+- Daily nutrition logs and weekly nutrition plans (generator + week notes)
+- Meal suggestion service for plan composition
+- Nutrition products catalog; customers can purchase a **nutrition plan upgrade** (see 4.21)
+- Admin nutrition management UI (products/plans) in the Admin Platform
+
+### 4.20 Credit Economy & Gamification (Fase 2)
+- **Credit engine**: per-customer balance, transaction ledger (earn/lose with source action, amount, human-readable description), per-action value configuration
+- **Earning rules**: automatic credits on verified completed actions — training of the day, logged meals, daily check-in, habits, session attendance, weekly milestones — hooked on Fase 1 signals
+- **Losing rules**: no-show penalty at day close (23:55, if trainer did not confirm attendance) and late-reschedule penalty outside the trainer-defined window
+- **Streaks**: consecutive active days via `ProgramProgress`; progressive bonuses at 3/7/14/21/28 days with visible messaging
+- **Difficulty presets**: Fácil / Medio / Difícil base configurations, individually adjustable by the trainer (with monthly credit simulator)
+- **Daily check-in**: energy, mood, pain, readiness — tap-based, < 30s, awards credits; routine camera flow with consent gate and random per-exercise captures (`require_workout_captures`); sleep & mobility habits descoped 2026-07-02 (no PWA/wearables to verify)
+- **Client views**: balance + streak card, transaction history, "Hoy ganas" dashboard block, streak visual indicator
+
+### 4.21 Internal Store & Purchases
+- **Store catalog** (customer): items redeemable with credits — image/media, description, credit price, stock, type (service, physical product, extra session, discount); one-click redemption with status tracking and delivery photo
+- **Catalog management + redemption approval** (trainer): create/edit/deactivate items; approve/reject redemptions with note; credits deducted on approval
+- **Session entitlements**: "sesión adicional" grant redeemable against bookings (`SessionGrant`)
+- **Buy credits**: credit top-up packages paid via Wompi (`CreditPackage`, `CreditPurchase`)
+- **Buy nutrition**: nutrition plan upgrade purchase via Wompi (`NutritionUpgrade`)
+
+### 4.22 Post-Session Rating
+- After trainer confirms attendance, customer gets a low-friction dashboard prompt: post-session energy (1–5), satisfaction (1–5), optional comment
+- Trainer ratings panel: monthly average, per-client rating, satisfaction trend (up/stable/down), comments; declining clients flagged for priority attention
+
+### 4.23 Trainer Operations
+- **Settings panel**: difficulty preset selection with per-action adjustment + monthly credit simulator; reschedule-window hours; per-client credit balances/history
+- **Pending-task hub**: aggregated actionable items for the trainer (`/trainer/tareas`)
+- **Engagement analytics**: per-client engagement signals and trends (`trainer_engagement_service`)
+- **Alerts & risk**: clinical/behavioral alert engines with resolution tracking; composite risk score service
+- **Messaging**: trainer ↔ client messages
+
+### 4.24 Admin Platform (frontend)
+- `admin-platform/` route group (10 pages): dashboard, users (list/create/detail), subscriptions (list/create/detail), plans, **nutrition management**, **Reports/KPIs**
+- Reports/KPIs: credits issued vs redeemed, monthly no-show rate, clients with streak ≥ 7 days, session NPS, trainer engagement trends
 
 ---
 
@@ -182,6 +228,14 @@ A comprehensive health evaluation system with 5 assessment modules, each with au
 15. **Password reset codes** expire after 10 minutes and are single-use; previous codes invalidated on new request
 16. **Terms acceptance** is versioned — new acceptance required when `CURRENT_TERMS_VERSION` changes
 17. **Mood and weight entries** enforce one entry per user per day (unique_together constraint)
+18. **Single active membership per customer** — renewals tracked in `SubscriptionRenewal` history
+19. **Credits are awarded only on verified completed actions** (Fase 1 signals); values come from the trainer/admin configuration, never hardcoded
+20. **No-show penalty** applies at day close (23:55) only if the trainer did not confirm attendance; **late-reschedule penalty** applies when rescheduling inside the trainer-defined window
+21. **Streak bonuses** trigger automatically at 3, 7, 14, 21 and 28 consecutive active days
+22. **Store redemptions** deduct credits only on trainer approval; rejections must carry a note
+23. **Session rating** is only prompted after trainer-confirmed attendance
+24. **Credit top-ups and nutrition upgrades** follow the same webhook-driven Wompi confirmation pattern as subscriptions
+25. **Extra-session entitlements** (`SessionGrant`) are consumed by bookings and never exceed their granted amount
 
 ---
 
@@ -207,3 +261,14 @@ A comprehensive health evaluation system with 5 assessment modules, each with au
 | **PasswordResetCode** | Time-limited 6-digit verification code for password reset |
 | **TermsAcceptance** | Versioned record of user consent to terms & conditions |
 | **KORE Index** | Composite health score (0–100) computed from all diagnostic modules |
+| **CreditTransaction** | Ledger entry of credits earned/lost with source action and readable description |
+| **CreditPackage / CreditPurchase** | Purchasable credit top-up bundle and its Wompi-confirmed purchase record |
+| **SessionGrant** | Entitlement for an extra session (sesión adicional), redeemable via booking |
+| **SessionRating** | Post-session customer rating (energy, satisfaction, comment) |
+| **StoreItem / RedemptionRequest** | Internal-store catalog item and its credit-paid redemption request |
+| **NutritionProduct / NutritionUpgrade** | Purchasable nutrition plan product and its upgrade purchase record |
+| **MonthlyProgram / DailyLog** | Fase 1 training program and daily activity log; progress signals computed by `progress_service` |
+| **SubscriptionRenewal** | Historical record of a membership renewal cycle |
+| **SubscriptionGuest** | Guest member of a duo subscription (invite flow) |
+| **ClientRiskScore / TrainerAlertResolution** | Persisted per-client risk score and the trainer's resolution record for raised alerts (alerts themselves are computed by the alert engines) |
+| **WompiEvent** | Raw persisted Wompi webhook event for auditing/idempotency |

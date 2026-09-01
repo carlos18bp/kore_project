@@ -99,7 +99,9 @@ test.describe('Customer Pending Assessments (Dashboard)', { tag: [...FlowTags.CU
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 15_000 });
   }
 
-  test('renders the KÓRE score badge with the computed score', async ({ page }) => {
+  test('renders the KÓRE score badge with the computed score', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await goToDashboard(page);
 
     const badge = page.getByRole('button', { name: 'Tu calificación KÓRE' }).first();

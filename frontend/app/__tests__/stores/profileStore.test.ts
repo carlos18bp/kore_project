@@ -104,16 +104,17 @@ describe('profileStore', () => {
 
       expect(result.success).toBe(true);
       expect(useProfileStore.getState().profile?.first_name).toBe('Nuevo');
-      expect(useProfileStore.getState().successMessage).toBeTruthy();
+      expect(useProfileStore.getState().successMessage).toBe('Perfil actualizado correctamente.');
     });
 
-    it('returns error on failure', async () => {
+    it('returns error when updateProfile fails', async () => {
       mockedApi.patch.mockRejectedValueOnce(new Error('fail'));
 
       const result = await useProfileStore.getState().updateProfile({ city: 'Bogotá' });
 
       expect(result.success).toBe(false);
-      expect(useProfileStore.getState().error).toBeTruthy();
+      expect(result.error).toBe('Error al actualizar el perfil.');
+      expect(useProfileStore.getState().error).toBe('Error al actualizar el perfil.');
     });
   });
 
@@ -146,7 +147,7 @@ describe('profileStore', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(useProfileStore.getState().successMessage).toBeTruthy();
+      expect(useProfileStore.getState().successMessage).toBe('Contraseña actualizada correctamente.');
     });
 
     it('returns error on wrong current password', async () => {
@@ -193,7 +194,7 @@ describe('profileStore', () => {
       );
     });
 
-    it('returns error on failure', async () => {
+    it('returns error when submitWeight fails', async () => {
       mockedApi.post.mockRejectedValueOnce(new Error('fail'));
       const result = await useProfileStore.getState().submitWeight(80);
       expect(result.success).toBe(false);
@@ -203,7 +204,7 @@ describe('profileStore', () => {
   });
 
   describe('uploadAvatar', () => {
-    it('returns error on failure', async () => {
+    it('returns error when uploadAvatar fails', async () => {
       mockedApi.post.mockRejectedValueOnce(new Error('fail'));
       const file = new File(['test'], 'avatar.png', { type: 'image/png' });
       const result = await useProfileStore.getState().uploadAvatar(file);
@@ -231,7 +232,7 @@ describe('profileStore', () => {
       expect(useProfileStore.getState().todayMood?.notes).toBe('Feeling great');
     });
 
-    it('returns error on failure', async () => {
+    it('returns error when submitMood fails', async () => {
       mockedApi.post.mockRejectedValueOnce(new Error('fail'));
       const result = await useProfileStore.getState().submitMood(3);
       expect(result.success).toBe(false);

@@ -19,10 +19,15 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from core_app.models import Payment, PaymentIntent, Subscription, SubscriptionRenewal, User, WompiEvent
+from core_app.models.credit import CreditTransaction
+from core_app.models.credit_purchase import CreditPurchase
+from core_app.models.nutrition_upgrade import NutritionUpgrade
+from core_app.services import credit_engine
 
 TERMINAL_TXN_STATUSES = frozenset({'APPROVED', 'DECLINED', 'ERROR', 'VOIDED'})
 from core_app.services.billing_calendar import bogota_today
 from core_app.services.email_service import send_payment_receipt, send_welcome_email
+from core_app.services.recurring_renewal import apply_recurring_renewal
 from core_app.services.renewal_history_service import record_renewal
 from core_app.services.wompi_service import (
     generate_integrity_signature,
@@ -212,20 +217,84 @@ def _handle_transaction_updated(data):
         _resolve_payment_intent(intent, txn_status, payment_method_type)
         return
 
+    # --- Path 1.5: Resolve a CreditPurchase (one-time credit top-up) ---
+    if txn_reference:
+        purchase = CreditPurchase.objects.select_related('customer').filter(reference=txn_reference).first()
+        if purchase is not None:
+            _resolve_credit_purchase(purchase, txn_id, txn_status)
+            return
+
+    # --- Path 1.6: Resolve a NutritionUpgrade (prorated nutrition add-on) ---
+    if txn_reference:
+        upgrade = NutritionUpgrade.objects.select_related('subscription').filter(reference=txn_reference).first()
+        if upgrade is not None:
+            _resolve_nutrition_upgrade(upgrade, txn_id, txn_status)
+            return
+
     # --- Path 2: Update an existing Payment (recurring billing) ---
+    # Recurring Payments are keyed by the reference we generated when creating the
+    # transaction (stored in provider_reference), NOT the Wompi transaction id.
+    # Match on the reference so async charges (Nequi/Bancolombia) that only clear
+    # later can be reconciled; fall back to the txn id for safety.
+    lookup_ref = txn_reference or txn_id
     try:
         payment = Payment.objects.select_related('subscription').get(
-            provider_reference=txn_id,
+            provider_reference=lookup_ref,
             provider=Payment.Provider.WOMPI,
         )
     except Payment.DoesNotExist:
-        logger.warning('No PaymentIntent or Payment found for Wompi txn %s', txn_id)
+        logger.warning(
+            'No PaymentIntent or Payment found for Wompi txn %s (ref %s)',
+            txn_id, txn_reference,
+        )
         return
     except Payment.MultipleObjectsReturned:
-        logger.error('Multiple payments found for Wompi transaction %s', txn_id)
+        logger.error('Multiple payments found for Wompi reference %s', lookup_ref)
         return
 
     _update_existing_payment(payment, txn_id, txn_status)
+
+
+def _resolve_credit_purchase(purchase, txn_id, txn_status):
+    """Award confirmed credits on APPROVED; mark declined otherwise. Idempotent."""
+    if purchase.status != CreditPurchase.Status.PENDING:
+        return
+    if txn_status == 'APPROVED':
+        with db_transaction.atomic():
+            purchase.status = CreditPurchase.Status.APPROVED
+            purchase.wompi_transaction_id = txn_id
+            purchase.resolved_at = timezone.now()
+            purchase.save(update_fields=['status', 'wompi_transaction_id', 'resolved_at', 'updated_at'])
+            credit_engine.award(
+                purchase.customer, CreditTransaction.Action.PURCHASE,
+                'credit_purchase', purchase.pk,
+                f'Compraste {purchase.credits} créditos', amount=purchase.credits,
+            )
+    elif txn_status in ('DECLINED', 'ERROR', 'VOIDED'):
+        purchase.status = CreditPurchase.Status.DECLINED
+        purchase.wompi_transaction_id = txn_id
+        purchase.resolved_at = timezone.now()
+        purchase.save(update_fields=['status', 'wompi_transaction_id', 'resolved_at', 'updated_at'])
+
+
+def _resolve_nutrition_upgrade(upgrade, txn_id, txn_status):
+    """Grant nutrition on APPROVED; mark declined otherwise. Idempotent."""
+    if upgrade.status != NutritionUpgrade.Status.PENDING:
+        return
+    if txn_status == 'APPROVED':
+        with db_transaction.atomic():
+            upgrade.status = NutritionUpgrade.Status.APPROVED
+            upgrade.wompi_transaction_id = txn_id
+            upgrade.resolved_at = timezone.now()
+            upgrade.save(update_fields=['status', 'wompi_transaction_id', 'resolved_at', 'updated_at'])
+            sub = upgrade.subscription
+            sub.includes_nutrition = True
+            sub.save(update_fields=['includes_nutrition', 'updated_at'])
+    elif txn_status in ('DECLINED', 'ERROR', 'VOIDED'):
+        upgrade.status = NutritionUpgrade.Status.DECLINED
+        upgrade.wompi_transaction_id = txn_id
+        upgrade.resolved_at = timezone.now()
+        upgrade.save(update_fields=['status', 'wompi_transaction_id', 'resolved_at', 'updated_at'])
 
 
 def _resolve_payment_intent(intent, txn_status, payment_method_type=''):
@@ -342,6 +411,7 @@ def _resolve_payment_intent(intent, txn_status, payment_method_type=''):
                     is_recurring=is_recurring,
                     wompi_transaction_id=locked_intent.wompi_transaction_id,
                     next_billing_date=next_billing_date,
+                    includes_nutrition=package.includes_nutrition,
                 )
 
                 payment = Payment.objects.create(
@@ -415,7 +485,14 @@ def _update_existing_payment(payment, txn_id, txn_status):
         payment.save(update_fields=['status', 'confirmed_at', 'updated_at'])
         logger.info('Payment %s confirmed via webhook (txn %s)', payment.pk, txn_id)
 
-        send_payment_receipt(payment)
+        # A recurring charge that only cleared now (Nequi/Bancolombia async):
+        # advance the billing cycle and apply any scheduled plan change. This is
+        # idempotent and sends the receipt itself; fall back to just the receipt
+        # when the payment is not tied to a subscription.
+        if payment.subscription_id:
+            apply_recurring_renewal(payment.subscription, payment)
+        else:
+            send_payment_receipt(payment)
 
     elif txn_status in ('DECLINED', 'ERROR'):
         payment.status = Payment.Status.FAILED

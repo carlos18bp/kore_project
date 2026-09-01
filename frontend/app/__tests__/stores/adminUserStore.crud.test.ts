@@ -242,7 +242,7 @@ describe('adminUserStore — CRUD actions', () => {
       expect(useAdminUserStore.getState().actionLoading).toBe(false);
     });
 
-    it('returns false and sets error on failure', async () => {
+    it('returns false and sets error when resetUserPassword fails', async () => {
       (mockedApi.post as jest.Mock).mockRejectedValueOnce(new Error('Server error'));
 
       const result = await useAdminUserStore.getState().resetUserPassword(7);
@@ -270,7 +270,7 @@ describe('adminUserStore — CRUD actions', () => {
       expect(useAdminUserStore.getState().actionLoading).toBe(false);
     });
 
-    it('returns false and sets error on failure', async () => {
+    it('returns false and sets error when toggleActive fails', async () => {
       (mockedApi.post as jest.Mock).mockRejectedValueOnce(new Error('Server error'));
 
       const result = await useAdminUserStore.getState().toggleActive(7);
@@ -293,7 +293,7 @@ describe('adminUserStore — CRUD actions', () => {
       expect(useAdminUserStore.getState().actionLoading).toBe(false);
     });
 
-    it('returns false and sets error on failure', async () => {
+    it('returns false and sets error when deleteUser fails', async () => {
       (mockedApi.delete as jest.Mock).mockRejectedValueOnce(new Error('Forbidden'));
 
       const result = await useAdminUserStore.getState().deleteUser(7);

@@ -151,7 +151,7 @@ describe('nutritionDailyStore', () => {
       );
     });
 
-    it('leaves state unchanged when todayLog is null', async () => {
+    it('leaves state unchanged when updateMealEntry is called with todayLog null', async () => {
       useNutritionDailyStore.setState({ todayLog: null });
       const updatedEntry: MealEntry = { ...makeMealEntry(1), status: 'completed', notes: '' };
       mockedApi.patch.mockResolvedValueOnce({ data: updatedEntry });
@@ -161,7 +161,7 @@ describe('nutritionDailyStore', () => {
       expect(useNutritionDailyStore.getState().todayLog).toBeNull();
     });
 
-    it('sets error on API failure', async () => {
+    it('sets error when updateMealEntry fails', async () => {
       useNutritionDailyStore.setState({ todayLog: makeTodayLog() });
       mockedApi.patch.mockRejectedValueOnce(new Error('fail'));
 
@@ -189,7 +189,7 @@ describe('nutritionDailyStore', () => {
       expect(entries.find((e) => e.id === 1)?.photo_url).toBe('https://cdn.kore/photo.jpg');
     });
 
-    it('leaves state unchanged when todayLog is null', async () => {
+    it('leaves state unchanged when uploadMealPhoto is called with todayLog null', async () => {
       useNutritionDailyStore.setState({ todayLog: null });
       const updatedEntry: MealEntry = { ...makeMealEntry(1), photo_url: 'https://cdn.kore/photo.jpg' };
       mockedApi.post.mockResolvedValueOnce({ data: updatedEntry });
@@ -200,7 +200,7 @@ describe('nutritionDailyStore', () => {
       expect(useNutritionDailyStore.getState().todayLog).toBeNull();
     });
 
-    it('sets error on API failure', async () => {
+    it('sets error when uploadMealPhoto fails', async () => {
       useNutritionDailyStore.setState({ todayLog: makeTodayLog() });
       mockedApi.post.mockRejectedValueOnce(new Error('fail'));
 

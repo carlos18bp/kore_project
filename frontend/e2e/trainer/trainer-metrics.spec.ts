@@ -1,68 +1,60 @@
-import type { Page } from '@playwright/test';
 import { test, expect, injectTrainerAuthCookies } from '../fixtures';
+import { mockApiError } from '../helpers/api-errors';
 import { FlowTags, RoleTags } from '../helpers/flow-tags';
 
-const fakeComparativeMetrics = {
-  global_patterns: {
-    avg_training_adherence: 0.72,
-    avg_nutrition_adherence: 0.65,
-    most_missed_day_of_week: 'saturday',
+/**
+ * /trainer/metrics no longer shows the Fase 3 "Próximamente" placeholder: with
+ * PHASE_3_READY still false, the route now serves the Parte 11b engagement view
+ * (see trainer-engagement.spec.ts for the full flow). The Fase 3 "Métricas
+ * Comparativas" suite is preserved in git history and returns when PHASE_3_READY
+ * flips true. These tests guard that the placeholder is gone and the engagement
+ * view is what a trainer lands on.
+ */
+
+const ENGAGEMENT = {
+  summary: {
+    clients_total: 1, active_streaks: 1, checked_in_today: 1, checked_in_today_pct: 100,
+    credits_earned_30d: 20, credits_spent_30d: 0, attendance_rate_30d: null,
   },
-  adherence_ranking: [
-    { customer_id: 10, name: 'María López', combined_7d: 0.91, delta_vs_last_week: 0.05 },
-    { customer_id: 11, name: 'Carlos García', combined_7d: 0.74, delta_vs_last_week: -0.08 },
-  ],
-  improved_this_week: [
-    { customer_id: 10, name: 'María López', delta: 0.05 },
-  ],
-  worsened_this_week: [
-    { customer_id: 11, name: 'Carlos García', delta: -0.08 },
-  ],
-  most_failed_exercises: [
-    { name: 'Dominadas', count: 5 },
-  ],
-  most_failed_meal_blocks: [
-    { block: 'cena', block_label: 'Cena', count: 8 },
-  ],
-  expired_evaluations: [
-    { customer_id: 12, name: 'Ana Torres', module: 'anthropometry', module_label: 'Antropometría', days_since: 45, urgency: 'critical' },
+  roster: [
+    { customer_id: 1, name: 'María López', current_streak: 3, last_checkin: '2026-07-15', attendance_rate_30d: null, average_rating: null },
   ],
 };
 
-async function setupMetricsMocks(page: Page, metrics = fakeComparativeMetrics) {
-  await page.route('**/api/trainer/comparative-metrics/', async (route) => {
-    await route.fulfill({
-      status: 200, contentType: 'application/json',
-      body: JSON.stringify(metrics),
-    });
-  });
-  await page.route('**/api/trainer/dashboard-stats/', async (route) => {
-    await route.fulfill({
-      status: 200, contentType: 'application/json',
-      body: JSON.stringify({ total_clients: 3, today_sessions: 1, upcoming_sessions: [] }),
-    });
-  });
-}
-
-// Métricas quedó parqueada para la Fase 3: /trainer/metrics renderiza el
-// placeholder "Próximamente" (ver page.tsx, flag PHASE_3_READY). Estos tests
-// verifican ese placeholder. Cuando la Fase 3 reactive la vista, restaurar la
-// suite completa desde el historial de git.
 test.describe('Trainer Metrics', { tag: [...FlowTags.TRAINER_METRICS, RoleTags.TRAINER] }, () => {
-  test('renders the Próximamente placeholder for the Métricas section', async ({ page }) => {
+  test.beforeEach(async ({ page }) => {
     await injectTrainerAuthCookies(page);
-    await setupMetricsMocks(page);
-    await page.goto('/trainer/metrics');
-
-    await expect(page.getByRole('heading', { name: 'Próximamente' })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole('main').getByText('Métricas', { exact: true })).toBeVisible();
+    await page.route('**/api/trainer/engagement/**', (r) =>
+      r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(ENGAGEMENT) }),
+    );
+    await page.route('**/api/trainer/ratings/summary/**', (r) =>
+      r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ average: null, count: 0, recent: [] }) }),
+    );
   });
 
-  test('placeholder states the section ships in Fase 3', async ({ page }) => {
-    await injectTrainerAuthCookies(page);
-    await setupMetricsMocks(page);
+  test('serves the engagement view, not the Fase 3 placeholder', async ({ page }) => {
+    await page.goto('/trainer/metrics');
+    await expect(page.getByRole('heading', { name: 'Engagement de tu cartera' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: 'Próximamente' })).toHaveCount(0);
+  });
+
+  test('keeps the engagement view usable when the ratings summary fails', async ({ page }) => {
+    await mockApiError(page, '**/api/trainer/ratings/summary/**', 500);
+
     await page.goto('/trainer/metrics');
 
-    await expect(page.getByText(/Esta sección está en construcción/)).toBeVisible({ timeout: 15_000 });
+    // The ratings card has no error UI: on failure it degrades to the
+    // no-ratings copy while the rest of the metrics view stays functional.
+    await expect(page.getByRole('heading', { name: 'Engagement de tu cartera' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: 'Calificaciones' })).toBeVisible();
+    await expect(page.getByText('Todavía no hay calificaciones.')).toBeVisible();
+  });
+
+  test('renders dashes for metrics without attendance or rating data', async ({ page }) => {
+    await page.goto('/trainer/metrics');
+
+    await expect(page.getByText('Asistencia 30d')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('—', { exact: true })).toBeVisible();
+    await expect(page.getByText('Asist. —')).toBeVisible();
   });
 });

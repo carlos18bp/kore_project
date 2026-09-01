@@ -51,7 +51,7 @@
 | Jest | 30.x | Frontend unit/component tests |
 | @testing-library/react | 16.3.x | React component testing |
 | @testing-library/user-event | 14.5.x | User interaction simulation |
-| Playwright | 1.42.x | End-to-end browser tests |
+| Playwright | 1.60.x | End-to-end browser tests |
 | monocart-reporter | 2.10.x | E2E coverage reporting |
 
 ### Infrastructure
@@ -158,8 +158,8 @@ All secrets via environment variables (`python-decouple` on backend, `process.en
 | **Django serves frontend** | Single-server deployment; Gunicorn serves API + static Next.js pages |
 | **Wompi as payment gateway** | Colombian market standard; supports card, Nequi, PSE, Bancolombia |
 | **PaymentIntent pattern** | Decouples user checkout from payment confirmation (webhook-driven) |
-| **Huey over Celery** | Lightweight task queue; sufficient for 2 periodic tasks (billing + reminders) |
-| **Zustand over Redux** | Simpler API, smaller bundle, sufficient for 12 stores |
+| **Huey over Celery** | Lightweight task queue; 11 tasks (9 periodic + 2 on-demand: billing, reminders, day closes, alerts, credit events) |
+| **Zustand over Redux** | Simpler API, smaller bundle, scales fine at 30 stores |
 | **Email-based auth (no username)** | Business requirement; custom `AbstractBaseUser` with email as `USERNAME_FIELD` |
 | **SingletonModel for SiteSettings** | Ensures exactly one row; `pk=1` enforced on save |
 | **JWT in cookies (js-cookie)** | Stored client-side for SPA-like navigation in static export |
@@ -170,9 +170,9 @@ All secrets via environment variables (`python-decouple` on backend, `process.en
 
 | Pattern | Where Used |
 |---------|-----------|
-| **Service layer** | `services/` — 12 services: booking_rules, email_service, ics_generator, subscription_cleanup, wompi_service, slot_schedule, + 6 calculators |
+| **Service layer** | `services/` — 29 services in families: core ops (booking_rules, email_service, ics_generator, subscription_cleanup, wompi_service, slot_schedule), 6 diagnostic calculators, billing (billing_calendar, recurring_renewal, renewal_history_service, admin_subscription_service), credit economy (credit_engine, credit_day_close), nutrition (nutrition_access, nutrition_plan_generator, meal_suggestion_service), programs (program_generator, progress_service, adherence_calculator), intelligence (clinical/behavioral alert engines, risk_score_service, trainer_engagement_service, reports_service) |
 | **Calculator services** | Pure-function calculators for each diagnostic module (anthropometry, posturometry, physical_evaluation, nutrition, parq, kore_index) — no DB access, receive data as args |
-| **ViewSet + Router** | CRUD endpoints via DRF DefaultRouter (11 registered ViewSets) |
+| **ViewSet + Router** | CRUD endpoints via DRF DefaultRouter (13 registered ViewSets) |
 | **APIView for assessments** | Diagnostic module views use `APIView` (not ViewSets) for finer control over trainer vs. client endpoints |
 | **Custom permissions** | `IsAdminRole`, `IsAdminOrReadOnly`, `IsTrainerRole` for role-based access |
 | **Webhook-driven state machine** | PaymentIntent → Payment + Subscription on Wompi webhook |
@@ -180,8 +180,8 @@ All secrets via environment variables (`python-decouple` on backend, `process.en
 | **Auto-computed on save** | All diagnostic models compute indices in `save()` via their calculator service |
 | **Cross-module integration** | PhysicalEvaluation pulls context from latest AnthropometryEvaluation and PosturometryEvaluation |
 | **Cooldown pattern** | Assessment views enforce time-based limits (nutrition: 7 days, PAR-Q: 90 days) |
-| **Route groups** | Next.js `(public)/` and `(app)/` route groups for layout separation |
-| **Store pattern (Zustand)** | 12 stores: auth, booking, checkout, subscription, profile, anthropometry, nutrition, parq, physicalEvaluation, posturometry, pendingAssessments, trainer |
+| **Route groups** | Next.js `(public)/`, `(app)/` and `admin-platform/` route groups for layout separation |
+| **Store pattern (Zustand)** | 30 stores: auth, booking, checkout, subscription, profile, 5 assessment stores, pendingAssessments, trainer, program, progress, physicalTest, nutritionDaily, nutritionUpgrade, wallet, creditPurchase, creditValues, storeStore, sessionRating, trainerSettings, trainerTasks, trainerEngagement, adminUser, adminSubscription, adminPackage, adminNutrition, adminReports |
 | **Composables** | `useScrollAnimations` for reusable scroll animation logic |
 
 ---
@@ -193,42 +193,37 @@ kore_project/
 ├── backend/
 │   ├── core_project/          # Django project config (settings, urls, wsgi)
 │   ├── core_app/              # Main Django app
-│   │   ├── models/            # 23 model files (22 domain + 1 base) → 25 models
-│   │   ├── views/             # 20 view files
-│   │   ├── serializers/       # 12 serializer files
-│   │   ├── services/          # 12 service files (5 core + 6 calculators + 1 schedule)
-│   │   ├── urls/              # 4 URL config files
-│   │   ├── management/commands/ # 18 management commands
-│   │   ├── tests/             # 84 test files
+│   │   ├── models/            # 46 model files → 63 model classes
+│   │   ├── views/             # 40 view files
+│   │   ├── serializers/       # 22 serializer files
+│   │   ├── services/          # 29 service files (core ops, 6 calculators, billing, credit economy, nutrition, programs, intelligence)
+│   │   ├── urls/              # 4 URL config files (126 patterns)
+│   │   ├── management/commands/ # 29 management commands
+│   │   ├── migrations/        # 68 migrations (latest: 0068_session_rating)
+│   │   ├── tests/             # 182 test files
 │   │   ├── templates/         # Email templates, admin overrides
-│   │   ├── admin.py           # 23 Admin classes (22 ModelAdmin + 1 Form)
+│   │   ├── admin.py           # 39 Admin classes
 │   │   ├── permissions.py     # Custom DRF permissions (IsAdminRole, IsAdminOrReadOnly, IsTrainerRole)
-│   │   ├── tasks.py           # Huey periodic tasks
+│   │   ├── tasks.py           # 11 Huey tasks (9 periodic + 2 on-demand)
 │   │   └── forms.py           # Custom user forms
 │   ├── conftest.py            # Root pytest config
 │   ├── requirements.txt
 │   └── manage.py
 ├── frontend/
 │   ├── app/
-│   │   ├── (public)/          # 10 public pages (home, programs, checkout, login, register, faq, contact, kore-brand, terms, forgot-password)
-│   │   ├── (app)/             # 18 authenticated pages (customer dashboard + assessments + trainer views)
-│   │   ├── components/        # 40 React components
-│   │   │   ├── booking/       # 8 booking components
-│   │   │   ├── checkout/      # 5 payment form components
-│   │   │   ├── dashboard/     # 1 dashboard component
-│   │   │   ├── faq/           # 1 FAQ component
-│   │   │   ├── layouts/       # 8 layout components (incl. TrainerSidebar, MobileBottomNav, TrainerMobileBottomNav)
-│   │   │   ├── profile/       # 4 profile components (MoodCheckIn, PasswordResetModal, ProfileCompletionCTA, ProfileIcons)
-│   │   │   ├── shared/        # 1 shared component
-│   │   │   └── subscription/  # 2 subscription components
+│   │   ├── (public)/          # 11 public pages (home, programs, checkout, login, register, faq, contact, kore-brand, terms, forgot-password, …)
+│   │   ├── (app)/             # 35 authenticated pages (customer dashboard/assessments/credits/store/program + trainer views incl. tareas & configuración)
+│   │   ├── admin-platform/    # 10 admin pages (dashboard, users, subscriptions, plans, nutrición, reports)
+│   │   ├── change-password-required/ # 1 root-level page
+│   │   ├── components/        # 131 React components (booking, checkout, dashboard, admin, trainer, program, nutrition-daily, layouts, profile, shared, subscription)
 │   │   ├── composables/       # 1 composable (useScrollAnimations)
-│   │   ├── __tests__/         # 74 unit/component test files
+│   │   ├── __tests__/         # 202 unit/component test files
 │   │   └── layout.tsx         # Root layout
 │   ├── lib/
-│   │   ├── stores/            # 12 Zustand stores
+│   │   ├── stores/            # 30 Zustand stores
 │   │   ├── services/          # HTTP client (axios)
 │   │   └── constants.ts
-│   ├── e2e/                   # 56 Playwright E2E spec files
+│   ├── e2e/                   # 103 Playwright E2E spec files + flow-definitions.json (104 flows)
 │   ├── package.json
 │   ├── next.config.ts
 │   └── playwright.config.ts
@@ -237,9 +232,9 @@ kore_project/
 │   ├── systemd/               # Gunicorn + Huey service files
 │   ├── quality/               # Quality gate scripts
 │   └── test_quality_gate.py   # Test quality audit tool
-├── docs/                      # Documentation
+├── docs/                      # Documentation (methodology, release-july, standards)
 ├── tasks/                     # Task planning
-└── .windsurf/                 # IDE rules & workflows
+└── .claude/ .agents/ .codex/   # AI ecosystem rules, skills & workflows
 ```
 
 ---

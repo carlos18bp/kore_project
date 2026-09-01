@@ -1,7 +1,9 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTrainerStore } from '@/lib/stores/trainerStore';
+import { useTrainerTasksStore } from '@/lib/stores/trainerTasksStore';
+import { useStoreStore } from '@/lib/stores/storeStore';
 import AppSidebar, { type SidebarNavGroup } from './AppSidebar';
 
 const iconProps = {
@@ -49,12 +51,40 @@ const ChatIcon = (
     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
   </svg>
 );
+const StoreIcon = (
+  <svg {...iconProps}>
+    <path d="M3 9l1-5h16l1 5M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9M4 9h16M9 13h6" />
+  </svg>
+);
+const TasksIcon = (
+  <svg {...iconProps}>
+    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4" />
+  </svg>
+);
+
+const SettingsIcon = (
+  <svg {...iconProps}>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+  </svg>
+);
 
 export default function TrainerSidebar() {
   const { riskDashboard } = useTrainerStore();
   const alertCount =
     (riskDashboard?.risk_summary?.alto ?? 0) +
     (riskDashboard?.risk_summary?.medio ?? 0);
+
+  const creditReviewCount = useTrainerTasksStore((s) => s.creditReviews.length);
+  const fetchCreditReviews = useTrainerTasksStore((s) => s.fetchPendingCreditReviews);
+  const redemptionCount = useStoreStore((s) => s.pendingReviews.length);
+  const fetchRedemptions = useStoreStore((s) => s.fetchPendingReviews);
+  const taskCount = creditReviewCount + redemptionCount;
+
+  useEffect(() => {
+    fetchCreditReviews();
+    fetchRedemptions();
+  }, [fetchCreditReviews, fetchRedemptions]);
 
   const navGroups: SidebarNavGroup[] = useMemo(
     () => [
@@ -63,14 +93,17 @@ export default function TrainerSidebar() {
         items: [
           { key: 'dashboard', label: 'Hoy', href: '/trainer/dashboard', icon: HomeIcon },
           { key: 'clients', label: 'Mis Clientes', href: '/trainer/clients', icon: PeopleIcon },
+          { key: 'tasks', label: 'Tareas pendientes', href: '/trainer/tareas', icon: TasksIcon, badge: taskCount > 0 ? taskCount : undefined },
           { key: 'alerts', label: 'Alertas', href: '/trainer/alerts', icon: BellIcon, badge: alertCount > 0 ? alertCount : undefined },
           { key: 'metrics', label: 'Métricas', href: '/trainer/metrics', icon: ChartIcon },
           { key: 'nutrition-catalog', label: 'Catálogo comidas', href: '/trainer/nutrition-catalog', icon: FoodCatalogIcon },
+          { key: 'store', label: 'Tienda', href: '/trainer/tienda', icon: StoreIcon },
           { key: 'messages', label: 'Mensajes', href: '/trainer/messages', icon: ChatIcon, soon: true },
+          { key: 'settings', label: 'Configuración', href: '/trainer/configuracion', icon: SettingsIcon },
         ],
       },
     ],
-    [alertCount],
+    [alertCount, taskCount],
   );
 
   return (

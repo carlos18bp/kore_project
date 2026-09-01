@@ -110,6 +110,7 @@ class TestCreateFakeData:
             skip_nutrition_daily=True,
             skip_nutrition_plans=True,
             skip_trainer_intelligence=True,
+            skip_credits=True,
             skip_tracking=True,
             stdout=out,
         )

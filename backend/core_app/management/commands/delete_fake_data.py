@@ -22,6 +22,14 @@ from core_app.models import (
     User,
     WompiEvent,
 )
+from core_app.models.credit import CreditSettings, CreditTransaction, CreditWallet
+from core_app.models.credit_package import CreditPackage
+from core_app.models.credit_purchase import CreditPurchase
+from core_app.models.nutrition_product import NutritionProduct
+from core_app.models.nutrition_upgrade import NutritionUpgrade
+from core_app.models.session_grant import SessionGrant
+from core_app.models.session_rating import SessionRating
+from core_app.models.store import RedemptionRequest, StoreItem
 
 
 class Command(BaseCommand):
@@ -63,10 +71,27 @@ class Command(BaseCommand):
             deleted_summary.append(f"notifications: {Notification.objects.all().delete()[0]}")
             deleted_summary.append(f"payments: {Payment.objects.all().delete()[0]}")
             deleted_summary.append(f"payment_intents: {PaymentIntent.objects.all().delete()[0]}")
+
+            # Credit economy / store / ratings. Order matters:
+            # RedemptionRequest has a PROTECT FK to StoreItem and CreditPurchase
+            # has a PROTECT FK to CreditPackage, so children go first.
+            deleted_summary.append(f"session_ratings: {SessionRating.objects.all().delete()[0]}")
+            deleted_summary.append(f"session_grants: {SessionGrant.objects.all().delete()[0]}")
+            deleted_summary.append(f"redemption_requests: {RedemptionRequest.objects.all().delete()[0]}")
+            deleted_summary.append(f"store_items: {StoreItem.objects.all().delete()[0]}")
+            deleted_summary.append(f"credit_purchases: {CreditPurchase.objects.all().delete()[0]}")
+            deleted_summary.append(f"credit_packages: {CreditPackage.objects.all().delete()[0]}")
+            deleted_summary.append(f"credit_transactions: {CreditTransaction.objects.all().delete()[0]}")
+            deleted_summary.append(f"credit_wallets: {CreditWallet.objects.all().delete()[0]}")
+            deleted_summary.append(f"credit_settings: {CreditSettings.objects.all().delete()[0]}")
+
             deleted_summary.append(f"bookings: {Booking.objects.all().delete()[0]}")
             deleted_summary.append(f"subscription_guests: {SubscriptionGuest.objects.all().delete()[0]}")
-            # SubscriptionRenewal has a PROTECT FK to Package, so it must be
+            # NutritionUpgrade has a PROTECT FK to Subscription and
+            # SubscriptionRenewal has a PROTECT FK to Package, so both must be
             # removed before subscriptions/packages are deleted.
+            deleted_summary.append(f"nutrition_upgrades: {NutritionUpgrade.objects.all().delete()[0]}")
+            deleted_summary.append(f"nutrition_products: {NutritionProduct.objects.all().delete()[0]}")
             deleted_summary.append(f"subscription_renewals: {SubscriptionRenewal.objects.all().delete()[0]}")
             deleted_summary.append(f"subscriptions: {Subscription.objects.all().delete()[0]}")
 

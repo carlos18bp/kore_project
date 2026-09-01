@@ -1,6 +1,6 @@
 import pytest
 from django.utils import timezone
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from rest_framework.test import APIClient
 
@@ -9,6 +9,13 @@ from core_app.services.renewal_history_service import (
     record_renewal,
     build_renewal_timeline,
 )
+
+FIXED_NOW = timezone.make_aware(datetime(2026, 6, 15, 10, 0, 0))
+
+
+@pytest.fixture(autouse=True)
+def freeze_now(monkeypatch):
+    monkeypatch.setattr('django.utils.timezone.now', lambda: FIXED_NOW)
 
 
 @pytest.fixture
@@ -33,7 +40,7 @@ def package(db):
 
 @pytest.fixture
 def subscription(db, customer, package):
-    now = timezone.now()
+    now = FIXED_NOW
     return Subscription.objects.create(
         customer=customer, package=package, sessions_total=8, sessions_used=0,
         status=Subscription.Status.ACTIVE, starts_at=now,
@@ -42,7 +49,7 @@ def subscription(db, customer, package):
 
 
 def test_subscription_renewal_persists_period(subscription, package):
-    now = timezone.now()
+    now = FIXED_NOW
     rec = SubscriptionRenewal.objects.create(
         subscription=subscription,
         kind=SubscriptionRenewal.Kind.INITIAL,
@@ -57,7 +64,7 @@ def test_subscription_renewal_persists_period(subscription, package):
 
 
 def test_record_renewal_creates_history_row(subscription, package):
-    now = timezone.now()
+    now = FIXED_NOW
     rec = record_renewal(
         subscription=subscription,
         kind=SubscriptionRenewal.Kind.MANUAL,
@@ -72,7 +79,7 @@ def test_record_renewal_creates_history_row(subscription, package):
 
 
 def test_timeline_merges_records_and_legacy_rows(customer, package):
-    now = timezone.now()
+    now = FIXED_NOW
     # Legacy row: an extra past subscription with NO renewal records.
     legacy = Subscription.objects.create(
         customer=customer, package=package, sessions_total=8, sessions_used=8,
@@ -99,7 +106,7 @@ def test_timeline_merges_records_and_legacy_rows(customer, package):
 
 
 def test_admin_renew_extends_in_place(admin_user, customer, package):
-    now = timezone.now()
+    now = FIXED_NOW
     sub = Subscription.objects.create(
         customer=customer, package=package, sessions_total=8, sessions_used=8,
         status=Subscription.Status.EXPIRED,
@@ -121,7 +128,7 @@ def test_admin_renew_extends_in_place(admin_user, customer, package):
 
 
 def test_admin_renew_rejects_active(admin_user, customer, package):
-    now = timezone.now()
+    now = FIXED_NOW
     sub = Subscription.objects.create(
         customer=customer, package=package, sessions_total=8, sessions_used=2,
         status=Subscription.Status.ACTIVE,
@@ -134,7 +141,7 @@ def test_admin_renew_rejects_active(admin_user, customer, package):
 
 
 def test_renewal_history_endpoint(admin_user, customer, package):
-    now = timezone.now()
+    now = FIXED_NOW
     sub = Subscription.objects.create(
         customer=customer, package=package, sessions_total=8, sessions_used=0,
         status=Subscription.Status.ACTIVE, starts_at=now,
@@ -155,7 +162,7 @@ def test_renewal_history_endpoint(admin_user, customer, package):
 
 
 def test_admin_list_one_per_customer(admin_user, customer, package):
-    now = timezone.now()
+    now = FIXED_NOW
     # Two rows for the same customer (legacy data): expired + active.
     Subscription.objects.create(
         customer=customer, package=package, sessions_total=8, sessions_used=8,
@@ -178,7 +185,7 @@ def test_admin_list_one_per_customer(admin_user, customer, package):
 
 
 def test_customer_list_collapses_own_terms(customer, package):
-    now = timezone.now()
+    now = FIXED_NOW
     Subscription.objects.create(
         customer=customer, package=package, sessions_total=8, sessions_used=8,
         status=Subscription.Status.EXPIRED,

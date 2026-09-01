@@ -8,13 +8,8 @@ afterEach(() => {
 });
 
 describe('TrainerNoteHero', () => {
-  it('renders nothing when the note is empty', () => {
-    const { container } = render(<TrainerNoteHero note="" />);
-    expect(container.firstChild).toBeNull();
-  });
-
-  it('renders nothing when the note is only whitespace', () => {
-    const { container } = render(<TrainerNoteHero note="   " />);
+  it.each(['', '   '])('renders nothing when the note is %s', (note) => {
+    const { container } = render(<TrainerNoteHero note={note} />);
     expect(container.firstChild).toBeNull();
   });
 

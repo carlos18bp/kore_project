@@ -156,12 +156,17 @@ class ChangePasswordSerializer(serializers.Serializer):
 class MoodEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = MoodEntry
-        fields = ('id', 'score', 'notes', 'date', 'created_at')
+        fields = ('id', 'score', 'notes', 'energy_level', 'pain', 'ready_to_train', 'date', 'created_at')
         read_only_fields = ('id', 'date', 'created_at')
 
     def validate_score(self, value):
         if value < 1 or value > 10:
             raise serializers.ValidationError('El puntaje debe estar entre 1 y 10.')
+        return value
+
+    def validate_energy_level(self, value):
+        if value is not None and (value < 1 or value > 5):
+            raise serializers.ValidationError('La energía debe estar entre 1 y 5.')
         return value
 
 

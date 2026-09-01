@@ -10,21 +10,23 @@ export type AdminSubscriptionGuestInfo = {
   accepted_at: string | null;
 };
 
+export type AdminSubscriptionPackage = {
+  id: number;
+  title: string;
+  category: 'personalizado' | 'semi_personalizado' | 'terapeutico';
+  sessions_count: number;
+  session_duration_minutes: number;
+  price: string;
+  currency: string;
+  validity_days: number;
+};
+
 export type AdminSubscription = {
   id: number;
   customer_id: number;
   customer_email: string;
   customer_name: string;
-  package: {
-    id: number;
-    title: string;
-    category: 'personalizado' | 'semi_personalizado' | 'terapeutico';
-    sessions_count: number;
-    session_duration_minutes: number;
-    price: string;
-    currency: string;
-    validity_days: number;
-  };
+  package: AdminSubscriptionPackage;
   sessions_total: number;
   sessions_used: number;
   sessions_remaining: number;
@@ -34,6 +36,8 @@ export type AdminSubscription = {
   is_recurring: boolean;
   next_billing_date: string | null;
   billing_failed_at: string | null;
+  pending_package: AdminSubscriptionPackage | null;
+  cancel_at_period_end: boolean;
   is_duo: boolean;
   guest_info: AdminSubscriptionGuestInfo | null;
   created_at: string;
@@ -107,6 +111,7 @@ type AdminSubscriptionState = {
   fetchById: (id: number) => Promise<void>;
   patchSubscription: (id: number, payload: PatchSubscriptionPayload) => Promise<boolean>;
   renewSubscription: (id: number) => Promise<AdminSubscription | null>;
+  cancelSubscription: (id: number) => Promise<AdminSubscription | null>;
   fetchRenewalHistory: (id: number) => Promise<RenewalHistoryItem[]>;
   deleteSubscription: (id: number) => Promise<{ ok: true } | { ok: false; detail: string }>;
   createOrEvolveSubscription: (
@@ -218,6 +223,20 @@ export const useAdminSubscriptionStore = create<AdminSubscriptionState>((set, ge
       return data as AdminSubscription;
     } catch {
       set({ error: 'No se pudo renovar la suscripción.', actionLoading: false });
+      return null;
+    }
+  },
+
+  cancelSubscription: async (id: number) => {
+    set({ actionLoading: true, error: '' });
+    try {
+      const { data } = await api.post(
+        `/subscriptions/${id}/cancel/`, {}, { headers: authHeaders() },
+      );
+      set({ selected: data as AdminSubscription, actionLoading: false });
+      return data as AdminSubscription;
+    } catch {
+      set({ error: 'No se pudo cancelar la suscripción.', actionLoading: false });
       return null;
     }
   },

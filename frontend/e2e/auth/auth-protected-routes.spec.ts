@@ -32,14 +32,16 @@ test.describe('Auth Protected Routes', { tag: [...FlowTags.AUTH_PROTECTED_ROUTES
   ];
 
   for (const route of protectedRoutes) {
-    test(`unauthenticated user visiting ${route} is redirected to /login`, async ({ page }) => {
+    test(`unauthenticated user visiting ${route} is redirected to /login`, { tag: ['@outcome:error'] }, async ({ page }) => {
+      // quality: allow-no-interaction (unauthenticated redirect guard - no interactive element exists pre-auth)
       await page.goto(route);
       await page.waitForURL('**/login**', { timeout: 15_000 });
       await expect(page).toHaveURL(/\/login/);
     });
   }
 
-  test('unauthenticated user visiting /checkout without package redirects to login or programs', async ({ page }) => {
+  test('unauthenticated user visiting /checkout without package redirects to login or programs', { tag: ['@outcome:error'] }, async ({ page }) => {
+    // quality: allow-no-interaction (unauthenticated redirect guard - no interactive element exists pre-auth)
     await page.goto('/checkout');
     await page.waitForURL(/\/(login|register|subscription|programs)/, { timeout: 15_000 });
     await expect(page).toHaveURL(/\/(login|register|subscription|programs)/);

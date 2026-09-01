@@ -6,6 +6,8 @@ argument-hint: "<descripción de la tarea a planear, en lenguaje natural>"
 
 # Plan Task — Wrapper parametrizado de `/plan`
 
+Gating e invocación: los de [[plan]] (alias, regla de `## Skills alias` de [[_output-protocol]]).
+
 ## Goal
 Aplicar el workflow `/plan` sobre una tarea cuya descripción ya viene completa en los argumentos. Producir un plan que otro agente o ingeniero pueda implementar sin tomar nuevas decisiones de producto o arquitectura, **sin pedir al usuario que repita el alcance** que ya entregó como parámetro.
 
@@ -24,16 +26,7 @@ Aplicar el workflow `/plan` sobre una tarea cuya descripción ya viene completa 
 2. **Inspección del repo.** Buscar evidencia: archivos referenciados en `$ARGUMENTS`, patrones existentes (patrones existentes del proyecto), tests relacionados. Usar Explore agents en paralelo si el alcance toca >2 áreas.
 3. **Mapeo del cambio.** Data flow afectado, APIs, manejo de estado, superficie de tests, migraciones.
 4. **Decisiones implícitas.** Si hay tradeoffs no resueltos, elegir el camino que mejor se alinee con las convenciones existentes y dejarlo registrado en *Assumptions/Defaults*. Solo preguntar al usuario si la decisión es de **producto** y no se puede derivar.
-5. **Plan final** según el Output Contract de `/plan`.
-
-## Output Contract
-Devolver un plan compacto pero decision-complete con:
-- **Summary** — qué cambia y por qué (1–3 líneas).
-- **Key implementation changes** — archivos concretos y modificaciones (paths absolutos o `frontend/...`/`backend/...`).
-- **Public or internal interface changes** — endpoints, props, store actions, payload shapes.
-- **Test plan** — tests focalizados a correr (respetar máx. 3 comandos por ciclo, nunca suite completa).
-- **Assumptions / defaults chosen** — qué decisiones se tomaron sin preguntar y por qué.
-- **Open questions** (opcional) — solo si quedó alguna decisión de producto pendiente.
+5. **Plan final** según la plantilla de `/plan` (regla de alias del protocolo).
 
 ## Rules
 - Este skill no implementa ni commitea. Si el usuario quiere ejecutar el plan, debe invocar `/implement` después.
@@ -49,29 +42,4 @@ Devolver un plan compacto pero decision-complete con:
 
 ## Output final
 
-Reportar siguiendo [[_output-protocol]]. Plantilla específica de `/plan-task`:
-
-```markdown
-🟢 plan-task OK — <título corto del plan>
-✨ Todo en orden — no hay acciones pendientes (plan listo para `/implement`).
-
-| Dimensión | Estado | Detalle |
-|---|---|---|
-| Input ($ARGUMENTS) | ✅ | parseado: objetivo + archivos + criterios |
-| Inspección del repo | ✅ | archivos referenciados leídos + patrones existentes |
-| Mapeo del cambio | ✅ | data flow, APIs, estado, tests, migraciones |
-| Decisiones implícitas | ✅ | tradeoffs resueltos por convenciones del repo |
-| Plan decision-complete | ✅ | Summary + cambios + interface + tests + assumptions |
-| Open questions | ✅ | ninguna pendiente (o listadas si las hay) |
-```
-
-Casos de veredicto distinto a 🟢:
-
-- ⏸️ — quedan open questions de **producto** (no derivables del repo) que el
-  operador debe responder antes de implementar. Agregar `## Next steps` con
-  cada pregunta concreta.
-- ❌ — `$ARGUMENTS` vacío o la inspección del repo no encontró los archivos
-  referenciados. Agregar `## Next steps` con la reinvocación correcta.
-
-**Recordatorio:** este skill no implementa ni commitea. Tras aprobación del
-plan, el operador invoca `/implement` por separado.
+Reportar siguiendo [[_output-protocol]]. Misma plantilla que `/plan`.

@@ -1,7 +1,7 @@
 # User Flow Map
 
-Version: 1.8
-Last Updated: 2026-07-04
+Version: 2.5
+Last Updated: 2026-07-17
 Description: End-to-end user flows for the Kore frontend, grouped by role with branches for form variants and alternate outcomes.
 Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, frontend/e2e specs, frontend/app routes. Canonical customer subscription URL is `/subscription` (flow IDs `my-programs-*` are historical).
 
@@ -404,6 +404,26 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 
 ## User Flows
 
+### customer-session-rating: Post-Session Rating
+- Module: booking
+- Priority: P2
+- Route: /dashboard
+- Roles: customer
+- Coverage: **Covered** (`e2e/customer/session-rating.spec.ts`)
+- Description: The customer rates an attended session; the trainer rates the same session inline when confirming attendance.
+
+**Steps**
+1. The trainer marks the session as attended (`POST /api/bookings/{id}/confirm-attendance/`), which is what makes it rateable.
+2. On the customer's dashboard, a "Califica tu sesión" card appears, fed by `GET /api/bookings/pending-rating/`.
+3. The customer picks 1–5 stars, optionally writes a comment, and sends: `POST /api/bookings/{id}/rate/`. This awards `session_rated` credits, once per session.
+4. The card disappears. The trainer reads the feedback on his dashboard (`GET /api/trainer/ratings/summary/`) and on the client detail.
+
+**Branches / Variations**
+- *Omitir* dismisses the card and leaves the session unrated — there is no second prompt.
+- Rating twice is rejected (400); the unique constraint `(booking, rater_role)` caps the credit at one per session.
+- A session that was not attended cannot be rated (400).
+- The trainer rates with the stars that replace the "✓ Asistió" button; his rating awards no credits and is optional.
+
 ### auth-logout: Logout
 - Module: auth
 - Priority: P2
@@ -493,6 +513,129 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Upcoming session card shows scheduled session when available.
 - Recent activity displays confirmed, canceled, and pending states.
 - Sidebar navigation links remain visible.
+- Hero header shows a tappable credit balance badge (→ /mis-creditos) and the streak (now from the credits engine).
+- "Hoy ganas" task pills live inside the hero (check-in, hidratación, comidas, rutina) with done/pending state and dynamic "+X" chips; the check-in pill opens the MoodCheckIn modal, the others link to their pages.
+- Next session renders as a compact row ("Próxima sesión · fecha hora →") that opens the upcoming-sessions modal; hidden when there is no upcoming session.
+
+### customer-credits: Cliente — Mis créditos
+- Module: app
+- Priority: P2
+- Route: /mis-creditos
+- Roles: user
+- Description: The client views their credit balance split into disponibles (approved) and por aprobar (pending), streak with progress to the next bonus, a readable transaction history, and their redemptions ("Mis canjes").
+- E2E Coverage: Covered (frontend/e2e/app/mis-creditos.spec.ts)
+
+**Steps**
+1. Open /mis-creditos from the hero balance badge or the "Mis créditos" nav link (sidebar / mobile "Más").
+2. See the balance card split into two figures: "Disponibles" (approved, spendable) and "Por aprobar" (pending), with the note that only disponibles can be spent.
+3. See the streak ring with the week strip and the progress bar to the next bonus.
+4. See "Mis canjes" (when any redemptions exist) with each item's status: Pendiente / Entregado / Rechazado.
+5. Scroll the transaction history; more movements load on scroll.
+
+**Branches / Variations**
+- "Mis canjes" section only shows when the client has at least one redemption.
+- Past the last milestone shows "¡Racha máxima!" instead of the bonus countdown.
+- Empty history shows the starter message ("Aún no tienes movimientos…").
+- Each movement is coloured: earned (sage), penalty (red), pending (amber).
+
+### customer-store: Cliente — Tienda
+- Module: app
+- Priority: P2
+- Route: /tienda
+- Roles: user
+- Description: The client browses the store catalog, sees their spendable balance, and redeems an item using only approved credits.
+- E2E Coverage: Covered (frontend/e2e/app/tienda.spec.ts)
+
+**Steps**
+1. Open /tienda from the "Tienda" nav link (sidebar / mobile "Más").
+2. See the catalog grid and the "X disponibles" chip with the approved balance.
+3. Each item shows its price in credits and a "Canjear" button (or "Sin saldo" when the price exceeds the balance).
+4. Click "Canjear" → a confirm dialog shows the item and the credits to be deducted.
+5. Confirm → the redemption is created (status pending), credits are deducted immediately, and a success toast appears.
+
+**Branches / Variations**
+- Items priced above the available balance render disabled with "Sin saldo".
+- Insufficient funds at confirm time returns a backend error surfaced inline.
+- Empty catalog shows "Aún no hay productos en la tienda.".
+- Only approved (disponibles) credits count toward affordability; pending credits do not.
+- Fulfilled producto/servicio redemptions show a "Ver comprobante" link in Mis canjes.
+
+### customer-buy-credits: Cliente — Comprar créditos
+- Module: app
+- Priority: P2
+- Route: /comprar-creditos
+- Roles: user
+- Description: The client buys credits with money via Wompi; on approval the credits are added as confirmed and marked as purchased in the ledger.
+- E2E Coverage: Covered (frontend/e2e/app/comprar-creditos.spec.ts)
+
+**Steps**
+1. From /mis-creditos tap "Comprar créditos".
+2. Pick a credit package and tap "Comprar" → redirect to Wompi checkout.
+3. Pay; Wompi returns to /comprar-creditos?ref=…; the page polls the purchase status.
+4. On approval, the success message shows and the wallet balance rises.
+
+**Branches / Variations**
+- The webhook is the source of truth; the credit is awarded once (idempotent), even if Wompi retransmits.
+- DECLINED/ERROR/VOIDED → purchase declined, no credits, failure message.
+- Purchased credits use the `purchase` ledger action (distinguishable from earned credits).
+
+### customer-buy-nutrition: Cliente — Comprar nutrición
+- Module: app
+- Priority: P2
+- Route: /my-nutrition
+- Roles: user
+- Description: Nutrition is gated by payment. Without access the client sees a lock and can add nutrition to the current plan for a prorated charge; renewals then bill training + nutrition together.
+- E2E Coverage: Covered (frontend/e2e/app/nutrition-upgrade.spec.ts)
+
+**Steps**
+1. Open /my-nutrition. Without access, a lock + "Agrega nutrición a tu plan" CTA shows.
+2. Tap the CTA → redirect to Wompi for the prorated amount.
+3. On return (?ref=NU-…) the page polls status and unlocks on approval.
+
+**Branches / Variations**
+- Existing training-only clients are locked out (retroactive paywall).
+- The upgrade charge is prorated by days left in the cycle; from the next renewal the plan + nutrition bill as one payment.
+- No active plan → the upgrade is rejected (need a plan first).
+
+### customer-session-grants: Cliente — Sesiones adicionales
+- Module: app
+- Priority: P2
+- Route: /mis-creditos, /book-session
+- Roles: user
+- Description: Redeeming a `sesion_adicional` item grants bookable sessions (valid 1 month) that appear in Mis créditos and can be used to book, separate from the plan.
+- E2E Coverage: Covered (frontend/e2e/app/session-grants.spec.ts)
+
+**Steps**
+1. Redeem a "sesión adicional" item in /tienda (auto-fulfilled, credits deducted).
+2. In /mis-creditos see "Sesiones adicionales" with remaining count and expiry.
+3. In /book-session pick "Sesiones adicionales" as the source and book a slot.
+
+**Branches / Variations**
+- A grant expires 30 days after redemption; expired/used-up grants stop appearing and are rejected at booking.
+- A booking uses exactly one source: the plan subscription OR a grant.
+- Canceling a booking paid with a grant returns the session to the grant.
+- Booking with a grant reuses the plan's package; a client with grants but no active plan is not yet supported (follow-up).
+
+### trainer-store-management: Trainer — Gestión de tienda
+- Module: trainer
+- Priority: P2
+- Route: /trainer/tienda
+- Roles: trainer
+- Description: The trainer reviews pending redemption requests (fulfill or reject with credit refund) and manages the catalog (create items, toggle active).
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-tienda.spec.ts)
+
+**Steps**
+1. Open /trainer/tienda from the trainer nav "Tienda" link.
+2. See "Solicitudes de canje": each pending request shows item, customer and credits spent.
+3. Click "Entregar" → for producto/servicio a dialog requires a verification photo; upload it and confirm. "Rechazar" refunds the credits.
+4. In "Catálogo", create or edit an item (name, description, price, type, image) and toggle Activo/Inactivo.
+
+**Branches / Variations**
+- Fulfilling producto/servicio without a photo is blocked with an inline error.
+- Sesión adicional is fulfilled without a photo (transitional; auto-grant lands in Part 6).
+- Rejecting a redemption refunds the spent credits to the client's balance.
+- Non-admin trainers only see redemptions from their assigned customers; admins see all.
+- Item creation requires a name and a price greater than 0.
 
 ### dashboard-reminder: Upcoming Session Reminder
 - Module: dashboard
@@ -947,10 +1090,22 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 ### profile-mood-entry: Profile Mood Entry
 - Module: profile
 - Priority: P3
-- Route: /profile (modal overlay)
+- Route: /profile (modal overlay; auto-opens on any (app) page)
 - Roles: user
-- Description: Record a daily mood (1-10) entry from the MoodCheckIn modal that auto-opens on the profile page when no mood has been logged today.
+- Description: 4-step daily check-in (ánimo 1-10, energía 1-5, dolor sí/no, listo para entrenar sí/no) from the MoodCheckIn modal that auto-opens when no mood has been logged today. Completing it awards credits (dynamic "+X" chip from the engine config).
 - E2E Coverage: Covered (frontend/e2e/app/profile-mood-entry.spec.ts)
+
+**Steps**
+1. Modal auto-opens with progress dots and the "Check-in de hoy · +X créditos" chip.
+2. Tap a mood score (1-10) → auto-advances to energy.
+3. Tap energy level (1-5) → auto-advances to pain.
+4. Tap "Sin dolor" / "Tengo dolor" → auto-advances to readiness (pain shows an optional note field for the trainer).
+5. Tap "¡Listo para entrenar!" or "Hoy no" → submits everything in one POST and shows the confirmation.
+
+**Branches / Variations**
+- "Ahora no" dismisses for the session (sessionStorage flag).
+- The dashboard "Hoy ganas" row re-opens the modal while no check-in exists today.
+- Credit chip hidden until the engine config loads (never shows a stale amount).
 
 ### profile-completion-cta: Profile Completion CTA
 - Module: profile
@@ -1113,6 +1268,62 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 
 ## Trainer Flows
 
+### trainer-settings: Trainer Settings Panel
+- Module: trainer
+- Priority: P2
+- Route: /trainer/configuracion
+- Roles: trainer
+- Coverage: **Covered** (`e2e/trainer/trainer-settings.spec.ts`)
+- Description: The trainer configures the credit economy: difficulty preset, activity thresholds, and the reschedule window.
+
+**Steps**
+1. The trainer opens **Configuración** from the sidebar (or *Más* on mobile). `GET /api/credits/settings/` loads the current values.
+2. **Dificultad**: picking another preset opens a confirmation, then `PUT /api/credits/settings/` with `{difficulty, action_values: {}, streak_bonuses: {}}` — the empty maps are what make the backend reseed the per-action values. A read-only table shows what each action grants.
+3. **Reglas de actividad**: training-day threshold, minimum meals, water goal, meal review days, require-captures toggle.
+4. **Reagendamiento**: the window in hours (0–168). This single number blocks a late cancel/reschedule in `booking_views`, triggers the `late_reschedule_penalty` in `credit_engine.on_reschedule`, and gates the buttons in the customer's `SessionDetailModal` (which reads it from `GET /api/credits/values/`).
+
+**Branches / Variations**
+- Trainers and admins bypass the reschedule window entirely.
+- A window outside 0–168 is rejected with a 400.
+- Changing the difficulty does not touch credits customers already earned; the ledger is append-only.
+
+### trainer-engagement: Trainer Engagement Analytics
+- Module: trainer
+- Priority: P2
+- Route: /trainer/metrics
+- Roles: trainer
+- Coverage: **Covered** (`e2e/trainer/trainer-engagement.spec.ts`)
+- Description: Fase 2 engagement over the trainer's client portfolio. Replaces the ComingSoon placeholder at `/trainer/metrics` (the Fase 3 "Métricas Comparativas" view stays gated behind `PHASE_3_READY`).
+
+**Steps**
+1. The trainer opens **Métricas** from the sidebar. The page (with `PHASE_3_READY` false) renders the engagement view, which calls `GET /api/trainer/engagement/`.
+2. **Summary tiles**: active streaks, check-in-today %, credits earned/spent (30d), attendance rate (30d) — all scoped to the trainer's clients.
+3. **Calificaciones**: the portfolio `RatingsSummaryCard` (reused from Part 9, `GET /api/trainer/ratings/summary/`).
+4. **Roster**: one row per client (streak, last check-in, attendance 30d, average rating), ordered by streak descending; a row links to `/trainer/clients/client?id=<id>`.
+
+**Branches / Variations**
+- Attendance and per-client rate are `null` (shown as "—") when the client has no attended/no-show sessions in the window — distinct from 0%.
+- A customer not booked with this trainer never appears in the roster nor affects the summary.
+- Empty state ("Sin clientes todavía.") when the trainer has no clients.
+
+### trainer-tasks: Trainer Task Hub
+- Module: trainer
+- Priority: P1
+- Route: /trainer/tareas
+- Roles: trainer
+- Description: Review pending credit reviews (meal photos + workout captures) and store redemptions; approve or reject each with a note.
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-tasks.spec.ts)
+
+**Steps**
+1. Open /trainer/tareas after login as trainer.
+2. On the Créditos tab, see pending credit reviews with evidence photos.
+3. Approve a review (row disappears) or Reject with a note.
+4. Switch to the Canjes tab to fulfill or reject store redemptions.
+
+**Branches / Variations**
+- Empty states per tab when there is nothing to review.
+- Overdue badge when a review is past its review_deadline.
+
 ### trainer-dashboard: Trainer Dashboard
 - Module: trainer
 - Priority: P1
@@ -1127,12 +1338,15 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 3. View stats cards: total active clients, today's scheduled sessions.
 4. Quick action card links to /trainer/clients.
 5. View upcoming sessions list with client name, package, date/time.
+6. Open a day in the agenda and confirm attendance (✓ asistió / ✗ no asistió) for sessions that already started.
 
 **Branches / Variations**
 - Loading state shows dashes for stats and spinner for session list.
 - Empty upcoming sessions shows calendar placeholder and "No hay sesiones próximas".
 - Session rows link to client detail page.
 - Greeting changes based on hour (Buenos días/tardes/noches).
+- Confirmed attendance shows a green "Asistió" / red "No asistió" badge instead of buttons.
+- Sessions left unconfirmed at day close (23:55) are marked as no-show by the credits engine and penalized; confirming attendance afterwards reverses the penalty.
 
 ### trainer-clients-list: Trainer Client List
 - Module: trainer
@@ -1168,13 +1382,15 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 1. Navigate from client list to /trainer/clients/client?id=X.
 2. View client profile card (avatar, name, email, phone, goal, DOB, city, EPS, member since).
 3. View session history with status badges.
-4. Access assessment module links (anthropometry, posturometry, physical evaluation, nutrition, PAR-Q).
+4. Confirm attendance (✓ asistió / ✗ no asistió) on past sessions from the recent sessions list.
+5. Access assessment module links (anthropometry, posturometry, physical evaluation, nutrition, PAR-Q).
 
 **Branches / Variations**
 - Loading state shows spinner.
 - Client not found shows error state.
 - Missing profile fields show fallback values.
 - Session history shows confirmed/canceled/pending status badges.
+- Past sessions with attendance already set show the "Asistió"/"No asistió" badge; late confirmation reverses a prior no-show credit penalty.
 
 ### trainer-client-anthropometry: Trainer Client Anthropometry
 - Module: trainer
@@ -1249,6 +1465,26 @@ Sources: frontend/e2e/flow-definitions.json, frontend/e2e/helpers/flow-tags.ts, 
 - Form validates required fields before submission.
 - API failure shows error message.
 
+### trainer-client-physical-tests: Trainer Biweekly Physical Test
+- Module: trainer
+- Priority: P2
+- Route: /trainer/clients/client?id=X (tab Ev. Física)
+- Roles: trainer
+- Description: Register the biweekly physical test result (passed/failed); a passed test awards credits to the client via the credits engine.
+- E2E Coverage: Covered (frontend/e2e/trainer/trainer-client-physical-tests.spec.ts)
+
+**Steps**
+1. Open the client detail and switch to the Ev. Física tab.
+2. View the "Test quincenal" section with the latest test and result badge.
+3. Press "Registrar test" and fill date (defaults to today), result (Aprobado/No aprobado) and optional notes.
+4. Save; the new test becomes the latest and joins the collapsible history.
+
+**Branches / Variations**
+- No tests yet shows the baseline empty message.
+- "Ver historial (N)" toggles the previous tests list with result badges.
+- API failure shows an inline error banner; the form stays open.
+- A passed test triggers the credit award on the backend (PhysicalTest signal).
+
 ### trainer-client-posturometry: Trainer Client Posturometry
 - Module: trainer
 - Priority: P2
@@ -1300,12 +1536,49 @@ and its own bottom nav (`AdminMobileBottomNav`). Detail pages are addressed by
 `?id=` query param (no `[id]` segments, consistent with static export). Registered
 2026-07-04 after the E2E user-flows audit found the whole group unmapped.
 
+### admin-nutrition: Admin Nutrition Add-on
+- Module: admin
+- Priority: P2
+- Route: /admin-platform/nutricion
+- Roles: admin
+- Coverage: **Covered** (`e2e/admin/admin-nutrition.spec.ts`)
+- Description: Manage the paid nutrition add-on: its monthly COP price and which plans include it. Both levers previously lived only in the Django admin.
+
+**Steps**
+1. Admin opens **Nutrición** from the sidebar (or from *Más* in the mobile bottom nav).
+2. **Add-on Nutrición** loads the monthly price and the active/inactive toggle from `GET /api/admin/nutrition-product/`, along with how many active subscriptions carry nutrition.
+3. Editing the price and saving opens a confirmation dialog stating that impact — `nutrition_surcharge()` reads the active price at charge time, so the change lands on every nutrition subscriber's next renewal. Confirming issues `PATCH /api/admin/nutrition-product/`.
+4. **Planes que incluyen nutrición** lists every plan with a per-row switch that issues `PATCH /api/packages/{id}/` with `includes_nutrition`.
+
+**Branches / Variations**
+- Saving without changing the price skips the dialog and patches directly.
+- A non-integer or negative price is rejected inline; nothing is sent.
+- Deactivating the add-on drops the surcharge to 0 while existing subscribers keep access.
+
+### admin-reports: Admin Reports / KPIs
+- Module: admin
+- Priority: P2
+- Route: /admin-platform/reports
+- Roles: admin
+- Coverage: **Covered** (`e2e/admin/admin-reports.spec.ts`)
+- Description: Business KPI panel for the Fase 2 economy: revenue, subscriptions, credit economy and rating quality, filtered by a preset time window. Activates the previously disabled "Reportes" nav slot.
+
+**Steps**
+1. Admin opens **Reportes** from the sidebar (or from the mobile bottom nav).
+2. The panel loads `GET /api/admin/reports/?window=30d` and renders four KPI blocks: **Ingresos** (total + suscripciones + créditos Wompi, with a fixed 6-month trend strip), **Suscripciones** (activas/expiradas/canceladas + % con nutrición), **Créditos** (ganados/gastados + canjes por estado) and **Calidad** (promedio de rating + sesiones calificadas).
+3. Selecting a window pill (Hoy / 30 días / 90 días / Todo) refetches with `?window=` and refreshes the KPI tiles.
+
+**Branches / Variations**
+- The revenue trend strip is fixed to the last 6 months, independent of the selected window.
+- Subscription status counts are a present snapshot, not time-windowed.
+- Empty/zero data renders zeros (no empty-state illustration); a fetch error shows an inline message and keeps any prior data visible.
+
 ### admin-dashboard: Admin Platform Dashboard
 - Module: admin
 - Priority: P2
 - Route: /admin-platform/dashboard
 - Roles: admin
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Landing overview for admins: aggregate subscription stat tiles (total, active, expired, canceled).
 
 **Steps**
@@ -1321,7 +1594,7 @@ and its own bottom nav (`AdminMobileBottomNav`). Detail pages are addressed by
 - Priority: P1
 - Route: /admin-platform/users
 - Roles: admin
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Browse and manage the platform user roster.
 
 **Steps**
@@ -1339,7 +1612,7 @@ and its own bottom nav (`AdminMobileBottomNav`). Detail pages are addressed by
 - Priority: P1
 - Route: /admin-platform/users/new
 - Roles: admin
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Enroll a new user (customer or trainer) from the admin panel.
 
 **Steps**
@@ -1357,7 +1630,7 @@ and its own bottom nav (`AdminMobileBottomNav`). Detail pages are addressed by
 - Priority: P1
 - Route: /admin-platform/users/detail?id=[userId]
 - Roles: admin
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Manage a single user: role, active state, password reset, trainer assignment, assigned clients.
 
 **Steps**
@@ -1376,7 +1649,7 @@ and its own bottom nav (`AdminMobileBottomNav`). Detail pages are addressed by
 - Priority: P2
 - Route: /admin-platform/subscriptions
 - Roles: admin
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Browse all subscriptions across customers.
 
 **Steps**
@@ -1393,7 +1666,7 @@ and its own bottom nav (`AdminMobileBottomNav`). Detail pages are addressed by
 - Priority: P1
 - Route: /admin-platform/subscriptions/new
 - Roles: admin
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Create or evolve a subscription for a customer via a multi-step wizard.
 
 **Steps**
@@ -1411,7 +1684,7 @@ and its own bottom nav (`AdminMobileBottomNav`). Detail pages are addressed by
 - Priority: P1
 - Route: /admin-platform/subscriptions/detail?id=[subId]
 - Roles: admin
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Manage one subscription: change status, renew, or delete.
 
 **Steps**
@@ -1429,7 +1702,7 @@ and its own bottom nav (`AdminMobileBottomNav`). Detail pages are addressed by
 - Priority: P1
 - Route: /admin-platform/plans
 - Roles: admin
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Manage the package/plan catalog.
 
 **Steps**
@@ -1459,8 +1732,33 @@ These elements are present across multiple routes and affect the user experience
   - None: No automated E2E coverage found.
 - Route: Primary entry route (may include query params or dynamic segments).
 - Branches / Variations: Alternative user paths, edge cases, and form options.
+- **Outcome classes** (`flow-definitions.json` v1.13.0+, per-flow `outcomes`): each flow declares which of these a qualifying E2E test must cover —
+  - `success`: an action completes and shows a success state.
+  - `error`: an action yields a user-facing validation/permission error.
+  - `failure`: an action fails server-side and the UI handles it.
+  - `display`: information is viewable by navigating the UI and asserting real data.
+  Under the `outcomes` schema each declared class needs its own qualifying tagged test (it replaces the old `expectedSpecs` single-test credit).
 
 ## Coverage Summary
+
+> **Reconciliation note (2026-07-17):** this table is documentation, not the coverage
+> source of truth. Runtime status comes from `e2e-results/flow-coverage.json`
+> (flow-coverage-reporter, merged in the CI job `e2e-merge-reports`); at reconciliation
+> time it reported **104/104 flows covered**. The 15 rows previously marked
+> **Missing** had shipped their specs without this file being updated.
+> Redirect-only routes are aliases, not flows: `/mi-programa/hoy` →
+> `/mi-programa/rutina` (flow `customer-mi-programa-rutina`) and
+> `/mi-nutricion-diaria` → `/my-nutrition` (flow `customer-nutrition-daily`).
+
+> **Reconciliation note (2026-07-24):** `flow-definitions.json` bumped to **v1.13.0** — all
+> 104 flows now declare an `outcomes` array (was 0/104), completing the static flow model so
+> `scripts/flow_coverage_audit.py` evaluates each flow against its declared classes. Modules
+> declaring only `display`/`success` dropped from 15 → **2** (`dashboard`, `navigation` —
+> read-only shells, no error/failure by design). Static coverage credit still requires
+> `@flow:` tags in specs (87/104 flows untagged); that spec-tagging pass is tracked separately
+> (see `docs/audits/test-audit-2026-07-24.md`, TD-17). Runtime coverage
+> (`e2e-results/flow-coverage.json`) remains the CI source of truth. The map lists 105 flows =
+> 104 registered + `trainer-evidence` (documented future/not-built, excluded from the registry).
 
 | Flow ID | Roles | Priority | Coverage | E2E Spec |
 | --- | --- | --- | --- | --- |
@@ -1539,25 +1837,27 @@ These elements are present across multiple routes and affect the user experience
 | mobile-bottom-nav | user | P2 | Covered | frontend/e2e/app/mobile-bottom-nav.spec.ts |
 | trainer-mobile-bottom-nav | trainer | P3 | Covered | frontend/e2e/trainer/trainer-mobile-bottom-nav.spec.ts |
 | profile-mood-entry | user | P3 | Covered | frontend/e2e/app/profile-mood-entry.spec.ts |
-| admin-dashboard | admin | P2 | **Missing** | frontend/e2e/admin/admin-dashboard.spec.ts |
-| admin-users-list | admin | P1 | **Missing** | frontend/e2e/admin/admin-users-list.spec.ts |
-| admin-user-create | admin | P1 | **Missing** | frontend/e2e/admin/admin-user-create.spec.ts |
-| admin-user-detail | admin | P1 | **Missing** | frontend/e2e/admin/admin-user-detail.spec.ts |
-| admin-subscriptions-list | admin | P2 | **Missing** | frontend/e2e/admin/admin-subscriptions-list.spec.ts |
-| admin-subscription-create | admin | P1 | **Missing** | frontend/e2e/admin/admin-subscription-create.spec.ts |
-| admin-subscription-detail | admin | P1 | **Missing** | frontend/e2e/admin/admin-subscription-detail.spec.ts |
-| admin-plans | admin | P1 | **Missing** | frontend/e2e/admin/admin-plans.spec.ts |
-| customer-nutrition-daily | user | P2 | **Missing** | frontend/e2e/app/customer-nutrition-daily.spec.ts |
-| customer-nutrition-plan | user | P2 | **Missing** | frontend/e2e/app/customer-nutrition-plan.spec.ts |
-| subscription-duo-invite | user | P2 | **Missing** | frontend/e2e/app/subscription-duo-invite.spec.ts |
-| trainer-client-nutrition-plan | trainer | P2 | **Missing** | frontend/e2e/trainer/trainer-client-nutrition-plan.spec.ts |
-| trainer-client-booking | trainer | P2 | **Missing** | frontend/e2e/trainer/trainer-client-booking.spec.ts |
-| trainer-client-messaging | trainer | P2 | **Missing** | frontend/e2e/trainer/trainer-client-messaging.spec.ts |
-| customer-trainer-message | user | P3 | **Missing** | frontend/e2e/app/customer-trainer-message.spec.ts |
+| admin-dashboard | admin | P2 | Covered | frontend/e2e/admin/admin-dashboard.spec.ts |
+| admin-users-list | admin | P1 | Covered | frontend/e2e/admin/admin-users-list.spec.ts |
+| admin-user-create | admin | P1 | Covered | frontend/e2e/admin/admin-user-create.spec.ts |
+| admin-user-detail | admin | P1 | Covered | frontend/e2e/admin/admin-user-detail.spec.ts |
+| admin-subscriptions-list | admin | P2 | Covered | frontend/e2e/admin/admin-subscriptions-list.spec.ts |
+| admin-subscription-create | admin | P1 | Covered | frontend/e2e/admin/admin-subscription-create.spec.ts |
+| admin-subscription-detail | admin | P1 | Covered | frontend/e2e/admin/admin-subscription-detail.spec.ts |
+| admin-plans | admin | P1 | Covered | frontend/e2e/admin/admin-plans.spec.ts |
+| customer-nutrition-daily | user | P2 | Covered | frontend/e2e/app/customer-nutrition-daily.spec.ts |
+| customer-nutrition-plan | user | P2 | Covered | frontend/e2e/app/customer-nutrition-plan.spec.ts |
+| subscription-duo-invite | user | P2 | Covered | frontend/e2e/app/subscription-duo-invite.spec.ts |
+| trainer-client-nutrition-plan | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-nutrition-plan.spec.ts |
+| trainer-client-booking | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-booking.spec.ts |
+| trainer-client-messaging | trainer | P2 | Covered | frontend/e2e/trainer/trainer-client-messaging.spec.ts |
+| customer-trainer-message | user | P3 | Covered | frontend/e2e/app/customer-trainer-message.spec.ts |
 
 ---
 
 ## Missing Flows — Registered 2026-05-11
+
+> Historical registry — all flows in this section have shipped their specs (see Coverage Summary).
 
 ### customer-mi-programa: Mi Programa Overview
 - Module: program
@@ -1598,6 +1898,27 @@ These elements are present across multiple routes and affect the user experience
 - Rest day: shows rest day card instead of exercise list.
 - All exercises completed: adherence = 100%, celebration state.
 - No DailyLog exists yet: auto-creates on first interaction.
+
+---
+
+### program-workout-captures: Workout Camera Validation
+- Module: program
+- Priority: P2
+- Route: /mi-programa/rutina
+- Roles: user
+- Description: Camera-based validation of the daily routine for workout-day credits. The client is told a video will be taken; the system takes 2-3 random photo captures per exercise during execution and uploads them in the background for trainer review.
+- E2E Coverage: Covered (frontend/e2e/program/mi-programa-rutina.spec.ts — "Rutina — validación por cámara")
+
+**Steps**
+1. First visit with the rule active shows the consent gate: "Validación de tu rutina" with the video copy and the "+X créditos" chip.
+2. "Activar cámara" triggers the browser camera permission; the choice is remembered.
+3. During each exercise's execution phase the "● Validando rutina" indicator pulses while random captures are taken and queued for deferred upload.
+4. The completion screen shows "Rutina en validación · +X créditos cuando tu entrenador la apruebe".
+
+**Branches / Variations**
+- "Entrenar sin validar" (or browser permission denied): the routine works normally but an amber notice explains workout credits need validation; tapping it re-opens the gate.
+- Camera runs ONLY while a set is executing (released between phases — consent scope).
+- Upload failures retry once silently; the engine needs at least one capture that day.
 
 ---
 
@@ -1749,6 +2070,8 @@ These elements are present across multiple routes and affect the user experience
 
 ## Missing Flows — Registered 2026-07-04
 
+> Historical registry — all flows in this section have shipped their specs (see Coverage Summary).
+
 Non-admin flows surfaced by the E2E user-flows audit. Each maps to a real user
 action whose existing spec (if any) did not exercise it. Admin flows are in the
 `## Admin Flows` section above.
@@ -1758,7 +2081,7 @@ action whose existing spec (if any) did not exercise it. Admin flows are in the
 - Priority: P2
 - Route: /my-nutrition
 - Roles: user
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: The write side of /my-nutrition. The existing `customer-nutrition` spec is render-only; this flow covers the daily tracker interactions.
 
 **Steps**
@@ -1777,7 +2100,7 @@ action whose existing spec (if any) did not exercise it. Admin flows are in the
 - Priority: P2
 - Route: /my-nutrition
 - Roles: user
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Customer views the trainer-authored weekly nutrition plan on /my-nutrition — the collapsible coach-note strip on the daily hero, sourced from GET /api/my-nutrition-plans/. (There is no separate customer plan page; the per-day meals come from the daily `today/` endpoint.)
 
 **Steps**
@@ -1793,7 +2116,7 @@ action whose existing spec (if any) did not exercise it. Admin flows are in the
 - Priority: P2
 - Route: /subscription
 - Roles: user
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: The plan owner manages a DUO guest from the subscription page (distinct from `auth-accept-invite`, which is the invitee redeeming a token).
 
 **Steps**
@@ -1811,7 +2134,7 @@ action whose existing spec (if any) did not exercise it. Admin flows are in the
 - Priority: P2
 - Route: /trainer/clients/client?id=[clientId] (Nutrición tab / ClientNutritionTab)
 - Roles: trainer
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Trainer authors a client's weekly nutrition plan. Distinct from the read-only `trainer-client-nutrition` (habits viewer) and from `trainer-nutrition-catalog` (food browser).
 
 **Steps**
@@ -1828,7 +2151,7 @@ action whose existing spec (if any) did not exercise it. Admin flows are in the
 - Priority: P2
 - Route: /trainer/clients + /trainer/clients/client?id=[clientId] (TrainerBookingDialog)
 - Roles: trainer
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Trainer books or reschedules a session on behalf of an assigned client.
 
 **Steps**
@@ -1845,7 +2168,7 @@ action whose existing spec (if any) did not exercise it. Admin flows are in the
 - Priority: P2
 - Route: /trainer/clients/client?id=[clientId] (Notas → Sesiones message composer)
 - Roles: trainer
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: Trainer sends a message to a client via the client-detail Notas → Sesiones composer (POST /api/trainer/messages/). Note: the `PostSessionMessageSheet` component exists but has no wired trigger on the current client-detail page (its `onMessage` is never passed to `SessionRow`); the reachable surface is `MessageComposerCard`.
 
 **Steps**
@@ -1861,7 +2184,7 @@ action whose existing spec (if any) did not exercise it. Admin flows are in the
 - Priority: P3
 - Route: (app) shell overlay — TrainerMessageModal
 - Roles: user
-- Coverage: **Missing**
+- Coverage: Covered (spec path in Coverage Summary)
 - Description: The customer-side counterpart of `trainer-client-messaging`: receive and dismiss a trainer message (GET /api/my-trainer-messages/, dismiss).
 
 **Steps**

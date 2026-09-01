@@ -5,10 +5,10 @@ import { FlowTags, RoleTags } from '../helpers/flow-tags';
  * Full booking flow tests that exercise BookingConfirmation, BookingSuccess,
  * TimeSlotPicker branches, and bookingStore actions via mocked API responses.
  *
- * The calendar has a chicken-and-egg problem: dates are disabled until slots
- * are loaded, but slots only load after a date is selected. We work around
- * this by using page.evaluate to remove the disabled attribute and triggering
- * a click, which lets React's handler fire and the mock API respond.
+ * The booking page requests a 30-day availability window as soon as the trainer
+ * is known, so calendar days are already selectable on first render — the day is
+ * clicked like a user would. A day only stays disabled when the mocked
+ * availability publishes no slots for it.
  */
 test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMPLETE_FLOW, RoleTags.USER] }, () => {
   test.describe.configure({ mode: 'serial' });
@@ -131,7 +131,7 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
     ]);
   }
 
-  async function forceClickCalendarDay(page: import('@playwright/test').Page, dayNum: string) {
+  async function selectCalendarDay(page: import('@playwright/test').Page, dayNum: string) {
     await page.getByText('Lun').waitFor({ state: 'visible', timeout: 10_000 });
     // Navigate to next month if the target day falls outside the currently displayed month
     if (tomorrow.getMonth() !== new Date().getMonth() || tomorrow.getFullYear() !== new Date().getFullYear()) {
@@ -144,7 +144,7 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
     await page.goto('/book-session');
 
     const dayNum = tomorrow.getDate().toString();
-    await forceClickCalendarDay(page, dayNum);
+    await selectCalendarDay(page, dayNum);
     await expectPrimarySlotButton(page);
     await selectPrimarySlot(page);
 
@@ -218,7 +218,7 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
     await page.goto('/book-session');
 
     const dayNum = tomorrow.getDate().toString();
-    await forceClickCalendarDay(page, dayNum);
+    await selectCalendarDay(page, dayNum);
     await expectPrimarySlotButton(page);
     await selectPrimarySlot(page);
     await expect(page.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
@@ -239,7 +239,7 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
     await page.goto('/book-session');
 
     const dayNum = tomorrow.getDate().toString();
-    await forceClickCalendarDay(page, dayNum);
+    await selectCalendarDay(page, dayNum);
     await expectPrimarySlotButton(page);
     await selectPrimarySlot(page);
     await expect(page.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
@@ -274,7 +274,7 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
     await page.goto('/book-session');
 
     const dayNum = tomorrow.getDate().toString();
-    await forceClickCalendarDay(page, dayNum);
+    await selectCalendarDay(page, dayNum);
     await expectPrimarySlotButton(page);
     await selectPrimarySlot(page);
     await expect(page.getByText('Confirmar reserva')).toBeVisible({ timeout: 10_000 });
@@ -285,4 +285,40 @@ test.describe('Complete Booking Flow (mocked)', { tag: [...FlowTags.BOOKING_COMP
     // Error message should appear
     await expect(page.getByText('No quedan sesiones disponibles.')).toBeVisible({ timeout: 10_000 });
   });
+
+  test('server failure on confirm shows the generic error and keeps retry enabled', { tag: ['@outcome:failure'] }, async ({ page }) => {
+    await mockLoginAsTestUser(page);
+    await setupMocks(page);
+
+    // 500 with an empty body: the store falls back to its generic Spanish message.
+    await page.route('**/api/bookings/', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({}) });
+      } else {
+        await route.continue();
+      }
+    });
+
+    const main = await goToConfirmationStep(page);
+    await main.getByRole('button', { name: 'Confirmar' }).click();
+
+    await expect(main.getByText('No se pudo crear la reserva.')).toBeVisible({ timeout: 10_000 });
+    // The user stays on the confirmation step and can retry.
+    await expect(main.getByText('Confirmar reserva')).toBeVisible();
+    await expect(main.getByRole('button', { name: 'Confirmar' })).toBeEnabled();
+  });
+
+  test('the confirmation step shows the chosen session before booking', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-deep-link (el flujo de reserva exige sesión inyectada por cookie; no hay ruta de UI pública hasta /book-session)
+    // Construido sobre los helpers que ya usa el journey verde de arriba: la
+    // clase display de este flow es lo que el usuario LEE antes de confirmar —
+    // sus datos, el paquete, la duración y la modalidad — y merece fallar por su
+    // cuenta si eso se rompe, sin depender de que el journey completo pase.
+    await mockLoginAsTestUser(page);
+    await setupMocks(page);
+
+    const main = await goToConfirmationStep(page);
+    await expectConfirmationDetails(main);
+  });
+
 });

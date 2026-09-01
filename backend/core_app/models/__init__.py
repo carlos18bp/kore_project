@@ -24,7 +24,8 @@ from .parq_assessment import ParqAssessment
 from .registration_verification_code import RegistrationVerificationCode
 from .subscription_guest import SubscriptionGuest
 from .exercise import Exercise
-from .monthly_program import MonthlyProgram, ProgramDay, ProgramExercise, DailyLog, ExerciseLog
+from .monthly_program import MonthlyProgram, ProgramDay, ProgramExercise, DailyLog, ExerciseLog, ExerciseCapture
+from .physical_test import PhysicalTest
 from .program_week_note import ProgramWeekNote
 from .food import Food
 from .meal_suggestion import MealSuggestion
@@ -34,6 +35,14 @@ from .trainer_alert_resolution import TrainerAlertResolution
 from .trainer_message import TrainerMessage
 from .weekly_nutrition_plan import WeeklyNutritionPlan, WeeklyPlanDay, WeeklyPlanMeal
 from .nutrition_week_note import NutritionWeekNote
+from .credit import CreditSettings, CreditWallet, CreditTransaction
+from .store import StoreItem, RedemptionRequest
+from .session_grant import SessionGrant
+from .credit_package import CreditPackage
+from .credit_purchase import CreditPurchase
+from .nutrition_product import NutritionProduct
+from .nutrition_upgrade import NutritionUpgrade
+from .session_rating import SessionRating
 
 __all__ = [
     'User',
@@ -83,4 +92,17 @@ __all__ = [
     'WeeklyPlanDay',
     'WeeklyPlanMeal',
     'NutritionWeekNote',
+    'CreditSettings',
+    'CreditWallet',
+    'CreditTransaction',
+    'StoreItem',
+    'RedemptionRequest',
+    'SessionGrant',
+    'CreditPackage',
+    'CreditPurchase',
+    'NutritionProduct',
+    'NutritionUpgrade',
+    'ExerciseCapture',
+    'PhysicalTest',
+    'SessionRating',
 ]

@@ -12,8 +12,17 @@ import { FlowTags, RoleTags } from '../helpers/flow-tags';
  * with a payload that has billing_failed_at populated, navigate to /dashboard.
  */
 test.describe('Subscription Billing Failed Recovery', { tag: [...FlowTags.SUBSCRIPTION_BILLING_FAILED_RECOVERY, RoleTags.USER] }, () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
 
   const PACKAGE_ID = 6;
+
+  // The sidebar subscription link is layout navigation present for any
+  // subscription status, so it is a reliable "dashboard settled" signal even
+  // when a canceled subscription suppresses the greeting hero.
+  const dashboardSettled = (page: Page) =>
+    expect(
+      page.getByRole('complementary').getByRole('link', { name: 'Mi Suscripción' }),
+    ).toBeVisible({ timeout: 15_000 });
 
   function buildSubscription(overrides: Record<string, unknown> = {}) {
     return {
@@ -78,6 +87,7 @@ test.describe('Subscription Billing Failed Recovery', { tag: [...FlowTags.SUBSCR
 
     await page.getByRole('link', { name: 'Actualizar pago' }).click();
     await page.waitForURL(new RegExp(`/checkout\\?package=${PACKAGE_ID}`), { timeout: 15_000 });
+    await expect(page).toHaveURL(new RegExp(`/checkout\\?package=${PACKAGE_ID}`));
   });
 
   test('dismiss persists in sessionStorage and toast does not reappear on reload', async ({ page }) => {
@@ -107,8 +117,9 @@ test.describe('Subscription Billing Failed Recovery', { tag: [...FlowTags.SUBSCR
     await mockSubscriptions(page, [buildSubscription({ billing_failed_at: null })]);
 
     await page.goto('/dashboard');
-    // Wait briefly for the dashboard to settle
-    await expect(page.getByRole('main')).toBeVisible({ timeout: 15_000 });
+    // Settle on layout chrome so the absent-toast assertion is meaningful
+    // rather than passing on an unloaded page.
+    await dashboardSettled(page);
     await expect(page.getByText('No pudimos procesar tu pago')).not.toBeVisible();
   });
 
@@ -118,7 +129,7 @@ test.describe('Subscription Billing Failed Recovery', { tag: [...FlowTags.SUBSCR
     await mockSubscriptions(page, [buildSubscription({ status: 'canceled' })]);
 
     await page.goto('/dashboard');
-    await expect(page.getByRole('main')).toBeVisible({ timeout: 15_000 });
+    await dashboardSettled(page);
     await expect(page.getByText('No pudimos procesar tu pago')).not.toBeVisible();
   });
 });

@@ -114,4 +114,24 @@ describe('UserRow', () => {
     render(<UserRow user={makeUser({ last_login: null })} />);
     expect(card().getByText('Sin actividad')).toBeInTheDocument();
   });
+
+  describe('last login relative time', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2026-07-22T12:00:00Z'));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    test.each([
+      ['2026-07-22T11:30:00Z', 'Hace 30 min'],
+      ['2026-07-22T07:00:00Z', 'Hace 5 h'],
+      ['2026-07-19T12:00:00Z', 'Hace 3 d'],
+    ])('shows a login at %s as "%s"', (lastLogin, expected) => {
+      render(<UserRow user={makeUser({ last_login: lastLogin })} />);
+      expect(card().getByText(expected)).toBeInTheDocument();
+    });
+  });
 });

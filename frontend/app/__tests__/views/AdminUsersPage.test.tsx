@@ -122,10 +122,10 @@ describe('AdminUsersPage', () => {
 
   it('links to the new user enrollment page', () => {
     render(<AdminUsersPage />);
-    const link = screen.getAllByRole('link').find(
-      (a) => (a as HTMLAnchorElement).getAttribute('href') === '/admin-platform/users/new',
+    expect(screen.getByRole('link', { name: /Inscribir usuario/ })).toHaveAttribute(
+      'href',
+      '/admin-platform/users/new',
     );
-    expect(link).toBeDefined();
   });
 
   it('renders the pluralized total count in the footer', () => {

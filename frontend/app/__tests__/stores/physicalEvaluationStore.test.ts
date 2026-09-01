@@ -133,7 +133,7 @@ describe('physicalEvaluationStore', () => {
       });
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when fetchEvaluations fails', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
       await usePhysicalEvaluationStore.getState().fetchEvaluations(10);
       expect(usePhysicalEvaluationStore.getState().error).toBe('No se pudieron cargar las evaluaciones físicas.');
@@ -182,7 +182,7 @@ describe('physicalEvaluationStore', () => {
       expect(state.submitting).toBe(false);
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when updateEvaluation fails', async () => {
       mockedApi.patch.mockRejectedValueOnce(new Error('Network'));
       const result = await usePhysicalEvaluationStore.getState().updateEvaluation(10, 1, { notes: 'x' });
       expect(result).toBeNull();
@@ -201,7 +201,7 @@ describe('physicalEvaluationStore', () => {
       expect(usePhysicalEvaluationStore.getState().submitting).toBe(false);
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when deleteEvaluation fails', async () => {
       mockedApi.delete.mockRejectedValueOnce(new Error('Network'));
       const result = await usePhysicalEvaluationStore.getState().deleteEvaluation(10, 1);
       expect(result).toBe(false);
@@ -247,7 +247,7 @@ describe('physicalEvaluationStore', () => {
       });
     });
 
-    it('sets error on failure', async () => {
+    it('sets error when fetchMyEvaluations fails', async () => {
       mockedApi.get.mockRejectedValueOnce(new Error('Network'));
       await usePhysicalEvaluationStore.getState().fetchMyEvaluations();
       expect(usePhysicalEvaluationStore.getState().error).toBe('No se pudieron cargar tus evaluaciones físicas.');

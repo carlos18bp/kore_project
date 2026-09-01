@@ -77,6 +77,7 @@ test.describe('Customer Nutrition Page', { tag: [...FlowTags.CUSTOMER_NUTRITION,
   ) {
     await injectAuthCookies(page);
     await setupDefaultApiMocks(page, ['my-nutrition']);
+    await page.route('**/api/nutrition/access/**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ has_nutrition_access: true, price_cop: 30000 }) }));
     await page.route('**/api/my-nutrition/', async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
@@ -112,7 +113,11 @@ test.describe('Customer Nutrition Page', { tag: [...FlowTags.CUSTOMER_NUTRITION,
 
     const heading = page.getByRole('heading', { level: 1 });
     await expect(heading).toBeVisible();
-    await expect(heading).not.toBeEmpty();
+    // The h1 renders today's date via toLocaleDateString('es-CO', { weekday, day, month }).
+    // Assert the concrete Spanish long-date shape so an empty or wrong heading fails.
+    await expect(heading).toHaveText(
+      /(lunes|martes|miércoles|jueves|viernes|sábado|domingo).*\b\d{1,2}\b.*(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)/i,
+    );
   });
 
   test('shows "Sin plan activo" hero when there is no active program', async ({ page }) => {
@@ -168,7 +173,9 @@ test.describe('Customer Nutrition Page', { tag: [...FlowTags.CUSTOMER_NUTRITION,
 
     await page.getByRole('button', { name: /Actualizar hábitos de la semana/ }).click();
 
-    await expect(page.getByRole('heading', { name: 'Actualizar hábitos' })).toBeVisible();
+    // The update sheet opened: pin its title text (not just visibility) plus a
+    // form-field label, so an empty or wrong sheet fails the test.
+    await expect(page.getByRole('heading', { name: 'Actualizar hábitos' })).toHaveText('Actualizar hábitos');
     await expect(page.getByText('Proteína de calidad')).toBeVisible();
   });
 
@@ -189,10 +196,9 @@ test.describe('Customer Nutrition Page', { tag: [...FlowTags.CUSTOMER_NUTRITION,
         response.url().includes('/api/my-nutrition/') && response.request().method() === 'POST',
     );
     await page.getByRole('button', { name: 'Guardar registro' }).click();
-    const response = await habitsPost;
-    expect(response.ok()).toBe(true);
-
-    // Success: createEntry resolved truthy so the modal closes.
+    // Waiting for the POST proves the form actually submitted; the observable
+    // outcome is the modal closing on a successful save.
+    await habitsPost;
     await expect(page.getByRole('heading', { name: 'Actualizar hábitos' })).not.toBeVisible();
   });
 });

@@ -8,6 +8,7 @@ import { FlowTags, RoleTags } from '../helpers/flow-tags';
 test.describe('Forgot Password Page', { tag: [...FlowTags.AUTH_FORGOT_PASSWORD, RoleTags.GUEST] }, () => {
 
   test('renders step 1 with email input and submit button', async ({ page }) => {
+    // quality: allow-no-interaction (render guard: confirms step 1 mounts on initial load, no interactive element exists yet)
     await page.goto('/forgot-password');
 
     await expect(page.getByRole('heading', { name: 'Recuperar contraseña' })).toBeVisible();
@@ -31,9 +32,11 @@ test.describe('Forgot Password Page', { tag: [...FlowTags.AUTH_FORGOT_PASSWORD, 
     await expect(page.getByLabel(/Código de verificación/i)).toBeVisible();
     await expect(page.getByText('user@example.com')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Verificar código' })).toBeVisible();
+    // Advancing to step 2 unmounts the step-1 email field.
+    await expect(page.getByLabel(/Correo electrónico/i)).toBeHidden();
   });
 
-  test('request code API failure shows error message', async ({ page }) => {
+  test('request code API failure shows error message', { tag: ['@outcome:failure'] }, async ({ page }) => {
     await page.route('**/api/auth/password-reset/request-code/', async (route) => {
       await route.fulfill({ status: 500, contentType: 'application/json', body: '{"detail":"Server error"}' });
     });
@@ -71,7 +74,7 @@ test.describe('Forgot Password Page', { tag: [...FlowTags.AUTH_FORGOT_PASSWORD, 
     await expect(page.getByRole('button', { name: 'Cambiar contraseña' })).toBeVisible();
   });
 
-  test('invalid code shows error and stays on step 2', async ({ page }) => {
+  test('invalid code shows error and stays on step 2', { tag: ['@outcome:error'] }, async ({ page }) => {
     await page.route('**/api/auth/password-reset/request-code/', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
     });
@@ -106,7 +109,7 @@ test.describe('Forgot Password Page', { tag: [...FlowTags.AUTH_FORGOT_PASSWORD, 
     await expect(page.getByRole('heading', { name: 'Recuperar contraseña' })).toBeVisible();
   });
 
-  test('password mismatch shows validation error on step 3', async ({ page }) => {
+  test('password mismatch shows validation error on step 3', { tag: ['@outcome:error'] }, async ({ page }) => {
     await page.route('**/api/auth/password-reset/request-code/', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
     });
@@ -129,15 +132,12 @@ test.describe('Forgot Password Page', { tag: [...FlowTags.AUTH_FORGOT_PASSWORD, 
     await page.getByLabel('Nueva contraseña').fill('securepass1');
     await page.getByLabel('Confirmar contraseña').fill('differentpass');
 
-    await page.evaluate(() => {
-      document.querySelectorAll('input[minlength]').forEach((el) => el.removeAttribute('minlength'));
-    });
     await page.getByRole('button', { name: 'Cambiar contraseña' }).click();
 
     await expect(page.getByText('Las contraseñas no coinciden.')).toBeVisible({ timeout: 5_000 });
   });
 
-  test('short password shows validation error on step 3', async ({ page }) => {
+  test('short password shows validation error on step 3', { tag: ['@outcome:error'] }, async ({ page }) => {
     await page.route('**/api/auth/password-reset/request-code/', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
     });
@@ -157,18 +157,19 @@ test.describe('Forgot Password Page', { tag: [...FlowTags.AUTH_FORGOT_PASSWORD, 
     await page.getByRole('button', { name: 'Verificar código' }).click();
 
     await expect(page.getByLabel('Nueva contraseña')).toBeVisible({ timeout: 10_000 });
-    await page.getByLabel('Nueva contraseña').fill('short');
+    const newPassword = page.getByLabel('Nueva contraseña');
+    await newPassword.fill('short');
     await page.getByLabel('Confirmar contraseña').fill('short');
 
-    await page.evaluate(() => {
-      document.querySelectorAll('input[minlength]').forEach((el) => el.removeAttribute('minlength'));
-    });
     await page.getByRole('button', { name: 'Cambiar contraseña' }).click();
 
-    await expect(page.getByText('La contraseña debe tener al menos 8 caracteres.')).toBeVisible({ timeout: 5_000 });
+    // The browser's native minLength guard blocks the submit, so the app never
+    // advances and the step-3 form stands — the real user cannot get past this.
+    await expect(newPassword).toHaveJSProperty('validity.tooShort', true);
+    await expect(page.getByRole('button', { name: 'Cambiar contraseña' })).toBeVisible();
   });
 
-  test('successful password reset shows success and redirects to login', async ({ page }) => {
+  test('successful password reset shows success and redirects to login', { tag: ['@outcome:success'] }, async ({ page }) => {
     await page.route('**/api/auth/password-reset/request-code/', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
     });
@@ -199,7 +200,7 @@ test.describe('Forgot Password Page', { tag: [...FlowTags.AUTH_FORGOT_PASSWORD, 
     await expect(page).toHaveURL(/\/login/, { timeout: 10_000 });
   });
 
-  test('reset API failure shows error detail on step 3', async ({ page }) => {
+  test('reset API failure shows error detail on step 3', { tag: ['@outcome:error'] }, async ({ page }) => {
     await page.route('**/api/auth/password-reset/request-code/', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
     });
@@ -258,14 +259,15 @@ test.describe('Forgot Password Page', { tag: [...FlowTags.AUTH_FORGOT_PASSWORD, 
     await expect(passwordInput).toBeVisible({ timeout: 10_000 });
     await expect(passwordInput).toHaveAttribute('type', 'password');
 
-    await page.locator('button', { hasText: 'Ver' }).evaluate((el) => (el as HTMLElement).click());
+    await page.getByRole('button', { name: 'Ver', exact: true }).click();
     await expect(passwordInput).toHaveAttribute('type', 'text');
 
-    await page.locator('button', { hasText: 'Ocultar' }).evaluate((el) => (el as HTMLElement).click());
+    await page.getByRole('button', { name: 'Ocultar', exact: true }).click();
     await expect(passwordInput).toHaveAttribute('type', 'password');
   });
 
   test('"Volver a iniciar sesión" link navigates to login', async ({ page }) => {
+    // quality: allow-no-interaction (static link guard: verifies the href attribute without clicking, the assertion IS the check)
     await page.goto('/forgot-password');
     const link = page.getByRole('link', { name: 'Volver a iniciar sesión' });
     await expect(link).toBeVisible();

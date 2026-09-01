@@ -7,6 +7,7 @@ import { useTrainerStore } from '@/lib/stores/trainerStore';
 import type { ClientRiskScore } from '@/lib/stores/trainerStore';
 import RiskBadge from '@/app/components/trainer/RiskBadge';
 import AgendaCard from '@/app/components/trainer/AgendaCard';
+import RatingsSummaryCard from '@/app/components/trainer/RatingsSummaryCard';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -365,6 +366,8 @@ export default function TrainerDashboardPage() {
           <HoyAlertsPreview alerts={flatAlerts} />
           <EvalsVencidas evals={comparativeMetrics?.expired_evaluations ?? []} />
         </div>
+
+        <RatingsSummaryCard />
 
       </div>
     </section>

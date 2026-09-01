@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useAuthStore } from '@/lib/stores/authStore';
 import { useProfileStore } from '@/lib/stores/profileStore';
+import { useCreditValuesStore } from '@/lib/stores/creditValuesStore';
 
 const SCORE_LABELS: Record<number, string> = {
   1: 'Muy mal', 2: 'Mal', 3: 'Bajo', 4: 'Regular', 5: 'Pasable',
@@ -21,11 +22,18 @@ export default function MoodCheckIn() {
   const { profile, todayMood, fetchProfile, submitMood, moodModalOpen, closeMoodModal } = useProfileStore();
   const [autoVisible, setAutoVisible] = useState(false);
   const [profileFetched, setProfileFetched] = useState(false);
-  const [score, setScore] = useState(7);
+  const [step, setStep] = useState(0); // 0 ánimo · 1 energía · 2 dolor · 3 listo
+  const [score, setScore] = useState<number | null>(null);
+  const [energy, setEnergy] = useState<number | null>(null);
+  const [pain, setPain] = useState<boolean | null>(null);
   const [notes, setNotes] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const fetchedRef = useRef(false);
+
+  const { value: creditValue, fetchValues } = useCreditValuesStore();
+  useEffect(() => { fetchValues(); }, [fetchValues]);
+  const checkinCredits = creditValue('checkin');
 
   useEffect(() => {
     if (!hydrated || !user || fetchedRef.current) return;
@@ -62,9 +70,14 @@ export default function MoodCheckIn() {
     if (moodModalOpen) closeMoodModal();
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (readyAnswer: boolean) => {
+    if (score === null) return;
     setSubmitting(true);
-    await submitMood(score, notes || undefined);
+    await submitMood(score, notes || undefined, {
+      ...(energy !== null ? { energy_level: energy } : {}),
+      ...(pain !== null ? { pain } : {}),
+      ready_to_train: readyAnswer,
+    });
     setShowConfirmation(true);
     setTimeout(() => {
       setAutoVisible(false);
@@ -73,7 +86,7 @@ export default function MoodCheckIn() {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" data-testid="mood-checkin-modal">
       <div className="absolute inset-0 bg-white/40 backdrop-blur-md" onClick={handleDismiss} />
 
       <div className="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 overflow-hidden animate-in fade-in zoom-in-95 duration-300">
@@ -84,73 +97,118 @@ export default function MoodCheckIn() {
         <div className="relative z-10">
           {showConfirmation ? (
             <div className="text-center py-4 animate-in fade-in duration-300">
-              <div className={`w-16 h-16 mx-auto mb-4 rounded-full ${getScoreColor(score)} flex items-center justify-center`}>
-                <span className="font-heading text-2xl font-bold">{score}</span>
+              <div className={`w-16 h-16 mx-auto mb-4 rounded-full ${getScoreColor(score ?? 7)} flex items-center justify-center`}>
+                <span className="font-heading text-2xl font-bold">{score ?? '—'}</span>
               </div>
-              <p className="font-heading text-lg font-semibold text-kore-gray-dark mb-1">{SCORE_LABELS[score]}</p>
+              <p className="font-heading text-lg font-semibold text-kore-gray-dark mb-1">{SCORE_LABELS[score ?? 7]}</p>
               <p className="text-sm text-kore-gray-dark/50">Registrado. ¡Gracias!</p>
             </div>
           ) : (
             <>
-              <div className="text-center mb-6">
-                <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-gradient-to-br from-kore-red/10 to-kore-burgundy/10 flex items-center justify-center">
-                  <svg className="w-6 h-6 text-kore-red" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" />
-                  </svg>
+              <div className="text-center mb-5">
+                <div className="flex items-center justify-center gap-1.5 mb-3">
+                  {[0, 1, 2, 3].map((i) => (
+                    <span key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === step ? 'w-6 bg-kore-red' : i < step ? 'w-1.5 bg-kore-red/40' : 'w-1.5 bg-kore-gray-light'}`} />
+                  ))}
                 </div>
                 <h2 className="font-heading text-lg font-semibold text-kore-gray-dark mb-1">
-                  ¿Cómo te sientes hoy?
+                  {step === 0 && '¿Cómo te sientes hoy?'}
+                  {step === 1 && '¿Cuánta energía tienes?'}
+                  {step === 2 && '¿Tienes algún dolor o molestia?'}
+                  {step === 3 && '¿Listo para entrenar hoy?'}
                 </h2>
-                <p className="text-xs text-kore-gray-dark/50">
-                  Del 1 al 10, tu bienestar es parte de tu proceso.
-                </p>
+                {checkinCredits !== null && (
+                  <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-kore-red/10 text-kore-red">
+                    Check-in de hoy · +{checkinCredits} créditos
+                  </span>
+                )}
               </div>
 
-              {/* Score selector */}
-              <div className="mb-4">
-                <div className="flex items-center justify-center gap-1.5 mb-2">
-                  {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+              {step === 0 && (
+                <div className="mb-4">
+                  <div className="flex items-center justify-center gap-1.5 flex-wrap mb-2">
+                    {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => { setScore(n); setTimeout(() => setStep(1), 250); }}
+                        className={`w-8 h-8 rounded-full text-xs font-bold transition-all duration-150 cursor-pointer ${
+                          n === score
+                            ? getScoreColor(n) + ' ring-2 ring-offset-1 ring-current scale-110'
+                            : 'bg-kore-cream/60 text-kore-gray-dark/40 hover:bg-kore-cream hover:text-kore-gray-dark/70'
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                  {score !== null && (
+                    <p className="text-center text-sm font-medium text-kore-gray-dark/60">{SCORE_LABELS[score]}</p>
+                  )}
+                </div>
+              )}
+
+              {step === 1 && (
+                <div className="mb-4 flex items-center justify-center gap-2">
+                  {[
+                    { n: 1, label: 'Agotado' }, { n: 2, label: 'Bajo' }, { n: 3, label: 'Normal' },
+                    { n: 4, label: 'Bien' }, { n: 5, label: 'A tope' },
+                  ].map(({ n, label }) => (
                     <button
                       key={n}
                       type="button"
-                      onClick={() => setScore(n)}
-                      className={`w-8 h-8 rounded-full text-xs font-bold transition-all duration-150 cursor-pointer ${
-                        n === score
-                          ? getScoreColor(n) + ' ring-2 ring-offset-1 ring-current scale-110'
-                          : 'bg-kore-cream/60 text-kore-gray-dark/40 hover:bg-kore-cream hover:text-kore-gray-dark/70'
+                      onClick={() => { setEnergy(n); setTimeout(() => setStep(2), 250); }}
+                      className={`flex flex-col items-center gap-1 px-2.5 py-2 rounded-xl text-[11px] font-semibold transition-all ${
+                        energy === n ? 'bg-kore-red/10 text-kore-red ring-1 ring-kore-red/30' : 'bg-kore-cream/60 text-kore-gray-dark/50 hover:bg-kore-cream'
                       }`}
                     >
-                      {n}
+                      <span className="text-base font-bold">{n}</span>
+                      {label}
                     </button>
                   ))}
                 </div>
-                <p className={`text-center text-sm font-medium ${
-                  score >= 8 ? 'text-green-600' : score >= 5 ? 'text-amber-600' : 'text-red-500'
-                }`}>
-                  {SCORE_LABELS[score]}
-                </p>
-              </div>
+              )}
 
-              {/* Notes */}
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Notas adicionales (opcional)"
-                rows={2}
-                className="w-full px-3 py-2 mb-4 rounded-xl border border-kore-gray-light/50 bg-kore-cream/30 text-sm text-kore-gray-dark placeholder:text-kore-gray-dark/30 focus:outline-none focus:ring-2 focus:ring-kore-red/20 resize-none"
-              />
+              {step === 2 && (
+                <div className="mb-4 flex items-center justify-center gap-3">
+                  <button type="button" onClick={() => { setPain(false); setTimeout(() => setStep(3), 250); }}
+                    className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-all ${pain === false ? 'bg-green-100 text-green-700 ring-1 ring-green-300' : 'bg-kore-cream/60 text-kore-gray-dark/60 hover:bg-kore-cream'}`}>
+                    Sin dolor
+                  </button>
+                  <button type="button" onClick={() => { setPain(true); setTimeout(() => setStep(3), 250); }}
+                    className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-all ${pain === true ? 'bg-red-100 text-red-600 ring-1 ring-red-300' : 'bg-kore-cream/60 text-kore-gray-dark/60 hover:bg-kore-cream'}`}>
+                    Tengo dolor
+                  </button>
+                </div>
+              )}
 
-              <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="w-full py-3 bg-gradient-to-r from-kore-red to-kore-burgundy text-white font-heading font-semibold text-sm rounded-xl hover:shadow-lg transition-all duration-300 disabled:opacity-70"
-              >
-                {submitting ? 'Guardando...' : 'Registrar'}
-              </button>
+              {step === 3 && (
+                <div className="mb-4 space-y-3">
+                  {pain === true && (
+                    <textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Cuéntale a tu entrenador dónde te duele (opcional)"
+                      rows={2}
+                      className="w-full px-3 py-2 rounded-xl border border-kore-gray-light/50 bg-kore-cream/30 text-sm text-kore-gray-dark placeholder:text-kore-gray-dark/30 focus:outline-none focus:ring-2 focus:ring-kore-red/20 resize-none"
+                    />
+                  )}
+                  <div className="flex items-center justify-center gap-3">
+                    <button type="button" disabled={submitting} onClick={() => handleSubmit(true)}
+                      className="flex-1 py-3 bg-gradient-to-r from-kore-red to-kore-burgundy text-white font-heading font-semibold text-sm rounded-xl hover:shadow-lg transition-all duration-300 disabled:opacity-70">
+                      {submitting ? 'Guardando...' : '¡Listo para entrenar!'}
+                    </button>
+                    <button type="button" disabled={submitting} onClick={() => handleSubmit(false)}
+                      className="flex-1 py-3 rounded-xl text-sm font-semibold bg-kore-cream/60 text-kore-gray-dark/60 hover:bg-kore-cream transition-all disabled:opacity-70">
+                      Hoy no
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <button
                 onClick={handleDismiss}
-                className="w-full mt-3 text-xs text-kore-gray-dark/40 hover:text-kore-gray-dark/60 transition-colors text-center"
+                className="w-full mt-2 text-xs text-kore-gray-dark/40 hover:text-kore-gray-dark/60 transition-colors text-center"
               >
                 Ahora no
               </button>

@@ -34,3 +34,11 @@ class IsAdminOrReadOnly(BasePermission):
         if request.method in SAFE_METHODS:
             return True
         return is_admin_user(request.user)
+
+
+class HasNutritionAccess(BasePermission):
+    message = 'Tu plan no incluye nutrición.'
+
+    def has_permission(self, request, view):
+        from core_app.services.nutrition_access import has_nutrition_access
+        return has_nutrition_access(request.user)

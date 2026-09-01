@@ -108,7 +108,8 @@ test.describe('Customer Posturometry Page', { tag: [...FlowTags.CUSTOMER_POSTURO
     await expect(page.getByText(/Tu entrenador realizará tu primera evaluación de postura/)).toBeVisible();
   });
 
-  test('opens the photo compare lightbox, zooms with a tap and closes with Escape', async ({ page }) => {
+  test('opens the photo compare lightbox, zooms with a tap and closes with Escape', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     const previousEvaluation = {
       ...fakeEvaluation,
       id: 2,

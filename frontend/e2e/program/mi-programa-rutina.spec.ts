@@ -50,7 +50,9 @@ test.describe('Mi Programa — Rutina del Día', { tag: [...FlowTags.CUSTOMER_MI
     await expect(page.getByRole('heading', { name: 'Sentadilla' })).toBeVisible({ timeout: 15_000 });
   });
 
-  test('intro phase shows sets and reps metadata', async ({ page }) => {
+  test('intro phase shows sets and reps metadata', { tag: ['@outcome:display'] }, async ({ page }) => {
+    // quality: allow-no-interaction (la clase display de este flow ES el render de la vista del cliente; no hay acción previa que ejecutar)
+    // quality: allow-deep-link (el área autenticada exige sesión inyectada por cookie; no hay ruta de UI pública hasta esta vista)
     await injectAuthCookies(page);
     await setupDefaultApiMocks(page);
     await setupRutinaMocks(page);
@@ -116,5 +118,59 @@ test.describe('Mi Programa — Rutina del Día', { tag: [...FlowTags.CUSTOMER_MI
     await page.goto('/mi-programa/rutina');
 
     await expect(page.getByText('No hay ejercicios para hoy')).toBeVisible({ timeout: 15_000 });
+  });
+});
+
+test.describe('Rutina — validación por cámara', { tag: [...FlowTags.PROGRAM_WORKOUT_CAPTURES, RoleTags.USER] }, () => {
+  const CREDIT_VALUES = {
+    action_values: { checkin: 5, water_goal: 10, meal_photo: 5, workout_day: 15 },
+    streak_bonuses: { '3': 20, '7': 50 },
+    water_goal_glasses: 8, meal_review_days: 3, require_workout_captures: true,
+  };
+
+  async function setupCameraMocks(page: Page) {
+    await setupRutinaMocks(page);
+    await page.route('**/api/credits/values/**', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(CREDIT_VALUES) });
+    });
+  }
+
+  test('consent gate: grant closes the gate and shows the workout credit chip', async ({ page }) => {
+    await injectAuthCookies(page);
+    await setupDefaultApiMocks(page);
+    await setupCameraMocks(page);
+    await page.addInitScript(() => {
+      localStorage.removeItem('kore_workout_camera');
+      const fakeTrack = { stop: () => undefined, kind: 'video' };
+      // @ts-expect-error test stub
+      navigator.mediaDevices.getUserMedia = async () => ({
+        getTracks: () => [fakeTrack],
+        getVideoTracks: () => [fakeTrack],
+      });
+    });
+    await page.goto('/mi-programa/rutina');
+
+    await expect(page.getByText('Validación de tu rutina')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/se tomará un video/)).toBeVisible();
+    await page.getByRole('button', { name: 'Activar cámara' }).click();
+    await expect(page.getByText('Validación de tu rutina')).not.toBeVisible();
+    // Intro phase shows the dynamic workout credit chip
+    await expect(page.getByText('+15 al validar tu entrenador')).toBeVisible({ timeout: 10_000 });
+  });
+
+  test('consent gate: deny keeps the routine usable without validation', async ({ page }) => {
+    await injectAuthCookies(page);
+    await setupDefaultApiMocks(page);
+    await setupCameraMocks(page);
+    await page.addInitScript(() => localStorage.removeItem('kore_workout_camera'));
+    await page.goto('/mi-programa/rutina');
+
+    await expect(page.getByText('Validación de tu rutina')).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Entrenar sin validar' }).click();
+    await expect(page.getByText('Validación de tu rutina')).not.toBeVisible();
+    // Routine still works: intro renders the first exercise
+    await expect(page.getByRole('heading', { name: 'Sentadilla' })).toBeVisible({ timeout: 10_000 });
+    const stored = await page.evaluate(() => localStorage.getItem('kore_workout_camera'));
+    expect(stored).toBe('denied');
   });
 });
